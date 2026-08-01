@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import {
   databaseErrorMessage,
   getDb,
@@ -10,6 +10,7 @@ import {
   isSchoolId,
   isSurveyCategory,
   schoolLabel,
+  surveyPublicationState,
 } from "@/app/survey-board";
 
 export const runtime = "nodejs";
@@ -63,7 +64,56 @@ export async function GET(request: Request) {
   }
 
   try {
-    const requestedSchool = new URL(request.url).searchParams.get("school") ?? "yonsei";
+    const url = new URL(request.url);
+    if (url.searchParams.get("mine") === "true") {
+      const sessionUser = await getSessionUser(request);
+      if (!sessionUser) {
+        return Response.json(
+          { error: "내 설문을 보려면 로그인해주세요." },
+          { status: 401, headers: noStoreHeaders },
+        );
+      }
+
+      const db = await getDb();
+      const rows = await db
+        .select({
+          slug: surveys.slug,
+          title: surveys.title,
+          description: surveys.description,
+          ownerName: surveys.ownerName,
+          schoolId: surveys.schoolId,
+          category: surveys.category,
+          campus: surveys.campus,
+          questionsJson: surveys.questionsJson,
+          durationMinutes: surveys.durationMinutes,
+          listingRequested: surveys.listingRequested,
+          isListed: surveys.isListed,
+          manageToken: surveys.manageToken,
+          createdAt: surveys.createdAt,
+          responseCount: sql<number>`(
+            SELECT COUNT(*)::int
+            FROM responses
+            WHERE responses.survey_id = ${surveys.id}
+          )`.mapWith(Number),
+        })
+        .from(surveys)
+        .where(eq(surveys.ownerId, sessionUser.id))
+        .orderBy(desc(surveys.createdAt))
+        .limit(100);
+
+      return Response.json(
+        {
+          surveys: rows.map(({ questionsJson, ...survey }) => ({
+            ...survey,
+            questions: JSON.parse(questionsJson),
+          })),
+          storageConfigured: true,
+        },
+        { headers: noStoreHeaders },
+      );
+    }
+
+    const requestedSchool = url.searchParams.get("school") ?? "yonsei";
     const schoolId = isSchoolId(requestedSchool) ? requestedSchool : "yonsei";
     const db = await getDb();
     const rows = await db
@@ -203,8 +253,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const sessionUser = listingRequested ? await getSessionUser(request) : null;
-    if (listingRequested && !sessionUser) {
+    const sessionUser = await getSessionUser(request);
+    const publication = surveyPublicationState(
+      listingRequested,
+      Boolean(sessionUser),
+    );
+    if (publication.requiresLogin) {
       return Response.json(
         { error: "학교 게시판에 올리려면 먼저 로그인해주세요." },
         { status: 401 },
@@ -257,14 +311,15 @@ export async function POST(request: Request) {
       title,
       description,
       ownerName,
+      ownerId: sessionUser?.id ?? null,
       schoolId: sessionUser?.schoolId ?? "yonsei",
       category: isSurveyCategory(category) ? category : "campus",
       campus: schoolLabel(sessionUser?.schoolId ?? "yonsei"),
       questionsJson: JSON.stringify(normalizedQuestions),
       durationMinutes,
       isPublic: true,
-      listingRequested,
-      isListed: listingRequested,
+      listingRequested: publication.listingRequested,
+      isListed: publication.isListed,
       manageToken,
     });
 
@@ -279,8 +334,10 @@ export async function POST(request: Request) {
           category: isSurveyCategory(category) ? category : "campus",
           campus: schoolLabel(sessionUser?.schoolId ?? "yonsei"),
           durationMinutes,
-          listingRequested,
+          listingRequested: publication.listingRequested,
+          isListed: publication.isListed,
           manageToken,
+          createdAt: new Date().toISOString(),
         },
       },
       { status: 201, headers: noStoreHeaders },
