@@ -315,8 +315,6 @@ function HomeView({
   loadingSurveys: boolean;
   isAnalyzing: boolean;
 }) {
-  const makerRef = useRef<HTMLTextAreaElement | null>(null);
-
   return (
     <>
       <main className="home-main">
@@ -338,75 +336,45 @@ function HomeView({
 
         <section className="first-viewport-grid">
           <div className="maker-panel">
-            <div className="panel-label">
-              <span className="sparkle-box">
-                <Sparkles size={18} />
-              </span>
-              <div>
-                <small>AI QUESTION DESIGNER</small>
-                <strong>무엇을 알아보고 싶나요?</strong>
-              </div>
-            </div>
+            <span className="maker-ai-mark">
+              <Sparkles size={16} />
+              AI 문항 설계
+            </span>
+            <h2>어떤 설문을 만들까요?</h2>
             <p className="maker-helper">
-              조사 목적·응답 대상·알고 싶은 점을 적으면, 필요한 자료만
-              빠르게 확인해 질문 순서와 선택지까지 설계해요.
+              알아보고 싶은 내용을 편하게 적어주세요.
             </p>
             <div className="prompt-box">
               <textarea
                 id="survey-maker"
-                ref={makerRef}
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
                 placeholder="예) 연세대 재학생의 도서관 이용 만족도를 조사하고 싶어요"
                 rows={3}
                 maxLength={300}
                 onKeyDown={(event) => {
-                  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-                    onCreate();
+                  if (
+                    event.key === "Enter" &&
+                    !event.shiftKey &&
+                    !event.nativeEvent.isComposing
+                  ) {
+                    event.preventDefault();
+                    if (prompt.trim().length >= 2 && !isAnalyzing) onCreate();
                   }
                 }}
               />
               <div className="prompt-footer">
-                <span>목적 · 응답 대상 · 알고 싶은 점</span>
+                <span>{prompt.length}/300</span>
                 <button
                   type="button"
                   className="prompt-submit"
                   onClick={onCreate}
-                  disabled={isAnalyzing}
+                  disabled={isAnalyzing || prompt.trim().length < 2}
                   aria-label="AI 문항 설계 시작"
                 >
                   {isAnalyzing ? <Sparkles size={19} /> : <ArrowUp size={20} />}
                 </button>
               </div>
-            </div>
-            <div className="suggestion-row">
-              <span>빠른 시작</span>
-              {promptSuggestions.map((suggestion) => (
-                <button
-                  type="button"
-                  key={suggestion}
-                  onClick={() => {
-                    setPrompt(suggestion);
-                    makerRef.current?.focus();
-                  }}
-                >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
-            <div className="maker-trust">
-              <span>
-                <CheckCircle2 size={15} />
-                로그인 없이 초안 만들기
-              </span>
-              <span>
-                <WandSparkles size={15} />
-                AI 맞춤 문항 설계
-              </span>
-              <span>
-                <Search size={15} />
-                필요한 자료만 빠르게 확인
-              </span>
             </div>
           </div>
 
