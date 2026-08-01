@@ -225,3 +225,59 @@ test("API 키가 없을 때 목적 없는 고유명사는 확인 질문을 반�
     if (previousKey) process.env.OPENAI_API_KEY = previousKey;
   }
 });
+
+test("대우관 등하교 의견은 의견 자체가 아니라 이동 경험으로 해석한다", () => {
+  const draft = analyzeSurveyPrompt("대우관 등하교에 대한 의견 조사");
+
+  assert.equal(draft.title, "대우관 등하교 의견 조사");
+  assert.equal(draft.evaluationTarget, "대우관 등하교 경험");
+  assert.match(draft.templateQuestions[0].title, /대우관으로 등교하거나 대우관에서 하교한 빈도/);
+  assert.doesNotMatch(draft.templateQuestions[0].title, /의견.*(?:이용|사용)/);
+});
+
+test("대우관 등하교 설문은 실제 이동 불편과 개선 요소를 다룬다", () => {
+  const draft = analyzeSurveyPrompt("대우관 등하교에 대한 의견 조사");
+  const corpus = draft.aiQuestions
+    .flatMap((item) => [item.title, ...(item.options ?? [])])
+    .join(" ");
+
+  assert.match(corpus, /거리/);
+  assert.match(corpus, /소요시간/);
+  assert.match(corpus, /오르막|계단/);
+  assert.match(corpus, /날씨/);
+  assert.match(corpus, /혼잡/);
+  assert.match(corpus, /보행.*안전/);
+  assert.match(corpus, /셔틀|대중교통/);
+});
+
+test("AI가 의견을 이용 대상으로 만든 결과는 폐기한다", () => {
+  const badQuestions = Array.from({ length: 7 }, (_, index) =>
+    question(
+      index + 1,
+      index === 0
+        ? "이번 학기에 대우관 등하교에 대한 의견을 직접 이용한 적이 있나요?"
+        : `대우관 이동 관련 질문 ${index + 1}`,
+    ),
+  );
+  const badTemplate = badQuestions.slice(0, 5).map((item, index) => ({
+    ...item,
+    id: index + 1,
+  }));
+
+  assert.throws(
+    () =>
+      parseSurveyDraftResponse(
+        readyPayload({
+          prompt: "대우관 등하교에 대한 의견 조사",
+          evaluationTarget: "대우관 등하교에 대한 의견",
+          respondentGroup: "대우관 등하교 경험자",
+          entityType: "building",
+          templateQuestions: badTemplate,
+          aiQuestions: badQuestions,
+          sourceUrls: ["https://www.yonsei.ac.kr/source"],
+        }),
+        "대우관 등하교에 대한 의견 조사",
+      ),
+    /조사 방식 표현|이용 대상으로/,
+  );
+});
