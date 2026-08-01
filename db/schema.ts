@@ -15,6 +15,7 @@ export const surveys = pgTable(
     title: text("title").notNull(),
     description: text("description").notNull().default(""),
     ownerName: text("owner_name").notNull().default(""),
+    ownerId: text("owner_id"),
     schoolId: text("school_id").notNull().default("yonsei"),
     category: text("category").notNull().default("campus"),
     campus: text("campus")
@@ -34,6 +35,7 @@ export const surveys = pgTable(
       .defaultNow(),
   },
   (table) => [
+    index("surveys_owner_created_idx").on(table.ownerId, table.createdAt),
     index("surveys_public_listing_idx").on(
       table.isListed,
       table.isPublic,
