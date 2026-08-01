@@ -52,6 +52,7 @@ async function ensureSchema(database: Database) {
       title TEXT NOT NULL,
       description TEXT NOT NULL DEFAULT '',
       owner_name TEXT NOT NULL DEFAULT '',
+      owner_id TEXT,
       school_id TEXT NOT NULL DEFAULT 'yonsei',
       category TEXT NOT NULL DEFAULT 'campus',
       campus TEXT NOT NULL DEFAULT '연세대학교 신촌캠퍼스',
@@ -65,10 +66,17 @@ async function ensureSchema(database: Database) {
     )
   `);
   await database.execute(sql`
+    ALTER TABLE surveys ADD COLUMN IF NOT EXISTS owner_id TEXT
+  `);
+  await database.execute(sql`
     ALTER TABLE surveys ADD COLUMN IF NOT EXISTS school_id TEXT NOT NULL DEFAULT 'yonsei'
   `);
   await database.execute(sql`
     ALTER TABLE surveys ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'campus'
+  `);
+  await database.execute(sql`
+    CREATE INDEX IF NOT EXISTS surveys_owner_created_idx
+      ON surveys (owner_id, created_at DESC)
   `);
   await database.execute(sql`
     CREATE INDEX IF NOT EXISTS surveys_public_listing_idx
