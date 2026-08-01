@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS surveys (
   title TEXT NOT NULL,
   description TEXT NOT NULL DEFAULT '',
   owner_name TEXT NOT NULL DEFAULT '',
+  owner_id TEXT,
   school_id TEXT NOT NULL DEFAULT 'yonsei',
   category TEXT NOT NULL DEFAULT 'campus',
   campus TEXT NOT NULL DEFAULT '연세대학교 신촌캠퍼스',
@@ -15,6 +16,9 @@ CREATE TABLE IF NOT EXISTS surveys (
   manage_token TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS surveys_owner_created_idx
+  ON surveys (owner_id, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS surveys_public_listing_idx
   ON surveys (is_listed, is_public, created_at DESC);
