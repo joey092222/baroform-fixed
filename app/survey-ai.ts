@@ -264,6 +264,7 @@ export const surveyAiInstructions = `
 3. 'X에 대한 만족도'의 X는 평가 대상이다. 'X 이용자/참여자/회원의 만족도'에서 그 사람들은 응답 대상이고 X 이용·참여·활동 경험이 평가 대상이다.
 4. 사용자가 적은 핵심 대상과 목적을 제목과 문항에서 그대로 보존한다. 학교생활, 만족도 같은 기본값으로 임의 치환하지 않는다.
 5. 추천 템플릿과 AI 설문은 반드시 동일한 interpretation을 기준으로 한 번에 만든다.
+6. '의견', '생각', '인식', '평가', '조사'는 조사 방식이나 목적을 나타내는 말이지 이용 대상이 아니다. 이 단어에 '이용했다', '사용했다', '방문했다', '참여했다'를 붙이지 않는다.
 
 [웹 검색 규칙]
 1. 검색은 선택이 아니라 모든 입력의 필수 단계다. interpretation.searchRequired는 항상 true로 반환한다.
@@ -291,6 +292,7 @@ export const surveyAiInstructions = `
 
 [예시]
 - '대우관 만족도 조사': '대우관 연세대학교'를 검색해 교내 건물임을 확인. 응답 대상은 대우관 이용 경험자, 평가 대상은 건물 이용환경. 거리·접근성·강의실과 편의시설·내부 동선·실내환경·청결·안전·유지보수를 질문과 선택지에 반영한다. '내용과 품질', '담당자 응대' 같은 범용 선택지는 쓰지 않는다.
+- '대우관 등하교에 대한 의견 조사': 평가 대상은 '의견'이 아니라 '대우관을 오가는 등하교 경험'이다. 첫 문항은 대우관 등하교 빈도를 묻고, 이후 거리·소요시간, 오르막·계단, 날씨, 혼잡, 보행 안전, 셔틀·대중교통 연계와 개선점을 묻는다. '대우관 등하교에 대한 의견을 직접 이용했나요?' 같은 문장은 절대 만들지 않는다.
 - '맛나샘 만족도 조사': 맛나샘을 검색해 무엇인지 확인. 응답 대상은 이용 경험자, 평가 대상은 맛나샘 이용 경험, 목적은 만족도와 개선점.
 - '맛나샘 이용자들의 학교생활 만족도': 응답 대상은 맛나샘 이용자지만 평가 대상은 학교생활이다. 식당 만족도 설문으로 바꾸지 않는다.
 - '경영학과 신입생들의 만족도 조사': 응답 대상은 경영학과 신입생, 평가 대상은 입학 후 경영학과 생활과 적응 경험.
@@ -491,6 +493,28 @@ function questionCorpus(questions: SurveyQuestion[]) {
     .join(" ");
 }
 
+function assertNoSurveyMetaWordsAsExperience(
+  evaluationTarget: string,
+  questions: SurveyQuestion[],
+) {
+  if (
+    /(?:에\s*대한|에\s*관한|관련)\s*(?:의견|생각|인식|평가)(?:\s*조사)?\s*$/.test(
+      evaluationTarget,
+    )
+  ) {
+    throw new Error("AI가 조사 방식 표현을 실제 평가 대상으로 잘못 해석했습니다.");
+  }
+
+  const corpus = questionCorpus(questions);
+  if (
+    /(?:의견|생각|인식|평가|조사)(?:을|를)?\s*(?:직접\s*)?(?:이용|사용|방문|참여|경험)/.test(
+      corpus,
+    )
+  ) {
+    throw new Error("AI가 의견이나 조사를 이용 대상으로 잘못 표현했습니다.");
+  }
+}
+
 function assertQuestionQuality(questions: SurveyQuestion[], expected: number) {
   if (questions.length !== expected) {
     throw new Error("AI 설문 문항 수가 올바르지 않습니다.");
@@ -591,6 +615,16 @@ function enforceContextualCoverage(
         ? verified.entityType
         : reportedEntityType;
   const rules = contextualCoverageRules(kind, entityType);
+  if (
+    entityType === "building" &&
+    /등하교|통학|출퇴근/.test(prompt)
+  ) {
+    rules.push(
+      /등교|하교|등하교|통학|출퇴근|오가/,
+      /거리|소요\s*시간/,
+      /오르막|계단|날씨|혼잡|보행|안전|셔틀|대중교통/,
+    );
+  }
   if (rules.length === 0) {
     return { templateQuestions, aiQuestions, entityType, fallback };
   }
@@ -771,6 +805,10 @@ export function parseSurveyDraftResponse(
     : [];
   assertQuestionQuality(normalizedTemplateQuestions, 5);
   assertQuestionQuality(normalizedAiQuestions, 7);
+  assertNoSurveyMetaWordsAsExperience(evaluationTarget, [
+    ...normalizedTemplateQuestions,
+    ...normalizedAiQuestions,
+  ]);
 
   const normalizedRespondent = respondentGroup
     .replace(/\s+/g, "")
