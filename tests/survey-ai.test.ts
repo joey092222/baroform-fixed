@@ -113,7 +113,7 @@ function readyPayload({
   };
 }
 
-test("OpenAI 요청은 서버용 Responses API 웹 검색을 강제한다", () => {
+test("OpenAI 요청은 필요한 경우에만 빠른 웹 검색을 사용한다", () => {
   const prompt = "대우관 만족도 조사";
   const request = buildSurveyAiRequest(
     prompt,
@@ -122,7 +122,8 @@ test("OpenAI 요청은 서버용 Responses API 웹 검색을 강제한다", () =
   );
 
   assert.equal(request.model, "gpt-5.6");
-  assert.equal(request.tool_choice, "required");
+  assert.equal(request.tool_choice, "auto");
+  assert.equal(request.reasoning.effort, "low");
   assert.equal(request.store, false);
   assert.equal(request.tools[0]?.type, "web_search");
   assert.equal(request.tools[0]?.external_web_access, true);
