@@ -306,6 +306,35 @@ test("대우관 등하교 의견은 의견 자체가 아니라 이동 경험으�
   assert.doesNotMatch(draft.templateQuestions[0].title, /의견.*(?:이용|사용)/);
 });
 
+test("한경관 만족도는 건물 시설이 아니라 식당 경험으로 해석한다", () => {
+  const draft = analyzeSurveyPrompt("한경관 만족도 조사");
+  const corpus = draft.aiQuestions
+    .flatMap((item) => [item.title, ...(item.options ?? [])])
+    .join(" ");
+
+  assert.equal(draft.domain, "cafeteria");
+  assert.equal(draft.evaluationTarget, "한경관");
+  assert.match(draft.aiQuestions[0].title, /한경관 식당에서 식사한 적/);
+  assert.match(corpus, /맛|음식/);
+  assert.match(corpus, /메뉴/);
+  assert.match(corpus, /가격|양/);
+  assert.match(corpus, /대기|위생|좌석|혼잡/);
+  assert.doesNotMatch(corpus, /강의실|학습공간|엘리베이터/);
+});
+
+test("한경관 사전 검증 정보가 AI 요청에 식당 유형으로 전달된다", () => {
+  const prompt = "한경관 만족도 조사";
+  const request = buildSurveyAiRequest(
+    prompt,
+    analyzeSurveyPrompt(prompt),
+    "gpt-5.6",
+  );
+
+  assert.match(request.input, /연세대학교 한경관\(어울샘식당\)/);
+  assert.match(request.input, /"entityType":"cafeteria"/);
+  assert.match(request.input, /음식의 맛과 품질/);
+});
+
 test("대우관 등하교 설문은 실제 이동 불편과 개선 요소를 다룬다", () => {
   const draft = analyzeSurveyPrompt("대우관 등하교에 대한 의견 조사");
   const corpus = draft.aiQuestions
