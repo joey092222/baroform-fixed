@@ -271,7 +271,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const model = process.env.OPENAI_SURVEY_MODEL?.trim() || "gpt-5.6";
+  const model = process.env.OPENAI_SURVEY_MODEL?.trim() || "gpt-5.6-terra";
   const fallback = analyzeSurveyPrompt(prompt);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 32_000);
