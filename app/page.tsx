@@ -31,7 +31,7 @@ import {
   WandSparkles,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   analyzeSurveyPrompt,
   type SurveyBlueprint,
@@ -52,6 +52,7 @@ import {
 type View =
   | "home"
   | "board"
+  | "mypage"
   | "create"
   | "editor"
   | "published"
@@ -69,6 +70,13 @@ type PublicSurvey = {
   durationMinutes: number;
   createdAt?: string;
   questions?: Question[];
+};
+
+type OwnedSurvey = PublicSurvey & {
+  manageToken: string;
+  responseCount: number;
+  listingRequested: boolean;
+  isListed: boolean;
 };
 
 type StoredAnswer = {
@@ -171,13 +179,13 @@ function Header({
   onNavigate,
   user,
   onAuth,
-  onLogout,
+  onProfile,
 }: {
   view: View;
   onNavigate: (view: View) => void;
   user: AuthUser | null;
   onAuth: () => void;
-  onLogout: () => void;
+  onProfile: () => void;
 }) {
   const scrollToMaker = () => {
     onNavigate("create");
@@ -224,11 +232,12 @@ function Header({
             </span>
           )}
           <button
-            className="auth-button"
+            className={`auth-button ${view === "mypage" ? "active" : ""}`}
             type="button"
-            onClick={user ? onLogout : onAuth}
+            onClick={user ? onProfile : onAuth}
+            aria-current={view === "mypage" ? "page" : undefined}
           >
-            {user ? <LogOut size={15} /> : <LogIn size={15} />}
+            {user ? <UserRound size={15} /> : <LogIn size={15} />}
             {user ? user.name : "로그인"}
           </button>
           <button
@@ -622,6 +631,183 @@ function SchoolBoardView({
                   <ArrowRight size={16} />
                 </button>
               )}
+            </div>
+          )}
+        </section>
+      </main>
+      <Footer />
+    </>
+  );
+}
+
+function MyPageView({
+  user,
+  surveys,
+  loading,
+  error,
+  onCreate,
+  onOpenSurvey,
+  onOpenAnalytics,
+  onOpenBoard,
+  onLogout,
+}: {
+  user: AuthUser;
+  surveys: OwnedSurvey[];
+  loading: boolean;
+  error: string;
+  onCreate: () => void;
+  onOpenSurvey: (survey: OwnedSurvey) => void;
+  onOpenAnalytics: (survey: OwnedSurvey) => void;
+  onOpenBoard: () => void;
+  onLogout: () => void;
+}) {
+  const [copiedSlug, setCopiedSlug] = useState("");
+  const totalResponses = surveys.reduce(
+    (total, survey) => total + survey.responseCount,
+    0,
+  );
+  const listedCount = surveys.filter((survey) => survey.isListed).length;
+
+  const copySurveyLink = async (slug: string) => {
+    try {
+      await navigator.clipboard.writeText(
+        `${window.location.origin}/?survey=${slug}`,
+      );
+      setCopiedSlug(slug);
+      window.setTimeout(() => setCopiedSlug(""), 1600);
+    } catch {
+      setCopiedSlug("");
+    }
+  };
+
+  return (
+    <>
+      <main className="mypage-page">
+        <section className="mypage-hero">
+          <div>
+            <span className="eyebrow">MY BAROFORM</span>
+            <h1>{user.name}님의 설문</h1>
+            <p>{schoolLabel(user.schoolId)}에서 만든 설문을 한곳에서 관리해요.</p>
+          </div>
+          <div className="mypage-hero-actions">
+            <button type="button" className="mypage-logout" onClick={onLogout}>
+              <LogOut size={16} />
+              로그아웃
+            </button>
+            <button type="button" className="board-create-button" onClick={onCreate}>
+              <Plus size={18} />
+              새 설문 만들기
+            </button>
+          </div>
+        </section>
+
+        <section className="mypage-summary" aria-label="내 설문 요약">
+          <article>
+            <span>만든 설문</span>
+            <strong>{surveys.length}</strong>
+            <small>전체 설문</small>
+          </article>
+          <article>
+            <span>받은 응답</span>
+            <strong>{totalResponses}</strong>
+            <small>모든 설문 합계</small>
+          </article>
+          <article>
+            <span>학교 게시판</span>
+            <strong>{listedCount}</strong>
+            <small>현재 공개 중</small>
+          </article>
+        </section>
+
+        <section className="my-surveys-section">
+          <div className="my-surveys-heading">
+            <div>
+              <span className="eyebrow">내가 만든 설문</span>
+              <h2>설문 관리</h2>
+            </div>
+            <button type="button" onClick={onOpenBoard}>
+              학교 설문 게시판
+              <ChevronRight size={16} />
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="board-loading mypage-loading" aria-live="polite">
+              <span />
+              <span />
+              <span />
+              <p>내 설문을 불러오고 있어요.</p>
+            </div>
+          ) : error ? (
+            <div className="mypage-empty">
+              <CircleHelp size={27} />
+              <strong>내 설문을 불러오지 못했어요.</strong>
+              <p>{error}</p>
+            </div>
+          ) : surveys.length === 0 ? (
+            <div className="mypage-empty">
+              <WandSparkles size={28} />
+              <strong>아직 만든 설문이 없어요.</strong>
+              <p>AI에게 조사 목적을 알려주면 첫 설문을 바로 만들 수 있어요.</p>
+              <button type="button" onClick={onCreate}>
+                첫 설문 만들기
+                <ArrowRight size={16} />
+              </button>
+            </div>
+          ) : (
+            <div className="my-survey-list">
+              {surveys.map((survey) => (
+                <article className="my-survey-card" key={survey.slug}>
+                  <div className="my-survey-main">
+                    <div className="my-survey-badges">
+                      <span className={survey.isListed ? "listed" : "link-only"}>
+                        {survey.isListed ? "학교 게시판 공개" : "링크 공개"}
+                      </span>
+                      <span>{categoryLabel(survey.category)}</span>
+                    </div>
+                    <h3>{survey.title}</h3>
+                    <p>{survey.description || "설문 안내문이 없어요."}</p>
+                    <div className="my-survey-meta">
+                      <span>
+                        <UsersRound size={15} />
+                        응답 {survey.responseCount}개
+                      </span>
+                      <span>
+                        <Clock3 size={15} />
+                        약 {survey.durationMinutes}분
+                      </span>
+                      {survey.createdAt && (
+                        <span>
+                          <CalendarDays size={15} />
+                          {new Date(survey.createdAt).toLocaleDateString("ko-KR")}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="my-survey-actions">
+                    <button
+                      type="button"
+                      className="copy"
+                      onClick={() => void copySurveyLink(survey.slug)}
+                    >
+                      {copiedSlug === survey.slug ? <Check size={16} /> : <Copy size={16} />}
+                      {copiedSlug === survey.slug ? "복사됨" : "링크 복사"}
+                    </button>
+                    <button type="button" onClick={() => onOpenSurvey(survey)}>
+                      <Eye size={16} />
+                      설문 보기
+                    </button>
+                    <button
+                      type="button"
+                      className="primary"
+                      onClick={() => onOpenAnalytics(survey)}
+                    >
+                      <BarChart3 size={16} />
+                      결과 보기
+                    </button>
+                  </div>
+                </article>
+              ))}
             </div>
           )}
         </section>
@@ -1934,6 +2120,7 @@ function PublishedView({
   onSurvey,
   onAnalytics,
   onHome,
+  onBoard,
 }: {
   title: string;
   slug: string;
@@ -1941,6 +2128,7 @@ function PublishedView({
   onSurvey: () => void;
   onAnalytics: () => void;
   onHome: () => void;
+  onBoard: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const shareUrl =
@@ -1993,7 +2181,7 @@ function PublishedView({
           <div>
             <span>학교 설문 목록</span>
             <strong>
-              {listingRequested ? "확인 요청됨" : "표시하지 않음"}
+              {listingRequested ? "게시 완료" : "표시하지 않음"}
             </strong>
           </div>
           <div>
@@ -2002,9 +2190,13 @@ function PublishedView({
           </div>
         </div>
         <div className="published-actions">
-          <button type="button" className="secondary" onClick={onSurvey}>
-            설문 화면 보기
-            <Eye size={16} />
+          <button
+            type="button"
+            className="secondary"
+            onClick={listingRequested ? onBoard : onSurvey}
+          >
+            {listingRequested ? "게시판에서 확인" : "설문 화면 보기"}
+            {listingRequested ? <School size={16} /> : <Eye size={16} />}
           </button>
           <button type="button" className="primary" onClick={onAnalytics}>
             응답 받기 시작
@@ -3145,6 +3337,9 @@ export default function Home() {
   const [questions, setQuestions] = useState<Question[]>(initialQuestions);
   const [publicSurveys, setPublicSurveys] = useState<PublicSurvey[]>([]);
   const [loadingSurveys, setLoadingSurveys] = useState(true);
+  const [mySurveys, setMySurveys] = useState<OwnedSurvey[]>([]);
+  const [loadingMySurveys, setLoadingMySurveys] = useState(false);
+  const [mySurveysError, setMySurveysError] = useState("");
   const [activeSurvey, setActiveSurvey] = useState<PublicSurvey | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [clarification, setClarification] =
@@ -3177,6 +3372,58 @@ export default function Home() {
     setView("survey");
     window.scrollTo({ top: 0 });
   };
+
+  const refreshPublicSurveys = useCallback(async () => {
+    setLoadingSurveys(true);
+    try {
+      const response = await fetch("/api/surveys?school=yonsei", {
+        cache: "no-store",
+      });
+      const result = (await response.json()) as {
+        surveys?: PublicSurvey[];
+        error?: string;
+      };
+      if (!response.ok) throw new Error(result.error);
+      setPublicSurveys(result.surveys ?? []);
+    } catch {
+      setPublicSurveys([]);
+    } finally {
+      setLoadingSurveys(false);
+    }
+  }, []);
+
+  const refreshMySurveys = useCallback(async (token: string) => {
+    if (!token) {
+      setMySurveys([]);
+      setLoadingMySurveys(false);
+      return;
+    }
+    setLoadingMySurveys(true);
+    setMySurveysError("");
+    try {
+      const response = await fetch("/api/surveys?mine=true", {
+        cache: "no-store",
+        headers: { authorization: `Bearer ${token}` },
+      });
+      const result = (await response.json()) as {
+        surveys?: OwnedSurvey[];
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(result.error || "내 설문을 불러오지 못했어요.");
+      }
+      setMySurveys(result.surveys ?? []);
+    } catch (loadError) {
+      setMySurveys([]);
+      setMySurveysError(
+        loadError instanceof Error
+          ? loadError.message
+          : "내 설문을 불러오지 못했어요.",
+      );
+    } finally {
+      setLoadingMySurveys(false);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -3228,24 +3475,9 @@ export default function Home() {
       window.localStorage.removeItem(managedSurveyStorageKey);
     }
 
-    fetch("/api/surveys?school=yonsei", { cache: "no-store" })
-      .then(async (response) => {
-        const result = (await response.json()) as {
-          surveys?: PublicSurvey[];
-          error?: string;
-        };
-        if (!response.ok) throw new Error(result.error);
-        return result.surveys ?? [];
-      })
-      .then((surveys) => {
-        if (!cancelled) setPublicSurveys(surveys);
-      })
-      .catch(() => {
-        if (!cancelled) setPublicSurveys([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingSurveys(false);
-      });
+    window.queueMicrotask(() => {
+      if (!cancelled) void refreshPublicSurveys();
+    });
 
     const directSlug = new URLSearchParams(window.location.search).get("survey");
     if (directSlug) {
@@ -3281,10 +3513,50 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshPublicSurveys]);
+
+  useEffect(() => {
+    if (!authToken) return;
+
+    const connectLatestSurvey = async () => {
+      try {
+        const stored = window.localStorage.getItem(managedSurveyStorageKey);
+        if (stored) {
+          const snapshot = JSON.parse(stored) as Partial<ManagedSurveySnapshot>;
+          if (
+            typeof snapshot.slug === "string" &&
+            /^[a-f0-9]{12}$/.test(snapshot.slug) &&
+            typeof snapshot.manageToken === "string" &&
+            /^[a-f0-9]{32}$/.test(snapshot.manageToken)
+          ) {
+            await fetch("/api/surveys/claim", {
+              method: "POST",
+              headers: {
+                "content-type": "application/json",
+                authorization: `Bearer ${authToken}`,
+              },
+              body: JSON.stringify({
+                slug: snapshot.slug,
+                manageToken: snapshot.manageToken,
+              }),
+            });
+          }
+        }
+      } catch {
+        // A locally managed survey may already belong to another account.
+      }
+      await refreshMySurveys(authToken);
+    };
+
+    void connectLatestSurvey();
+  }, [authToken, refreshMySurveys]);
 
   const navigate = (nextView: View) => {
     setView(nextView);
+    if (nextView === "board") void refreshPublicSurveys();
+    if (nextView === "mypage" && authToken) {
+      void refreshMySurveys(authToken);
+    }
     if (nextView !== "survey" && window.location.search) {
       window.history.replaceState({}, "", window.location.pathname);
     }
@@ -3462,11 +3734,19 @@ export default function Home() {
           campus: string;
           durationMinutes: number;
           listingRequested: boolean;
+          isListed: boolean;
           manageToken: string;
+          createdAt: string;
         };
         error?: string;
       };
       if (!response.ok || !result.survey) {
+        if (response.status === 401) {
+          setUser(null);
+          setAuthToken("");
+          window.localStorage.removeItem(authTokenStorageKey);
+          setAuthOpen(true);
+        }
         throw new Error(result.error || "공개 링크를 만들지 못했어요.");
       }
       const savedSurvey: PublicSurvey = {
@@ -3478,6 +3758,7 @@ export default function Home() {
         category: result.survey.category,
         campus: result.survey.campus,
         durationMinutes: result.survey.durationMinutes,
+        createdAt: result.survey.createdAt,
         questions,
       };
       setActiveSurvey(savedSurvey);
@@ -3493,6 +3774,14 @@ export default function Home() {
           questions,
         } satisfies ManagedSurveySnapshot),
       );
+      if (result.survey.isListed) {
+        setPublicSurveys((current) => [
+          savedSurvey,
+          ...current.filter((survey) => survey.slug !== savedSurvey.slug),
+        ]);
+        void refreshPublicSurveys();
+      }
+      if (authToken) void refreshMySurveys(authToken);
       setPublishOpen(false);
       navigate("published");
     } catch (saveError) {
@@ -3506,10 +3795,23 @@ export default function Home() {
     }
   };
 
+  const openOwnedAnalytics = (survey: OwnedSurvey) => {
+    setPublishedSlug(survey.slug);
+    setManageToken(survey.manageToken);
+    setSurveyTitle(survey.title);
+    setDescription(survey.description);
+    setQuestions(survey.questions ?? []);
+    setActiveSurvey(survey);
+    navigate("analytics");
+  };
+
   const logout = () => {
     const token = authToken;
     setUser(null);
     setAuthToken("");
+    setMySurveys([]);
+    setMySurveysError("");
+    setLoadingMySurveys(false);
     window.localStorage.removeItem(authTokenStorageKey);
     if (token) {
       void fetch("/api/auth/session", {
@@ -3517,19 +3819,20 @@ export default function Home() {
         headers: { authorization: `Bearer ${token}` },
       });
     }
+    if (view === "mypage") navigate("home");
     setToast("로그아웃했어요.");
     window.setTimeout(() => setToast(""), 1800);
   };
 
   return (
     <div className="app-shell">
-      {(view === "home" || view === "board") && (
+      {(view === "home" || view === "board" || view === "mypage") && (
         <Header
           view={view}
           onNavigate={navigate}
           user={user}
           onAuth={() => setAuthOpen(true)}
-          onLogout={logout}
+          onProfile={() => navigate("mypage")}
         />
       )}
       {view === "home" && (
@@ -3550,6 +3853,19 @@ export default function Home() {
           loadingSurveys={loadingSurveys}
           onOpenSurvey={openSurvey}
           onCreate={() => navigate("create")}
+        />
+      )}
+      {view === "mypage" && user && (
+        <MyPageView
+          user={user}
+          surveys={mySurveys}
+          loading={loadingMySurveys}
+          error={mySurveysError}
+          onCreate={() => navigate("create")}
+          onOpenSurvey={openSurvey}
+          onOpenAnalytics={openOwnedAnalytics}
+          onOpenBoard={() => navigate("board")}
+          onLogout={logout}
         />
       )}
       {view === "create" && (
@@ -3587,6 +3903,7 @@ export default function Home() {
           onSurvey={() => navigate("survey")}
           onAnalytics={() => navigate("analytics")}
           onHome={() => navigate("home")}
+          onBoard={() => navigate("board")}
         />
       )}
       {view === "survey" && activeSurvey && (
@@ -3620,6 +3937,7 @@ export default function Home() {
             setAuthToken(token);
             setUser(signedInUser);
             setAuthOpen(false);
+            if (!publishOpen) navigate("mypage");
             setToast(`${schoolLabel(signedInUser.schoolId)} 계정으로 로그인했어요.`);
             window.setTimeout(() => setToast(""), 2200);
           }}
