@@ -998,17 +998,20 @@ function satisfactionProfile(semantics: SurveySemantics): SatisfactionProfile {
   }
 
   if (domain === "cafeteria") {
+    const cafeteriaLabel = /식당|학식|구내식당/.test(evaluationTarget)
+      ? evaluationTarget
+      : `${evaluationTarget} 식당`;
     return {
-      screenerTitle: `최근 ${labelWithParticle(experienceBase || evaluationTarget, "을", "를")} 직접 이용한 적이 있나요?`,
+      screenerTitle: `최근 ${cafeteriaLabel}에서 식사한 적이 있나요?`,
       screenerOptions: [
         "주 3회 이상 이용",
         "주 1~2회 이용",
         "월 1~3회 이용",
         "최근 이용한 적 없음",
       ],
-      overallTitle: `${evaluationTarget}에 전반적으로 얼마나 만족하시나요?`,
-      strengthsTitle: `${evaluationTarget}에서 만족한 부분을 모두 골라주세요.`,
-      improvementTitle: `${evaluationTarget}에서 개선이 필요한 부분을 모두 골라주세요.`,
+      overallTitle: `${cafeteriaLabel}에서의 식사 경험에 전반적으로 얼마나 만족하시나요?`,
+      strengthsTitle: `${cafeteriaLabel}에서 만족한 부분을 모두 골라주세요.`,
+      improvementTitle: `${cafeteriaLabel}에서 개선이 필요한 부분을 모두 골라주세요.`,
       areaOptions: [
         "음식의 맛",
         "가격",
@@ -1022,7 +1025,7 @@ function satisfactionProfile(semantics: SurveySemantics): SatisfactionProfile {
         "가격과 양에 얼마나 만족하시나요?",
         "메뉴 다양성과 대기 시간에 얼마나 만족하시나요?",
       ],
-      closingTitle: `${evaluationTarget}에서 가장 먼저 달라졌으면 하는 점을 적어주세요.`,
+      closingTitle: `${cafeteriaLabel}에서 가장 먼저 달라졌으면 하는 점을 적어주세요.`,
     };
   }
 
