@@ -4,7 +4,13 @@ import {
   getDb,
   isDatabaseConfigured,
 } from "@/db";
+import { getSessionUser } from "@/db/auth";
 import { surveys } from "@/db/schema";
+import {
+  isSchoolId,
+  isSurveyCategory,
+  schoolLabel,
+} from "@/app/survey-board";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,7 +39,7 @@ function sameOrigin(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   if (!isDatabaseConfigured()) {
     return Response.json(
       { surveys: [], storageConfigured: false },
@@ -42,6 +48,8 @@ export async function GET() {
   }
 
   try {
+    const requestedSchool = new URL(request.url).searchParams.get("school") ?? "yonsei";
+    const schoolId = isSchoolId(requestedSchool) ? requestedSchool : "yonsei";
     const db = await getDb();
     const rows = await db
       .select({
@@ -49,12 +57,20 @@ export async function GET() {
         title: surveys.title,
         description: surveys.description,
         ownerName: surveys.ownerName,
+        schoolId: surveys.schoolId,
+        category: surveys.category,
         campus: surveys.campus,
         durationMinutes: surveys.durationMinutes,
         createdAt: surveys.createdAt,
       })
       .from(surveys)
-      .where(and(eq(surveys.isListed, true), eq(surveys.isPublic, true)))
+      .where(
+        and(
+          eq(surveys.isListed, true),
+          eq(surveys.isPublic, true),
+          eq(surveys.schoolId, schoolId),
+        ),
+      )
       .orderBy(desc(surveys.createdAt))
       .limit(30);
 
@@ -93,15 +109,17 @@ export async function POST(request: Request) {
       ownerName?: string;
       questions?: IncomingQuestion[];
       listingRequested?: boolean;
+      category?: string;
     };
 
     const title = payload.title?.trim() ?? "";
     const description = payload.description?.trim() ?? "";
-    const ownerName = payload.ownerName?.trim() ?? "";
+    let ownerName = payload.ownerName?.trim() ?? "";
     const questions = Array.isArray(payload.questions)
       ? payload.questions
       : [];
     const listingRequested = payload.listingRequested === true;
+    const category = payload.category ?? "campus";
 
     if (title.length < 2 || title.length > 100) {
       return Response.json(
@@ -151,12 +169,21 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    if (listingRequested && ownerName.length < 2) {
+    if (listingRequested && !isSurveyCategory(category)) {
       return Response.json(
-        { error: "학교 설문 목록에 공개하려면 게시자 이름을 입력해주세요." },
+        { error: "학교 게시판에 올릴 카테고리를 선택해주세요." },
         { status: 400 },
       );
     }
+
+    const sessionUser = listingRequested ? await getSessionUser(request) : null;
+    if (listingRequested && !sessionUser) {
+      return Response.json(
+        { error: "학교 게시판에 올리려면 먼저 로그인해주세요." },
+        { status: 401 },
+      );
+    }
+    if (sessionUser && ownerName.length < 2) ownerName = sessionUser.name;
 
     const id = crypto.randomUUID();
     const slug = crypto.randomUUID().replaceAll("-", "").slice(0, 12);
@@ -185,12 +212,14 @@ export async function POST(request: Request) {
       title,
       description,
       ownerName,
-      campus: "연세대학교 신촌캠퍼스",
+      schoolId: sessionUser?.schoolId ?? "yonsei",
+      category: isSurveyCategory(category) ? category : "campus",
+      campus: schoolLabel(sessionUser?.schoolId ?? "yonsei"),
       questionsJson: JSON.stringify(normalizedQuestions),
       durationMinutes,
       isPublic: true,
       listingRequested,
-      isListed: false,
+      isListed: listingRequested,
       manageToken,
     });
 
@@ -201,6 +230,9 @@ export async function POST(request: Request) {
           title,
           description,
           ownerName,
+          schoolId: sessionUser?.schoolId ?? "yonsei",
+          category: isSurveyCategory(category) ? category : "campus",
+          campus: schoolLabel(sessionUser?.schoolId ?? "yonsei"),
           durationMinutes,
           listingRequested,
           manageToken,
