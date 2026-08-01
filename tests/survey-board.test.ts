@@ -5,6 +5,7 @@ import {
   isSchoolId,
   isSurveyCategory,
   schoolLabel,
+  surveyPublicationState,
   surveyCategories,
 } from "../app/survey-board";
 
@@ -12,6 +13,24 @@ test("연세대학교 가입자와 학교 게시판 분류를 식별한다", () 
   assert.equal(isSchoolId("yonsei"), true);
   assert.equal(isSchoolId("unknown"), false);
   assert.equal(schoolLabel("yonsei"), "연세대학교 신촌캠퍼스");
+});
+
+test("학교 게시 요청은 로그인된 작성자일 때만 게시 상태가 된다", () => {
+  assert.deepEqual(surveyPublicationState(true, true), {
+    requiresLogin: false,
+    listingRequested: true,
+    isListed: true,
+  });
+  assert.deepEqual(surveyPublicationState(true, false), {
+    requiresLogin: true,
+    listingRequested: true,
+    isListed: false,
+  });
+  assert.deepEqual(surveyPublicationState(false, false), {
+    requiresLogin: false,
+    listingRequested: false,
+    isListed: false,
+  });
 });
 
 test("겹치지 않는 여섯 개 업로드 카테고리를 제공한다", () => {
