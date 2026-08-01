@@ -29,6 +29,8 @@ export async function GET(
         title: surveys.title,
         description: surveys.description,
         ownerName: surveys.ownerName,
+        schoolId: surveys.schoolId,
+        category: surveys.category,
         campus: surveys.campus,
         questionsJson: surveys.questionsJson,
         durationMinutes: surveys.durationMinutes,
