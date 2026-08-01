@@ -4,6 +4,8 @@ CREATE TABLE IF NOT EXISTS surveys (
   title TEXT NOT NULL,
   description TEXT NOT NULL DEFAULT '',
   owner_name TEXT NOT NULL DEFAULT '',
+  school_id TEXT NOT NULL DEFAULT 'yonsei',
+  category TEXT NOT NULL DEFAULT 'campus',
   campus TEXT NOT NULL DEFAULT '연세대학교 신촌캠퍼스',
   questions_json TEXT NOT NULL,
   duration_minutes INTEGER NOT NULL DEFAULT 2,
@@ -38,3 +40,23 @@ CREATE TABLE IF NOT EXISTS ai_rate_limits (
 
 CREATE INDEX IF NOT EXISTS ai_rate_limits_expiry_idx
   ON ai_rate_limits (expires_at);
+
+CREATE TABLE IF NOT EXISTS members (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  school_id TEXT NOT NULL DEFAULT 'yonsei',
+  password_hash TEXT NOT NULL,
+  password_salt TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  token_hash TEXT PRIMARY KEY,
+  member_id TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS auth_sessions_member_idx
+  ON auth_sessions (member_id);
