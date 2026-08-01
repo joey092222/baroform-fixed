@@ -45,6 +45,29 @@ function apiError(message: string, code: string, status: number) {
   );
 }
 
+function fallbackResponse(result: SurveyDraftResult, reason: string) {
+  return Response.json(result, {
+    headers: {
+      ...noStoreHeaders,
+      "x-baroform-ai-mode": "verified-fallback",
+      "x-baroform-ai-fallback": reason,
+    },
+  });
+}
+
+function invalidResultReason(error: unknown) {
+  if (!(error instanceof Error)) return "invalid-result";
+  if (/필수 정보조사|정보조사가 끝까지/.test(error.message)) {
+    return "research-incomplete";
+  }
+  if (/출처|URL/.test(error.message)) return "source-validation";
+  if (/조사 방식 표현|이용 대상으로|문맥|평가 대상/.test(error.message)) {
+    return "semantic-validation";
+  }
+  if (/형식|JSON|비어|상태/.test(error.message)) return "response-format";
+  return "invalid-result";
+}
+
 function verifiedResearchFallback(prompt: string): SurveyDraftResult | null {
   const knowledge = lookupVerifiedSurveyKnowledge(prompt);
   if (!knowledge) return null;
@@ -222,7 +245,7 @@ export async function POST(request: Request) {
     const verifiedFallback = verifiedResearchFallback(prompt);
     if (verifiedFallback) {
       cacheResult(cacheKey, now, verifiedFallback);
-      return Response.json(verifiedFallback, { headers: noStoreHeaders });
+      return fallbackResponse(verifiedFallback, "api-key-missing");
     }
     return apiError(
       "정보조사 연결이 아직 설정되지 않았어요. 운영자가 AI 검색 키를 등록한 뒤 다시 시도해주세요.",
@@ -251,7 +274,10 @@ export async function POST(request: Request) {
       const verifiedFallback = verifiedResearchFallback(prompt);
       if (verifiedFallback) {
         cacheResult(cacheKey, now, verifiedFallback);
-        return Response.json(verifiedFallback, { headers: noStoreHeaders });
+        return fallbackResponse(
+          verifiedFallback,
+          `upstream-${upstream.status}`,
+        );
       }
       if (upstream.status === 401 || upstream.status === 403) {
         return apiError(
@@ -282,7 +308,7 @@ export async function POST(request: Request) {
     const verifiedFallback = verifiedResearchFallback(prompt);
     if (verifiedFallback) {
       cacheResult(cacheKey, now, verifiedFallback);
-      return Response.json(verifiedFallback, { headers: noStoreHeaders });
+      return fallbackResponse(verifiedFallback, invalidResultReason(error));
     }
     if (error instanceof Error && error.name === "AbortError") {
       return apiError(
