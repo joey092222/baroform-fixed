@@ -35,3 +35,14 @@ export function schoolLabel(id: string) {
 export function categoryLabel(id: string) {
   return surveyCategories.find((item) => item.id === id)?.label ?? "기타";
 }
+
+export function surveyPublicationState(
+  listingRequested: boolean,
+  hasAuthenticatedOwner: boolean,
+) {
+  return {
+    requiresLogin: listingRequested && !hasAuthenticatedOwner,
+    listingRequested,
+    isListed: listingRequested && hasAuthenticatedOwner,
+  };
+}
