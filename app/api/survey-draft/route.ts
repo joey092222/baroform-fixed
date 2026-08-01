@@ -122,6 +122,23 @@ function verifiedResearchFallback(prompt: string): SurveyDraftResult | null {
   };
 }
 
+function fastDraftFallback(prompt: string): SurveyDraftResult {
+  const blueprint = analyzeSurveyPrompt(prompt);
+  return {
+    status: "ready",
+    prompt,
+    blueprint,
+    research: {
+      status: "fallback",
+      entity: null,
+      summary:
+        "자료 확인이 지연되어 입력 문맥을 기준으로 먼저 문항을 설계했어요. 편집 화면에서 바로 다듬을 수 있어요.",
+      facts: [],
+      sources: [],
+    },
+  };
+}
+
 function cacheResult(key: string, now: number, result: SurveyDraftResult) {
   responseCache.set(key, {
     expiresAt: now + cacheLifetimeMs,
@@ -257,7 +274,7 @@ export async function POST(request: Request) {
   const model = process.env.OPENAI_SURVEY_MODEL?.trim() || "gpt-5.6";
   const fallback = analyzeSurveyPrompt(prompt);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45_000);
+  const timeout = setTimeout(() => controller.abort(), 32_000);
 
   try {
     const upstream = await fetch("https://api.openai.com/v1/responses", {
@@ -311,11 +328,11 @@ export async function POST(request: Request) {
       return fallbackResponse(verifiedFallback, invalidResultReason(error));
     }
     if (error instanceof Error && error.name === "AbortError") {
-      return apiError(
-        "자료 확인에 시간이 오래 걸렸어요. 다시 한 번 시도해주세요.",
-        "AI_TIMEOUT",
-        504,
-      );
+      const quickFallback = fastDraftFallback(prompt);
+      cacheResult(cacheKey, now, quickFallback);
+      return Response.json(quickFallback, {
+        headers: { ...noStoreHeaders, "x-baroform-ai-status": "timeout-fallback" },
+      });
     }
     return apiError(
       "AI가 설문을 구성하지 못했어요. 입력을 조금 더 구체적으로 적어주세요.",

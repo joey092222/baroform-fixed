@@ -15,6 +15,8 @@ export const surveys = pgTable(
     title: text("title").notNull(),
     description: text("description").notNull().default(""),
     ownerName: text("owner_name").notNull().default(""),
+    schoolId: text("school_id").notNull().default("yonsei"),
+    category: text("category").notNull().default("campus"),
     campus: text("campus")
       .notNull()
       .default("연세대학교 신촌캠퍼스"),
@@ -38,6 +40,42 @@ export const surveys = pgTable(
       table.createdAt,
     ),
   ],
+);
+
+export const members = pgTable("members", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  name: text("name").notNull(),
+  schoolId: text("school_id").notNull().default("yonsei"),
+  passwordHash: text("password_hash").notNull(),
+  passwordSalt: text("password_salt").notNull(),
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+    mode: "string",
+  })
+    .notNull()
+    .defaultNow(),
+});
+
+export const authSessions = pgTable(
+  "auth_sessions",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    memberId: text("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("auth_sessions_member_idx").on(table.memberId)],
 );
 
 export const responses = pgTable(

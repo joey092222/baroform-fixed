@@ -52,6 +52,8 @@ async function ensureSchema(database: Database) {
       title TEXT NOT NULL,
       description TEXT NOT NULL DEFAULT '',
       owner_name TEXT NOT NULL DEFAULT '',
+      school_id TEXT NOT NULL DEFAULT 'yonsei',
+      category TEXT NOT NULL DEFAULT 'campus',
       campus TEXT NOT NULL DEFAULT '연세대학교 신촌캠퍼스',
       questions_json TEXT NOT NULL,
       duration_minutes INTEGER NOT NULL DEFAULT 2,
@@ -61,6 +63,12 @@ async function ensureSchema(database: Database) {
       manage_token TEXT NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
+  `);
+  await database.execute(sql`
+    ALTER TABLE surveys ADD COLUMN IF NOT EXISTS school_id TEXT NOT NULL DEFAULT 'yonsei'
+  `);
+  await database.execute(sql`
+    ALTER TABLE surveys ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'campus'
   `);
   await database.execute(sql`
     CREATE INDEX IF NOT EXISTS surveys_public_listing_idx
@@ -91,6 +99,29 @@ async function ensureSchema(database: Database) {
   await database.execute(sql`
     CREATE INDEX IF NOT EXISTS ai_rate_limits_expiry_idx
       ON ai_rate_limits (expires_at)
+  `);
+  await database.execute(sql`
+    CREATE TABLE IF NOT EXISTS members (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      school_id TEXT NOT NULL DEFAULT 'yonsei',
+      password_hash TEXT NOT NULL,
+      password_salt TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await database.execute(sql`
+    CREATE TABLE IF NOT EXISTS auth_sessions (
+      token_hash TEXT PRIMARY KEY,
+      member_id TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+      expires_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await database.execute(sql`
+    CREATE INDEX IF NOT EXISTS auth_sessions_member_idx
+      ON auth_sessions (member_id)
   `);
 }
 
