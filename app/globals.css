@@ -167,6 +167,22 @@ select:focus-visible {
   color: var(--navy-900);
 }
 
+.main-nav button.active {
+  position: relative;
+  color: var(--navy-950);
+}
+
+.main-nav button.active::after {
+  position: absolute;
+  content: "";
+  right: 0;
+  bottom: -13px;
+  left: 0;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--blue-600);
+}
+
 .header-actions {
   margin-left: auto;
   display: flex;
@@ -602,6 +618,37 @@ select:focus-visible {
   font-weight: 750;
 }
 
+.board-entry-empty {
+  width: 100%;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.board-entry-empty:hover {
+  z-index: 1;
+  border-color: #a9c4ed;
+  box-shadow: 0 14px 30px rgba(24, 68, 126, 0.09);
+  transform: translateY(-2px);
+}
+
+.board-entry-action {
+  min-height: 38px;
+  margin-top: 18px;
+  padding: 0 15px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 10px;
+  background: var(--navy-950);
+  color: white;
+  font-size: 10px;
+  font-weight: 750;
+}
+
 .survey-loading-state {
   gap: 7px;
 }
@@ -962,6 +1009,211 @@ select:focus-visible {
   border: 1px dashed #d5dde8;
   border-radius: 18px;
   background: #fafbfd;
+}
+
+.school-board-page {
+  width: min(1180px, calc(100% - 48px));
+  margin: 0 auto;
+}
+
+.board-hero {
+  padding: 66px 4px 38px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 36px;
+  border-bottom: 1px solid #e7ebf1;
+}
+
+.board-campus-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #617089;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.board-campus-badge > span {
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d8e5f6;
+  border-radius: 50%;
+  background: var(--blue-50);
+  color: var(--blue-600);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.board-hero h1 {
+  margin: 20px 0 0;
+  color: var(--navy-950);
+  font-size: clamp(38px, 5vw, 56px);
+  line-height: 1.08;
+  letter-spacing: -0.06em;
+}
+
+.board-hero p {
+  max-width: 610px;
+  margin: 18px 0 0;
+  color: #748096;
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.board-create-button {
+  height: 48px;
+  padding: 0 19px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  border-radius: 13px;
+  background: var(--navy-950);
+  color: white;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: 0 10px 24px rgba(8, 26, 54, 0.15);
+}
+
+.board-create-button:hover {
+  background: var(--navy-800);
+  transform: translateY(-1px);
+}
+
+.board-page-section {
+  min-height: 610px;
+  padding: 34px 0 100px;
+}
+
+.board-toolbar,
+.board-category-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.board-search {
+  width: min(420px, 48vw);
+  height: 44px;
+  padding: 0 13px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid #dce3ec;
+  border-radius: 12px;
+  background: white;
+  color: #8490a1;
+  box-shadow: 0 4px 14px rgba(17, 39, 71, 0.04);
+}
+
+.board-search:focus-within {
+  border-color: #9dbce8;
+  box-shadow: 0 0 0 3px rgba(52, 120, 221, 0.08);
+}
+
+.board-search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.board-search input::placeholder {
+  color: #a0a9b7;
+}
+
+.board-search button {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 7px;
+  background: #f2f5f8;
+  color: #7b8798;
+}
+
+.board-category-row {
+  margin-top: 22px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e8edf3;
+}
+
+.board-result-count {
+  flex: 0 0 auto;
+  color: #8b96a7;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.board-survey-grid {
+  margin-top: 24px;
+}
+
+.board-loading {
+  min-height: 310px;
+  margin-top: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px dashed #d5dde8;
+  border-radius: 18px;
+  background: #fafbfd;
+}
+
+.board-loading > span {
+  width: min(320px, 55%);
+  height: 11px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #edf1f6, #dce6f3, #edf1f6);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+
+.board-loading > span:nth-child(2) {
+  width: min(250px, 45%);
+}
+
+.board-loading > span:nth-child(3) {
+  width: min(180px, 35%);
+}
+
+.board-loading p {
+  margin: 13px 0 0;
+  color: #8b96a7;
+  font-size: 12px;
+}
+
+.board-empty-state {
+  min-height: 330px;
+  margin-top: 24px;
+  gap: 9px;
+  background:
+    radial-gradient(circle at 50% 25%, rgba(69, 130, 220, 0.07), transparent 34%),
+    #fafbfd;
+}
+
+.board-empty-state button {
+  min-height: 42px;
+  margin-top: 13px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 11px;
+  background: var(--navy-950);
+  color: white;
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .campus-cta {
@@ -3972,7 +4224,8 @@ select:focus-visible {
 
 @media (max-width: 820px) {
   .header-inner,
-  .home-main {
+  .home-main,
+  .school-board-page {
     width: min(100% - 32px, 680px);
   }
 
@@ -4071,6 +4324,36 @@ select:focus-visible {
 
   .all-surveys-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .board-hero {
+    padding: 48px 0 30px;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .board-create-button {
+    align-self: stretch;
+    justify-content: center;
+  }
+
+  .board-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .board-search {
+    width: 100%;
+  }
+
+  .board-category-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .board-result-count {
+    align-self: flex-end;
   }
 
   .campus-cta {
@@ -4231,6 +4514,38 @@ select:focus-visible {
   .real-empty-state button {
     height: 44px;
     font-size: 12px;
+  }
+
+  .board-entry-action {
+    min-height: 44px;
+    font-size: 11px;
+  }
+
+  .school-board-page {
+    width: calc(100% - 28px);
+  }
+
+  .board-hero h1 {
+    font-size: 36px;
+  }
+
+  .board-hero p {
+    font-size: 13px;
+  }
+
+  .board-page-section {
+    padding-top: 24px;
+  }
+
+  .board-toolbar .school-board-select {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .board-empty-state {
+    min-height: 290px;
+    padding: 24px;
+    text-align: center;
   }
 
   .preview-survey-grid {
