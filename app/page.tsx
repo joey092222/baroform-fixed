@@ -51,6 +51,7 @@ import {
 
 type View =
   | "home"
+  | "board"
   | "create"
   | "editor"
   | "published"
@@ -178,23 +179,6 @@ function Header({
   onAuth: () => void;
   onLogout: () => void;
 }) {
-  const scrollToSurveys = () => {
-    if (view !== "home") {
-      onNavigate("home");
-      window.setTimeout(
-        () =>
-          document
-            .getElementById("school-surveys")
-            ?.scrollIntoView({ behavior: "smooth" }),
-        80,
-      );
-      return;
-    }
-    document
-      .getElementById("school-surveys")
-      ?.scrollIntoView({ behavior: "smooth" });
-  };
-
   const scrollToMaker = () => {
     onNavigate("create");
   };
@@ -212,7 +196,12 @@ function Header({
           <strong>바로폼</strong>
         </button>
         <nav className="main-nav" aria-label="주요 메뉴">
-          <button type="button" onClick={scrollToSurveys}>
+          <button
+            type="button"
+            className={view === "board" ? "active" : ""}
+            aria-current={view === "board" ? "page" : undefined}
+            onClick={() => onNavigate("board")}
+          >
             학교 설문
           </button>
           <button type="button" onClick={scrollToMaker}>
@@ -298,6 +287,7 @@ function HomeView({
   prompt,
   setPrompt,
   onCreate,
+  onOpenBoard,
   onOpenSurvey,
   surveys,
   loadingSurveys,
@@ -306,36 +296,13 @@ function HomeView({
   prompt: string;
   setPrompt: (value: string) => void;
   onCreate: () => void;
+  onOpenBoard: () => void;
   onOpenSurvey: (survey: PublicSurvey) => void;
   surveys: PublicSurvey[];
   loadingSurveys: boolean;
   isAnalyzing: boolean;
 }) {
-  const [filter, setFilter] = useState<"all" | SurveyCategory>("all");
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [search, setSearch] = useState("");
   const makerRef = useRef<HTMLTextAreaElement | null>(null);
-
-  const visibleSurveys = useMemo(() => {
-    let filtered = [...surveys];
-    filtered.sort((a, b) =>
-      (b.createdAt ?? "").localeCompare(a.createdAt ?? ""),
-    );
-    if (filter !== "all") {
-      filtered = filtered.filter((survey) => survey.category === filter);
-    }
-    if (search.trim()) {
-      const keyword = search.trim().toLowerCase();
-      filtered = filtered.filter(
-        (survey) =>
-          survey.title.toLowerCase().includes(keyword) ||
-          survey.ownerName.toLowerCase().includes(keyword) ||
-          survey.description.toLowerCase().includes(keyword) ||
-          categoryLabel(survey.category).includes(keyword),
-      );
-    }
-    return filtered;
-  }, [filter, search, surveys]);
 
   return (
     <>
@@ -443,14 +410,9 @@ function HomeView({
               <button
                 type="button"
                 className="text-link"
-                hidden={!loadingSurveys && surveys.length === 0}
-                onClick={() =>
-                  document
-                    .getElementById("school-surveys")
-                    ?.scrollIntoView({ behavior: "smooth" })
-                }
+                onClick={onOpenBoard}
               >
-                전체 보기
+                게시판 보기
                 <ChevronRight size={16} />
               </button>
             </div>
@@ -472,103 +434,29 @@ function HomeView({
                   />
                 ))
               ) : (
-                <div className="real-empty-state">
+                <button
+                  type="button"
+                  className="real-empty-state board-entry-empty"
+                  onClick={onOpenBoard}
+                  aria-label="연세대학교 설문 게시판으로 이동"
+                >
                   <span className="empty-state-icon">
                     <School size={25} />
                   </span>
                   <strong>아직 공개된 학교 설문이 없어요.</strong>
                   <p>
-                    실제로 배포되고 확인을 마친 설문만 이곳에 표시돼요.
-                    첫 설문을 만들어 의견을 모아보세요.
+                    게시판에서 카테고리별 설문을 확인하거나 첫 설문을
+                    올려보세요.
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => makerRef.current?.focus()}
-                  >
-                    첫 교내 설문 만들기
+                  <span className="board-entry-action">
+                    학교 설문 게시판으로 이동
                     <ArrowRight size={15} />
-                  </button>
-                </div>
+                  </span>
+                </button>
               )}
             </div>
           </div>
         </section>
-
-        {(loadingSurveys || surveys.length > 0) && (
-        <section className="school-surveys-section" id="school-surveys">
-          <div className="section-title-row">
-            <div>
-              <span className="eyebrow">YONSEI CAMPUS VOICE</span>
-              <h2>연세대학교 설문 게시판</h2>
-              <p>수업·학회·동아리 설문을 목적별로 골라 참여해보세요.</p>
-            </div>
-            <div className="survey-tools">
-              <div className={`survey-search ${searchOpen ? "open" : ""}`}>
-                <button
-                  type="button"
-                  aria-label="설문 검색"
-                  onClick={() => setSearchOpen((value) => !value)}
-                >
-                  <Search size={17} />
-                </button>
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="설문 검색"
-                  aria-label="설문 검색어"
-                />
-              </div>
-              <div className="school-board-select" aria-label="현재 학교">
-                <School size={16} />
-                <span>연세대학교</span>
-                <small>신촌캠퍼스</small>
-              </div>
-              <div className="filter-tabs category-tabs" role="tablist" aria-label="설문 카테고리">
-                {[
-                  { id: "all" as const, label: "전체" },
-                  ...surveyCategories,
-                ].map((item) => (
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={filter === item.id}
-                    className={filter === item.id ? "active" : ""}
-                    key={item.id}
-                    onClick={() => setFilter(item.id)}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-          {visibleSurveys.length > 0 ? (
-            <div className="all-surveys-grid">
-              {visibleSurveys.map((survey) => (
-                <CampusSurveyCard
-                  key={survey.slug}
-                  survey={survey}
-                  onClick={() => onOpenSurvey(survey)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="empty-search public-empty">
-              {search ? <Search size={24} /> : <School size={24} />}
-              <strong>
-                {search
-                  ? "일치하는 설문이 없어요."
-                  : "현재 공개된 학교 설문이 없어요."}
-              </strong>
-              <span>
-                {search
-                  ? "다른 검색어를 입력해보세요."
-                  : "실제로 공개된 설문이 생기면 여기에 바로 표시돼요."}
-              </span>
-            </div>
-          )}
-        </section>
-        )}
 
         <section className="campus-cta">
           <div>
@@ -586,6 +474,156 @@ function HomeView({
             내 설문 만들기
             <ArrowUp size={18} />
           </button>
+        </section>
+      </main>
+      <Footer />
+    </>
+  );
+}
+
+function SchoolBoardView({
+  surveys,
+  loadingSurveys,
+  onOpenSurvey,
+  onCreate,
+}: {
+  surveys: PublicSurvey[];
+  loadingSurveys: boolean;
+  onOpenSurvey: (survey: PublicSurvey) => void;
+  onCreate: () => void;
+}) {
+  const [filter, setFilter] = useState<"all" | SurveyCategory>("all");
+  const [search, setSearch] = useState("");
+
+  const visibleSurveys = useMemo(() => {
+    let filtered = [...surveys].sort((a, b) =>
+      (b.createdAt ?? "").localeCompare(a.createdAt ?? ""),
+    );
+    if (filter !== "all") {
+      filtered = filtered.filter((survey) => survey.category === filter);
+    }
+    if (search.trim()) {
+      const keyword = search.trim().toLocaleLowerCase("ko-KR");
+      filtered = filtered.filter(
+        (survey) =>
+          survey.title.toLocaleLowerCase("ko-KR").includes(keyword) ||
+          survey.ownerName.toLocaleLowerCase("ko-KR").includes(keyword) ||
+          survey.description.toLocaleLowerCase("ko-KR").includes(keyword) ||
+          categoryLabel(survey.category).includes(keyword),
+      );
+    }
+    return filtered;
+  }, [filter, search, surveys]);
+
+  return (
+    <>
+      <main className="school-board-page">
+        <section className="board-hero">
+          <div>
+            <span className="board-campus-badge">
+              <span>Y</span>
+              연세대학교 신촌캠퍼스
+            </span>
+            <h1>학교 설문 게시판</h1>
+            <p>
+              수업 과제부터 동아리·학회 연구까지, 연세대 구성원이 올린
+              설문을 한곳에서 찾아 참여해보세요.
+            </p>
+          </div>
+          <button type="button" className="board-create-button" onClick={onCreate}>
+            <Plus size={18} />
+            내 설문 올리기
+          </button>
+        </section>
+
+        <section className="school-surveys-section board-page-section" id="school-surveys">
+          <div className="board-toolbar">
+            <div className="school-board-select" aria-label="현재 학교">
+              <School size={17} />
+              <span>연세대학교</span>
+              <small>신촌캠퍼스</small>
+            </div>
+            <div className="board-search">
+              <Search size={18} />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="제목, 게시자, 카테고리 검색"
+                aria-label="학교 설문 검색"
+              />
+              {search && (
+                <button
+                  type="button"
+                  aria-label="검색어 지우기"
+                  onClick={() => setSearch("")}
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="board-category-row">
+            <div className="filter-tabs category-tabs" role="tablist" aria-label="설문 카테고리">
+              {[
+                { id: "all" as const, label: "전체" },
+                ...surveyCategories,
+              ].map((item) => (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={filter === item.id}
+                  className={filter === item.id ? "active" : ""}
+                  key={item.id}
+                  onClick={() => setFilter(item.id)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <span className="board-result-count">
+              {loadingSurveys ? "불러오는 중" : `${visibleSurveys.length}개의 설문`}
+            </span>
+          </div>
+
+          {loadingSurveys ? (
+            <div className="board-loading" aria-live="polite">
+              <span />
+              <span />
+              <span />
+              <p>학교 설문을 불러오고 있어요.</p>
+            </div>
+          ) : visibleSurveys.length > 0 ? (
+            <div className="all-surveys-grid board-survey-grid">
+              {visibleSurveys.map((survey) => (
+                <CampusSurveyCard
+                  key={survey.slug}
+                  survey={survey}
+                  onClick={() => onOpenSurvey(survey)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="empty-search public-empty board-empty-state">
+              {search ? <Search size={27} /> : <School size={27} />}
+              <strong>
+                {search
+                  ? "일치하는 설문이 없어요."
+                  : "아직 공개된 학교 설문이 없어요."}
+              </strong>
+              <span>
+                {search
+                  ? "검색어나 카테고리를 바꿔보세요."
+                  : "첫 설문을 올리면 연세대 게시판에서 바로 응답을 모집할 수 있어요."}
+              </span>
+              {!search && (
+                <button type="button" onClick={onCreate}>
+                  첫 학교 설문 만들기
+                  <ArrowRight size={16} />
+                </button>
+              )}
+            </div>
+          )}
         </section>
       </main>
       <Footer />
@@ -3485,25 +3523,34 @@ export default function Home() {
 
   return (
     <div className="app-shell">
+      {(view === "home" || view === "board") && (
+        <Header
+          view={view}
+          onNavigate={navigate}
+          user={user}
+          onAuth={() => setAuthOpen(true)}
+          onLogout={logout}
+        />
+      )}
       {view === "home" && (
-        <>
-          <Header
-            view={view}
-            onNavigate={navigate}
-            user={user}
-            onAuth={() => setAuthOpen(true)}
-            onLogout={logout}
-          />
-          <HomeView
-            prompt={prompt}
-            setPrompt={updatePrompt}
-            onCreate={() => navigate("create")}
-            onOpenSurvey={openSurvey}
-            surveys={publicSurveys}
-            loadingSurveys={loadingSurveys}
-            isAnalyzing={isAnalyzing}
-          />
-        </>
+        <HomeView
+          prompt={prompt}
+          setPrompt={updatePrompt}
+          onCreate={() => navigate("create")}
+          onOpenBoard={() => navigate("board")}
+          onOpenSurvey={openSurvey}
+          surveys={publicSurveys}
+          loadingSurveys={loadingSurveys}
+          isAnalyzing={isAnalyzing}
+        />
+      )}
+      {view === "board" && (
+        <SchoolBoardView
+          surveys={publicSurveys}
+          loadingSurveys={loadingSurveys}
+          onOpenSurvey={openSurvey}
+          onCreate={() => navigate("create")}
+        />
       )}
       {view === "create" && (
         <CreateView
