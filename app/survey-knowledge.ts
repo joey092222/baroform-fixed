@@ -30,6 +30,45 @@ export type VerifiedSurveyKnowledge = {
 // prompt. Do not put volatile facts such as opening hours or prices here.
 const verifiedKnowledge: VerifiedSurveyKnowledge[] = [
   {
+    canonicalName: "연세대학교 한경관(어울샘식당)",
+    aliases: [
+      "연세대학교 한경관식당",
+      "연세대 한경관식당",
+      "한경관식당",
+      "연세대학교 한경관",
+      "연세대 한경관",
+      "한경관",
+      "어울샘식당",
+      "어울샘",
+    ],
+    entityType: "cafeteria",
+    summary:
+      "연세대학교 공식 안내에서 한경관은 현재 식당으로 사용되고, 한경관에 있는 어울샘식당은 학생도 이용할 수 있는 교내 식당으로 확인돼요. 만족도 설문은 건물이나 강의실이 아니라 식사 경험을 중심으로 구성해야 해요.",
+    stableFacts: [
+      "한경관은 현재 식당으로 사용되는 연세대학교 신촌캠퍼스 건물이에요.",
+      "한경관의 어울샘식당은 학생도 이용할 수 있는 교내 식당이에요.",
+      "한식과 뷔페식 식사를 제공하는 식당으로 안내돼요.",
+    ],
+    surveyDimensions: [
+      "음식의 맛과 품질",
+      "메뉴 다양성·가격 대비 가치·양",
+      "주문·배식과 대기시간",
+      "좌석·혼잡도와 청결·위생",
+      "이용 편의와 재이용 의향",
+    ],
+    sources: [
+      {
+        title: "연세대학교 편의시설 · 어울샘식당",
+        url: "https://www.yonsei.ac.kr/sc/366/subview.do",
+      },
+      {
+        title: "연세대학교 건물의 역사 · 한경관",
+        url: "https://www.yonsei.ac.kr/sc/349/subview.do",
+      },
+    ],
+    verifiedAt: "2026-08-01",
+  },
+  {
     canonicalName: "연세대학교 대우관",
     aliases: ["연세대학교 대우관", "연세대 대우관", "대우관"],
     entityType: "building",
