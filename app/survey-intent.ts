@@ -44,6 +44,7 @@ export type SurveySemantics = {
   kind: SurveyIntentKind;
   domain: SurveyDomain;
   goalLabel: string;
+  requestedAsOpinion: boolean;
   topicWasInferred: boolean;
   assumptions: string[];
 };
@@ -327,10 +328,34 @@ function stripGoal(content: string, kind: SurveyIntentKind) {
     });
   }
   return topic
+    .replace(
+      /\s*(?:에\s*대한|에\s*관한|관련)?\s*(?:의견|생각)(?:\s*(?:수렴|파악))?(?:\s*(?:설문\s*)?조사)?$/g,
+      "",
+    )
     .replace(/\s*(?:에\s*대한|에\s*관한|관련)$/g, "")
     .replace(/\s*(?:에|에서)$/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+type MovementExperience = {
+  place: string;
+  activity: "등하교" | "통학" | "출퇴근" | "이동";
+};
+
+function movementExperience(value: string): MovementExperience | null {
+  const normalized = value
+    .replace(/\s*(?:이용환경|이용\s*경험)$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const match = normalized.match(
+    /^(.+?)(?:으로|로)?\s*(등하교|통학|출퇴근|이동)(?:\s*(?:경험|환경|과정))?$/,
+  );
+  if (!match) return null;
+  return {
+    place: match[1].trim(),
+    activity: match[2] as MovementExperience["activity"],
+  };
 }
 
 function baseFromRespondent(respondent: string | null) {
@@ -433,6 +458,11 @@ function inferEvaluationTarget(
   domain: SurveyDomain,
   kind: SurveyIntentKind,
 ) {
+  const movement = movementExperience(explicitTopic);
+  if (movement && (domain === "building" || domain === "facility")) {
+    return `${movement.place} ${movement.activity} 경험`;
+  }
+
   const base = baseFromRespondent(respondentGroup);
   const genericTopic =
     /^(활동|생활|경험|시설|메뉴|수업|강의|공연|프로그램|소음|좌석|팀플|팀\s*프로젝트)$/.test(
@@ -517,6 +547,9 @@ const goalLabels: Record<SurveyIntentKind, string> = {
 
 export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
   const prompt = stripRequestWrapper(rawPrompt);
+  const requestedAsOpinion = /(?:의견|생각)(?:\s*(?:수렴|파악))?(?:\s*(?:설문\s*)?조사)?\s*$/.test(
+    prompt,
+  );
   const detectedKind = detectIntent(prompt);
   const { respondentGroup, content, topicPrefix } = splitRespondent(prompt);
   const contentTopic = stripGoal(content, detectedKind);
@@ -542,6 +575,7 @@ export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
     (domain === "building" || domain === "facility")
       ? "satisfaction"
       : detectedKind;
+  const movement = movementExperience(evaluationTarget);
   const topicWasInferred = explicitTopic.length < 2;
   const assumptions: string[] = topicWasInferred
     ? [`‘${evaluationTarget}’에 대한 조사로 문맥을 해석했어요.`]
@@ -558,7 +592,8 @@ export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
     explicitTopic: explicitTopic.length >= 2 ? explicitTopic : null,
     kind,
     domain,
-    goalLabel: goalLabels[kind],
+    goalLabel: movement ? "이동 경험과 개선점" : goalLabels[kind],
+    requestedAsOpinion,
     topicWasInferred,
     assumptions,
   };
@@ -968,6 +1003,46 @@ function satisfactionProfile(semantics: SurveySemantics): SatisfactionProfile {
   }
 
   if (domain === "building") {
+    const movement = movementExperience(evaluationTarget);
+    if (movement) {
+      const { place, activity } = movement;
+      const movementLabel = `${place} ${activity}`;
+      const destination = labelWithParticle(place, "으로", "로");
+      const placeObject = labelWithParticle(place, "을", "를");
+      const screenerTitle =
+        activity === "등하교"
+          ? `이번 학기에 ${destination} 등교하거나 ${place}에서 하교한 빈도는 어느 정도인가요?`
+          : `이번 학기에 ${labelWithParticle(movementLabel, "을", "를")} 한 빈도는 어느 정도인가요?`;
+      return {
+        screenerTitle,
+        screenerOptions: [
+          "주 4회 이상",
+          "주 2~3회",
+          "주 1회 이하",
+          `이번 학기에 ${movementLabel} 경험 없음`,
+        ],
+        overallTitle: `${placeObject} 오가는 ${activity} 과정에 전반적으로 얼마나 만족하시나요?`,
+        strengthsTitle: `${movementLabel}에서 비교적 편리하다고 느낀 부분을 모두 골라주세요.`,
+        improvementTitle: `${movementLabel}에서 개선이 필요하다고 느낀 부분을 모두 골라주세요.`,
+        areaOptions: [
+          `정문·신촌역·기숙사 등 주요 출발지에서 ${place}까지의 이동 거리`,
+          "실제 이동 소요시간",
+          "오르막과 계단 부담",
+          "비·눈·더위 등 날씨 대응",
+          "등하교 시간대 혼잡도",
+          "보행로 상태와 이동 안전",
+          "셔틀·대중교통과의 연계",
+          "길 찾기와 안내표지",
+        ],
+        detailTitles: [
+          `주요 출발지에서 ${place}까지의 거리와 소요시간에 얼마나 만족하시나요?`,
+          "오르막·계단 부담과 날씨에 따른 이동 불편은 어느 정도인가요?",
+          "혼잡도·보행 안전·셔틀 및 대중교통 연계에 얼마나 만족하시나요?",
+        ],
+        closingTitle: `${movementLabel} 중 겪은 구체적인 불편이나 가장 먼저 바라는 개선점을 적어주세요.`,
+      };
+    }
+
     const buildingLabel =
       evaluationTarget.replace(/\s*(?:이용환경|이용\s*경험)$/g, "").trim() ||
       experienceBase ||
@@ -1145,8 +1220,12 @@ function satisfactionBlueprint(
     semantics.domain === "department" &&
     Boolean(department) &&
     /신입생|새내기/.test(respondentGroup ?? "");
+  const movement = movementExperience(evaluationTarget);
 
   let titleFocus = evaluationTarget;
+  if (movement) {
+    titleFocus = `${movement.place} ${movement.activity}`;
+  }
   if (respondentGroup) {
     const titleRespondent = respondentGroup.replace(
       /^(.+?)에\s*가입한\s+학생$/,
@@ -1240,17 +1319,23 @@ function satisfactionBlueprint(
     ),
   ];
 
-  const description = respondentGroup
-    ? `${labelWithParticle(respondentGroup, "을", "를")} 대상으로 ${evaluationTarget}의 만족 요인과 개선 필요 영역을 파악하는 익명 설문입니다.`
-    : `${evaluationTarget}의 전반적인 만족도와 세부 경험, 개선 필요 영역을 파악하는 익명 설문입니다.`;
+  const description = movement
+    ? `${labelWithParticle(movement.place, "을", "를")} 오가는 ${movement.activity} 빈도와 거리·소요시간, 오르막·계단, 날씨, 혼잡·안전, 교통 연계 및 개선 의견을 파악하는 익명 설문입니다.`
+    : respondentGroup
+      ? `${labelWithParticle(respondentGroup, "을", "를")} 대상으로 ${evaluationTarget}의 만족 요인과 개선 필요 영역을 파악하는 익명 설문입니다.`
+      : `${evaluationTarget}의 전반적인 만족도와 세부 경험, 개선 필요 영역을 파악하는 익명 설문입니다.`;
+  const titleSuffix =
+    movement && semantics.requestedAsOpinion ? "의견 조사" : "만족도 조사";
 
   return {
     kind: "satisfaction",
-    intentLabel: "만족도·개선",
+    intentLabel: movement ? "이동 경험·개선" : "만족도·개선",
     subject: titleFocus,
-    title: `${titleFocus} 만족도 조사`,
+    title: `${titleFocus} ${titleSuffix}`,
     description,
-    templateTitle: `${titleFocus} 만족도`,
+    templateTitle: movement
+      ? `${titleFocus} 핵심 의견`
+      : `${titleFocus} 만족도`,
     templateSummary:
       "응답 대상 확인부터 전체 만족도, 세부 경험과 개선 우선순위까지 문맥에 맞게 확인해요.",
     detectedSignals: [],
@@ -1258,7 +1343,7 @@ function satisfactionBlueprint(
     aiQuestions,
     respondentGroup,
     evaluationTarget,
-    goal: "만족도와 개선점",
+    goal: semantics.goalLabel,
     assumptions,
     aiTitle: `${titleFocus} 맞춤 설문`,
   };
