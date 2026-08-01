@@ -1,6 +1,15 @@
 import { lookupVerifiedSurveyKnowledge } from "./survey-knowledge";
 
-export type SurveyQuestionType = "scale" | "single" | "multiple" | "text";
+export type SurveyQuestionType =
+  | "scale"
+  | "single"
+  | "multiple"
+  | "dropdown"
+  | "shortText"
+  | "text"
+  | "date"
+  | "time"
+  | "section";
 
 export type SurveyQuestion = {
   id: number;
@@ -9,7 +18,51 @@ export type SurveyQuestion = {
   type: SurveyQuestionType;
   options?: string[];
   required: boolean;
+  description?: string;
+  shuffleOptions?: boolean;
+  scaleMin?: number;
+  scaleMax?: number;
+  scaleMinLabel?: string;
+  scaleMaxLabel?: string;
 };
+
+export function resizeSurveyQuestions(
+  questions: SurveyQuestion[],
+  requestedCount: number,
+) {
+  const count = Math.min(30, Math.max(3, Math.round(requestedCount)));
+  if (questions.length >= count) {
+    return questions.slice(0, count).map((question, index) => ({
+      ...question,
+      id: index + 1,
+    }));
+  }
+
+  const result = questions.map((question) => ({ ...question }));
+  const lastText = [...result].reverse().find((question) => question.type === "text");
+  if (lastText && result.length < count) {
+    result.splice(result.indexOf(lastText), 1);
+  }
+  while (result.length < count - (lastText ? 1 : 0)) {
+    const number = result.length + 1;
+    result.push({
+      id: number,
+      title: `이 주제와 관련해 중요하게 생각하는 요소 ${number - 1}은 어느 정도인가요?`,
+      reason: "조사 주제의 세부 경험을 빠짐없이 확인하기 위한 질문이에요.",
+      type: "scale",
+      required: true,
+      scaleMin: 1,
+      scaleMax: 5,
+      scaleMinLabel: "전혀 그렇지 않음",
+      scaleMaxLabel: "매우 그러함",
+    });
+  }
+  if (lastText && result.length < count) result.push(lastText);
+  return result.slice(0, count).map((question, index) => ({
+    ...question,
+    id: index + 1,
+  }));
+}
 
 export type SurveyIntentKind =
   | "membership"

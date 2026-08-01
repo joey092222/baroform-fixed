@@ -24,9 +24,24 @@ type IncomingQuestion = {
   id?: number;
   title?: string;
   reason?: string;
-  type?: "scale" | "single" | "multiple" | "text";
+  type?:
+    | "scale"
+    | "single"
+    | "multiple"
+    | "dropdown"
+    | "shortText"
+    | "text"
+    | "date"
+    | "time"
+    | "section";
   options?: string[];
   required?: boolean;
+  description?: string;
+  shuffleOptions?: boolean;
+  scaleMin?: number;
+  scaleMax?: number;
+  scaleMinLabel?: string;
+  scaleMaxLabel?: string;
 };
 
 function sameOrigin(request: Request) {
@@ -145,7 +160,17 @@ export async function POST(request: Request) {
           !question.title?.trim() ||
           question.title.trim().length > 200 ||
           (question.reason?.trim().length ?? 0) > 500 ||
-          !["scale", "single", "multiple", "text"].includes(
+          ![
+            "scale",
+            "single",
+            "multiple",
+            "dropdown",
+            "shortText",
+            "text",
+            "date",
+            "time",
+            "section",
+          ].includes(
             question.type ?? "",
           ),
       )
@@ -158,7 +183,9 @@ export async function POST(request: Request) {
     if (
       questions.some(
         (question) =>
-          (question.type === "single" || question.type === "multiple") &&
+          (question.type === "single" ||
+            question.type === "multiple" ||
+            question.type === "dropdown") &&
           (question.options ?? [])
             .map((option) => option.trim())
             .filter(Boolean).length < 2,
@@ -188,21 +215,39 @@ export async function POST(request: Request) {
     const id = crypto.randomUUID();
     const slug = crypto.randomUUID().replaceAll("-", "").slice(0, 12);
     const manageToken = crypto.randomUUID().replaceAll("-", "");
-    const durationMinutes = Math.max(1, Math.ceil(questions.length / 2));
+    const estimatedSeconds = questions.reduce((total, question) => {
+      if (question.type === "section") return total;
+      if (question.type === "text") return total + 55;
+      if (question.type === "shortText") return total + 28;
+      if (question.type === "multiple") return total + 30;
+      return total + 20;
+    }, 20);
+    const durationMinutes = Math.max(1, Math.ceil(estimatedSeconds / 60));
 
     const normalizedQuestions = questions.map((question, index) => ({
       id: index + 1,
       title: question.title?.trim().slice(0, 200),
       reason: question.reason?.trim().slice(0, 500) ?? "",
       type: question.type,
+      description: question.description?.trim().slice(0, 300) ?? "",
       options:
-        question.type === "single" || question.type === "multiple"
+        question.type === "single" ||
+        question.type === "multiple" ||
+        question.type === "dropdown"
           ? (question.options ?? [])
               .map((option) => option.trim())
               .filter(Boolean)
               .slice(0, 12)
           : undefined,
       required: question.required === true,
+      shuffleOptions: question.shuffleOptions === true,
+      scaleMin: question.type === "scale" && question.scaleMin === 0 ? 0 : 1,
+      scaleMax:
+        question.type === "scale"
+          ? Math.min(10, Math.max(2, Math.round(question.scaleMax ?? 5)))
+          : undefined,
+      scaleMinLabel: question.scaleMinLabel?.trim().slice(0, 40) ?? "",
+      scaleMaxLabel: question.scaleMaxLabel?.trim().slice(0, 40) ?? "",
     }));
 
     const db = await getDb();

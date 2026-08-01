@@ -5,9 +5,12 @@ import {
   ArrowRight,
   ArrowUp,
   BarChart3,
+  CalendarDays,
   Check,
   CheckCircle2,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   CircleHelp,
   Clock3,
   Copy,
@@ -15,12 +18,14 @@ import {
   GripVertical,
   LogIn,
   LogOut,
+  Minus,
   MoreHorizontal,
   Plus,
   School,
   Search,
   Share2,
   Sparkles,
+  Trash2,
   UserRound,
   UsersRound,
   WandSparkles,
@@ -46,6 +51,7 @@ import {
 
 type View =
   | "home"
+  | "create"
   | "editor"
   | "published"
   | "survey"
@@ -103,6 +109,44 @@ type ManagedSurveySnapshot = {
 const managedSurveyStorageKey = "baroform:last-managed-survey";
 const authTokenStorageKey = "baroform:session-token";
 
+const targetGradeOptions = [
+  "1학년",
+  "2학년",
+  "3학년",
+  "4학년",
+  "1-2학년",
+  "3-4학년",
+  "전학년",
+] as const;
+
+type TargetGrade = (typeof targetGradeOptions)[number];
+
+function estimatedMinutes(questions: Question[]) {
+  const seconds = questions.reduce((total, question) => {
+    if (question.type === "section") return total;
+    if (question.type === "text") return total + 55;
+    if (question.type === "shortText") return total + 28;
+    if (question.type === "multiple") return total + 30;
+    return total + 20;
+  }, 20);
+  return Math.max(1, Math.ceil(seconds / 60));
+}
+
+function questionTypeLabel(type: Question["type"]) {
+  const labels: Record<Question["type"], string> = {
+    shortText: "단답형",
+    text: "장문형",
+    single: "객관식",
+    multiple: "체크박스",
+    dropdown: "드롭다운",
+    scale: "선형 배율",
+    date: "날짜",
+    time: "시간",
+    section: "섹션",
+  };
+  return labels[type];
+}
+
 const promptSuggestions = [
   "신입생 학교생활 적응 조사",
   "축제 참여자 만족도",
@@ -152,15 +196,7 @@ function Header({
   };
 
   const scrollToMaker = () => {
-    if (view !== "home") {
-      onNavigate("home");
-      window.setTimeout(
-        () => document.getElementById("survey-maker")?.focus(),
-        80,
-      );
-      return;
-    }
-    document.getElementById("survey-maker")?.focus();
+    onNavigate("create");
   };
 
   return (
@@ -545,10 +581,7 @@ function HomeView({
           </div>
           <button
             type="button"
-            onClick={() => {
-              window.scrollTo({ top: 0, behavior: "smooth" });
-              window.setTimeout(() => makerRef.current?.focus(), 450);
-            }}
+            onClick={onCreate}
           >
             내 설문 만들기
             <ArrowUp size={18} />
@@ -557,6 +590,153 @@ function HomeView({
       </main>
       <Footer />
     </>
+  );
+}
+
+function CreateView({
+  prompt,
+  setPrompt,
+  targetGrade,
+  setTargetGrade,
+  questionCount,
+  setQuestionCount,
+  onCreate,
+  onBack,
+  isAnalyzing,
+}: {
+  prompt: string;
+  setPrompt: (value: string) => void;
+  targetGrade: TargetGrade;
+  setTargetGrade: (value: TargetGrade) => void;
+  questionCount: number;
+  setQuestionCount: (value: number) => void;
+  onCreate: () => void;
+  onBack: () => void;
+  isAnalyzing: boolean;
+}) {
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  return (
+    <main className="create-page">
+      <header className="create-header">
+        <button type="button" className="create-back" onClick={onBack}>
+          <ArrowLeft size={18} />
+          홈으로
+        </button>
+        <button type="button" className="brand create-brand" onClick={onBack}>
+          <BrandMark compact />
+          <strong>바로폼</strong>
+        </button>
+        <span className="create-step">AI 설문 만들기</span>
+      </header>
+
+      <section className="create-stage">
+        <div className="create-copy">
+          <span className="create-ai-mark"><Sparkles size={17} /> AI 문항 설계</span>
+          <h1>어떤 설문을 만들까요?</h1>
+          <p>알아보고 싶은 내용을 편하게 적어주세요.</p>
+        </div>
+
+        <div className="create-composer">
+          <textarea
+            id="survey-maker"
+            ref={inputRef}
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+            placeholder="예) 연세대 학생들의 대우관 등하교 경험과 불편한 점을 조사하고 싶어요"
+            rows={3}
+            maxLength={300}
+            onKeyDown={(event) => {
+              if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                onCreate();
+              }
+            }}
+          />
+          <div className="create-composer-footer">
+            <span>{prompt.length}/300</span>
+            <button
+              type="button"
+              onClick={onCreate}
+              disabled={isAnalyzing || prompt.trim().length < 2}
+              aria-label="설문 생성하기"
+            >
+              {isAnalyzing ? <Sparkles size={19} /> : <ArrowUp size={20} />}
+            </button>
+          </div>
+        </div>
+
+        <div className="create-settings" aria-label="설문 생성 설정">
+          <div className="setting-block grade-setting">
+            <div className="setting-heading">
+              <span><UsersRound size={16} /> 응답 대상</span>
+              <small>학년을 선택해주세요</small>
+            </div>
+            <div className="grade-options">
+              {targetGradeOptions.map((grade) => (
+                <button
+                  type="button"
+                  key={grade}
+                  className={targetGrade === grade ? "active" : ""}
+                  onClick={() => setTargetGrade(grade)}
+                >
+                  {grade}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="setting-block count-setting">
+            <div className="setting-heading">
+              <span><BarChart3 size={16} /> 문항 수</span>
+              <small>3~30개</small>
+            </div>
+            <div className="count-stepper">
+              <button
+                type="button"
+                onClick={() => setQuestionCount(Math.max(3, questionCount - 1))}
+                disabled={questionCount <= 3}
+                aria-label="문항 수 줄이기"
+              >
+                <Minus size={17} />
+              </button>
+              <label>
+                <input
+                  type="number"
+                  value={questionCount}
+                  min={3}
+                  max={30}
+                  onChange={(event) =>
+                    setQuestionCount(
+                      Math.min(30, Math.max(3, Number(event.target.value) || 3)),
+                    )
+                  }
+                  aria-label="생성할 문항 수"
+                />
+                <span>개</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => setQuestionCount(Math.min(30, questionCount + 1))}
+                disabled={questionCount >= 30}
+                aria-label="문항 수 늘리기"
+              >
+                <Plus size={17} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="create-summary">
+          <CheckCircle2 size={15} />
+          <span>{targetGrade} 대상 · {questionCount}문항</span>
+          <span>생성 후 모든 문항을 직접 또는 AI로 수정할 수 있어요.</span>
+        </div>
+      </section>
+    </main>
   );
 }
 
@@ -706,6 +886,8 @@ function EditorView({
   setQuestions,
   onBack,
   onPublish,
+  targetGrade,
+  onAiRevise,
 }: {
   title: string;
   setTitle: (value: string) => void;
@@ -715,9 +897,14 @@ function EditorView({
   setQuestions: (value: Question[]) => void;
   onBack: () => void;
   onPublish: () => void;
+  targetGrade: TargetGrade;
+  onAiRevise: (instruction: string) => Promise<string>;
 }) {
   const [selectedId, setSelectedId] = useState(questions[0]?.id ?? 1);
   const [preview, setPreview] = useState(false);
+  const [aiInstruction, setAiInstruction] = useState("");
+  const [aiRevising, setAiRevising] = useState(false);
+  const [aiMessage, setAiMessage] = useState("");
   const selectedQuestion =
     questions.find((question) => question.id === selectedId) ?? questions[0];
 
@@ -748,11 +935,54 @@ function EditorView({
     setSelectedId(id);
   };
 
+  const addSection = () => {
+    if (questions.length >= 30) return;
+    const id = Math.max(...questions.map((question) => question.id), 0) + 1;
+    setQuestions([
+      ...questions,
+      {
+        id,
+        title: "새 섹션",
+        description: "섹션에 대한 안내를 입력해주세요.",
+        reason: "",
+        type: "section",
+        required: false,
+      },
+    ]);
+    setSelectedId(id);
+  };
+
   const removeQuestion = (id: number) => {
     if (questions.length === 1) return;
     const next = questions.filter((question) => question.id !== id);
     setQuestions(next);
     if (selectedId === id) setSelectedId(next[0]?.id ?? 1);
+  };
+
+  const duplicateQuestion = (id: number) => {
+    if (questions.length >= 30) return;
+    const sourceIndex = questions.findIndex((question) => question.id === id);
+    if (sourceIndex < 0) return;
+    const nextId = Math.max(...questions.map((question) => question.id), 0) + 1;
+    const next = [...questions];
+    next.splice(sourceIndex + 1, 0, {
+      ...questions[sourceIndex],
+      id: nextId,
+      options: questions[sourceIndex].options
+        ? [...(questions[sourceIndex].options ?? [])]
+        : undefined,
+    });
+    setQuestions(next);
+    setSelectedId(nextId);
+  };
+
+  const moveQuestion = (id: number, direction: -1 | 1) => {
+    const currentIndex = questions.findIndex((question) => question.id === id);
+    const nextIndex = currentIndex + direction;
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= questions.length) return;
+    const next = [...questions];
+    [next[currentIndex], next[nextIndex]] = [next[nextIndex], next[currentIndex]];
+    setQuestions(next);
   };
 
   const changeQuestionType = (id: number, type: Question["type"]) => {
@@ -763,11 +993,14 @@ function EditorView({
               ...question,
               type,
               options:
-                type === "single" || type === "multiple"
+                type === "single" || type === "multiple" || type === "dropdown"
                   ? question.options?.length
                     ? question.options
                     : ["선택지 1", "선택지 2", "선택지 3"]
                   : undefined,
+              required: type === "section" ? false : question.required,
+              scaleMin: type === "scale" ? question.scaleMin ?? 1 : undefined,
+              scaleMax: type === "scale" ? question.scaleMax ?? 5 : undefined,
             }
           : question,
       ),
@@ -806,6 +1039,37 @@ function EditorView({
           : question,
       ),
     );
+  };
+
+  const removeOption = (id: number, optionIndex: number) => {
+    setQuestions(
+      questions.map((question) =>
+        question.id === id && (question.options?.length ?? 0) > 2
+          ? {
+              ...question,
+              options: (question.options ?? []).filter((_, index) => index !== optionIndex),
+            }
+          : question,
+      ),
+    );
+  };
+
+  const submitAiRevision = async () => {
+    const instruction = aiInstruction.replace(/\s+/g, " ").trim();
+    if (instruction.length < 2 || aiRevising) return;
+    setAiRevising(true);
+    setAiMessage("");
+    try {
+      const message = await onAiRevise(instruction);
+      setAiMessage(message);
+      setAiInstruction("");
+    } catch (error) {
+      setAiMessage(
+        error instanceof Error ? error.message : "AI가 설문을 수정하지 못했어요.",
+      );
+    } finally {
+      setAiRevising(false);
+    }
   };
 
   const shortenSelectedQuestion = () => {
@@ -856,7 +1120,9 @@ function EditorView({
     questions
       .filter(
         (question) =>
-          question.type === "single" || question.type === "multiple",
+          question.type === "single" ||
+          question.type === "multiple" ||
+          question.type === "dropdown",
       )
       .every((question) => (question.options ?? []).filter(Boolean).length >= 2),
   ];
@@ -951,15 +1217,7 @@ function EditorView({
                   </span>
                   <span>
                     <strong>{question.title}</strong>
-                    <small>
-                      {question.type === "scale"
-                        ? "선형 배율"
-                        : question.type === "single"
-                          ? "단일 선택"
-                          : question.type === "multiple"
-                            ? "복수 선택"
-                          : "장문형"}
-                    </small>
+                    <small>{questionTypeLabel(question.type)}</small>
                   </span>
                 </button>
               ))}
@@ -977,7 +1235,7 @@ function EditorView({
               <span>
                 <strong>{questions.length}</strong>개 질문
               </span>
-              <span>예상 {Math.max(1, Math.ceil(questions.length / 2))}분</span>
+              <span>예상 {estimatedMinutes(questions)}분</span>
             </div>
           </aside>
         )}
@@ -1012,7 +1270,8 @@ function EditorView({
               )}
               <div className="survey-meta-pills">
                 <span>익명 응답</span>
-                <span>약 {Math.max(1, Math.ceil(questions.length / 2))}분</span>
+                <span>{targetGrade} 대상</span>
+                <span>약 {estimatedMinutes(questions)}분</span>
               </div>
             </div>
 
@@ -1020,12 +1279,16 @@ function EditorView({
               <article
                 className={`question-card ${
                   !preview && selectedId === question.id ? "selected" : ""
-                }`}
+                } ${question.type === "section" ? "section-card" : ""}`}
                 key={question.id}
                 onClick={() => !preview && setSelectedId(question.id)}
               >
                 <div className="question-card-heading">
-                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <span>
+                    {question.type === "section"
+                      ? "섹션"
+                      : String(index + 1).padStart(2, "0")}
+                  </span>
                   <div className="question-copy">
                     {preview ? (
                       <h2>
@@ -1047,37 +1310,90 @@ function EditorView({
                         maxLength={200}
                       />
                     )}
-                    <p>
-                      <Sparkles size={13} />
-                      {question.reason}
-                    </p>
+                    {preview ? (
+                      question.description && <p>{question.description}</p>
+                    ) : (
+                      <input
+                        className="question-description-input"
+                        value={question.description ?? ""}
+                        onChange={(event) =>
+                          updateQuestion(question.id, "description", event.target.value)
+                        }
+                        placeholder={
+                          question.type === "section"
+                            ? "섹션 안내를 입력해주세요."
+                            : "질문 설명 추가 (선택)"
+                        }
+                        maxLength={300}
+                      />
+                    )}
+                    {question.type !== "section" && question.reason && (
+                      <p className="question-ai-reason">
+                        <Sparkles size={13} />
+                        {question.reason}
+                      </p>
+                    )}
                   </div>
-                  {!preview && (
-                    <button
-                      type="button"
-                      aria-label="질문 삭제"
-                      disabled={questions.length === 1}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        removeQuestion(question.id);
-                      }}
-                    >
-                      <X size={17} />
-                    </button>
-                  )}
                 </div>
 
                 {question.type === "scale" && (
                   <div className="scale-options">
-                    {[1, 2, 3, 4, 5].map((value) => (
+                    {Array.from(
+                      {
+                        length:
+                          (question.scaleMax ?? 5) - (question.scaleMin ?? 1) + 1,
+                      },
+                      (_, offset) => (question.scaleMin ?? 1) + offset,
+                    ).map((value) => (
                       <button type="button" key={value}>
                         {value}
                       </button>
                     ))}
                     <div className="scale-labels">
-                      <span>전혀 그렇지 않음</span>
-                      <span>매우 그러함</span>
+                      <span>{question.scaleMinLabel || "전혀 그렇지 않음"}</span>
+                      <span>{question.scaleMaxLabel || "매우 그러함"}</span>
                     </div>
+                    {!preview && (
+                      <div className="scale-settings">
+                        <label>
+                          시작
+                          <select
+                            value={question.scaleMin ?? 1}
+                            onChange={(event) =>
+                              updateQuestion(question.id, "scaleMin", Number(event.target.value))
+                            }
+                          >
+                            <option value={0}>0</option>
+                            <option value={1}>1</option>
+                          </select>
+                        </label>
+                        <label>
+                          끝
+                          <select
+                            value={question.scaleMax ?? 5}
+                            onChange={(event) =>
+                              updateQuestion(question.id, "scaleMax", Number(event.target.value))
+                            }
+                          >
+                            {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
+                              <option value={value} key={value}>{value}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <input
+                          value={question.scaleMinLabel ?? ""}
+                          onChange={(event) => updateQuestion(question.id, "scaleMinLabel", event.target.value)}
+                          placeholder="최솟값 라벨"
+                          maxLength={40}
+                        />
+                        <input
+                          value={question.scaleMaxLabel ?? ""}
+                          onChange={(event) => updateQuestion(question.id, "scaleMaxLabel", event.target.value)}
+                          placeholder="최댓값 라벨"
+                          maxLength={40}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1088,7 +1404,11 @@ function EditorView({
                       <label key={`${question.id}-${optionIndex}`}>
                         <input
                           type={
-                            question.type === "single" ? "radio" : "checkbox"
+                            question.type === "single"
+                              ? "radio"
+                              : question.type === "multiple"
+                                ? "checkbox"
+                                : "text"
                           }
                           name={
                             question.type === "single"
@@ -1114,6 +1434,17 @@ function EditorView({
                             maxLength={100}
                           />
                         )}
+                        {!preview && (
+                          <button
+                            type="button"
+                            className="remove-option"
+                            aria-label="선택지 삭제"
+                            disabled={(question.options?.length ?? 0) <= 2}
+                            onClick={() => removeOption(question.id, optionIndex)}
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
                       </label>
                     ))}
                     {!preview && (
@@ -1127,17 +1458,91 @@ function EditorView({
                         선택지 추가
                       </button>
                     )}
+                    {!preview && (
+                      <label className="shuffle-options">
+                        <input
+                          type="checkbox"
+                          checked={question.shuffleOptions === true}
+                          onChange={(event) =>
+                            updateQuestion(question.id, "shuffleOptions", event.target.checked)
+                          }
+                        />
+                        선택지 순서 섞기
+                      </label>
+                    )}
                   </div>
                 )}
 
-                {question.type === "text" && (
+                {(question.type === "text" || question.type === "shortText") && (
                   <textarea
                     className="long-answer"
-                    rows={3}
+                    rows={question.type === "text" ? 3 : 1}
                     placeholder="응답을 입력해주세요."
                     disabled={!preview}
-                    maxLength={4000}
+                    maxLength={question.type === "text" ? 4000 : 500}
                   />
+                )}
+
+                {question.type === "dropdown" && preview && (
+                  <select className="preview-dropdown" defaultValue="">
+                    <option value="" disabled>선택해주세요.</option>
+                    {(question.options ?? []).map((option) => (
+                      <option value={option} key={option}>{option}</option>
+                    ))}
+                  </select>
+                )}
+
+                {question.type === "dropdown" && !preview && (
+                  <div className="multiple-options dropdown-editor-options">
+                    {(question.options ?? []).map((option, optionIndex) => (
+                      <label key={`${question.id}-dropdown-${optionIndex}`}>
+                        <span className="dropdown-option-number">{optionIndex + 1}</span>
+                        <input
+                          className="option-text-input"
+                          value={option}
+                          onChange={(event) =>
+                            updateOption(question.id, optionIndex, event.target.value)
+                          }
+                          maxLength={100}
+                        />
+                        <button
+                          type="button"
+                          className="remove-option"
+                          disabled={(question.options?.length ?? 0) <= 2}
+                          onClick={() => removeOption(question.id, optionIndex)}
+                          aria-label="선택지 삭제"
+                        >
+                          <X size={14} />
+                        </button>
+                      </label>
+                    ))}
+                    <button
+                      type="button"
+                      className="add-option"
+                      onClick={() => addOption(question.id)}
+                      disabled={(question.options?.length ?? 0) >= 12}
+                    >
+                      <Plus size={14} /> 선택지 추가
+                    </button>
+                    <label className="shuffle-options">
+                      <input
+                        type="checkbox"
+                        checked={question.shuffleOptions === true}
+                        onChange={(event) =>
+                          updateQuestion(question.id, "shuffleOptions", event.target.checked)
+                        }
+                      />
+                      선택지 순서 섞기
+                    </label>
+                  </div>
+                )}
+
+                {question.type === "date" && (
+                  <input className="date-time-preview" type="date" disabled={!preview} />
+                )}
+
+                {question.type === "time" && (
+                  <input className="date-time-preview" type="time" disabled={!preview} />
                 )}
 
                 {!preview && (
@@ -1152,40 +1557,92 @@ function EditorView({
                         )
                       }
                     >
-                      <option value="scale">선형 배율</option>
-                      <option value="single">단일 선택</option>
-                      <option value="multiple">복수 선택</option>
+                      <option value="shortText">단답형</option>
                       <option value="text">장문형</option>
+                      <option value="single">객관식</option>
+                      <option value="multiple">체크박스</option>
+                      <option value="dropdown">드롭다운</option>
+                      <option value="scale">선형 배율</option>
+                      <option value="date">날짜</option>
+                      <option value="time">시간</option>
+                      <option value="section">섹션</option>
                     </select>
-                    <label className="required-toggle">
-                      <span>필수</span>
-                      <input
-                        type="checkbox"
-                        checked={question.required}
-                        onChange={(event) =>
-                          updateQuestion(
-                            question.id,
-                            "required",
-                            event.target.checked,
-                          )
-                        }
-                      />
-                      <i />
-                    </label>
+                    <div className="question-action-buttons">
+                      <button
+                        type="button"
+                        onClick={() => moveQuestion(question.id, -1)}
+                        disabled={index === 0}
+                        aria-label="질문 위로 이동"
+                      >
+                        <ChevronUp size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveQuestion(question.id, 1)}
+                        disabled={index === questions.length - 1}
+                        aria-label="질문 아래로 이동"
+                      >
+                        <ChevronDown size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => duplicateQuestion(question.id)}
+                        disabled={questions.length >= 30}
+                        aria-label="질문 복제"
+                      >
+                        <Copy size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeQuestion(question.id)}
+                        disabled={questions.length === 1}
+                        aria-label="질문 삭제"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                    {question.type !== "section" && (
+                      <label className="required-toggle">
+                        <span>필수</span>
+                        <input
+                          type="checkbox"
+                          checked={question.required}
+                          onChange={(event) =>
+                            updateQuestion(
+                              question.id,
+                              "required",
+                              event.target.checked,
+                            )
+                          }
+                        />
+                        <i />
+                      </label>
+                    )}
                   </div>
                 )}
               </article>
             ))}
             {!preview && (
-              <button
-                type="button"
-                className="canvas-add"
-                onClick={addQuestion}
-                disabled={questions.length >= 30}
-              >
-                <Plus size={17} />
-                질문 추가하기
-              </button>
+              <div className="canvas-add-row">
+                <button
+                  type="button"
+                  className="canvas-add"
+                  onClick={addQuestion}
+                  disabled={questions.length >= 30}
+                >
+                  <Plus size={17} />
+                  질문 추가하기
+                </button>
+                <button
+                  type="button"
+                  className="canvas-add secondary"
+                  onClick={addSection}
+                  disabled={questions.length >= 30}
+                >
+                  <CalendarDays size={17} />
+                  섹션 추가
+                </button>
+              </div>
             )}
             {preview && (
               <button type="button" className="survey-submit-preview">
@@ -1199,12 +1656,39 @@ function EditorView({
           <aside className="ai-sidebar">
             <div className="ai-assistant-title">
               <span>
-                <CheckCircle2 size={16} />
+                <Sparkles size={16} />
               </span>
               <div>
-                <strong>문항 도우미</strong>
-                <small>선택한 질문을 빠르게 점검해요</small>
+                <strong>AI로 바로 수정</strong>
+                <small>완성된 설문 전체에 반영해요</small>
               </div>
+            </div>
+            <div className="ai-revision-banner">
+              <label htmlFor="ai-revision-input">
+                어떤 내용을 수정/추가할까요?
+              </label>
+              <textarea
+                id="ai-revision-input"
+                value={aiInstruction}
+                onChange={(event) => setAiInstruction(event.target.value)}
+                placeholder="예) 통학 시간 질문을 추가하고 전체 문장을 더 짧게 바꿔줘"
+                rows={4}
+                maxLength={500}
+                onKeyDown={(event) => {
+                  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                    void submitAiRevision();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => void submitAiRevision()}
+                disabled={aiRevising || aiInstruction.trim().length < 2}
+              >
+                {aiRevising ? "수정 중…" : "AI로 반영하기"}
+                {!aiRevising && <ArrowUp size={15} />}
+              </button>
+              {aiMessage && <p role="status">{aiMessage}</p>}
             </div>
             <div className="selected-question-box">
               <span>현재 선택</span>
@@ -1221,7 +1705,8 @@ function EditorView({
                 onClick={deduplicateSelectedOptions}
                 disabled={
                   selectedQuestion?.type !== "single" &&
-                  selectedQuestion?.type !== "multiple"
+                  selectedQuestion?.type !== "multiple" &&
+                  selectedQuestion?.type !== "dropdown"
                 }
               >
                 중복 선택지 정리
@@ -1530,7 +2015,7 @@ function SurveyView({
 
   const submitResponse = async () => {
     const missing = questions.find((question) => {
-      if (!question.required) return false;
+      if (!question.required || question.type === "section") return false;
       const answer = answers[question.id];
       return (
         answer === undefined ||
@@ -1646,7 +2131,7 @@ function SurveyView({
 
         {questions.map((question, index) => (
           <section
-            className="respond-question"
+            className={`respond-question ${question.type === "section" ? "respond-section" : ""}`}
             id={`question-${question.id}`}
             key={question.id}
           >
@@ -1655,9 +2140,18 @@ function SurveyView({
               {question.title}
               {question.required && <em>*</em>}
             </h2>
+            {question.description && (
+              <p className="respond-description">{question.description}</p>
+            )}
             {question.type === "scale" && (
               <div className="respond-scale">
-                {[1, 2, 3, 4, 5].map((value) => (
+                {Array.from(
+                  {
+                    length:
+                      (question.scaleMax ?? 5) - (question.scaleMin ?? 1) + 1,
+                  },
+                  (_, offset) => (question.scaleMin ?? 1) + offset,
+                ).map((value) => (
                   <button
                     type="button"
                     key={value}
@@ -1670,8 +2164,8 @@ function SurveyView({
                   </button>
                 ))}
                 <div>
-                  <span>전혀 그렇지 않음</span>
-                  <span>매우 그러함</span>
+                  <span>{question.scaleMinLabel || "전혀 그렇지 않음"}</span>
+                  <span>{question.scaleMaxLabel || "매우 그러함"}</span>
                 </div>
               </div>
             )}
@@ -1713,9 +2207,23 @@ function SurveyView({
                 </div>
               </>
             )}
-            {question.type === "text" && (
+            {question.type === "dropdown" && (
+              <select
+                className="respond-dropdown"
+                value={typeof answers[question.id] === "string" ? answers[question.id] as string : ""}
+                onChange={(event) =>
+                  setAnswers({ ...answers, [question.id]: event.target.value })
+                }
+              >
+                <option value="">선택해주세요.</option>
+                {(question.options ?? []).map((choice) => (
+                  <option value={choice} key={choice}>{choice}</option>
+                ))}
+              </select>
+            )}
+            {(question.type === "text" || question.type === "shortText") && (
               <textarea
-                rows={5}
+                rows={question.type === "text" ? 5 : 1}
                 value={
                   typeof answers[question.id] === "string"
                     ? (answers[question.id] as string)
@@ -1728,7 +2236,27 @@ function SurveyView({
                   })
                 }
                 placeholder="솔직한 의견을 들려주세요."
-                maxLength={4000}
+                maxLength={question.type === "text" ? 4000 : 500}
+              />
+            )}
+            {question.type === "date" && (
+              <input
+                className="respond-date-time"
+                type="date"
+                value={typeof answers[question.id] === "string" ? answers[question.id] as string : ""}
+                onChange={(event) =>
+                  setAnswers({ ...answers, [question.id]: event.target.value })
+                }
+              />
+            )}
+            {question.type === "time" && (
+              <input
+                className="respond-date-time"
+                type="time"
+                value={typeof answers[question.id] === "string" ? answers[question.id] as string : ""}
+                onChange={(event) =>
+                  setAnswers({ ...answers, [question.id]: event.target.value })
+                }
               />
             )}
           </section>
@@ -1818,7 +2346,9 @@ function AnalyticsView({
 
   const questionSummaries = useMemo<QuestionSummary[]>(() => {
     const questions = survey?.questions ?? [];
-    return questions.map((question) => {
+    return questions
+      .filter((question) => question.type !== "section")
+      .map((question) => {
       const values = responses
         .map(
           (response) =>
@@ -1901,7 +2431,7 @@ function AnalyticsView({
         percentage: 0,
         bars: [],
       };
-    });
+      });
   }, [responses, survey?.questions]);
 
   const averageSeconds =
@@ -2346,7 +2876,9 @@ function RealAnalyticsView({
       })
     : "아직 없음";
 
-  const questionSummaries = questions.map((question) => {
+  const questionSummaries = questions
+    .filter((question) => question.type !== "section")
+    .map((question) => {
     const values = responses
       .map(
         (response) =>
@@ -2397,7 +2929,7 @@ function RealAnalyticsView({
       percentage:
         responses.length > 0 ? (values.length / responses.length) * 100 : 0,
     };
-  });
+    });
 
   return (
     <main className="analytics-page">
@@ -2566,6 +3098,8 @@ function Footer() {
 export default function Home() {
   const [view, setView] = useState<View>("home");
   const [prompt, setPrompt] = useState("");
+  const [targetGrade, setTargetGrade] = useState<TargetGrade>("전학년");
+  const [questionCount, setQuestionCount] = useState(7);
   const [surveyTitle, setSurveyTitle] = useState(defaultBlueprint.title);
   const [description, setDescription] = useState(
     defaultBlueprint.description,
@@ -2751,7 +3285,11 @@ export default function Home() {
       const response = await fetch("/api/survey-draft", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ prompt: requestedPrompt }),
+        body: JSON.stringify({
+          prompt: requestedPrompt,
+          targetGrade,
+          questionCount,
+        }),
       });
       const result = (await response.json()) as
         | {
@@ -2822,6 +3360,34 @@ export default function Home() {
       );
       window.setTimeout(() => setToast(""), 2400);
     }
+  };
+
+  const reviseSurveyWithAi = async (instruction: string) => {
+    const response = await fetch("/api/survey-revise", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        title: surveyTitle,
+        description,
+        questions,
+        instruction,
+        targetGrade,
+      }),
+    });
+    const result = (await response.json()) as {
+      title?: string;
+      description?: string;
+      questions?: Question[];
+      message?: string;
+      error?: string;
+    };
+    if (!response.ok || !result.title || !Array.isArray(result.questions)) {
+      throw new Error(result.error || "AI가 설문을 수정하지 못했어요.");
+    }
+    setSurveyTitle(result.title);
+    setDescription(result.description ?? "");
+    setQuestions(result.questions);
+    return result.message || "요청한 내용으로 설문을 수정했어요.";
   };
 
   const publishSurvey = async (
@@ -2931,13 +3497,26 @@ export default function Home() {
           <HomeView
             prompt={prompt}
             setPrompt={updatePrompt}
-            onCreate={() => void startCreate()}
+            onCreate={() => navigate("create")}
             onOpenSurvey={openSurvey}
             surveys={publicSurveys}
             loadingSurveys={loadingSurveys}
             isAnalyzing={isAnalyzing}
           />
         </>
+      )}
+      {view === "create" && (
+        <CreateView
+          prompt={prompt}
+          setPrompt={updatePrompt}
+          targetGrade={targetGrade}
+          setTargetGrade={setTargetGrade}
+          questionCount={questionCount}
+          setQuestionCount={setQuestionCount}
+          onCreate={() => void startCreate()}
+          onBack={() => navigate("home")}
+          isAnalyzing={isAnalyzing}
+        />
       )}
       {view === "editor" && (
         <EditorView
@@ -2947,8 +3526,10 @@ export default function Home() {
           setDescription={setDescription}
           questions={questions}
           setQuestions={setQuestions}
-          onBack={() => navigate("home")}
+          onBack={() => navigate("create")}
           onPublish={() => setPublishOpen(true)}
+          targetGrade={targetGrade}
+          onAiRevise={reviseSurveyWithAi}
         />
       )}
       {view === "published" && (

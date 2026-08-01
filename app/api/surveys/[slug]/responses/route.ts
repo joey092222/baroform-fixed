@@ -13,9 +13,20 @@ const noStoreHeaders = {
 type StoredQuestion = {
   id: number;
   title: string;
-  type: "scale" | "single" | "multiple" | "text";
+  type:
+    | "scale"
+    | "single"
+    | "multiple"
+    | "dropdown"
+    | "shortText"
+    | "text"
+    | "date"
+    | "time"
+    | "section";
   options?: string[];
   required: boolean;
+  scaleMin?: number;
+  scaleMax?: number;
 };
 
 type IncomingAnswer = {
@@ -114,9 +125,16 @@ export async function POST(
     for (const question of questions) {
       const raw = incomingAnswers.get(question.id)?.value;
 
+      if (question.type === "section") continue;
+
       if (question.type === "scale") {
+        const minimum = question.scaleMin === 0 ? 0 : 1;
+        const maximum = Math.min(10, Math.max(2, question.scaleMax ?? 5));
         const value =
-          typeof raw === "number" && Number.isInteger(raw) && raw >= 1 && raw <= 5
+          typeof raw === "number" &&
+          Number.isInteger(raw) &&
+          raw >= minimum &&
+          raw <= maximum
             ? raw
             : null;
         if (question.required && value === null) {
@@ -165,7 +183,7 @@ export async function POST(
         continue;
       }
 
-      if (question.type === "single") {
+      if (question.type === "single" || question.type === "dropdown") {
         const allowed = new Set(question.options ?? []);
         const value =
           typeof raw === "string" && allowed.has(raw) ? raw : "";

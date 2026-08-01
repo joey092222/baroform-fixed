@@ -1,4 +1,8 @@
-import { analyzeSurveyPrompt } from "../../survey-intent";
+import {
+  analyzeSurveyPrompt,
+  resizeSurveyQuestions,
+  type SurveyBlueprint,
+} from "../../survey-intent";
 import {
   buildSurveyAiRequest,
   parseSurveyDraftResponse,
@@ -68,10 +72,54 @@ function invalidResultReason(error: unknown) {
   return "invalid-result";
 }
 
-function verifiedResearchFallback(prompt: string): SurveyDraftResult | null {
+const allowedTargetGrades = new Set([
+  "1학년",
+  "2학년",
+  "3학년",
+  "4학년",
+  "1-2학년",
+  "3-4학년",
+  "전학년",
+]);
+
+function applyDraftSettings(
+  blueprint: SurveyBlueprint,
+  targetGrade: string,
+  questionCount: number,
+): SurveyBlueprint {
+  const audience = targetGrade === "전학년" ? "전학년 재학생" : `${targetGrade} 재학생`;
+  return {
+    ...blueprint,
+    description: `${audience}을 대상으로 ${blueprint.description}`.slice(0, 500),
+    respondentGroup: blueprint.respondentGroup
+      ? `${audience} 중 ${blueprint.respondentGroup}`.slice(0, 80)
+      : audience,
+    detectedSignals: [
+      ...(blueprint.detectedSignals ?? []).filter(
+        (signal) => !signal.startsWith("응답 학년 ·"),
+      ),
+      `응답 학년 · ${targetGrade}`,
+    ],
+    templateQuestions: resizeSurveyQuestions(
+      blueprint.templateQuestions,
+      Math.min(5, questionCount),
+    ),
+    aiQuestions: resizeSurveyQuestions(blueprint.aiQuestions, questionCount),
+  };
+}
+
+function verifiedResearchFallback(
+  prompt: string,
+  targetGrade: string,
+  questionCount: number,
+): SurveyDraftResult | null {
   const knowledge = lookupVerifiedSurveyKnowledge(prompt);
   if (!knowledge) return null;
-  const blueprint = analyzeSurveyPrompt(prompt);
+  const blueprint = applyDraftSettings(
+    analyzeSurveyPrompt(prompt),
+    targetGrade,
+    questionCount,
+  );
   const normalizedTarget = (blueprint.evaluationTarget ?? blueprint.subject)
     .replace(/\s+/g, "")
     .toLocaleLowerCase("ko-KR");
@@ -122,8 +170,16 @@ function verifiedResearchFallback(prompt: string): SurveyDraftResult | null {
   };
 }
 
-function fastDraftFallback(prompt: string): SurveyDraftResult {
-  const blueprint = analyzeSurveyPrompt(prompt);
+function fastDraftFallback(
+  prompt: string,
+  targetGrade: string,
+  questionCount: number,
+): SurveyDraftResult {
+  const blueprint = applyDraftSettings(
+    analyzeSurveyPrompt(prompt),
+    targetGrade,
+    questionCount,
+  );
   return {
     status: "ready",
     prompt,
@@ -224,9 +280,17 @@ export async function POST(request: Request) {
     return apiError("요청 내용이 너무 길어요.", "REQUEST_TOO_LARGE", 413);
   }
 
-  let payload: { prompt?: unknown };
+  let payload: {
+    prompt?: unknown;
+    targetGrade?: unknown;
+    questionCount?: unknown;
+  };
   try {
-    payload = (await request.json()) as { prompt?: unknown };
+    payload = (await request.json()) as {
+      prompt?: unknown;
+      targetGrade?: unknown;
+      questionCount?: unknown;
+    };
   } catch {
     return apiError("설문 내용을 읽지 못했어요.", "INVALID_JSON", 400);
   }
@@ -240,10 +304,20 @@ export async function POST(request: Request) {
       400,
     );
   }
+  const targetGrade =
+    typeof payload.targetGrade === "string" &&
+    allowedTargetGrades.has(payload.targetGrade)
+      ? payload.targetGrade
+      : "전학년";
+  const questionCount =
+    typeof payload.questionCount === "number" &&
+    Number.isInteger(payload.questionCount)
+      ? Math.min(30, Math.max(3, payload.questionCount))
+      : 7;
 
   const now = Date.now();
   pruneMemory(now);
-  const cacheKey = prompt.toLocaleLowerCase("ko-KR");
+  const cacheKey = `${prompt.toLocaleLowerCase("ko-KR")}|${targetGrade}|${questionCount}`;
   const cached = responseCache.get(cacheKey);
   if (cached && cached.expiresAt > now) {
     return Response.json(cached.result, { headers: noStoreHeaders });
@@ -259,7 +333,11 @@ export async function POST(request: Request) {
 
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
-    const verifiedFallback = verifiedResearchFallback(prompt);
+    const verifiedFallback = verifiedResearchFallback(
+      prompt,
+      targetGrade,
+      questionCount,
+    );
     if (verifiedFallback) {
       cacheResult(cacheKey, now, verifiedFallback);
       return fallbackResponse(verifiedFallback, "api-key-missing");
@@ -272,7 +350,11 @@ export async function POST(request: Request) {
   }
 
   const model = process.env.OPENAI_SURVEY_MODEL?.trim() || "gpt-5.6-terra";
-  const fallback = analyzeSurveyPrompt(prompt);
+  const fallback = applyDraftSettings(
+    analyzeSurveyPrompt(prompt),
+    targetGrade,
+    questionCount,
+  );
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 32_000);
 
@@ -283,12 +365,21 @@ export async function POST(request: Request) {
         authorization: `Bearer ${apiKey}`,
         "content-type": "application/json",
       },
-      body: JSON.stringify(buildSurveyAiRequest(prompt, fallback, model)),
+      body: JSON.stringify(
+        buildSurveyAiRequest(prompt, fallback, model, {
+          targetGrade,
+          questionCount,
+        }),
+      ),
       signal: controller.signal,
     });
 
     if (!upstream.ok) {
-      const verifiedFallback = verifiedResearchFallback(prompt);
+      const verifiedFallback = verifiedResearchFallback(
+        prompt,
+        targetGrade,
+        questionCount,
+      );
       if (verifiedFallback) {
         cacheResult(cacheKey, now, verifiedFallback);
         return fallbackResponse(
@@ -318,17 +409,25 @@ export async function POST(request: Request) {
     }
 
     const rawResult = (await upstream.json()) as unknown;
-    const result = parseSurveyDraftResponse(rawResult, prompt);
+    const result = parseSurveyDraftResponse(rawResult, prompt, questionCount);
     cacheResult(cacheKey, now, result);
     return Response.json(result, { headers: noStoreHeaders });
   } catch (error) {
-    const verifiedFallback = verifiedResearchFallback(prompt);
+    const verifiedFallback = verifiedResearchFallback(
+      prompt,
+      targetGrade,
+      questionCount,
+    );
     if (verifiedFallback) {
       cacheResult(cacheKey, now, verifiedFallback);
       return fallbackResponse(verifiedFallback, invalidResultReason(error));
     }
     if (error instanceof Error && error.name === "AbortError") {
-      const quickFallback = fastDraftFallback(prompt);
+      const quickFallback = fastDraftFallback(
+        prompt,
+        targetGrade,
+        questionCount,
+      );
       cacheResult(cacheKey, now, quickFallback);
       return Response.json(quickFallback, {
         headers: { ...noStoreHeaders, "x-baroform-ai-status": "timeout-fallback" },

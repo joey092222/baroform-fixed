@@ -5,6 +5,10 @@ import {
   buildSurveyAiRequest,
   parseSurveyDraftResponse,
 } from "../app/survey-ai";
+import {
+  buildSurveyRevisionRequest,
+  parseSurveyRevisionResponse,
+} from "../app/survey-revision";
 import { analyzeSurveyPrompt } from "../app/survey-intent";
 
 type QuestionType = "scale" | "single" | "multiple" | "text";
@@ -131,6 +135,72 @@ test("OpenAI 요청은 필요한 경우에만 빠른 웹 검색을 사용한다"
   assert.equal(request.text.format.type, "json_schema");
   assert.equal(request.text.format.strict, true);
   assert.equal(JSON.stringify(request).includes("OPENAI_API_KEY"), false);
+});
+
+test("사용자가 고른 학년과 문항 수를 AI 생성 계약에 반영한다", () => {
+  const prompt = "대우관 등하교 경험 조사";
+  const request = buildSurveyAiRequest(
+    prompt,
+    analyzeSurveyPrompt(prompt),
+    "gpt-5.6",
+    { targetGrade: "3-4학년", questionCount: 12 },
+  );
+
+  assert.match(request.input, /3-4학년/);
+  assert.match(request.input, /정확히 12개/);
+  assert.equal(request.text.format.schema.properties.result.anyOf[0].properties.aiQuestions.minItems, 12);
+  assert.equal(request.text.format.schema.properties.result.anyOf[0].properties.aiQuestions.maxItems, 12);
+});
+
+test("AI 수정 요청은 현재 설문 전체를 보존 가능한 구조로 전달한다", () => {
+  const currentQuestions = [
+    question(1, "대우관을 오가는 빈도는 어느 정도인가요?", "single", ["매일", "주 1~2회"]),
+    question(2, "이동에 걸리는 시간은 어느 정도인가요?"),
+  ];
+  const request = buildSurveyRevisionRequest({
+    model: "gpt-5.6",
+    title: "대우관 등하교 경험 조사",
+    description: "이동 경험을 조사합니다.",
+    questions: currentQuestions,
+    instruction: "날씨 관련 질문을 하나 추가해줘",
+    targetGrade: "전학년",
+  });
+
+  assert.match(request.input, /날씨 관련 질문/);
+  assert.match(request.input, /대우관을 오가는 빈도/);
+  assert.equal(request.store, false);
+  assert.equal(request.text.format.type, "json_schema");
+});
+
+test("AI 수정 결과에서 확장 문항 유형과 설정을 정규화한다", () => {
+  const revised = parseSurveyRevisionResponse({
+    status: "completed",
+    output_text: JSON.stringify({
+      title: "수정된 설문",
+      description: "수정된 안내",
+      message: "날짜 질문을 추가했어요.",
+      questions: [
+        {
+          id: 8,
+          title: "등교 날짜를 선택해주세요.",
+          description: "가장 최근 날짜",
+          reason: "최근 경험을 구분합니다.",
+          type: "date",
+          options: [],
+          required: true,
+          shuffleOptions: false,
+          scaleMin: 1,
+          scaleMax: 5,
+          scaleMinLabel: "",
+          scaleMaxLabel: "",
+        },
+      ],
+    }),
+  });
+
+  assert.equal(revised.questions[0].id, 1);
+  assert.equal(revised.questions[0].type, "date");
+  assert.equal(revised.questions[0].required, true);
 });
 
 test("표시 한도를 넘는 실제 검색 출처도 사실 검증에 사용할 수 있다", () => {
