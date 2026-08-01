@@ -13,13 +13,15 @@ import {
   Copy,
   Eye,
   GripVertical,
-  LayoutTemplate,
+  LogIn,
+  LogOut,
   MoreHorizontal,
   Plus,
   School,
   Search,
   Share2,
   Sparkles,
+  UserRound,
   UsersRound,
   WandSparkles,
   X,
@@ -34,10 +36,16 @@ import type {
   SurveyClarification,
   SurveyResearch,
 } from "./survey-ai";
+import {
+  categoryLabel,
+  schoolLabel,
+  schoolOptions,
+  surveyCategories,
+  type SurveyCategory,
+} from "./survey-board";
 
 type View =
   | "home"
-  | "choose"
   | "editor"
   | "published"
   | "survey"
@@ -48,6 +56,8 @@ type PublicSurvey = {
   title: string;
   description: string;
   ownerName: string;
+  schoolId: string;
+  category: SurveyCategory;
   campus: string;
   durationMinutes: number;
   createdAt?: string;
@@ -68,12 +78,6 @@ type StoredResponse = {
   createdAt: string;
 };
 
-type AnalyzedDraft = {
-  prompt: string;
-  blueprint: SurveyBlueprint;
-  research: SurveyResearch;
-};
-
 type ClarificationState = {
   prompt: string;
   clarification: SurveyClarification;
@@ -81,6 +85,13 @@ type ClarificationState = {
 };
 
 type Question = SurveyQuestion;
+
+type AuthUser = {
+  id: string;
+  email: string;
+  name: string;
+  schoolId: string;
+};
 
 type ManagedSurveySnapshot = {
   slug: string;
@@ -90,6 +101,7 @@ type ManagedSurveySnapshot = {
 };
 
 const managedSurveyStorageKey = "baroform:last-managed-survey";
+const authTokenStorageKey = "baroform:session-token";
 
 const promptSuggestions = [
   "신입생 학교생활 적응 조사",
@@ -98,7 +110,7 @@ const promptSuggestions = [
 ];
 
 const defaultBlueprint = analyzeSurveyPrompt(promptSuggestions[0]);
-const initialQuestions = defaultBlueprint.templateQuestions;
+const initialQuestions = defaultBlueprint.aiQuestions;
 
 function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
@@ -112,9 +124,15 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
 function Header({
   view,
   onNavigate,
+  user,
+  onAuth,
+  onLogout,
 }: {
   view: View;
   onNavigate: (view: View) => void;
+  user: AuthUser | null;
+  onAuth: () => void;
+  onLogout: () => void;
 }) {
   const scrollToSurveys = () => {
     if (view !== "home") {
@@ -169,10 +187,25 @@ function Header({
           </button>
         </nav>
         <div className="header-actions">
-          <span className="no-login-note">
-            <Check size={13} strokeWidth={2.5} />
-            설문 참여는 로그인 없이
-          </span>
+          {user ? (
+            <span className="member-school">
+              <School size={14} />
+              {schoolLabel(user.schoolId)}
+            </span>
+          ) : (
+            <span className="no-login-note">
+              <Check size={13} strokeWidth={2.5} />
+              응답은 로그인 없이
+            </span>
+          )}
+          <button
+            className="auth-button"
+            type="button"
+            onClick={user ? onLogout : onAuth}
+          >
+            {user ? <LogOut size={15} /> : <LogIn size={15} />}
+            {user ? user.name : "로그인"}
+          </button>
           <button
             className="nav-cta"
             type="button"
@@ -203,7 +236,7 @@ function CampusSurveyCard({
       onClick={onClick}
     >
       <div className="survey-card-top">
-        <span className="category-pill">학교 공개 설문</span>
+        <span className="category-pill">{categoryLabel(survey.category)}</span>
         <span className="deadline">로그인 없이 참여</span>
       </div>
       <div className="survey-owner">
@@ -242,24 +275,27 @@ function HomeView({
   loadingSurveys: boolean;
   isAnalyzing: boolean;
 }) {
-  const [filter, setFilter] = useState("전체");
+  const [filter, setFilter] = useState<"all" | SurveyCategory>("all");
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
   const makerRef = useRef<HTMLTextAreaElement | null>(null);
 
   const visibleSurveys = useMemo(() => {
     let filtered = [...surveys];
-    if (filter === "최근 등록") {
-      filtered = [...filtered].sort((a, b) =>
-        (b.createdAt ?? "").localeCompare(a.createdAt ?? ""),
-      );
+    filtered.sort((a, b) =>
+      (b.createdAt ?? "").localeCompare(a.createdAt ?? ""),
+    );
+    if (filter !== "all") {
+      filtered = filtered.filter((survey) => survey.category === filter);
     }
     if (search.trim()) {
       const keyword = search.trim().toLowerCase();
       filtered = filtered.filter(
         (survey) =>
           survey.title.toLowerCase().includes(keyword) ||
-          survey.ownerName.toLowerCase().includes(keyword),
+          survey.ownerName.toLowerCase().includes(keyword) ||
+          survey.description.toLowerCase().includes(keyword) ||
+          categoryLabel(survey.category).includes(keyword),
       );
     }
     return filtered;
@@ -274,13 +310,13 @@ function HomeView({
             <span>연세대학교 신촌캠퍼스 · 베타</span>
           </div>
           <h1>
-            우리 학교의 생각을 모으고,
+            설문 문항 설계부터,
             <br />
-            설문은 <span>바로</span> 만들어요.
+            우리 학교 응답 모집까지 <span>바로.</span>
           </h1>
           <p>
-            교내 설문에 로그인 없이 참여하고, 만들고 싶은 설문은 한
-            문장으로 시작하세요.
+            조사 목적을 한 문장으로 적으면 AI가 문항을 설계하고,
+            연세대 게시판에서 필요한 응답자를 만날 수 있어요.
           </p>
         </section>
 
@@ -291,13 +327,13 @@ function HomeView({
                 <Sparkles size={18} />
               </span>
               <div>
-                <small>BAROFORM SMART DRAFT</small>
-                <strong>어떤 설문을 만들까요?</strong>
+                <small>AI QUESTION DESIGNER</small>
+                <strong>무엇을 알아보고 싶나요?</strong>
               </div>
             </div>
             <p className="maker-helper">
-              조사 목적과 대상을 한 문장으로 적으면, 어떤 주제든 공개
-              자료를 먼저 조사한 뒤 질문과 선택지를 만들어요.
+              조사 목적·응답 대상·알고 싶은 점을 적으면, 필요한 자료만
+              빠르게 확인해 질문 순서와 선택지까지 설계해요.
             </p>
             <div className="prompt-box">
               <textarea
@@ -315,13 +351,13 @@ function HomeView({
                 }}
               />
               <div className="prompt-footer">
-                <span>목적 · 조사 대상 · 알고 싶은 점</span>
+                <span>목적 · 응답 대상 · 알고 싶은 점</span>
                 <button
                   type="button"
                   className="prompt-submit"
                   onClick={onCreate}
                   disabled={isAnalyzing}
-                  aria-label="설문 만들기 시작"
+                  aria-label="AI 문항 설계 시작"
                 >
                   {isAnalyzing ? <Sparkles size={19} /> : <ArrowUp size={20} />}
                 </button>
@@ -349,11 +385,11 @@ function HomeView({
               </span>
               <span>
                 <WandSparkles size={15} />
-                문항 자동 추천
+                AI 맞춤 문항 설계
               </span>
               <span>
-                <BarChart3 size={15} />
-                자동 결과 분석
+                <Search size={15} />
+                필요한 자료만 빠르게 확인
               </span>
             </div>
           </div>
@@ -427,8 +463,8 @@ function HomeView({
           <div className="section-title-row">
             <div>
               <span className="eyebrow">YONSEI CAMPUS VOICE</span>
-              <h2>학교 안의 다양한 설문을 만나보세요</h2>
-              <p>짧게 참여하고, 우리 학교의 다음 변화를 함께 만들어요.</p>
+              <h2>연세대학교 설문 게시판</h2>
+              <p>수업·학회·동아리 설문을 목적별로 골라 참여해보세요.</p>
             </div>
             <div className="survey-tools">
               <div className={`survey-search ${searchOpen ? "open" : ""}`}>
@@ -446,17 +482,25 @@ function HomeView({
                   aria-label="설문 검색어"
                 />
               </div>
-              <div className="filter-tabs" role="tablist" aria-label="설문 필터">
-                {["전체", "최근 등록"].map((item) => (
+              <div className="school-board-select" aria-label="현재 학교">
+                <School size={16} />
+                <span>연세대학교</span>
+                <small>신촌캠퍼스</small>
+              </div>
+              <div className="filter-tabs category-tabs" role="tablist" aria-label="설문 카테고리">
+                {[
+                  { id: "all" as const, label: "전체" },
+                  ...surveyCategories,
+                ].map((item) => (
                   <button
                     type="button"
                     role="tab"
-                    aria-selected={filter === item}
-                    className={filter === item ? "active" : ""}
-                    key={item}
-                    onClick={() => setFilter(item)}
+                    aria-selected={filter === item.id}
+                    className={filter === item.id ? "active" : ""}
+                    key={item.id}
+                    onClick={() => setFilter(item.id)}
                   >
-                    {item}
+                    {item.label}
                   </button>
                 ))}
               </div>
@@ -516,176 +560,103 @@ function HomeView({
   );
 }
 
-function ChooseView({
-  prompt,
-  blueprint,
-  research,
-  onBack,
-  onSelect,
+function AuthModal({
+  onClose,
+  onSuccess,
 }: {
-  prompt: string;
-  blueprint: SurveyBlueprint;
-  research: SurveyResearch;
-  onBack: () => void;
-  onSelect: (mode: "template" | "ai") => void;
+  onClose: () => void;
+  onSuccess: (token: string, user: AuthUser) => void;
 }) {
-  return (
-    <main className="flow-page">
-      <div className="flow-shell">
-        <button className="back-link" type="button" onClick={onBack}>
-          <ArrowLeft size={17} />
-          다시 입력하기
-        </button>
-        <div className="prompt-recap">
-          <span>내가 만들 설문</span>
-          <strong>“{prompt}”</strong>
-        </div>
-        <div className="flow-heading">
-          <div>
-            <span className="step-number">01</span>
-            <span className="eyebrow">START YOUR SURVEY</span>
-          </div>
-          <h1>어떻게 시작할까요?</h1>
-          <p>
-            바로 쓸 수 있는 추천 템플릿을 고르거나, 목적에 맞춰 AI가 새로
-            만들 수 있어요.
-          </p>
-        </div>
-        <div className="choice-grid">
-          <button
-            className="choice-card template-choice"
-            type="button"
-            onClick={() => onSelect("template")}
-          >
-            <div className="choice-topline">
-              <span className="choice-icon">
-                <LayoutTemplate size={22} />
-              </span>
-              <span className="recommended-badge">가장 빠름</span>
-            </div>
-            <div className="choice-copy">
-              <span>추천 템플릿 · {blueprint.intentLabel}</span>
-              <h2>{blueprint.templateTitle}</h2>
-              <p>{blueprint.templateSummary}</p>
-            </div>
-            <div className="template-preview intent-preview">
-              {blueprint.templateQuestions.slice(0, 3).map((question, index) => (
-                <span key={question.id}>
-                  <b>{String(index + 1).padStart(2, "0")}</b>
-                  <em>{question.title}</em>
-                </span>
-              ))}
-            </div>
-            <div className="choice-footer">
-              <span>{blueprint.templateQuestions.length}개 문항으로 시작</span>
-              <ArrowRight size={18} />
-            </div>
-          </button>
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [schoolId, setSchoolId] = useState("yonsei");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-          <button
-            className="choice-card ai-choice"
-            type="button"
-            onClick={() => onSelect("ai")}
-          >
-            <div className="choice-topline">
-              <span className="choice-icon">
-                <WandSparkles size={22} />
-              </span>
-              <span className="ai-badge">맞춤 초안</span>
-            </div>
-            <div className="choice-copy">
-              <span>AI가 문맥을 이렇게 이해했어요</span>
-              <h2>{blueprint.aiTitle ?? `${blueprint.subject} 맞춤 설문`}</h2>
-              <p>
-                응답 대상과 평가할 경험을 분리한 뒤, 질문 순서와
-                선택지를 주제에 맞게 구성해요.
-              </p>
-            </div>
-            <div className="ai-preview intent-analysis-preview">
-              <div className="ai-glow" />
-              <Sparkles size={22} />
-              <div className="analysis-signal-list">
-                {blueprint.detectedSignals.map((signal) => (
-                  <span key={signal}>
-                    <Check size={12} />
-                    {signal}
-                  </span>
-                ))}
-                <span>
-                  <Check size={12} />
-                  {blueprint.aiQuestions.length}개 맞춤 문항
-                </span>
-              </div>
-            </div>
-            <div className="choice-footer">
-              <span>AI에게 맡기기</span>
-              <ArrowRight size={18} />
-            </div>
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/auth/${mode}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email, password, name, schoolId }),
+      });
+      const result = (await response.json()) as {
+        token?: string;
+        user?: AuthUser;
+        error?: string;
+      };
+      if (!response.ok || !result.token || !result.user) {
+        throw new Error(result.error || "로그인 정보를 확인하지 못했어요.");
+      }
+      onSuccess(result.token, result.user);
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "잠시 후 다시 시도해주세요.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <form className="auth-modal" onSubmit={submit}>
+        <button type="button" className="modal-close" onClick={onClose} aria-label="닫기">
+          <X size={20} />
+        </button>
+        <span className="auth-icon"><UserRound size={24} /></span>
+        <h2>{mode === "login" ? "바로폼 로그인" : "학교 프로필 만들기"}</h2>
+        <p>
+          설문 응답은 로그인 없이 가능해요. 학교 게시판에 설문을 올릴 때만
+          학교 프로필이 필요해요.
+        </p>
+        <div className="auth-tabs" role="tablist" aria-label="로그인 또는 회원가입">
+          <button type="button" className={mode === "login" ? "active" : ""} onClick={() => { setMode("login"); setError(""); }}>
+            로그인
+          </button>
+          <button type="button" className={mode === "register" ? "active" : ""} onClick={() => { setMode("register"); setError(""); }}>
+            회원가입
           </button>
         </div>
-        {research.status !== "not-needed" && (
-          <section
-            className={`research-card ${research.status}`}
-            aria-label="AI 자료 확인 결과"
-          >
-            <div className="research-card-icon">
-              {research.status === "searched" || research.status === "cached" ? (
-                <Search size={19} />
-              ) : (
-                <CircleHelp size={19} />
-              )}
-            </div>
-            <div className="research-card-copy">
-              <span>
-                {research.status === "searched"
-                  ? "AI가 웹에서 먼저 조사했어요"
-                  : research.status === "cached"
-                    ? "검증된 공개 자료를 불러왔어요"
-                    : "정보조사를 완료하지 못했어요"}
-              </span>
-              <strong>
-                {research.entity
-                  ? `‘${research.entity}’의 실제 맥락을 문항에 반영했어요.`
-                  : "응답 대상과 평가할 경험을 분리했어요."}
-              </strong>
-              <p>{research.summary}</p>
-              {research.facts.length > 0 && (
-                <ul>
-                  {research.facts.slice(0, 3).map((fact) => (
-                    <li key={fact}>
-                      <Check size={12} />
-                      {fact}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {research.sources.length > 0 && (
-                <div className="research-sources">
-                  <span>확인한 출처</span>
-                  <div>
-                    {research.sources.map((source) => (
-                      <a
-                        key={source.url}
-                        href={source.url}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {source.title}
-                        <small>{source.domain}</small>
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
+        {mode === "register" && (
+          <>
+            <label className="auth-field">
+              <span>이름 또는 활동명</span>
+              <input value={name} onChange={(event) => setName(event.target.value)} placeholder="예) 박준성" maxLength={30} required />
+            </label>
+            <label className="auth-field">
+              <span>학교</span>
+              <select value={schoolId} onChange={(event) => setSchoolId(event.target.value)} required>
+                {schoolOptions.map((school) => (
+                  <option key={school.id} value={school.id}>{school.name} · {school.campus}</option>
+                ))}
+              </select>
+              <small>베타 기간에는 연세대학교 신촌캠퍼스만 가입할 수 있어요.</small>
+            </label>
+          </>
         )}
-        <p className="choice-footnote">
-          어떤 방식을 골라도 다음 화면에서 질문과 선택지를 자유롭게 바꿀
-          수 있어요.
-        </p>
-      </div>
-    </main>
+        <label className="auth-field">
+          <span>이메일</span>
+          <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@example.com" autoComplete="email" required />
+        </label>
+        <label className="auth-field">
+          <span>비밀번호</span>
+          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="8자 이상" minLength={8} autoComplete={mode === "login" ? "current-password" : "new-password"} required />
+        </label>
+        {error && <p className="publish-error" role="alert">{error}</p>}
+        <button className="modal-confirm" type="submit" disabled={saving}>
+          {saving ? "확인 중…" : mode === "login" ? "로그인" : "가입하고 시작하기"}
+          {!saving && <ArrowRight size={17} />}
+        </button>
+      </form>
+    </div>
   );
 }
 
@@ -1291,17 +1262,26 @@ function PublishModal({
   title,
   onClose,
   onConfirm,
+  onLogin,
+  user,
   saving,
   error,
 }: {
   title: string;
   onClose: () => void;
-  onConfirm: (ownerName: string, listingRequested: boolean) => void;
+  onConfirm: (
+    ownerName: string,
+    listingRequested: boolean,
+    category: SurveyCategory,
+  ) => void;
+  onLogin: () => void;
+  user: AuthUser | null;
   saving: boolean;
   error: string;
 }) {
-  const [ownerName, setOwnerName] = useState("");
+  const [ownerName, setOwnerName] = useState(user?.name ?? "");
   const [listingRequested, setListingRequested] = useState(false);
+  const [category, setCategory] = useState<SurveyCategory>("course");
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
@@ -1338,7 +1318,7 @@ function PublishModal({
           </div>
         </div>
         <div className="publish-option">
-          <label htmlFor="owner-name">게시자 이름</label>
+          <label htmlFor="owner-name">게시자 표시 이름</label>
           <input
             id="owner-name"
             value={ownerName}
@@ -1355,12 +1335,42 @@ function PublishModal({
             onChange={(event) => setListingRequested(event.target.checked)}
           />
           <span>
-            <strong>우리 학교 설문 목록 공개 요청</strong>
+            <strong>연세대학교 설문 게시판에도 올리기</strong>
             <small>
-              실제 교내 설문인지 확인한 뒤 학교 목록에 표시돼요.
+              선택한 카테고리 게시판에 설문이 바로 공개돼요.
             </small>
           </span>
         </label>
+        {listingRequested && (
+          <div className="board-publish-fields">
+            <div className="board-school-summary">
+              <School size={17} />
+              <span>
+                <small>게시 학교</small>
+                <strong>{user ? schoolLabel(user.schoolId) : "로그인 후 학교 자동 선택"}</strong>
+              </span>
+            </div>
+            <div className="publish-option">
+              <label htmlFor="survey-category">게시판 카테고리</label>
+              <select
+                id="survey-category"
+                value={category}
+                onChange={(event) => setCategory(event.target.value as SurveyCategory)}
+              >
+                {surveyCategories.map((item) => (
+                  <option key={item.id} value={item.id}>{item.label}</option>
+                ))}
+              </select>
+            </div>
+            {!user && (
+              <button className="board-login-callout" type="button" onClick={onLogin}>
+                <LogIn size={16} />
+                로그인하고 학교 선택하기
+                <ChevronRight size={16} />
+              </button>
+            )}
+          </div>
+        )}
         {error && (
           <p className="publish-error" role="alert">
             {error}
@@ -1369,10 +1379,20 @@ function PublishModal({
         <button
           type="button"
           className="modal-confirm"
-          onClick={() => onConfirm(ownerName, listingRequested)}
+          onClick={() => {
+            if (listingRequested && !user) {
+              onLogin();
+              return;
+            }
+            onConfirm(ownerName.trim() || user?.name || "", listingRequested, category);
+          }}
           disabled={saving}
         >
-          {saving ? "공개 링크 만드는 중…" : "공개 링크 만들기"}
+          {saving
+            ? "공개 링크 만드는 중…"
+            : listingRequested
+              ? "링크 만들고 게시판에 올리기"
+              : "공개 링크 만들기"}
           {!saving && <ArrowRight size={17} />}
         </button>
         <span className="modal-note">
@@ -2555,9 +2575,11 @@ export default function Home() {
   const [loadingSurveys, setLoadingSurveys] = useState(true);
   const [activeSurvey, setActiveSurvey] = useState<PublicSurvey | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analyzedDraft, setAnalyzedDraft] = useState<AnalyzedDraft | null>(null);
   const [clarification, setClarification] =
     useState<ClarificationState | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [authToken, setAuthToken] = useState("");
+  const [authOpen, setAuthOpen] = useState(false);
   const analysisRequestRef = useRef(0);
   const [publishOpen, setPublishOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -2567,23 +2589,6 @@ export default function Home() {
   const [publishedListingRequested, setPublishedListingRequested] =
     useState(false);
   const [toast, setToast] = useState("");
-  const normalizedPrompt = prompt.replace(/\s+/g, " ").trim();
-  const promptBlueprint = useMemo(() => {
-    if (analyzedDraft?.prompt === normalizedPrompt) {
-      return analyzedDraft.blueprint;
-    }
-    return analyzeSurveyPrompt(normalizedPrompt || promptSuggestions[0]);
-  }, [analyzedDraft, normalizedPrompt]);
-  const promptResearch: SurveyResearch =
-    analyzedDraft?.prompt === normalizedPrompt
-      ? analyzedDraft.research
-      : {
-          status: "not-needed",
-          entity: null,
-          summary: "응답 대상과 평가 경험을 분리해 문항을 구성했어요.",
-          facts: [],
-          sources: [],
-        };
 
   const loadSurvey = async (slug: string) => {
     const response = await fetch(`/api/surveys/${slug}`, {
@@ -2605,6 +2610,28 @@ export default function Home() {
     let cancelled = false;
 
     try {
+      const storedToken = window.localStorage.getItem(authTokenStorageKey) ?? "";
+      if (storedToken) {
+        fetch("/api/auth/session", {
+          headers: { authorization: `Bearer ${storedToken}` },
+          cache: "no-store",
+        })
+          .then(async (response) => {
+            const result = (await response.json()) as { user?: AuthUser };
+            if (!response.ok || !result.user) throw new Error();
+            return result.user;
+          })
+          .then((sessionUser) => {
+            if (!cancelled) {
+              setAuthToken(storedToken);
+              setUser(sessionUser);
+            }
+          })
+          .catch(() => {
+            window.localStorage.removeItem(authTokenStorageKey);
+            if (!cancelled) setAuthToken("");
+          });
+      }
       const stored = window.localStorage.getItem(managedSurveyStorageKey);
       if (stored) {
         const snapshot = JSON.parse(stored) as Partial<ManagedSurveySnapshot>;
@@ -2629,7 +2656,7 @@ export default function Home() {
       window.localStorage.removeItem(managedSurveyStorageKey);
     }
 
-    fetch("/api/surveys", { cache: "no-store" })
+    fetch("/api/surveys?school=yonsei", { cache: "no-store" })
       .then(async (response) => {
         const result = (await response.json()) as {
           surveys?: PublicSurvey[];
@@ -2695,7 +2722,6 @@ export default function Home() {
   const updatePrompt = (value: string) => {
     analysisRequestRef.current += 1;
     setPrompt(value);
-    setAnalyzedDraft(null);
     setClarification(null);
     setIsAnalyzing(false);
   };
@@ -2760,13 +2786,11 @@ export default function Home() {
         return;
       }
 
-      setAnalyzedDraft({
-        prompt: requestedPrompt,
-        blueprint: result.blueprint,
-        research: result.research,
-      });
+      setSurveyTitle(result.blueprint.title);
+      setDescription(result.blueprint.description);
+      setQuestions(result.blueprint.aiQuestions);
       if (prompt !== requestedPrompt) setPrompt(requestedPrompt);
-      navigate("choose");
+      navigate("editor");
     } catch (analysisError) {
       if (analysisRequestRef.current !== requestId) return;
       setToast(
@@ -2778,20 +2802,6 @@ export default function Home() {
     } finally {
       if (analysisRequestRef.current === requestId) setIsAnalyzing(false);
     }
-  };
-
-  const chooseMode = (mode: "template" | "ai") => {
-    const blueprint = promptBlueprint;
-    setSurveyTitle(blueprint.title);
-    setDescription(blueprint.description);
-
-    if (mode === "ai") {
-      setQuestions(blueprint.aiQuestions);
-      navigate("editor");
-      return;
-    }
-    setQuestions(blueprint.templateQuestions);
-    navigate("editor");
   };
 
   const openSurvey = async (survey: PublicSurvey) => {
@@ -2817,19 +2827,24 @@ export default function Home() {
   const publishSurvey = async (
     ownerName: string,
     listingRequested: boolean,
+    category: SurveyCategory,
   ) => {
     setPublishing(true);
     setPublishError("");
     try {
       const response = await fetch("/api/surveys", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
+        },
         body: JSON.stringify({
           title: surveyTitle,
           description,
           ownerName,
           questions,
           listingRequested,
+          category,
         }),
       });
       const result = (await response.json()) as {
@@ -2838,6 +2853,9 @@ export default function Home() {
           title: string;
           description: string;
           ownerName: string;
+          schoolId: string;
+          category: SurveyCategory;
+          campus: string;
           durationMinutes: number;
           listingRequested: boolean;
           manageToken: string;
@@ -2852,7 +2870,9 @@ export default function Home() {
         title: result.survey.title,
         description: result.survey.description,
         ownerName: result.survey.ownerName,
-        campus: "연세대학교 신촌캠퍼스",
+        schoolId: result.survey.schoolId,
+        category: result.survey.category,
+        campus: result.survey.campus,
         durationMinutes: result.survey.durationMinutes,
         questions,
       };
@@ -2882,11 +2902,32 @@ export default function Home() {
     }
   };
 
+  const logout = () => {
+    const token = authToken;
+    setUser(null);
+    setAuthToken("");
+    window.localStorage.removeItem(authTokenStorageKey);
+    if (token) {
+      void fetch("/api/auth/session", {
+        method: "DELETE",
+        headers: { authorization: `Bearer ${token}` },
+      });
+    }
+    setToast("로그아웃했어요.");
+    window.setTimeout(() => setToast(""), 1800);
+  };
+
   return (
     <div className="app-shell">
       {view === "home" && (
         <>
-          <Header view={view} onNavigate={navigate} />
+          <Header
+            view={view}
+            onNavigate={navigate}
+            user={user}
+            onAuth={() => setAuthOpen(true)}
+            onLogout={logout}
+          />
           <HomeView
             prompt={prompt}
             setPrompt={updatePrompt}
@@ -2898,18 +2939,6 @@ export default function Home() {
           />
         </>
       )}
-      {view === "choose" && (
-        <>
-          <Header view={view} onNavigate={navigate} />
-          <ChooseView
-            prompt={prompt}
-            blueprint={promptBlueprint}
-            research={promptResearch}
-            onBack={() => navigate("home")}
-            onSelect={chooseMode}
-          />
-        </>
-      )}
       {view === "editor" && (
         <EditorView
           title={surveyTitle}
@@ -2918,7 +2947,7 @@ export default function Home() {
           setDescription={setDescription}
           questions={questions}
           setQuestions={setQuestions}
-          onBack={() => navigate("choose")}
+          onBack={() => navigate("home")}
           onPublish={() => setPublishOpen(true)}
         />
       )}
@@ -2949,8 +2978,23 @@ export default function Home() {
           title={surveyTitle}
           onClose={() => setPublishOpen(false)}
           onConfirm={publishSurvey}
+          onLogin={() => setAuthOpen(true)}
+          user={user}
           saving={publishing}
           error={publishError}
+        />
+      )}
+      {authOpen && (
+        <AuthModal
+          onClose={() => setAuthOpen(false)}
+          onSuccess={(token, signedInUser) => {
+            window.localStorage.setItem(authTokenStorageKey, token);
+            setAuthToken(token);
+            setUser(signedInUser);
+            setAuthOpen(false);
+            setToast(`${schoolLabel(signedInUser.schoolId)} 계정으로 로그인했어요.`);
+            window.setTimeout(() => setToast(""), 2200);
+          }}
         />
       )}
       {isAnalyzing && (
@@ -2961,12 +3005,12 @@ export default function Home() {
             </span>
             <strong>입력한 내용을 정확히 이해하고 있어요</strong>
             <p>
-              모든 주제를 공개 자료에서 먼저 조사하고, 응답 대상과 평가
-              경험을 나눈 뒤 질문과 선택지를 구성해요.
+              응답 대상과 평가 경험을 먼저 나누고, 필요한 경우에만 공개
+              자료를 빠르게 확인해 문항을 설계해요.
             </p>
             <div className="research-loading-steps" aria-hidden>
               <span>문맥 분석</span>
-              <span>자료 확인</span>
+              <span>필요 자료 확인</span>
               <span>문항 설계</span>
             </div>
             <div className="loading-line">
