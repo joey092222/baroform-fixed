@@ -558,9 +558,13 @@ select:focus-visible {
 .preview-survey-grid {
   height: 365px;
   display: grid;
-  grid-template-columns: 1.08fr 0.92fr;
-  grid-template-rows: 1fr 1fr;
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.preview-survey-grid.preview-count-1 {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .preview-survey-grid > .real-empty-state,
@@ -727,6 +731,10 @@ select:focus-visible {
   box-shadow: 0 15px 32px rgba(11, 32, 64, 0.1);
 }
 
+.survey-card:focus-visible {
+  outline-offset: 3px;
+}
+
 .accent-blue {
   --card-accent: #397ee8;
 }
@@ -744,15 +752,9 @@ select:focus-visible {
 }
 
 .preview-survey-grid .survey-card {
-  padding: 16px;
-  border-radius: 15px;
-}
-
-.preview-survey-grid .survey-card.featured {
-  grid-row: 1 / 3;
   padding: 22px;
-  background:
-    linear-gradient(145deg, rgba(245, 249, 255, 0.92), white 68%);
+  border-radius: 17px;
+  background: linear-gradient(145deg, #ffffff, #fbfdff);
 }
 
 .survey-card-top {
@@ -772,9 +774,21 @@ select:focus-visible {
 }
 
 .deadline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   color: #8b95a7;
   font-size: 10px;
   font-weight: 700;
+}
+
+.deadline > span {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #28a477;
+  box-shadow: 0 0 0 3px rgba(40, 164, 119, 0.1);
 }
 
 .survey-owner {
@@ -789,10 +803,14 @@ select:focus-visible {
 
 .survey-card h3 {
   margin: 7px 0 0;
+  display: -webkit-box;
+  overflow: hidden;
   color: var(--navy-950);
   font-size: 17px;
   line-height: 1.35;
   letter-spacing: -0.035em;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .survey-description {
@@ -806,21 +824,26 @@ select:focus-visible {
   -webkit-line-clamp: 2;
 }
 
-.preview-survey-grid .survey-card:not(.featured) .survey-description {
-  display: none;
-}
-
 .reward-line {
   margin-top: auto;
   padding-top: 14px;
   display: flex;
   align-items: center;
-  gap: 7px;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid #edf1f6;
   color: #47556d;
   font-size: 10px;
 }
 
-.reward-line strong {
+.survey-duration {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.survey-duration strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -838,12 +861,28 @@ select:focus-visible {
 }
 
 .survey-time {
-  margin-left: auto;
+  min-height: 34px;
+  padding: 0 11px;
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
-  gap: 3px;
-  color: #8b95a6;
+  gap: 5px;
+  border-radius: 10px;
+  background: var(--blue-50);
+  color: var(--blue-600);
+  font-size: 10px;
+  font-weight: 800;
   white-space: nowrap;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.survey-card:hover .survey-time {
+  background: var(--blue-600);
+  color: white;
+  transform: translateX(2px);
 }
 
 .survey-progress-row {
@@ -4567,12 +4606,7 @@ select:focus-visible {
   .preview-survey-grid {
     height: auto;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: 230px 180px;
-  }
-
-  .preview-survey-grid .survey-card.featured {
-    grid-row: 1;
-    grid-column: 1 / -1;
+    grid-auto-rows: minmax(220px, auto);
   }
 
   .school-surveys-section {
@@ -4933,11 +4967,7 @@ select:focus-visible {
 
   .preview-survey-grid .survey-card,
   .preview-survey-grid .survey-card.featured {
-    min-height: 155px;
-  }
-
-  .preview-survey-grid .survey-card:not(.featured) .survey-description {
-    display: -webkit-box;
+    min-height: 190px;
   }
 
   .section-title-row h2 {

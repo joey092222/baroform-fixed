@@ -257,21 +257,23 @@ function Header({
 function CampusSurveyCard({
   survey,
   onClick,
-  featured = false,
 }: {
   survey: PublicSurvey;
   onClick: () => void;
-  featured?: boolean;
 }) {
   return (
     <button
       type="button"
-      className={`survey-card accent-blue ${featured ? "featured" : ""}`}
+      className="survey-card accent-blue"
       onClick={onClick}
+      aria-label={`${survey.title} 설문 참여하기`}
     >
       <div className="survey-card-top">
         <span className="category-pill">{categoryLabel(survey.category)}</span>
-        <span className="deadline">로그인 없이 참여</span>
+        <span className="deadline">
+          <span aria-hidden="true" />
+          로그인 없이 참여
+        </span>
       </div>
       <div className="survey-owner">
         {survey.ownerName || "게시자 이름 미표시"}
@@ -279,10 +281,12 @@ function CampusSurveyCard({
       <h3>{survey.title}</h3>
       <p className="survey-description">{survey.description}</p>
       <div className="reward-line">
-        <span className="reward-icon">
-          <Clock3 size={15} />
+        <span className="survey-duration">
+          <span className="reward-icon">
+            <Clock3 size={15} />
+          </span>
+          <strong>약 {survey.durationMinutes}분</strong>
         </span>
-        <strong>약 {survey.durationMinutes}분</strong>
         <span className="survey-time">
           참여하기
           <ArrowRight size={13} />
@@ -425,7 +429,12 @@ function HomeView({
                 <ChevronRight size={16} />
               </button>
             </div>
-            <div className="preview-survey-grid">
+            <div
+              className={`preview-survey-grid preview-count-${Math.min(
+                surveys.length,
+                2,
+              )}`}
+            >
               {loadingSurveys ? (
                 <div className="survey-loading-state" aria-live="polite">
                   <span />
@@ -434,11 +443,10 @@ function HomeView({
                   <p>공개 설문을 불러오고 있어요.</p>
                 </div>
               ) : surveys.length > 0 ? (
-                surveys.slice(0, 3).map((survey, index) => (
+                surveys.slice(0, 2).map((survey) => (
                   <CampusSurveyCard
                     key={survey.slug}
                     survey={survey}
-                    featured={index === 0}
                     onClick={() => onOpenSurvey(survey)}
                   />
                 ))
