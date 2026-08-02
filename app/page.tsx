@@ -858,10 +858,7 @@ function HomeView({
 
         <section className="first-viewport-grid">
           <div className="maker-panel">
-            <span className="maker-ai-mark">
-              <Sparkles size={16} />
-              AI 문항 설계
-            </span>
+            <span className="maker-ai-mark">빠른 설문 제작</span>
             <h2>어떤 설문을 만들까요?</h2>
             <p className="maker-helper">
               내용을 적거나 참고할 사진·파일·링크를 추가해주세요.
@@ -983,7 +980,7 @@ function HomeView({
             type="button"
             onClick={onCreate}
           >
-            AI로 설문 만들기
+            설문 만들기
             <ArrowRight size={18} />
           </button>
         </section>
@@ -1363,12 +1360,12 @@ function CreateView({
           <BrandMark compact />
           <strong>바로폼</strong>
         </button>
-        <span className="create-step">AI 설문 만들기</span>
+        <span className="create-step">새 설문</span>
       </header>
 
       <section className="create-stage">
         <div className="create-copy">
-          <span className="create-ai-mark"><Sparkles size={17} /> AI 문항 설계</span>
+          <span className="create-ai-mark">설문 초안 만들기</span>
           <h1>어떤 설문을 만들까요?</h1>
           <p>내용을 적거나 참고할 사진·파일·링크를 추가해주세요.</p>
         </div>
