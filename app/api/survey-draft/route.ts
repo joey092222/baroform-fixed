@@ -8,6 +8,13 @@ import {
   parseSurveyDraftResponse,
   type SurveyDraftResult,
 } from "../../survey-ai";
+import {
+  applyTargetGradeToQuestions,
+  isTargetGrade,
+  respondentGroupForGrade,
+  surveyDescriptionForGrade,
+  type TargetGrade,
+} from "../../survey-grade";
 import { lookupVerifiedSurveyKnowledge } from "../../survey-knowledge";
 import { consumePersistentAiRateLimit } from "@/db";
 
@@ -72,45 +79,45 @@ function invalidResultReason(error: unknown) {
   return "invalid-result";
 }
 
-const allowedTargetGrades = new Set([
-  "1학년",
-  "2학년",
-  "3학년",
-  "4학년",
-  "1-2학년",
-  "3-4학년",
-  "전학년",
-]);
-
 function applyDraftSettings(
   blueprint: SurveyBlueprint,
-  targetGrade: string,
+  targetGrade: TargetGrade,
   questionCount: number,
 ): SurveyBlueprint {
-  const audience = targetGrade === "전학년" ? "전학년 재학생" : `${targetGrade} 재학생`;
+  const templateCount = Math.min(5, questionCount);
+  const aiQuestions = applyTargetGradeToQuestions(
+    resizeSurveyQuestions(blueprint.aiQuestions, questionCount),
+    targetGrade,
+    questionCount,
+  );
   return {
     ...blueprint,
-    description: `${audience}을 대상으로 ${blueprint.description}`.slice(0, 500),
-    respondentGroup: blueprint.respondentGroup
-      ? `${audience} 중 ${blueprint.respondentGroup}`.slice(0, 80)
-      : audience,
+    description: surveyDescriptionForGrade(
+      blueprint.description,
+      targetGrade,
+    ),
+    respondentGroup: respondentGroupForGrade(
+      blueprint.respondentGroup,
+      targetGrade,
+    ),
     detectedSignals: [
       ...(blueprint.detectedSignals ?? []).filter(
         (signal) => !signal.startsWith("응답 학년 ·"),
       ),
       `응답 학년 · ${targetGrade}`,
     ],
-    templateQuestions: resizeSurveyQuestions(
-      blueprint.templateQuestions,
-      Math.min(5, questionCount),
+    templateQuestions: applyTargetGradeToQuestions(
+      resizeSurveyQuestions(blueprint.templateQuestions, templateCount),
+      targetGrade,
+      templateCount,
     ),
-    aiQuestions: resizeSurveyQuestions(blueprint.aiQuestions, questionCount),
+    aiQuestions,
   };
 }
 
 function verifiedResearchFallback(
   prompt: string,
-  targetGrade: string,
+  targetGrade: TargetGrade,
   questionCount: number,
 ): SurveyDraftResult | null {
   const knowledge = lookupVerifiedSurveyKnowledge(prompt);
@@ -172,7 +179,7 @@ function verifiedResearchFallback(
 
 function fastDraftFallback(
   prompt: string,
-  targetGrade: string,
+  targetGrade: TargetGrade,
   questionCount: number,
 ): SurveyDraftResult {
   const blueprint = applyDraftSettings(
@@ -251,7 +258,7 @@ function clarificationOptions(blueprint: SurveyBlueprint) {
 
 function clarificationFallback(
   prompt: string,
-  targetGrade: string,
+  targetGrade: TargetGrade,
   questionCount: number,
 ): SurveyDraftResult {
   const blueprint = applyDraftSettings(
@@ -284,7 +291,7 @@ function clarificationFallback(
 
 function resilientDraftFallback(
   prompt: string,
-  targetGrade: string,
+  targetGrade: TargetGrade,
   questionCount: number,
 ) {
   return hasUsableSurveyDirection(prompt)
@@ -403,7 +410,7 @@ export async function POST(request: Request) {
   }
   const targetGrade =
     typeof payload.targetGrade === "string" &&
-    allowedTargetGrades.has(payload.targetGrade)
+    isTargetGrade(payload.targetGrade)
       ? payload.targetGrade
       : "전학년";
   const questionCount =
@@ -515,7 +522,12 @@ export async function POST(request: Request) {
     }
 
     const rawResult = (await upstream.json()) as unknown;
-    const result = parseSurveyDraftResponse(rawResult, prompt, questionCount);
+    const result = parseSurveyDraftResponse(
+      rawResult,
+      prompt,
+      questionCount,
+      targetGrade,
+    );
     cacheResult(cacheKey, now, result);
     return Response.json(result, { headers: noStoreHeaders });
   } catch (error) {
