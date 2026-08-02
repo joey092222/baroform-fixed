@@ -15,6 +15,7 @@ import {
   Clock3,
   Copy,
   Eye,
+  FileText,
   GripVertical,
   ImagePlus,
   Link2,
@@ -107,8 +108,17 @@ type SurveyReferenceImage = {
   dataUrl: string;
 };
 
+type SurveyReferenceFile = {
+  id: string;
+  name: string;
+  dataUrl: string;
+  mimeType: string;
+  size: number;
+};
+
 type SurveyReferences = {
   images: SurveyReferenceImage[];
+  files: SurveyReferenceFile[];
   links: string[];
 };
 
@@ -131,11 +141,50 @@ type ManagedSurveySnapshot = {
 const managedSurveyStorageKey = "baroform:last-managed-survey";
 const authTokenStorageKey = "baroform:session-token";
 const maxReferenceImages = 10;
+const maxReferenceFiles = 3;
 const maxReferenceLinks = 3;
 const maxReferenceImageDataLength = 300_000;
+const maxReferenceFileBytes = 2 * 1024 * 1024;
+const maxReferenceDataLength = 3_000_000;
+
+const referenceFileMimeTypes: Record<string, string> = {
+  pdf: "application/pdf",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  odt: "application/vnd.oasis.opendocument.text",
+  rtf: "application/rtf",
+  ppt: "application/vnd.ms-powerpoint",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  xls: "application/vnd.ms-excel",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  csv: "text/csv",
+  tsv: "text/tsv",
+  txt: "text/plain",
+  md: "text/markdown",
+  markdown: "text/markdown",
+  json: "application/json",
+  html: "text/html",
+  htm: "text/html",
+  xml: "text/xml",
+};
+
+const referenceFileAccept = Object.entries(referenceFileMimeTypes)
+  .flatMap(([extension, mimeType]) => [`.${extension}`, mimeType])
+  .join(",");
 
 function hasSurveyReferences(references: SurveyReferences) {
-  return references.images.length > 0 || references.links.length > 0;
+  return (
+    references.images.length > 0 ||
+    references.files.length > 0 ||
+    references.links.length > 0
+  );
+}
+
+function referenceDataLength(references: SurveyReferences) {
+  return [
+    ...references.images.map((image) => image.dataUrl.length),
+    ...references.files.map((file) => file.dataUrl.length),
+  ].reduce((total, length) => total + length, 0);
 }
 
 function readFileAsDataUrl(file: Blob) {
@@ -206,6 +255,39 @@ async function prepareReferenceImage(file: File): Promise<SurveyReferenceImage> 
     id: crypto.randomUUID(),
     name: file.name.slice(0, 80) || "첨부 사진",
     dataUrl,
+  };
+}
+
+function referenceFileMimeType(file: File) {
+  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+  return referenceFileMimeTypes[extension] ?? null;
+}
+
+function formatReferenceFileSize(size: number) {
+  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))}KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)}MB`;
+}
+
+async function prepareReferenceFile(file: File): Promise<SurveyReferenceFile> {
+  const mimeType = referenceFileMimeType(file);
+  if (!mimeType) {
+    throw new Error(
+      "PDF, Word, PowerPoint, Excel, CSV, TXT, Markdown 파일만 첨부할 수 있어요.",
+    );
+  }
+  if (file.size > maxReferenceFileBytes) {
+    throw new Error("파일 한 개는 2MB 이하로 올려주세요.");
+  }
+
+  const normalizedFile =
+    file.type === mimeType ? file : file.slice(0, file.size, mimeType);
+  const dataUrl = await readFileAsDataUrl(normalizedFile);
+  return {
+    id: crypto.randomUUID(),
+    name: file.name.slice(0, 120) || "첨부 파일",
+    dataUrl,
+    mimeType,
+    size: file.size,
   };
 }
 
@@ -396,10 +478,12 @@ function SurveyReferenceControls({
   onChange: (references: SurveyReferences) => void;
   disabled?: boolean;
 }) {
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const documentInputRef = useRef<HTMLInputElement | null>(null);
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkValue, setLinkValue] = useState("");
   const [processingImage, setProcessingImage] = useState(false);
+  const [processingFile, setProcessingFile] = useState(false);
   const [referenceError, setReferenceError] = useState("");
 
   const addImages = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -419,10 +503,16 @@ function SurveyReferenceControls({
       for (const file of files.slice(0, available)) {
         prepared.push(await prepareReferenceImage(file));
       }
-      onChange({
+      const nextReferences = {
         ...references,
         images: [...references.images, ...prepared],
-      });
+      };
+      if (referenceDataLength(nextReferences) > maxReferenceDataLength) {
+        throw new Error(
+          "전체 참고 자료 용량이 커요. 사진이나 파일 일부를 삭제한 뒤 다시 시도해주세요.",
+        );
+      }
+      onChange(nextReferences);
       if (files.length > available) {
         setReferenceError(`사진은 최대 ${maxReferenceImages}장까지 첨부할 수 있어요.`);
       }
@@ -432,6 +522,45 @@ function SurveyReferenceControls({
       );
     } finally {
       setProcessingImage(false);
+    }
+  };
+
+  const addFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    if (files.length === 0) return;
+    const available = maxReferenceFiles - references.files.length;
+    if (available <= 0) {
+      setReferenceError(`파일은 최대 ${maxReferenceFiles}개까지 첨부할 수 있어요.`);
+      return;
+    }
+
+    setProcessingFile(true);
+    setReferenceError("");
+    try {
+      const prepared: SurveyReferenceFile[] = [];
+      for (const file of files.slice(0, available)) {
+        prepared.push(await prepareReferenceFile(file));
+      }
+      const nextReferences = {
+        ...references,
+        files: [...references.files, ...prepared],
+      };
+      if (referenceDataLength(nextReferences) > maxReferenceDataLength) {
+        throw new Error(
+          "전체 참고 자료 용량이 커요. 사진이나 파일 일부를 삭제한 뒤 다시 시도해주세요.",
+        );
+      }
+      onChange(nextReferences);
+      if (files.length > available) {
+        setReferenceError(`파일은 최대 ${maxReferenceFiles}개까지 첨부할 수 있어요.`);
+      }
+    } catch (error) {
+      setReferenceError(
+        error instanceof Error ? error.message : "파일을 첨부하지 못했어요.",
+      );
+    } finally {
+      setProcessingFile(false);
     }
   };
 
@@ -503,6 +632,28 @@ function SurveyReferenceControls({
               </button>
             </span>
           ))}
+          {references.files.map((file) => (
+            <span className="reference-chip file-reference" key={file.id}>
+              <FileText size={14} aria-hidden="true" />
+              <span>
+                {file.name}
+                <small>{formatReferenceFileSize(file.size)}</small>
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  onChange({
+                    ...references,
+                    files: references.files.filter((item) => item.id !== file.id),
+                  })
+                }
+                disabled={disabled}
+                aria-label={`${file.name} 삭제`}
+              >
+                <X size={13} />
+              </button>
+            </span>
+          ))}
           {references.links.map((link) => (
             <span className="reference-chip link-reference" key={link}>
               <Link2 size={13} aria-hidden="true" />
@@ -556,13 +707,23 @@ function SurveyReferenceControls({
         <div className="reference-actions">
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => imageInputRef.current?.click()}
             disabled={
               disabled || processingImage || references.images.length >= maxReferenceImages
             }
           >
             <ImagePlus size={15} />
             {processingImage ? "사진 처리 중" : "사진 첨부"}
+          </button>
+          <button
+            type="button"
+            onClick={() => documentInputRef.current?.click()}
+            disabled={
+              disabled || processingFile || references.files.length >= maxReferenceFiles
+            }
+          >
+            <FileText size={15} />
+            {processingFile ? "파일 처리 중" : "파일 첨부"}
           </button>
           <button
             type="button"
@@ -580,12 +741,22 @@ function SurveyReferenceControls({
       </div>
       {referenceError && <p className="reference-error">{referenceError}</p>}
       <input
-        ref={fileInputRef}
+        ref={imageInputRef}
         className="reference-file-input"
         type="file"
         accept="image/jpeg,image/png,image/webp"
         multiple
         onChange={addImages}
+        tabIndex={-1}
+        aria-hidden="true"
+      />
+      <input
+        ref={documentInputRef}
+        className="reference-file-input"
+        type="file"
+        accept={referenceFileAccept}
+        multiple
+        onChange={addFiles}
         tabIndex={-1}
         aria-hidden="true"
       />
@@ -645,7 +816,7 @@ function HomeView({
             </span>
             <h2>어떤 설문을 만들까요?</h2>
             <p className="maker-helper">
-              내용을 적거나 참고할 사진·링크를 추가해주세요.
+              내용을 적거나 참고할 사진·파일·링크를 추가해주세요.
             </p>
             <div className="prompt-box">
               <textarea
@@ -1151,7 +1322,7 @@ function CreateView({
         <div className="create-copy">
           <span className="create-ai-mark"><Sparkles size={17} /> AI 문항 설계</span>
           <h1>어떤 설문을 만들까요?</h1>
-          <p>내용을 적거나 참고할 사진·링크를 추가해주세요.</p>
+          <p>내용을 적거나 참고할 사진·파일·링크를 추가해주세요.</p>
         </div>
 
         <div className="create-composer">
@@ -1258,7 +1429,7 @@ function CreateView({
           <span>
             {targetGrade} 대상 · {questionCount}문항
             {hasSurveyReferences(references)
-              ? ` · 참고자료 ${references.images.length + references.links.length}개`
+              ? ` · 참고자료 ${references.images.length + references.files.length + references.links.length}개`
               : ""}
           </span>
           <span>생성 후 모든 문항을 직접 또는 AI로 수정할 수 있어요.</span>
@@ -3667,6 +3838,7 @@ export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [references, setReferencesState] = useState<SurveyReferences>({
     images: [],
+    files: [],
     links: [],
   });
   const [targetGrade, setTargetGrade] = useState<TargetGrade>("전학년");
@@ -3923,7 +4095,7 @@ export default function Home() {
       .replace(/\s+/g, " ")
       .trim();
     if (!enteredPrompt && !hasSurveyReferences(references)) {
-      setToast("설문 내용을 적거나 참고할 사진·링크를 추가해주세요.");
+      setToast("설문 내용을 적거나 참고할 사진·파일·링크를 추가해주세요.");
       window.setTimeout(() => setToast(""), 2200);
       document.getElementById("survey-maker")?.focus();
       return;
@@ -3951,6 +4123,11 @@ export default function Home() {
           questionCount,
           references: {
             images: references.images.map(({ name, dataUrl }) => ({ name, dataUrl })),
+            files: references.files.map(({ name, dataUrl, mimeType }) => ({
+              name,
+              dataUrl,
+              mimeType,
+            })),
             links: references.links,
           },
         }),
