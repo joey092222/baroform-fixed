@@ -6572,6 +6572,20 @@ button {
   font-size: 9px;
 }
 
+.maker-panel .reference-action-row {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.maker-panel .reference-actions {
+  flex-wrap: nowrap;
+}
+
+.maker-panel .reference-hint {
+  padding-left: 2px;
+}
+
 .reference-chip,
 .reference-link-entry {
   border-color: #dfe4eb;
