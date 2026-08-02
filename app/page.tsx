@@ -784,7 +784,7 @@ function SurveyReferenceControls({
           </button>
         </div>
         <span className="reference-hint">
-          파일 10MB/개 · 전체 20MB · 추가 후 Enter 또는 화살표
+          사진 10장 · 파일 10MB/개 · 전체 20MB
         </span>
       </div>
       {referenceError && <p className="reference-error">{referenceError}</p>}
