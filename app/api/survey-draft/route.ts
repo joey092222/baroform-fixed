@@ -195,6 +195,103 @@ function fastDraftFallback(
   };
 }
 
+function hasUsableSurveyDirection(prompt: string) {
+  const normalized = prompt.replace(/\s+/g, " ").trim();
+  if (
+    /^(?:설문|설문\s*조사|조사|만족도|의견|생각|평가|수요|문제점|개선점|대학생\s*설문|학교\s*설문)$/.test(
+      normalized,
+    )
+  ) {
+    return false;
+  }
+  return /(만족|불만|문제|개선|평가|선호|수요|인지|의향|경험|이용|사용|가입|참여|적응|학교생활|대학생활|등하교|통학|구매|불편|장벽|행태|빈도)/.test(
+    normalized,
+  );
+}
+
+function clarificationOptions(blueprint: SurveyBlueprint) {
+  switch (blueprint.domain) {
+    case "club":
+      return [
+        "가입 의향과 망설이는 이유",
+        "활동 만족도와 개선점",
+        "인지도와 관심 정도",
+      ];
+    case "event":
+      return [
+        "참여 만족도와 개선점",
+        "참여 의향과 불참 이유",
+        "프로그램 선호와 수요",
+      ];
+    case "course":
+      return [
+        "수업 만족도와 개선점",
+        "학습 경험과 어려움",
+        "과제·평가 방식에 대한 의견",
+      ];
+    case "cafeteria":
+    case "building":
+    case "library":
+    case "dormitory":
+    case "service":
+    case "facility":
+      return [
+        "이용 만족도와 개선점",
+        "이용 중 불편 사항",
+        "이용 경험과 빈도",
+      ];
+    default:
+      return [
+        "만족도와 개선점",
+        "수요와 참여 의향",
+        "경험과 불편 사항",
+      ];
+  }
+}
+
+function clarificationFallback(
+  prompt: string,
+  targetGrade: string,
+  questionCount: number,
+): SurveyDraftResult {
+  const blueprint = applyDraftSettings(
+    analyzeSurveyPrompt(prompt),
+    targetGrade,
+    questionCount,
+  );
+  const target = (blueprint.evaluationTarget ?? blueprint.subject).trim();
+  return {
+    status: "needs_clarification",
+    prompt,
+    clarification: {
+      question: target
+        ? `‘${target}’에 대해 무엇을 알아보고 싶나요?`
+        : "이 설문으로 무엇을 알아보고 싶나요?",
+      reason:
+        "문장이 짧아서가 아니라, 선택에 따라 문항 구성이 크게 달라지는 한 가지만 확인할게요.",
+      options: clarificationOptions(blueprint),
+    },
+    research: {
+      status: "fallback",
+      entity: target || null,
+      summary:
+        "입력 문맥에서 대상은 파악했고, 조사 목적만 확인하면 바로 문항을 설계할 수 있어요.",
+      facts: [],
+      sources: [],
+    },
+  };
+}
+
+function resilientDraftFallback(
+  prompt: string,
+  targetGrade: string,
+  questionCount: number,
+) {
+  return hasUsableSurveyDirection(prompt)
+    ? fastDraftFallback(prompt, targetGrade, questionCount)
+    : clarificationFallback(prompt, targetGrade, questionCount);
+}
+
 function cacheResult(key: string, now: number, result: SurveyDraftResult) {
   responseCache.set(key, {
     expiresAt: now + cacheLifetimeMs,
@@ -342,11 +439,13 @@ export async function POST(request: Request) {
       cacheResult(cacheKey, now, verifiedFallback);
       return fallbackResponse(verifiedFallback, "api-key-missing");
     }
-    return apiError(
-      "정보조사 연결이 아직 설정되지 않았어요. 운영자가 AI 검색 키를 등록한 뒤 다시 시도해주세요.",
-      "AI_NOT_CONFIGURED",
-      503,
+    const resilientFallback = resilientDraftFallback(
+      prompt,
+      targetGrade,
+      questionCount,
     );
+    cacheResult(cacheKey, now, resilientFallback);
+    return fallbackResponse(resilientFallback, "api-key-missing");
   }
 
   const model = process.env.OPENAI_SURVEY_MODEL?.trim() || "gpt-5.6-terra";
@@ -395,16 +494,23 @@ export async function POST(request: Request) {
         );
       }
       if (upstream.status === 429) {
-        return apiError(
-          "지금 AI 요청이 많아요. 잠시 후 다시 시도해주세요.",
-          "AI_BUSY",
-          503,
+        const resilientFallback = resilientDraftFallback(
+          prompt,
+          targetGrade,
+          questionCount,
         );
+        cacheResult(cacheKey, now, resilientFallback);
+        return fallbackResponse(resilientFallback, "upstream-429");
       }
-      return apiError(
-        "AI가 초안을 완성하지 못했어요. 잠시 후 다시 시도해주세요.",
-        "AI_UPSTREAM_ERROR",
-        502,
+      const resilientFallback = resilientDraftFallback(
+        prompt,
+        targetGrade,
+        questionCount,
+      );
+      cacheResult(cacheKey, now, resilientFallback);
+      return fallbackResponse(
+        resilientFallback,
+        `upstream-${upstream.status}`,
       );
     }
 
@@ -433,11 +539,13 @@ export async function POST(request: Request) {
         headers: { ...noStoreHeaders, "x-baroform-ai-status": "timeout-fallback" },
       });
     }
-    return apiError(
-      "AI가 설문을 구성하지 못했어요. 입력을 조금 더 구체적으로 적어주세요.",
-      "AI_INVALID_RESULT",
-      502,
+    const resilientFallback = resilientDraftFallback(
+      prompt,
+      targetGrade,
+      questionCount,
     );
+    cacheResult(cacheKey, now, resilientFallback);
+    return fallbackResponse(resilientFallback, invalidResultReason(error));
   } finally {
     clearTimeout(timeout);
   }
