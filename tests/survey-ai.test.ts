@@ -10,6 +10,7 @@ import {
   parseSurveyRevisionResponse,
 } from "../app/survey-revision";
 import { analyzeSurveyPrompt } from "../app/survey-intent";
+import { applyTargetGradeToQuestions } from "../app/survey-grade";
 
 type QuestionType = "scale" | "single" | "multiple" | "text";
 
@@ -153,6 +154,62 @@ test("사용자가 고른 학년과 문항 수를 AI 생성 계약에 반영한�
   assert.match(request.input, /정확히 12개/);
   assert.equal(request.text.format.schema.properties.result.anyOf[0].properties.aiQuestions.minItems, 12);
   assert.equal(request.text.format.schema.properties.result.anyOf[0].properties.aiQuestions.maxItems, 12);
+});
+
+test("학년 적격성과 시설 이용 경험을 서로 다른 문항으로 분리한다", () => {
+  const original = [
+    question(
+      1,
+      "현재 연세대학교 신촌캠퍼스 전학년 재학생이며, 최근 1학기 내 중앙도서관을 이용한 적이 있습니까?",
+      "single",
+      ["예", "아니요"],
+    ),
+    ...Array.from({ length: 6 }, (_, index) =>
+      question(index + 2, `중앙도서관 이용 경험 질문 ${index + 1}`),
+    ),
+  ];
+
+  const questions = applyTargetGradeToQuestions(original, "1학년", 7);
+
+  assert.equal(
+    questions[0]?.title,
+    "귀하는 현재 연세대학교 1학년 재학생입니까?",
+  );
+  assert.equal(
+    questions[1]?.title,
+    "최근 1학기 내 중앙도서관을 이용한 적이 있습니까?",
+  );
+  assert.equal(questions.length, 7);
+  assert.doesNotMatch(
+    questions.map((item) => item.title).join(" "),
+    /전학년 재학생|재학생이며/,
+  );
+});
+
+test("전학년 선택은 자연스러운 재학생 표현으로 정리한다", () => {
+  const questions = applyTargetGradeToQuestions(
+    [
+      question(
+        1,
+        "현재 연세대학교 신촌캠퍼스 전학년 재학생이며, 최근 중앙도서관을 이용한 적이 있습니까?",
+        "single",
+        ["예", "아니요"],
+      ),
+      question(2, "중앙도서관 좌석은 편리했습니까?"),
+      question(3, "개선이 필요한 점을 알려주세요.", "text"),
+    ],
+    "전학년",
+    3,
+  );
+
+  assert.equal(
+    questions[0]?.title,
+    "최근 중앙도서관을 이용한 적이 있습니까?",
+  );
+  assert.doesNotMatch(
+    questions.map((item) => item.title).join(" "),
+    /전학년 재학생/,
+  );
 });
 
 test("AI 수정 요청은 현재 설문 전체를 보존 가능한 구조로 전달한다", () => {
@@ -347,13 +404,32 @@ test("AI 연결이 없어도 방향이 명확한 입력은 문맥 기반 초안�
     );
     const body = (await response.json()) as {
       status?: string;
-      blueprint?: { aiQuestions?: unknown[]; respondentGroup?: string };
+      blueprint?: {
+        aiQuestions?: Array<{ title: string }>;
+        description?: string;
+        respondentGroup?: string;
+      };
     };
 
     assert.equal(response.status, 200);
     assert.equal(body.status, "ready");
     assert.equal(body.blueprint?.aiQuestions?.length, 9);
-    assert.match(body.blueprint?.respondentGroup ?? "", /3-4학년/);
+    assert.match(
+      body.blueprint?.respondentGroup ?? "",
+      /3학년 또는 4학년/,
+    );
+    assert.equal(
+      body.blueprint?.aiQuestions?.[0]?.title,
+      "귀하는 현재 연세대학교 3학년 또는 4학년 재학생입니까?",
+    );
+    assert.match(
+      body.blueprint?.description ?? "",
+      /^연세대학교 3학년 또는 4학년 재학생을 대상으로,/,
+    );
+    assert.doesNotMatch(
+      body.blueprint?.aiQuestions?.map((item) => item.title).join(" ") ?? "",
+      /(이용|사용|수강|참여|경험)(?:을|를)\s*(?:직접\s*)?\1|재학생이며/,
+    );
   } finally {
     if (previousKey) process.env.OPENAI_API_KEY = previousKey;
   }
