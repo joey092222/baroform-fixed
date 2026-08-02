@@ -310,6 +310,90 @@ function normalizePrompt(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
 
+type SurveyReferences = {
+  images: Array<{ name: string; dataUrl: string }>;
+  links: string[];
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isPrivateHostname(hostname: string) {
+  const normalized = hostname.toLowerCase();
+  return (
+    normalized === "localhost" ||
+    normalized.endsWith(".local") ||
+    normalized === "::1" ||
+    /^(?:127\.|10\.|192\.168\.|169\.254\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(
+      normalized,
+    )
+  );
+}
+
+function parseSurveyReferences(value: unknown): SurveyReferences | null {
+  if (value === undefined) return { images: [], links: [] };
+  if (!isRecord(value)) return null;
+  const rawImages = value.images === undefined ? [] : value.images;
+  const rawLinks = value.links === undefined ? [] : value.links;
+  if (!Array.isArray(rawImages) || !Array.isArray(rawLinks)) return null;
+  if (rawImages.length > 10 || rawLinks.length > 3) return null;
+
+  const images: SurveyReferences["images"] = [];
+  for (const item of rawImages) {
+    if (!isRecord(item)) return null;
+    const name = typeof item.name === "string" ? item.name.trim().slice(0, 80) : "";
+    const dataUrl = typeof item.dataUrl === "string" ? item.dataUrl.trim() : "";
+    if (
+      !name ||
+      dataUrl.length < 80 ||
+      dataUrl.length > 300_000 ||
+      !/^data:image\/(?:jpeg|png|webp);base64,[a-z0-9+/]+={0,2}$/i.test(dataUrl)
+    ) {
+      return null;
+    }
+    images.push({ name, dataUrl });
+  }
+
+  const links: string[] = [];
+  for (const item of rawLinks) {
+    if (typeof item !== "string" || item.length > 2048) return null;
+    try {
+      const url = new URL(item);
+      if (
+        !["http:", "https:"].includes(url.protocol) ||
+        url.username ||
+        url.password ||
+        isPrivateHostname(url.hostname)
+      ) {
+        return null;
+      }
+      url.hash = "";
+      const normalized = url.toString();
+      if (!links.includes(normalized)) links.push(normalized);
+    } catch {
+      return null;
+    }
+  }
+
+  return { images, links };
+}
+
+async function referenceFingerprint(references: SurveyReferences) {
+  if (references.images.length === 0 && references.links.length === 0) return "none";
+  const source = [
+    ...references.links,
+    ...references.images.map((image) => `${image.name}:${image.dataUrl}`),
+  ].join("|");
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(source),
+  );
+  return Array.from(new Uint8Array(digest).slice(0, 12))
+    .map((value) => value.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 function pruneMemory(now: number) {
   for (const [key, entry] of responseCache) {
     if (entry.expiresAt <= now) responseCache.delete(key);
@@ -380,7 +464,7 @@ export async function POST(request: Request) {
   }
 
   const contentLength = Number(request.headers.get("content-length") ?? "0");
-  if (Number.isFinite(contentLength) && contentLength > 4096) {
+  if (Number.isFinite(contentLength) && contentLength > 3_600_000) {
     return apiError("요청 내용이 너무 길어요.", "REQUEST_TOO_LARGE", 413);
   }
 
@@ -388,26 +472,40 @@ export async function POST(request: Request) {
     prompt?: unknown;
     targetGrade?: unknown;
     questionCount?: unknown;
+    references?: unknown;
   };
   try {
     payload = (await request.json()) as {
       prompt?: unknown;
       targetGrade?: unknown;
       questionCount?: unknown;
+      references?: unknown;
     };
   } catch {
     return apiError("설문 내용을 읽지 못했어요.", "INVALID_JSON", 400);
   }
 
-  const prompt =
+  const enteredPrompt =
     typeof payload.prompt === "string" ? normalizePrompt(payload.prompt) : "";
-  if (prompt.length < 2 || prompt.length > 300) {
+  const references = parseSurveyReferences(payload.references);
+  if (!references) {
     return apiError(
-      "설문 내용은 2자 이상 300자 이하로 적어주세요.",
+      "첨부한 사진이나 링크를 확인해주세요.",
+      "INVALID_REFERENCES",
+      400,
+    );
+  }
+  const hasReferences =
+    references.images.length > 0 || references.links.length > 0;
+  if (enteredPrompt.length > 300 || (enteredPrompt.length < 2 && !hasReferences)) {
+    return apiError(
+      "설문 내용은 2자 이상 300자 이하로 적거나 참고 자료를 추가해주세요.",
       "INVALID_PROMPT",
       400,
     );
   }
+  const prompt =
+    enteredPrompt || "첨부 자료를 바탕으로 만족도와 개선점을 조사하고 싶어요.";
   const targetGrade =
     typeof payload.targetGrade === "string" &&
     isTargetGrade(payload.targetGrade)
@@ -421,7 +519,8 @@ export async function POST(request: Request) {
 
   const now = Date.now();
   pruneMemory(now);
-  const cacheKey = `${prompt.toLocaleLowerCase("ko-KR")}|${targetGrade}|${questionCount}`;
+  const referenceKey = await referenceFingerprint(references);
+  const cacheKey = `${prompt.toLocaleLowerCase("ko-KR")}|${targetGrade}|${questionCount}|${referenceKey}`;
   const cached = responseCache.get(cacheKey);
   if (cached && cached.expiresAt > now) {
     return Response.json(cached.result, { headers: noStoreHeaders });
@@ -437,6 +536,13 @@ export async function POST(request: Request) {
 
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
+    if (hasReferences) {
+      return apiError(
+        "첨부 자료 분석 연결을 확인하는 중이에요. 잠시 후 다시 시도해주세요.",
+        "REFERENCE_AI_UNAVAILABLE",
+        503,
+      );
+    }
     const verifiedFallback = verifiedResearchFallback(
       prompt,
       targetGrade,
@@ -475,12 +581,22 @@ export async function POST(request: Request) {
         buildSurveyAiRequest(prompt, fallback, model, {
           targetGrade,
           questionCount,
+          references,
         }),
       ),
       signal: controller.signal,
     });
 
     if (!upstream.ok) {
+      if (hasReferences) {
+        return apiError(
+          upstream.status === 429
+            ? "첨부 자료 분석 요청이 많아요. 잠시 후 다시 시도해주세요."
+            : "첨부한 사진이나 링크를 분석하지 못했어요. 잠시 후 다시 시도해주세요.",
+          "REFERENCE_AI_UNAVAILABLE",
+          upstream.status === 429 ? 429 : 503,
+        );
+      }
       const verifiedFallback = verifiedResearchFallback(
         prompt,
         targetGrade,
@@ -531,6 +647,15 @@ export async function POST(request: Request) {
     cacheResult(cacheKey, now, result);
     return Response.json(result, { headers: noStoreHeaders });
   } catch (error) {
+    if (hasReferences) {
+      return apiError(
+        error instanceof Error && error.name === "AbortError"
+          ? "첨부 자료 분석이 조금 오래 걸리고 있어요. 잠시 후 다시 시도해주세요."
+          : "첨부 자료를 정확히 읽지 못했어요. 사진이나 공개 링크를 확인해주세요.",
+        "REFERENCE_ANALYSIS_FAILED",
+        503,
+      );
+    }
     const verifiedFallback = verifiedResearchFallback(
       prompt,
       targetGrade,
