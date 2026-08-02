@@ -401,6 +401,44 @@ test("같은 척도와 역할을 반복한 단조로운 AI 설문은 거부한�
   );
 });
 
+test("항목명처럼 끝난 AI 문항을 응답 가능한 질문 문장으로 다듬는다", () => {
+  const prompt = "학생지원센터 상담 예약 경험 조사";
+  const questions = [
+    question(1, "학생지원센터 상담 이용 단계", "single", ["예약 전", "예약 완료", "상담 완료"]),
+    question(2, "예약을 끝내기 어렵게 만든 요인", "multiple", ["시간 탐색", "안내 부족"]),
+    question(3, "첫 상담까지 걸린 시간", "single", ["1일 이내", "1주 이내", "1주 초과"]),
+    question(4, "상담 유형 선택의 명확성", "single", ["명확함", "보통", "불명확함"]),
+    question(5, "실시간 잔여시간 표시의 도움 정도", "scale"),
+    question(6, "가장 먼저 개선해야 할 기능", "single", ["잔여시간", "유형 추천"]),
+    question(7, "예약 과정에서 바꿔야 할 한 가지", "text"),
+  ];
+  const parsed = parseSurveyDraftResponse(
+    readyPayload({
+      prompt,
+      evaluationTarget: "학생지원센터 상담 예약 경험",
+      respondentGroup: "연세대학교 재학생",
+      entityType: "service",
+      templateQuestions: questions.slice(0, 5),
+      aiQuestions: questions,
+      sourceUrls: ["https://example.com/student-support"],
+    }),
+    prompt,
+    7,
+    "전학년",
+    true,
+  );
+
+  assert.equal(parsed.status, "ready");
+  if (parsed.status === "ready") {
+    const titles = parsed.blueprint.aiQuestions.map((item) => item.title);
+    assert.match(titles[0], /골라주세요\.$/);
+    assert.doesNotMatch(titles[0], /경험을 직접 이용/);
+    assert.match(titles[1], /모두 골라주세요\.$/);
+    assert.match(titles[4], /어느 정도인가요\?$/);
+    assert.match(titles[6], /구체적으로 적어주세요\.$/);
+  }
+});
+
 test("업로드된 큰 파일은 Base64 대신 OpenAI file_id로 전달한다", () => {
   const request = buildSurveyAiRequest(
     "첨부 보고서를 참고해 만족도 조사를 만들어줘",
