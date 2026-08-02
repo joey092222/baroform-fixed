@@ -51,6 +51,14 @@ import {
   surveyCategories,
   type SurveyCategory,
 } from "./survey-board";
+import {
+  maxReferenceFileBytes,
+  maxReferenceFiles,
+  maxReferenceFilesTotalBytes,
+  referenceFileAccept,
+  referenceFileChunkBytes,
+  referenceFileMimeTypes,
+} from "./reference-files";
 
 type View =
   | "home"
@@ -111,7 +119,7 @@ type SurveyReferenceImage = {
 type SurveyReferenceFile = {
   id: string;
   name: string;
-  dataUrl: string;
+  fileToken: string;
   mimeType: string;
   size: number;
 };
@@ -141,36 +149,9 @@ type ManagedSurveySnapshot = {
 const managedSurveyStorageKey = "baroform:last-managed-survey";
 const authTokenStorageKey = "baroform:session-token";
 const maxReferenceImages = 10;
-const maxReferenceFiles = 3;
 const maxReferenceLinks = 3;
 const maxReferenceImageDataLength = 300_000;
-const maxReferenceFileBytes = 2 * 1024 * 1024;
 const maxReferenceDataLength = 3_000_000;
-
-const referenceFileMimeTypes: Record<string, string> = {
-  pdf: "application/pdf",
-  doc: "application/msword",
-  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  odt: "application/vnd.oasis.opendocument.text",
-  rtf: "application/rtf",
-  ppt: "application/vnd.ms-powerpoint",
-  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  xls: "application/vnd.ms-excel",
-  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  csv: "text/csv",
-  tsv: "text/tsv",
-  txt: "text/plain",
-  md: "text/markdown",
-  markdown: "text/markdown",
-  json: "application/json",
-  html: "text/html",
-  htm: "text/html",
-  xml: "text/xml",
-};
-
-const referenceFileAccept = Object.entries(referenceFileMimeTypes)
-  .flatMap(([extension, mimeType]) => [`.${extension}`, mimeType])
-  .join(",");
 
 function hasSurveyReferences(references: SurveyReferences) {
   return (
@@ -181,10 +162,14 @@ function hasSurveyReferences(references: SurveyReferences) {
 }
 
 function referenceDataLength(references: SurveyReferences) {
-  return [
-    ...references.images.map((image) => image.dataUrl.length),
-    ...references.files.map((file) => file.dataUrl.length),
-  ].reduce((total, length) => total + length, 0);
+  return references.images.reduce(
+    (total, image) => total + image.dataUrl.length,
+    0,
+  );
+}
+
+function referenceFilesTotalBytes(references: SurveyReferences) {
+  return references.files.reduce((total, file) => total + file.size, 0);
 }
 
 function readFileAsDataUrl(file: Blob) {
@@ -276,16 +261,74 @@ async function prepareReferenceFile(file: File): Promise<SurveyReferenceFile> {
     );
   }
   if (file.size > maxReferenceFileBytes) {
-    throw new Error("파일 한 개는 2MB 이하로 올려주세요.");
+    throw new Error("파일 한 개는 10MB 이하로 올려주세요.");
+  }
+  if (file.size <= 0) throw new Error("내용이 있는 파일을 선택해주세요.");
+
+  const startResponse = await fetch("/api/reference-files", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: file.name, mimeType, size: file.size }),
+  });
+  const startResult = (await startResponse.json().catch(() => ({}))) as {
+    uploadId?: string;
+    uploadToken?: string;
+    error?: string;
+  };
+  if (!startResponse.ok || !startResult.uploadId || !startResult.uploadToken) {
+    throw new Error(startResult.error || "파일 업로드를 시작하지 못했어요.");
   }
 
-  const normalizedFile =
-    file.type === mimeType ? file : file.slice(0, file.size, mimeType);
-  const dataUrl = await readFileAsDataUrl(normalizedFile);
+  const partIds: string[] = [];
+  for (let offset = 0; offset < file.size; offset += referenceFileChunkBytes) {
+    const partResponse = await fetch(
+      `/api/reference-files/${encodeURIComponent(startResult.uploadId)}/parts`,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${startResult.uploadToken}`,
+          "content-type": "application/octet-stream",
+        },
+        body: file.slice(
+          offset,
+          Math.min(file.size, offset + referenceFileChunkBytes),
+          "application/octet-stream",
+        ),
+      },
+    );
+    const partResult = (await partResponse.json().catch(() => ({}))) as {
+      partId?: string;
+      error?: string;
+    };
+    if (!partResponse.ok || !partResult.partId) {
+      throw new Error(partResult.error || "파일 일부를 올리지 못했어요.");
+    }
+    partIds.push(partResult.partId);
+  }
+
+  const completeResponse = await fetch(
+    `/api/reference-files/${encodeURIComponent(startResult.uploadId)}/complete`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${startResult.uploadToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ partIds }),
+    },
+  );
+  const completeResult = (await completeResponse.json().catch(() => ({}))) as {
+    fileToken?: string;
+    error?: string;
+  };
+  if (!completeResponse.ok || !completeResult.fileToken) {
+    throw new Error(completeResult.error || "파일 업로드를 마치지 못했어요.");
+  }
+
   return {
     id: crypto.randomUUID(),
     name: file.name.slice(0, 120) || "첨부 파일",
-    dataUrl,
+    fileToken: completeResult.fileToken,
     mimeType,
     size: file.size,
   };
@@ -538,19 +581,22 @@ function SurveyReferenceControls({
     setProcessingFile(true);
     setReferenceError("");
     try {
+      const selectedFiles = files.slice(0, available);
+      const selectedBytes = selectedFiles.reduce((total, file) => total + file.size, 0);
+      if (
+        referenceFilesTotalBytes(references) + selectedBytes >
+        maxReferenceFilesTotalBytes
+      ) {
+        throw new Error("첨부 파일은 전체 20MB까지 올릴 수 있어요.");
+      }
       const prepared: SurveyReferenceFile[] = [];
-      for (const file of files.slice(0, available)) {
+      for (const file of selectedFiles) {
         prepared.push(await prepareReferenceFile(file));
       }
       const nextReferences = {
         ...references,
         files: [...references.files, ...prepared],
       };
-      if (referenceDataLength(nextReferences) > maxReferenceDataLength) {
-        throw new Error(
-          "전체 참고 자료 용량이 커요. 사진이나 파일 일부를 삭제한 뒤 다시 시도해주세요.",
-        );
-      }
       onChange(nextReferences);
       if (files.length > available) {
         setReferenceError(`파일은 최대 ${maxReferenceFiles}개까지 첨부할 수 있어요.`);
@@ -737,7 +783,9 @@ function SurveyReferenceControls({
             링크 추가
           </button>
         </div>
-        <span className="reference-hint">추가 후 Enter 또는 화살표를 눌러주세요</span>
+        <span className="reference-hint">
+          파일 10MB/개 · 전체 20MB · 추가 후 Enter 또는 화살표
+        </span>
       </div>
       {referenceError && <p className="reference-error">{referenceError}</p>}
       <input
@@ -4123,11 +4171,7 @@ export default function Home() {
           questionCount,
           references: {
             images: references.images.map(({ name, dataUrl }) => ({ name, dataUrl })),
-            files: references.files.map(({ name, dataUrl, mimeType }) => ({
-              name,
-              dataUrl,
-              mimeType,
-            })),
+            files: references.files.map(({ fileToken }) => ({ fileToken })),
             links: references.links,
           },
         }),
