@@ -62,7 +62,7 @@ function readyPayload({
         respondentGroup,
         evaluationTarget,
         goal: "만족도와 개선점 파악",
-        recognizedEntity: prompt.includes("맛나샘") ? "맛나샘" : "",
+        recognizedEntity: prompt.includes("맛나샘") ? "맛나샘" : evaluationTarget,
         entityType,
         searchRequired: true,
         confidence: "high",
@@ -127,13 +127,16 @@ test("OpenAI 요청은 필요한 경우에만 빠른 웹 검색을 사용한다"
 
   assert.equal(request.model, "gpt-5.6");
   assert.equal(request.tool_choice, "auto");
-  assert.equal(request.reasoning.effort, "low");
+  assert.equal(request.reasoning.effort, "medium");
   assert.equal(request.store, false);
   assert.equal(request.tools[0]?.type, "web_search");
   assert.equal(request.tools[0]?.external_web_access, true);
+  assert.equal(request.tools[0]?.search_context_size, "medium");
   assert.equal(request.tools[0]?.user_location.country, "KR");
   assert.equal(request.text.format.type, "json_schema");
   assert.equal(request.text.format.strict, true);
+  assert.match(request.input, /연세대학교 신촌캠퍼스/);
+  assert.match(request.input, /문장이 짧다는 이유로 생성을 거절하지 마세요/);
   assert.equal(JSON.stringify(request).includes("OPENAI_API_KEY"), false);
 });
 
@@ -294,6 +297,98 @@ test("API 키가 없을 때 목적 없는 고유명사는 확인 질문을 반�
     assert.equal(body.status, "needs_clarification");
   } finally {
     if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+  }
+});
+
+test("검색이 필요하지만 출처를 확인하지 못하면 오류 대신 확인 질문을 반환한다", () => {
+  const prompt = "프로메테우스 만족도 조사";
+  const questions = Array.from({ length: 7 }, (_, index) =>
+    question(index + 1, `프로메테우스 경험 질문 ${index + 1}`),
+  );
+  const payload = readyPayload({
+    prompt,
+    evaluationTarget: "프로메테우스",
+    respondentGroup: "프로메테우스 경험자",
+    entityType: "other",
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
+    sourceUrls: ["https://example.com/source"],
+  });
+  payload.output.splice(0, 1);
+
+  const parsed = parseSurveyDraftResponse(payload, prompt);
+
+  assert.equal(parsed.status, "needs_clarification");
+  if (parsed.status === "needs_clarification") {
+    assert.match(parsed.clarification.question, /프로메테우스/);
+    assert.equal(parsed.clarification.options.length, 3);
+    assert.doesNotMatch(parsed.clarification.options.join(" "), /직접 설명|기타/);
+  }
+});
+
+test("AI 연결이 없어도 방향이 명확한 입력은 문맥 기반 초안을 반환한다", async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+  try {
+    const response = await createSurveyDraft(
+      new Request("http://localhost/api/survey-draft", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          "user-agent": "baroform-clear-fallback-test",
+        },
+        body: JSON.stringify({
+          prompt: "도서관 좌석 이용 만족도 조사",
+          targetGrade: "3-4학년",
+          questionCount: 9,
+        }),
+      }),
+    );
+    const body = (await response.json()) as {
+      status?: string;
+      blueprint?: { aiQuestions?: unknown[]; respondentGroup?: string };
+    };
+
+    assert.equal(response.status, 200);
+    assert.equal(body.status, "ready");
+    assert.equal(body.blueprint?.aiQuestions?.length, 9);
+    assert.match(body.blueprint?.respondentGroup ?? "", /3-4학년/);
+  } finally {
+    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+  }
+});
+
+test("AI 결과 형식이 일시적으로 깨져도 구체적인 설문은 중단하지 않는다", async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  const previousFetch = globalThis.fetch;
+  process.env.OPENAI_API_KEY = "test-key";
+  globalThis.fetch = async () =>
+    Response.json({ status: "completed", output: [] });
+  try {
+    const response = await createSurveyDraft(
+      new Request("http://localhost/api/survey-draft", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          "user-agent": "baroform-invalid-result-fallback-test",
+        },
+        body: JSON.stringify({
+          prompt: "신입생 학교생활 적응 만족도 조사",
+          questionCount: 7,
+        }),
+      }),
+    );
+    const body = (await response.json()) as { status?: string };
+
+    assert.equal(response.status, 200);
+    assert.equal(body.status, "ready");
+    assert.equal(response.headers.get("x-baroform-ai-mode"), "verified-fallback");
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+    else delete process.env.OPENAI_API_KEY;
   }
 });
 
