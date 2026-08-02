@@ -312,8 +312,31 @@ function normalizePrompt(value: string) {
 
 type SurveyReferences = {
   images: Array<{ name: string; dataUrl: string }>;
+  files: Array<{ name: string; dataUrl: string; mimeType: string }>;
   links: string[];
 };
+
+const referenceFileMimeTypes: Record<string, string> = {
+  pdf: "application/pdf",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  odt: "application/vnd.oasis.opendocument.text",
+  rtf: "application/rtf",
+  ppt: "application/vnd.ms-powerpoint",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  xls: "application/vnd.ms-excel",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  csv: "text/csv",
+  tsv: "text/tsv",
+  txt: "text/plain",
+  md: "text/markdown",
+  markdown: "text/markdown",
+  json: "application/json",
+  html: "text/html",
+  htm: "text/html",
+  xml: "text/xml",
+};
+const maxReferenceDataLength = 3_000_000;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -332,12 +355,21 @@ function isPrivateHostname(hostname: string) {
 }
 
 function parseSurveyReferences(value: unknown): SurveyReferences | null {
-  if (value === undefined) return { images: [], links: [] };
+  if (value === undefined) return { images: [], files: [], links: [] };
   if (!isRecord(value)) return null;
   const rawImages = value.images === undefined ? [] : value.images;
+  const rawFiles = value.files === undefined ? [] : value.files;
   const rawLinks = value.links === undefined ? [] : value.links;
-  if (!Array.isArray(rawImages) || !Array.isArray(rawLinks)) return null;
-  if (rawImages.length > 10 || rawLinks.length > 3) return null;
+  if (
+    !Array.isArray(rawImages) ||
+    !Array.isArray(rawFiles) ||
+    !Array.isArray(rawLinks)
+  ) {
+    return null;
+  }
+  if (rawImages.length > 10 || rawFiles.length > 3 || rawLinks.length > 3) {
+    return null;
+  }
 
   const images: SurveyReferences["images"] = [];
   for (const item of rawImages) {
@@ -354,6 +386,41 @@ function parseSurveyReferences(value: unknown): SurveyReferences | null {
     }
     images.push({ name, dataUrl });
   }
+
+  const files: SurveyReferences["files"] = [];
+  for (const item of rawFiles) {
+    if (!isRecord(item)) return null;
+    const name = typeof item.name === "string" ? item.name.trim().slice(0, 120) : "";
+    const mimeType =
+      typeof item.mimeType === "string" ? item.mimeType.trim().toLowerCase() : "";
+    const dataUrl = typeof item.dataUrl === "string" ? item.dataUrl.trim() : "";
+    const extension = name.split(".").pop()?.toLowerCase() ?? "";
+    const expectedMimeType = referenceFileMimeTypes[extension];
+    const dataPrefix = expectedMimeType
+      ? `data:${expectedMimeType};base64,`
+      : "";
+    const encodedData = dataPrefix && dataUrl.startsWith(dataPrefix)
+      ? dataUrl.slice(dataPrefix.length)
+      : "";
+    if (
+      !name ||
+      !expectedMimeType ||
+      mimeType !== expectedMimeType ||
+      dataUrl.length < 20 ||
+      dataUrl.length > maxReferenceDataLength ||
+      !encodedData ||
+      !/^[a-z0-9+/]+={0,2}$/i.test(encodedData)
+    ) {
+      return null;
+    }
+    files.push({ name, dataUrl, mimeType });
+  }
+
+  const totalReferenceDataLength = [...images, ...files].reduce(
+    (total, item) => total + item.dataUrl.length,
+    0,
+  );
+  if (totalReferenceDataLength > maxReferenceDataLength) return null;
 
   const links: string[] = [];
   for (const item of rawLinks) {
@@ -376,14 +443,23 @@ function parseSurveyReferences(value: unknown): SurveyReferences | null {
     }
   }
 
-  return { images, links };
+  return { images, files, links };
 }
 
 async function referenceFingerprint(references: SurveyReferences) {
-  if (references.images.length === 0 && references.links.length === 0) return "none";
+  if (
+    references.images.length === 0 &&
+    references.files.length === 0 &&
+    references.links.length === 0
+  ) {
+    return "none";
+  }
   const source = [
     ...references.links,
     ...references.images.map((image) => `${image.name}:${image.dataUrl}`),
+    ...references.files.map(
+      (file) => `${file.name}:${file.mimeType}:${file.dataUrl}`,
+    ),
   ].join("|");
   const digest = await crypto.subtle.digest(
     "SHA-256",
@@ -490,13 +566,15 @@ export async function POST(request: Request) {
   const references = parseSurveyReferences(payload.references);
   if (!references) {
     return apiError(
-      "첨부한 사진이나 링크를 확인해주세요.",
+      "첨부한 사진·파일·링크를 확인해주세요.",
       "INVALID_REFERENCES",
       400,
     );
   }
   const hasReferences =
-    references.images.length > 0 || references.links.length > 0;
+    references.images.length > 0 ||
+    references.files.length > 0 ||
+    references.links.length > 0;
   if (enteredPrompt.length > 300 || (enteredPrompt.length < 2 && !hasReferences)) {
     return apiError(
       "설문 내용은 2자 이상 300자 이하로 적거나 참고 자료를 추가해주세요.",
@@ -592,7 +670,7 @@ export async function POST(request: Request) {
         return apiError(
           upstream.status === 429
             ? "첨부 자료 분석 요청이 많아요. 잠시 후 다시 시도해주세요."
-            : "첨부한 사진이나 링크를 분석하지 못했어요. 잠시 후 다시 시도해주세요.",
+            : "첨부한 사진·파일·링크를 분석하지 못했어요. 잠시 후 다시 시도해주세요.",
           "REFERENCE_AI_UNAVAILABLE",
           upstream.status === 429 ? 429 : 503,
         );
@@ -651,7 +729,7 @@ export async function POST(request: Request) {
       return apiError(
         error instanceof Error && error.name === "AbortError"
           ? "첨부 자료 분석이 조금 오래 걸리고 있어요. 잠시 후 다시 시도해주세요."
-          : "첨부 자료를 정확히 읽지 못했어요. 사진이나 공개 링크를 확인해주세요.",
+          : "첨부 자료를 정확히 읽지 못했어요. 사진·파일·공개 링크를 확인해주세요.",
         "REFERENCE_ANALYSIS_FAILED",
         503,
       );
