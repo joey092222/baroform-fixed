@@ -445,19 +445,19 @@ function HomeView({
 
         <section className="campus-cta">
           <div>
-            <span className="cta-label">내가 찾는 설문이 없나요?</span>
+            <span className="cta-label">원하는 설문이 아직 없나요?</span>
             <h2>
-              질문 한 문장이면,
+              주제만 입력하면,
               <br />
-              바로폼이 설문을 완성해요.
+              AI가 설문 문항을 설계해드려요.
             </h2>
           </div>
           <button
             type="button"
             onClick={onCreate}
           >
-            내 설문 만들기
-            <ArrowUp size={18} />
+            AI로 설문 만들기
+            <ArrowRight size={18} />
           </button>
         </section>
       </main>
@@ -1049,6 +1049,16 @@ function ClarificationModal({
   onChoose: (option: string) => void;
   onClose: () => void;
 }) {
+  const [answer, setAnswer] = useState("");
+  const suggestedOptions = state.clarification.options.filter(
+    (option) => !/^(?:직접\s*(?:설명|입력)|기타)/.test(option),
+  );
+
+  const submitAnswer = () => {
+    const normalized = answer.replace(/\s+/g, " ").trim();
+    if (normalized) onChoose(normalized);
+  };
+
   return (
     <div className="generation-overlay" role="dialog" aria-modal="true">
       <div className="clarification-card">
@@ -1062,15 +1072,38 @@ function ClarificationModal({
           <small>공개 자료를 확인했지만 이 부분은 임의로 정하지 않았어요.</small>
         )}
         <div className="clarification-options">
-          {state.clarification.options.map((option) => (
+          {suggestedOptions.map((option) => (
             <button type="button" key={option} onClick={() => onChoose(option)}>
               {option}
               <ArrowRight size={15} />
             </button>
           ))}
         </div>
+        <form
+          className="clarification-answer"
+          onSubmit={(event) => {
+            event.preventDefault();
+            submitAnswer();
+          }}
+        >
+          <label htmlFor="clarification-answer">직접 알려주기</label>
+          <div>
+            <input
+              id="clarification-answer"
+              value={answer}
+              onChange={(event) => setAnswer(event.target.value)}
+              placeholder="예: 학생회관에 있는 교내 식당이에요"
+              maxLength={180}
+              autoFocus
+            />
+            <button type="submit" disabled={!answer.trim()} aria-label="답변 보내기">
+              <ArrowRight size={17} />
+            </button>
+          </div>
+          <small>Enter를 누르면 이 설명을 반영해 바로 설계해요.</small>
+        </form>
         <button className="clarification-close" type="button" onClick={onClose}>
-          직접 문장을 다시 적을게요
+          처음 문장을 다시 적을게요
         </button>
       </div>
     </div>
