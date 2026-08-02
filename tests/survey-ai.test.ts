@@ -30,6 +30,10 @@ function question(
   };
 }
 
+function requestInputText(input: unknown) {
+  return typeof input === "string" ? input : JSON.stringify(input);
+}
+
 function readyPayload({
   prompt,
   evaluationTarget,
@@ -136,9 +140,105 @@ test("OpenAI 요청은 필요한 경우에만 빠른 웹 검색을 사용한다"
   assert.equal(request.tools[0]?.user_location.country, "KR");
   assert.equal(request.text.format.type, "json_schema");
   assert.equal(request.text.format.strict, true);
-  assert.match(request.input, /연세대학교 신촌캠퍼스/);
-  assert.match(request.input, /문장이 짧다는 이유로 생성을 거절하지 마세요/);
+  assert.match(requestInputText(request.input), /연세대학교 신촌캠퍼스/);
+  assert.match(
+    requestInputText(request.input),
+    /문장이 짧다는 이유로 생성을 거절하지 마세요/,
+  );
   assert.equal(JSON.stringify(request).includes("OPENAI_API_KEY"), false);
+});
+
+test("첨부 사진과 링크를 실제 멀티모달 참고 자료로 전달한다", () => {
+  const prompt = "이 자료를 바탕으로 만족도 조사를 만들어줘";
+  const link = "https://www.yonsei.ac.kr/sc/366/subview.do";
+  const dataUrl = `data:image/png;base64,${"a".repeat(120)}`;
+  const request = buildSurveyAiRequest(
+    prompt,
+    analyzeSurveyPrompt(prompt),
+    "gpt-5.6",
+    {
+      targetGrade: "전학년",
+      questionCount: 7,
+      references: {
+        images: Array.from({ length: 10 }, (_, index) => ({
+          name: index === 0 ? "식당 안내 캡처.png" : `추가 캡처 ${index + 1}.png`,
+          dataUrl,
+        })),
+        links: [link],
+      },
+    },
+  );
+
+  assert.equal(request.tool_choice, "required");
+  assert.ok(Array.isArray(request.input));
+  const serialized = JSON.stringify(request.input);
+  assert.match(serialized, /input_image/);
+  assert.match(serialized, /식당 안내 캡처\.png/);
+  assert.match(serialized, new RegExp(link.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(serialized, /각 링크의 실제 페이지를 확인/);
+  assert.equal(serialized.includes(dataUrl), true);
+  assert.equal((serialized.match(/"type":"input_image"/g) ?? []).length, 10);
+});
+
+test("설문 생성 API가 사용자가 지정한 공개 링크를 AI 조사 요청에 보존한다", async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  const previousFetch = globalThis.fetch;
+  const link = "https://www.yonsei.ac.kr/sc/366/subview.do";
+  let upstreamRequest: Record<string, unknown> | null = null;
+  const prompt = "한경관 식당 만족도 조사를 만들어줘";
+  const questions = [
+    question(1, "최근 한경관 식당에서 식사한 적이 있나요?", "single", ["예", "아니요"]),
+    question(2, "한경관 음식의 맛과 품질에 얼마나 만족하나요?"),
+    question(3, "한경관 메뉴 다양성에 얼마나 만족하나요?"),
+    question(4, "가격 대비 음식의 양에 얼마나 만족하나요?"),
+    question(5, "배식 대기시간은 적절했나요?"),
+    question(6, "위생과 좌석 혼잡 중 개선할 점을 골라주세요.", "multiple", ["위생", "좌석", "혼잡"]),
+    question(7, "한경관 식당에 바라는 점을 적어주세요.", "text"),
+  ];
+  process.env.OPENAI_API_KEY = "test-key";
+  globalThis.fetch = async (_input, init) => {
+    upstreamRequest = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return Response.json(
+      readyPayload({
+        prompt,
+        evaluationTarget: "한경관 식당",
+        respondentGroup: "한경관 식당 이용자",
+        entityType: "cafeteria",
+        templateQuestions: questions.slice(0, 5),
+        aiQuestions: questions,
+        sourceUrls: [link],
+      }),
+    );
+  };
+
+  try {
+    const response = await createSurveyDraft(
+      new Request("http://localhost/api/survey-draft", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          "user-agent": "baroform-reference-link-test",
+        },
+        body: JSON.stringify({
+          prompt,
+          targetGrade: "전학년",
+          questionCount: 7,
+          references: { images: [], links: [link] },
+        }),
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    const sentRequest = upstreamRequest as Record<string, unknown> | null;
+    assert.ok(sentRequest);
+    assert.equal(sentRequest.tool_choice, "required");
+    assert.match(JSON.stringify(sentRequest.input), /yonsei\.ac\.kr/);
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+    else delete process.env.OPENAI_API_KEY;
+  }
 });
 
 test("사용자가 고른 학년과 문항 수를 AI 생성 계약에 반영한다", () => {
@@ -150,8 +250,8 @@ test("사용자가 고른 학년과 문항 수를 AI 생성 계약에 반영한�
     { targetGrade: "3-4학년", questionCount: 12 },
   );
 
-  assert.match(request.input, /3-4학년/);
-  assert.match(request.input, /정확히 12개/);
+  assert.match(requestInputText(request.input), /3-4학년/);
+  assert.match(requestInputText(request.input), /정확히 12개/);
   assert.equal(request.text.format.schema.properties.result.anyOf[0].properties.aiQuestions.minItems, 12);
   assert.equal(request.text.format.schema.properties.result.anyOf[0].properties.aiQuestions.maxItems, 12);
 });
@@ -501,9 +601,12 @@ test("한경관 사전 검증 정보가 AI 요청에 식당 유형으로 전달�
     "gpt-5.6",
   );
 
-  assert.match(request.input, /연세대학교 한경관\(어울샘식당\)/);
-  assert.match(request.input, /"entityType":"cafeteria"/);
-  assert.match(request.input, /음식의 맛과 품질/);
+  assert.match(
+    requestInputText(request.input),
+    /연세대학교 한경관\(어울샘식당\)/,
+  );
+  assert.match(requestInputText(request.input), /"entityType":"cafeteria"/);
+  assert.match(requestInputText(request.input), /음식의 맛과 품질/);
 });
 
 test("대우관 등하교 설문은 실제 이동 불편과 개선 요소를 다룬다", () => {
