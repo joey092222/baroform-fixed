@@ -874,7 +874,10 @@ type SatisfactionProfile = {
 function satisfactionProfile(semantics: SurveySemantics): SatisfactionProfile {
   const { respondentGroup, evaluationTarget, domain } = semantics;
   const experienceBase = evaluationTarget
-    .replace(/\s*(?:이용|사용|수업)\s*경험$/g, "")
+    .replace(
+      /\s*(?:이용|사용|수강|참여|방문|수업)(?:\s*경험)?$/g,
+      "",
+    )
     .trim();
   const department = respondentGroup?.match(/([가-힣A-Za-z0-9]+학과)/)?.[1];
   const isDepartmentFreshman =
@@ -1100,7 +1103,9 @@ function satisfactionProfile(semantics: SurveySemantics): SatisfactionProfile {
     }
 
     const buildingLabel =
-      evaluationTarget.replace(/\s*(?:이용환경|이용\s*경험)$/g, "").trim() ||
+      evaluationTarget
+        .replace(/\s*(?:이용환경|이용(?:\s*경험)?)$/g, "")
+        .trim() ||
       experienceBase ||
       evaluationTarget;
     return {
