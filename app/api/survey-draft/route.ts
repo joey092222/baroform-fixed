@@ -16,6 +16,11 @@ import {
   type TargetGrade,
 } from "../../survey-grade";
 import { lookupVerifiedSurveyKnowledge } from "../../survey-knowledge";
+import {
+  maxReferenceFilesTotalBytes,
+  referenceFileMimeTypes,
+} from "../../reference-files";
+import { verifyReferenceFileToken } from "../../reference-file-upload";
 import { consumePersistentAiRateLimit } from "@/db";
 
 export const runtime = "nodejs";
@@ -312,29 +317,14 @@ function normalizePrompt(value: string) {
 
 type SurveyReferences = {
   images: Array<{ name: string; dataUrl: string }>;
-  files: Array<{ name: string; dataUrl: string; mimeType: string }>;
+  files: Array<{
+    name: string;
+    mimeType: string;
+    size: number;
+    dataUrl?: string;
+    fileId?: string;
+  }>;
   links: string[];
-};
-
-const referenceFileMimeTypes: Record<string, string> = {
-  pdf: "application/pdf",
-  doc: "application/msword",
-  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  odt: "application/vnd.oasis.opendocument.text",
-  rtf: "application/rtf",
-  ppt: "application/vnd.ms-powerpoint",
-  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  xls: "application/vnd.ms-excel",
-  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  csv: "text/csv",
-  tsv: "text/tsv",
-  txt: "text/plain",
-  md: "text/markdown",
-  markdown: "text/markdown",
-  json: "application/json",
-  html: "text/html",
-  htm: "text/html",
-  xml: "text/xml",
 };
 const maxReferenceDataLength = 3_000_000;
 
@@ -354,7 +344,7 @@ function isPrivateHostname(hostname: string) {
   );
 }
 
-function parseSurveyReferences(value: unknown): SurveyReferences | null {
+async function parseSurveyReferences(value: unknown): Promise<SurveyReferences | null> {
   if (value === undefined) return { images: [], files: [], links: [] };
   if (!isRecord(value)) return null;
   const rawImages = value.images === undefined ? [] : value.images;
@@ -390,6 +380,20 @@ function parseSurveyReferences(value: unknown): SurveyReferences | null {
   const files: SurveyReferences["files"] = [];
   for (const item of rawFiles) {
     if (!isRecord(item)) return null;
+    const fileToken =
+      typeof item.fileToken === "string" ? item.fileToken.trim() : "";
+    if (fileToken) {
+      const verified = await verifyReferenceFileToken(fileToken);
+      if (!verified) return null;
+      files.push({
+        name: verified.name,
+        mimeType: verified.mimeType,
+        size: verified.size,
+        fileId: verified.fileId,
+      });
+      continue;
+    }
+
     const name = typeof item.name === "string" ? item.name.trim().slice(0, 120) : "";
     const mimeType =
       typeof item.mimeType === "string" ? item.mimeType.trim().toLowerCase() : "";
@@ -413,14 +417,21 @@ function parseSurveyReferences(value: unknown): SurveyReferences | null {
     ) {
       return null;
     }
-    files.push({ name, dataUrl, mimeType });
+    const padding = encodedData.endsWith("==") ? 2 : encodedData.endsWith("=") ? 1 : 0;
+    const size = Math.floor((encodedData.length * 3) / 4) - padding;
+    files.push({ name, dataUrl, mimeType, size });
   }
 
   const totalReferenceDataLength = [...images, ...files].reduce(
-    (total, item) => total + item.dataUrl.length,
+    (total, item) => total + ("dataUrl" in item ? item.dataUrl?.length ?? 0 : 0),
     0,
   );
   if (totalReferenceDataLength > maxReferenceDataLength) return null;
+  const totalReferenceFileBytes = files.reduce(
+    (total, file) => total + file.size,
+    0,
+  );
+  if (totalReferenceFileBytes > maxReferenceFilesTotalBytes) return null;
 
   const links: string[] = [];
   for (const item of rawLinks) {
@@ -458,7 +469,8 @@ async function referenceFingerprint(references: SurveyReferences) {
     ...references.links,
     ...references.images.map((image) => `${image.name}:${image.dataUrl}`),
     ...references.files.map(
-      (file) => `${file.name}:${file.mimeType}:${file.dataUrl}`,
+      (file) =>
+        `${file.name}:${file.mimeType}:${file.fileId ?? file.dataUrl ?? ""}`,
     ),
   ].join("|");
   const digest = await crypto.subtle.digest(
@@ -563,7 +575,7 @@ export async function POST(request: Request) {
 
   const enteredPrompt =
     typeof payload.prompt === "string" ? normalizePrompt(payload.prompt) : "";
-  const references = parseSurveyReferences(payload.references);
+  const references = await parseSurveyReferences(payload.references);
   if (!references) {
     return apiError(
       "첨부한 사진·파일·링크를 확인해주세요.",
@@ -646,7 +658,10 @@ export async function POST(request: Request) {
     questionCount,
   );
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 32_000);
+  const timeout = setTimeout(
+    () => controller.abort(),
+    hasReferences ? 50_000 : 32_000,
+  );
 
   try {
     const upstream = await fetch("https://api.openai.com/v1/responses", {
@@ -721,6 +736,7 @@ export async function POST(request: Request) {
       prompt,
       questionCount,
       targetGrade,
+      hasReferences,
     );
     cacheResult(cacheKey, now, result);
     return Response.json(result, { headers: noStoreHeaders });
