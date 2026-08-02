@@ -1141,8 +1141,15 @@ function satisfactionProfile(semantics: SurveySemantics): SatisfactionProfile {
   }
 
   if (domain === "facility") {
+    const facilityLabel = experienceBase || evaluationTarget;
+    const reservationTarget = facilityLabel
+      .replace(/\s*예약(?:\s*경험)?$/g, "")
+      .trim();
+    const screenerTitle = /예약(?:\s*경험)?$/.test(facilityLabel)
+      ? `최근 ${labelWithParticle(reservationTarget || facilityLabel, "을", "를")} 예약하거나 이용한 적이 있나요?`
+      : `최근 ${labelWithParticle(facilityLabel, "을", "를")} 직접 이용한 적이 있나요?`;
     return {
-      screenerTitle: `최근 ${labelWithParticle(experienceBase || evaluationTarget, "을", "를")} 직접 이용한 적이 있나요?`,
+      screenerTitle,
       screenerOptions: [
         "최근 1개월 내 이용",
         "최근 3개월 내 이용",
@@ -1172,8 +1179,15 @@ function satisfactionProfile(semantics: SurveySemantics): SatisfactionProfile {
   }
 
   if (domain === "service") {
+    const serviceLabel = experienceBase || evaluationTarget;
+    const reservationTarget = serviceLabel
+      .replace(/\s*예약(?:\s*경험)?$/g, "")
+      .trim();
+    const screenerTitle = /예약(?:\s*경험)?$/.test(serviceLabel)
+      ? `최근 ${labelWithParticle(reservationTarget || serviceLabel, "을", "를")} 예약하거나 이용한 적이 있나요?`
+      : `최근 ${labelWithParticle(serviceLabel, "을", "를")} 직접 사용하거나 이용한 적이 있나요?`;
     return {
-      screenerTitle: `최근 ${labelWithParticle(experienceBase || evaluationTarget, "을", "를")} 직접 사용하거나 이용한 적이 있나요?`,
+      screenerTitle,
       screenerOptions: [
         "최근 1개월 내 이용",
         "최근 3개월 내 이용",
