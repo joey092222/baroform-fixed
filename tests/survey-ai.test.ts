@@ -180,6 +180,111 @@ test("첨부 사진과 링크를 실제 멀티모달 참고 자료로 전달한�
   assert.equal((serialized.match(/"type":"input_image"/g) ?? []).length, 10);
 });
 
+test("첨부 문서와 표를 실제 input_file 참고 자료로 전달한다", () => {
+  const prompt = "첨부한 기획서와 조사표를 참고해 수요 조사를 만들어줘";
+  const pdfData = `data:application/pdf;base64,${Buffer.from("survey brief").toString("base64")}`;
+  const sheetData = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${Buffer.from("survey sheet").toString("base64")}`;
+  const request = buildSurveyAiRequest(
+    prompt,
+    analyzeSurveyPrompt(prompt),
+    "gpt-5.6",
+    {
+      references: {
+        images: [],
+        files: [
+          {
+            name: "서비스 기획서.pdf",
+            mimeType: "application/pdf",
+            dataUrl: pdfData,
+          },
+          {
+            name: "기존 조사표.xlsx",
+            mimeType:
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            dataUrl: sheetData,
+          },
+        ],
+        links: [],
+      },
+    },
+  );
+
+  const serialized = JSON.stringify(request.input);
+  assert.equal((serialized.match(/"type":"input_file"/g) ?? []).length, 2);
+  assert.match(serialized, /서비스 기획서\.pdf/);
+  assert.match(serialized, /기존 조사표\.xlsx/);
+  assert.match(serialized, /각 파일의 실제 본문과 표를 읽고/);
+  assert.equal(serialized.includes(pdfData), true);
+  assert.equal(serialized.includes(sheetData), true);
+  assert.equal(request.tool_choice, "auto");
+});
+
+test("설문 생성 API가 첨부 파일 본문을 OpenAI 요청에 보존한다", async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  const previousFetch = globalThis.fetch;
+  const prompt = "첨부 파일 기반 신규 서비스 수요 조사";
+  const fileData = `data:application/pdf;base64,${Buffer.from("baroform product brief").toString("base64")}`;
+  let upstreamRequest: Record<string, unknown> | null = null;
+  const questions = Array.from({ length: 7 }, (_, index) =>
+    question(index + 1, `신규 서비스 수요 질문 ${index + 1}`),
+  );
+  process.env.OPENAI_API_KEY = "test-key";
+  globalThis.fetch = async (_input, init) => {
+    upstreamRequest = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return Response.json(
+      readyPayload({
+        prompt,
+        evaluationTarget: "신규 서비스",
+        respondentGroup: "연세대학교 재학생",
+        entityType: "service",
+        templateQuestions: questions.slice(0, 5),
+        aiQuestions: questions,
+        sourceUrls: ["https://example.com/reference"],
+      }),
+    );
+  };
+
+  try {
+    const response = await createSurveyDraft(
+      new Request("http://localhost/api/survey-draft", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          "user-agent": "baroform-reference-file-test",
+        },
+        body: JSON.stringify({
+          prompt,
+          targetGrade: "전학년",
+          questionCount: 7,
+          references: {
+            images: [],
+            files: [
+              {
+                name: "서비스 기획서.pdf",
+                mimeType: "application/pdf",
+                dataUrl: fileData,
+              },
+            ],
+            links: [],
+          },
+        }),
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    const sentRequest = upstreamRequest as Record<string, unknown> | null;
+    assert.ok(sentRequest);
+    assert.match(JSON.stringify(sentRequest.input), /input_file/);
+    assert.match(JSON.stringify(sentRequest.input), /서비스 기획서\.pdf/);
+    assert.equal(JSON.stringify(sentRequest.input).includes(fileData), true);
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
+
 test("설문 생성 API가 사용자가 지정한 공개 링크를 AI 조사 요청에 보존한다", async () => {
   const previousKey = process.env.OPENAI_API_KEY;
   const previousFetch = globalThis.fetch;
