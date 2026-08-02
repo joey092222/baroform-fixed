@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { POST as createSurveyDraft } from "../app/api/survey-draft/route";
+import { POST as startReferenceUpload } from "../app/api/reference-files/route";
+import { POST as uploadReferencePart } from "../app/api/reference-files/[uploadId]/parts/route";
+import { POST as completeReferenceUpload } from "../app/api/reference-files/[uploadId]/complete/route";
 import {
   buildSurveyAiRequest,
   parseSurveyDraftResponse,
@@ -11,6 +14,12 @@ import {
 } from "../app/survey-revision";
 import { analyzeSurveyPrompt } from "../app/survey-intent";
 import { applyTargetGradeToQuestions } from "../app/survey-grade";
+import {
+  maxReferenceFileBytes,
+  maxReferenceFilesTotalBytes,
+  normalizedReferenceFile,
+} from "../app/reference-files";
+import { verifyReferenceFileToken } from "../app/reference-file-upload";
 
 type QuestionType = "scale" | "single" | "multiple" | "text";
 
@@ -32,6 +41,56 @@ function question(
 
 function requestInputText(input: unknown) {
   return typeof input === "string" ? input : JSON.stringify(input);
+}
+
+const fixtureQuestionRoles = [
+  "eligibility",
+  "behavior",
+  "specific-dimension",
+  "driver",
+  "comparison",
+  "priority",
+  "open-ended",
+] as const;
+
+function diversifyFixtureQuestions(
+  questions: ReturnType<typeof question>[],
+) {
+  const types = questions.map((item) => item.type);
+  let longestRun = 1;
+  let currentRun = 1;
+  for (let index = 1; index < types.length; index += 1) {
+    currentRun = types[index] === types[index - 1] ? currentRun + 1 : 1;
+    longestRun = Math.max(longestRun, currentRun);
+  }
+  const scaleCount = types.filter((type) => type === "scale").length;
+  const alreadyDiverse =
+    new Set(types).size >= 3 &&
+    longestRun < 4 &&
+    scaleCount <= Math.ceil(questions.length * 0.6);
+  if (questions.length < 6 || alreadyDiverse) {
+    return questions;
+  }
+  return questions.map((item, index) => {
+    if (index === questions.length - 1) {
+      return { ...item, type: "text" as const, options: [] };
+    }
+    const pattern: QuestionType[] = [
+      "single",
+      "scale",
+      "multiple",
+      "scale",
+    ];
+    const type = pattern[index % pattern.length];
+    return {
+      ...item,
+      type,
+      options:
+        type === "single" || type === "multiple"
+          ? ["해당함", "해당하지 않음", "판단하기 어려움"]
+          : [],
+    };
+  });
 }
 
 function readyPayload({
@@ -58,6 +117,7 @@ function readyPayload({
   sourceUrls: string[];
   factSourceUrl?: string;
 }) {
+  const preparedAiQuestions = diversifyFixtureQuestions(aiQuestions);
   const result = {
     result: {
       status: "ready",
@@ -85,12 +145,29 @@ function readyPayload({
           sourceUrl: factSourceUrl,
         },
       ],
+      designPlan: {
+        referenceGrounding: [
+          {
+            sourceLabel: "테스트 참고자료",
+            insight: "조사 대상의 구체적인 경험 차원을 문항에 반영했습니다.",
+            questionIds: [1, Math.min(3, preparedAiQuestions.length)],
+          },
+        ],
+        analyticalAxes: ["실제 이용 행동", "핵심 경험 평가", "개선 우선순위"],
+        questionRoles: preparedAiQuestions.map(
+          (_, index) => fixtureQuestionRoles[index % fixtureQuestionRoles.length],
+        ),
+      },
       templateQuestions,
-      aiQuestions,
+      aiQuestions: preparedAiQuestions,
       qualityCheck: {
         respondentNotMiscastAsSubject: true,
         questionsMatchSubject: true,
         noDuplicateQuestions: true,
+        referencesMateriallyUsed: true,
+        questionsCoverDistinctDimensions: true,
+        questionTypesPurposefullyVaried: true,
+        noGenericPlaceholderWording: true,
       },
     },
   };
@@ -120,6 +197,22 @@ function readyPayload({
       },
     ],
   };
+}
+
+function editReadyPayload(
+  payload: ReturnType<typeof readyPayload>,
+  edit: (result: Record<string, unknown>) => void,
+) {
+  const message = payload.output.find((item) => item.type === "message") as
+    | { content?: Array<{ text?: string }> }
+    | undefined;
+  const content = message?.content?.[0];
+  assert.ok(content?.text);
+  const decoded = JSON.parse(content.text) as {
+    result: Record<string, unknown>;
+  };
+  edit(decoded.result);
+  content.text = JSON.stringify(decoded);
 }
 
 test("OpenAI 요청은 필요한 경우에만 빠른 웹 검색을 사용한다", () => {
@@ -217,6 +310,294 @@ test("첨부 문서와 표를 실제 input_file 참고 자료로 전달한다", 
   assert.equal(serialized.includes(pdfData), true);
   assert.equal(serialized.includes(sheetData), true);
   assert.equal(request.tool_choice, "auto");
+});
+
+test("참고자료가 있으면 깊이 있는 분석 계약과 높은 추론 수준을 사용한다", () => {
+  const request = buildSurveyAiRequest(
+    "첨부 자료를 토대로 학생 지원 서비스 수요를 조사해줘",
+    analyzeSurveyPrompt("학생 지원 서비스 수요 조사"),
+    "gpt-5.6",
+    {
+      questionCount: 7,
+      references: {
+        images: [],
+        files: [
+          {
+            name: "학생 지원 기획서.pdf",
+            mimeType: "application/pdf",
+            fileId: "file-reference-depth",
+          },
+        ],
+        links: [],
+      },
+    },
+  );
+
+  assert.equal(request.reasoning.effort, "high");
+  assert.equal(
+    request.text.format.schema.properties.result.anyOf[0].properties.designPlan
+      .properties.referenceGrounding.minItems,
+    1,
+  );
+  assert.match(requestInputText(request.input), /자료 근거, 분석축, 각 문항의 역할/);
+  assert.match(requestInputText(request.input), /최소 두 문항/);
+});
+
+test("첨부자료가 한 문항에만 형식적으로 연결된 결과는 거부한다", () => {
+  const prompt = "첨부 보고서 기반 학생 지원 서비스 수요 조사";
+  const questions = Array.from({ length: 7 }, (_, index) =>
+    question(index + 1, `학생 지원 서비스 질문 ${index + 1}`),
+  );
+  const payload = readyPayload({
+    prompt,
+    evaluationTarget: "학생 지원 서비스",
+    respondentGroup: "연세대학교 재학생",
+    entityType: "service",
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
+    sourceUrls: ["https://example.com/student-support"],
+  });
+  editReadyPayload(payload, (result) => {
+    const designPlan = result.designPlan as Record<string, unknown>;
+    designPlan.referenceGrounding = [
+      {
+        sourceLabel: "학생 지원 보고서",
+        insight: "지원 신청 과정의 정보 격차가 핵심 문제입니다.",
+        questionIds: [1],
+      },
+    ];
+  });
+
+  assert.throws(
+    () =>
+      parseSurveyDraftResponse(payload, prompt, 7, "전학년", true),
+    /충분히 반영되지 않았습니다/,
+  );
+});
+
+test("같은 척도와 역할을 반복한 단조로운 AI 설문은 거부한다", () => {
+  const prompt = "학생 지원 서비스 만족도 조사";
+  const questions = Array.from({ length: 7 }, (_, index) =>
+    question(index + 1, `학생 지원 서비스 세부 만족도 ${index + 1}`),
+  );
+  const payload = readyPayload({
+    prompt,
+    evaluationTarget: "학생 지원 서비스",
+    respondentGroup: "연세대학교 재학생",
+    entityType: "service",
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
+    sourceUrls: ["https://example.com/student-support"],
+  });
+  editReadyPayload(payload, (result) => {
+    result.aiQuestions = questions;
+    const designPlan = result.designPlan as Record<string, unknown>;
+    designPlan.questionRoles = questions.map(() => "specific-dimension");
+  });
+
+  assert.throws(
+    () => parseSurveyDraftResponse(payload, prompt),
+    /문항의 역할이 단조롭습니다|문항 유형이 단조롭습니다/,
+  );
+});
+
+test("업로드된 큰 파일은 Base64 대신 OpenAI file_id로 전달한다", () => {
+  const request = buildSurveyAiRequest(
+    "첨부 보고서를 참고해 만족도 조사를 만들어줘",
+    analyzeSurveyPrompt("첨부 보고서를 참고해 만족도 조사를 만들어줘"),
+    "gpt-5.6",
+    {
+      references: {
+        images: [],
+        files: [
+          {
+            name: "학생생활 보고서.pdf",
+            mimeType: "application/pdf",
+            fileId: "file-reference123",
+          },
+        ],
+        links: [],
+      },
+    },
+  );
+
+  const serialized = JSON.stringify(request.input);
+  assert.match(serialized, /"file_id":"file-reference123"/);
+  assert.doesNotMatch(serialized, /file_data/);
+});
+
+test("참고 파일은 개당 10MB, 전체 20MB 한도를 사용한다", () => {
+  assert.equal(maxReferenceFileBytes, 10 * 1024 * 1024);
+  assert.equal(maxReferenceFilesTotalBytes, 20 * 1024 * 1024);
+  assert.ok(
+    normalizedReferenceFile(
+      "강의자료.pdf",
+      "application/pdf",
+      maxReferenceFileBytes,
+    ),
+  );
+  assert.equal(
+    normalizedReferenceFile(
+      "강의자료.pdf",
+      "application/pdf",
+      maxReferenceFileBytes + 1,
+    ),
+    null,
+  );
+});
+
+test("큰 참고 파일은 조각 업로드 후 설문 생성에 file_id로 연결된다", async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  const previousSecret = process.env.BAROFORM_REFERENCE_SECRET;
+  const previousDatabaseUrl = process.env.DATABASE_URL;
+  const previousPostgresUrl = process.env.POSTGRES_URL;
+  const previousNeonUrl = process.env.NEON_DATABASE_URL;
+  const previousFetch = globalThis.fetch;
+  const prompt = "업로드한 보고서를 참고한 학생 서비스 만족도 조사";
+  const fileSize = 32;
+  let responseRequest: Record<string, unknown> | null = null;
+
+  process.env.OPENAI_API_KEY = "test-key";
+  process.env.BAROFORM_REFERENCE_SECRET = "test-reference-secret";
+  delete process.env.DATABASE_URL;
+  delete process.env.POSTGRES_URL;
+  delete process.env.NEON_DATABASE_URL;
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    if (url.endsWith("/v1/uploads")) {
+      return Response.json({ id: "upload_reference123" });
+    }
+    if (url.endsWith("/v1/uploads/upload_reference123/parts")) {
+      assert.ok(init?.body instanceof FormData);
+      return Response.json({ id: "part_reference123" });
+    }
+    if (url.endsWith("/v1/uploads/upload_reference123/complete")) {
+      return Response.json({
+        file: { id: "file-reference123", bytes: fileSize },
+      });
+    }
+    if (url.endsWith("/v1/responses")) {
+      responseRequest = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      const questions = Array.from({ length: 7 }, (_, index) =>
+        question(index + 1, `학생 서비스 질문 ${index + 1}`),
+      );
+      return Response.json(
+        readyPayload({
+          prompt,
+          evaluationTarget: "학생 서비스",
+          respondentGroup: "연세대학교 재학생",
+          entityType: "service",
+          templateQuestions: questions.slice(0, 5),
+          aiQuestions: questions,
+          sourceUrls: ["https://example.com/reference-file"],
+        }),
+      );
+    }
+    throw new Error(`Unexpected test request: ${url}`);
+  };
+
+  try {
+    const startResponse = await startReferenceUpload(
+      new Request("http://localhost/api/reference-files", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          "user-agent": "baroform-large-file-test",
+        },
+        body: JSON.stringify({
+          name: "학생 서비스 보고서.pdf",
+          mimeType: "application/pdf",
+          size: fileSize,
+        }),
+      }),
+    );
+    assert.equal(startResponse.status, 200);
+    const startResult = (await startResponse.json()) as {
+      uploadId: string;
+      uploadToken: string;
+    };
+
+    const partResponse = await uploadReferencePart(
+      new Request(
+        `http://localhost/api/reference-files/${startResult.uploadId}/parts`,
+        {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${startResult.uploadToken}`,
+            "content-type": "application/octet-stream",
+            origin: "http://localhost",
+          },
+          body: new Uint8Array(fileSize),
+        },
+      ),
+      { params: Promise.resolve({ uploadId: startResult.uploadId }) },
+    );
+    assert.equal(partResponse.status, 200);
+    const partResult = (await partResponse.json()) as { partId: string };
+
+    const completeResponse = await completeReferenceUpload(
+      new Request(
+        `http://localhost/api/reference-files/${startResult.uploadId}/complete`,
+        {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${startResult.uploadToken}`,
+            "content-type": "application/json",
+            origin: "http://localhost",
+          },
+          body: JSON.stringify({ partIds: [partResult.partId] }),
+        },
+      ),
+      { params: Promise.resolve({ uploadId: startResult.uploadId }) },
+    );
+    assert.equal(completeResponse.status, 200);
+    const completeResult = (await completeResponse.json()) as {
+      fileToken: string;
+    };
+    assert.ok(await verifyReferenceFileToken(completeResult.fileToken));
+
+    const draftResponse = await createSurveyDraft(
+      new Request("http://localhost/api/survey-draft", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          "user-agent": "baroform-large-file-draft-test",
+        },
+        body: JSON.stringify({
+          prompt,
+          targetGrade: "전학년",
+          questionCount: 7,
+          references: {
+            images: [],
+            files: [{ fileToken: completeResult.fileToken }],
+            links: [],
+          },
+        }),
+      }),
+    );
+    assert.equal(
+      draftResponse.status,
+      200,
+      JSON.stringify(await draftResponse.clone().json()),
+    );
+    const sentRequest = responseRequest as Record<string, unknown> | null;
+    assert.ok(sentRequest);
+    assert.match(JSON.stringify(sentRequest.input), /"file_id":"file-reference123"/);
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+    else delete process.env.OPENAI_API_KEY;
+    if (previousSecret) process.env.BAROFORM_REFERENCE_SECRET = previousSecret;
+    else delete process.env.BAROFORM_REFERENCE_SECRET;
+    if (previousDatabaseUrl) process.env.DATABASE_URL = previousDatabaseUrl;
+    else delete process.env.DATABASE_URL;
+    if (previousPostgresUrl) process.env.POSTGRES_URL = previousPostgresUrl;
+    else delete process.env.POSTGRES_URL;
+    if (previousNeonUrl) process.env.NEON_DATABASE_URL = previousNeonUrl;
+    else delete process.env.NEON_DATABASE_URL;
+  }
 });
 
 test("설문 생성 API가 첨부 파일 본문을 OpenAI 요청에 보존한다", async () => {
