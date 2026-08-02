@@ -6110,6 +6110,24 @@ select:focus-visible {
   white-space: nowrap;
 }
 
+.file-reference {
+  max-width: min(100%, 270px);
+  background: #f5f8fd;
+  color: #425a78;
+}
+
+.file-reference > svg {
+  flex: 0 0 auto;
+  color: #4a78b6;
+}
+
+.file-reference small {
+  margin-left: 6px;
+  color: #929fb0;
+  font-size: 9px;
+  font-weight: 650;
+}
+
 .reference-thumbnail {
   width: 25px;
   height: 25px;
@@ -6186,6 +6204,7 @@ select:focus-visible {
 .reference-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
