@@ -16,6 +16,8 @@ import {
   Copy,
   Eye,
   GripVertical,
+  ImagePlus,
+  Link2,
   LogIn,
   LogOut,
   Minus,
@@ -99,6 +101,17 @@ type ClarificationState = {
   research: SurveyResearch;
 };
 
+type SurveyReferenceImage = {
+  id: string;
+  name: string;
+  dataUrl: string;
+};
+
+type SurveyReferences = {
+  images: SurveyReferenceImage[];
+  links: string[];
+};
+
 type Question = SurveyQuestion;
 
 type AuthUser = {
@@ -117,6 +130,84 @@ type ManagedSurveySnapshot = {
 
 const managedSurveyStorageKey = "baroform:last-managed-survey";
 const authTokenStorageKey = "baroform:session-token";
+const maxReferenceImages = 10;
+const maxReferenceLinks = 3;
+const maxReferenceImageDataLength = 300_000;
+
+function hasSurveyReferences(references: SurveyReferences) {
+  return references.images.length > 0 || references.links.length > 0;
+}
+
+function readFileAsDataUrl(file: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () =>
+      typeof reader.result === "string"
+        ? resolve(reader.result)
+        : reject(new Error("사진을 읽지 못했어요."));
+    reader.onerror = () => reject(new Error("사진을 읽지 못했어요."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadReferenceImage(file: File) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("사진을 열지 못했어요."));
+    };
+    image.src = objectUrl;
+  });
+}
+
+async function prepareReferenceImage(file: File): Promise<SurveyReferenceImage> {
+  if (!/^image\/(?:jpeg|png|webp)$/i.test(file.type)) {
+    throw new Error("JPG, PNG, WEBP 사진만 첨부할 수 있어요.");
+  }
+  if (file.size > 12 * 1024 * 1024) {
+    throw new Error("사진 한 장은 12MB 이하로 올려주세요.");
+  }
+
+  const source = await loadReferenceImage(file);
+  let scale = Math.min(1, 1600 / Math.max(source.naturalWidth, source.naturalHeight));
+  let quality = 0.88;
+  let dataUrl = "";
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(source.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(source.naturalHeight * scale));
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("사진을 처리하지 못했어요.");
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(source, 0, 0, canvas.width, canvas.height);
+    dataUrl = canvas.toDataURL("image/webp", quality);
+    if (dataUrl.length <= maxReferenceImageDataLength) break;
+    scale *= 0.8;
+    quality = Math.max(0.62, quality - 0.05);
+  }
+
+  if (!dataUrl || dataUrl.length > maxReferenceImageDataLength) {
+    const originalDataUrl = await readFileAsDataUrl(file);
+    if (originalDataUrl.length > maxReferenceImageDataLength) {
+      throw new Error("사진 용량을 줄인 뒤 다시 올려주세요.");
+    }
+    dataUrl = originalDataUrl;
+  }
+
+  return {
+    id: crypto.randomUUID(),
+    name: file.name.slice(0, 80) || "첨부 사진",
+    dataUrl,
+  };
+}
 
 const targetGradeOptions = [
   "1학년",
@@ -296,9 +387,217 @@ function CampusSurveyCard({
   );
 }
 
+function SurveyReferenceControls({
+  references,
+  onChange,
+  disabled = false,
+}: {
+  references: SurveyReferences;
+  onChange: (references: SurveyReferences) => void;
+  disabled?: boolean;
+}) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkValue, setLinkValue] = useState("");
+  const [processingImage, setProcessingImage] = useState(false);
+  const [referenceError, setReferenceError] = useState("");
+
+  const addImages = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    if (files.length === 0) return;
+    const available = maxReferenceImages - references.images.length;
+    if (available <= 0) {
+      setReferenceError(`사진은 최대 ${maxReferenceImages}장까지 첨부할 수 있어요.`);
+      return;
+    }
+
+    setProcessingImage(true);
+    setReferenceError("");
+    try {
+      const prepared: SurveyReferenceImage[] = [];
+      for (const file of files.slice(0, available)) {
+        prepared.push(await prepareReferenceImage(file));
+      }
+      onChange({
+        ...references,
+        images: [...references.images, ...prepared],
+      });
+      if (files.length > available) {
+        setReferenceError(`사진은 최대 ${maxReferenceImages}장까지 첨부할 수 있어요.`);
+      }
+    } catch (error) {
+      setReferenceError(
+        error instanceof Error ? error.message : "사진을 첨부하지 못했어요.",
+      );
+    } finally {
+      setProcessingImage(false);
+    }
+  };
+
+  const addLink = () => {
+    const rawValue = linkValue.trim();
+    if (!rawValue) return;
+    if (references.links.length >= maxReferenceLinks) {
+      setReferenceError(`링크는 최대 ${maxReferenceLinks}개까지 추가할 수 있어요.`);
+      return;
+    }
+
+    try {
+      const url = new URL(
+        /^https?:\/\//i.test(rawValue) ? rawValue : `https://${rawValue}`,
+      );
+      const hostname = url.hostname.toLowerCase();
+      if (
+        !["http:", "https:"].includes(url.protocol) ||
+        url.username ||
+        url.password ||
+        hostname === "localhost" ||
+        hostname.endsWith(".local") ||
+        /^(?:127\.|10\.|192\.168\.|169\.254\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(
+          hostname,
+        )
+      ) {
+        throw new Error();
+      }
+      url.hash = "";
+      const normalized = url.toString();
+      if (normalized.length > 2048) throw new Error();
+      if (references.links.includes(normalized)) {
+        setReferenceError("이미 추가한 링크예요.");
+        return;
+      }
+      onChange({ ...references, links: [...references.links, normalized] });
+      setLinkValue("");
+      setLinkOpen(false);
+      setReferenceError("");
+    } catch {
+      setReferenceError("누구나 열 수 있는 웹페이지 링크를 확인해주세요.");
+    }
+  };
+
+  return (
+    <div className="reference-controls">
+      {hasSurveyReferences(references) && (
+        <div className="reference-list" aria-label="AI 참고 자료">
+          {references.images.map((image) => (
+            <span className="reference-chip image-reference" key={image.id}>
+              <span
+                className="reference-thumbnail"
+                style={{ backgroundImage: `url(${image.dataUrl})` }}
+                aria-hidden="true"
+              />
+              <span>{image.name}</span>
+              <button
+                type="button"
+                onClick={() =>
+                  onChange({
+                    ...references,
+                    images: references.images.filter((item) => item.id !== image.id),
+                  })
+                }
+                disabled={disabled}
+                aria-label={`${image.name} 삭제`}
+              >
+                <X size={13} />
+              </button>
+            </span>
+          ))}
+          {references.links.map((link) => (
+            <span className="reference-chip link-reference" key={link}>
+              <Link2 size={13} aria-hidden="true" />
+              <span>{new URL(link).hostname.replace(/^www\./, "")}</span>
+              <button
+                type="button"
+                onClick={() =>
+                  onChange({
+                    ...references,
+                    links: references.links.filter((item) => item !== link),
+                  })
+                }
+                disabled={disabled}
+                aria-label={`${link} 삭제`}
+              >
+                <X size={13} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {linkOpen && (
+        <div className="reference-link-entry">
+          <Link2 size={15} aria-hidden="true" />
+          <input
+            type="url"
+            value={linkValue}
+            onChange={(event) => setLinkValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                addLink();
+              }
+              if (event.key === "Escape") {
+                setLinkOpen(false);
+                setLinkValue("");
+              }
+            }}
+            placeholder="참고할 공개 링크를 붙여넣으세요"
+            autoFocus
+            disabled={disabled}
+          />
+          <button type="button" onClick={addLink} disabled={disabled || !linkValue.trim()}>
+            추가
+          </button>
+        </div>
+      )}
+
+      <div className="reference-action-row">
+        <div className="reference-actions">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={
+              disabled || processingImage || references.images.length >= maxReferenceImages
+            }
+          >
+            <ImagePlus size={15} />
+            {processingImage ? "사진 처리 중" : "사진 첨부"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setLinkOpen((current) => !current);
+              setReferenceError("");
+            }}
+            disabled={disabled || references.links.length >= maxReferenceLinks}
+          >
+            <Link2 size={15} />
+            링크 추가
+          </button>
+        </div>
+        <span className="reference-hint">추가 후 Enter 또는 화살표를 눌러주세요</span>
+      </div>
+      {referenceError && <p className="reference-error">{referenceError}</p>}
+      <input
+        ref={fileInputRef}
+        className="reference-file-input"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        multiple
+        onChange={addImages}
+        tabIndex={-1}
+        aria-hidden="true"
+      />
+    </div>
+  );
+}
+
 function HomeView({
   prompt,
   setPrompt,
+  references,
+  setReferences,
   onCreate,
   onOpenBoard,
   onOpenSurvey,
@@ -308,6 +607,8 @@ function HomeView({
 }: {
   prompt: string;
   setPrompt: (value: string) => void;
+  references: SurveyReferences;
+  setReferences: (value: SurveyReferences) => void;
   onCreate: () => void;
   onOpenBoard: () => void;
   onOpenSurvey: (survey: PublicSurvey) => void;
@@ -315,6 +616,8 @@ function HomeView({
   loadingSurveys: boolean;
   isAnalyzing: boolean;
 }) {
+  const canContinue = prompt.trim().length >= 2 || hasSurveyReferences(references);
+
   return (
     <>
       <main className="home-main">
@@ -342,7 +645,7 @@ function HomeView({
             </span>
             <h2>어떤 설문을 만들까요?</h2>
             <p className="maker-helper">
-              알아보고 싶은 내용을 편하게 적어주세요.
+              내용을 적거나 참고할 사진·링크를 추가해주세요.
             </p>
             <div className="prompt-box">
               <textarea
@@ -359,9 +662,14 @@ function HomeView({
                     !event.nativeEvent.isComposing
                   ) {
                     event.preventDefault();
-                    if (prompt.trim().length >= 2 && !isAnalyzing) onCreate();
+                    if (canContinue && !isAnalyzing) onCreate();
                   }
                 }}
+              />
+              <SurveyReferenceControls
+                references={references}
+                onChange={setReferences}
+                disabled={isAnalyzing}
               />
               <div className="prompt-footer">
                 <span>{prompt.length}/300</span>
@@ -369,7 +677,7 @@ function HomeView({
                   type="button"
                   className="prompt-submit"
                   onClick={onCreate}
-                  disabled={isAnalyzing || prompt.trim().length < 2}
+                  disabled={isAnalyzing || !canContinue}
                   aria-label="AI 문항 설계 시작"
                 >
                   {isAnalyzing ? <Sparkles size={19} /> : <ArrowUp size={20} />}
@@ -796,6 +1104,8 @@ function MyPageView({
 function CreateView({
   prompt,
   setPrompt,
+  references,
+  setReferences,
   targetGrade,
   setTargetGrade,
   questionCount,
@@ -806,6 +1116,8 @@ function CreateView({
 }: {
   prompt: string;
   setPrompt: (value: string) => void;
+  references: SurveyReferences;
+  setReferences: (value: SurveyReferences) => void;
   targetGrade: TargetGrade;
   setTargetGrade: (value: TargetGrade) => void;
   questionCount: number;
@@ -815,6 +1127,7 @@ function CreateView({
   isAnalyzing: boolean;
 }) {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const canGenerate = prompt.trim().length >= 2 || hasSurveyReferences(references);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -838,7 +1151,7 @@ function CreateView({
         <div className="create-copy">
           <span className="create-ai-mark"><Sparkles size={17} /> AI 문항 설계</span>
           <h1>어떤 설문을 만들까요?</h1>
-          <p>알아보고 싶은 내용을 편하게 적어주세요.</p>
+          <p>내용을 적거나 참고할 사진·링크를 추가해주세요.</p>
         </div>
 
         <div className="create-composer">
@@ -851,17 +1164,27 @@ function CreateView({
             rows={3}
             maxLength={300}
             onKeyDown={(event) => {
-              if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+              if (
+                event.key === "Enter" &&
+                !event.shiftKey &&
+                !event.nativeEvent.isComposing
+              ) {
+                event.preventDefault();
                 onCreate();
               }
             }}
+          />
+          <SurveyReferenceControls
+            references={references}
+            onChange={setReferences}
+            disabled={isAnalyzing}
           />
           <div className="create-composer-footer">
             <span>{prompt.length}/300</span>
             <button
               type="button"
               onClick={onCreate}
-              disabled={isAnalyzing || prompt.trim().length < 2}
+              disabled={isAnalyzing || !canGenerate}
               aria-label="설문 생성하기"
             >
               {isAnalyzing ? <Sparkles size={19} /> : <ArrowUp size={20} />}
@@ -932,7 +1255,12 @@ function CreateView({
 
         <div className="create-summary">
           <CheckCircle2 size={15} />
-          <span>{targetGrade} 대상 · {questionCount}문항</span>
+          <span>
+            {targetGrade} 대상 · {questionCount}문항
+            {hasSurveyReferences(references)
+              ? ` · 참고자료 ${references.images.length + references.links.length}개`
+              : ""}
+          </span>
           <span>생성 후 모든 문항을 직접 또는 AI로 수정할 수 있어요.</span>
         </div>
       </section>
@@ -3337,6 +3665,10 @@ function Footer() {
 export default function Home() {
   const [view, setView] = useState<View>("home");
   const [prompt, setPrompt] = useState("");
+  const [references, setReferencesState] = useState<SurveyReferences>({
+    images: [],
+    links: [],
+  });
   const [targetGrade, setTargetGrade] = useState<TargetGrade>("전학년");
   const [questionCount, setQuestionCount] = useState(7);
   const [surveyTitle, setSurveyTitle] = useState(defaultBlueprint.title);
@@ -3579,21 +3911,30 @@ export default function Home() {
     setIsAnalyzing(false);
   };
 
+  const updateReferences = (value: SurveyReferences) => {
+    analysisRequestRef.current += 1;
+    setReferencesState(value);
+    setClarification(null);
+    setIsAnalyzing(false);
+  };
+
   const startCreate = async (promptOverride?: string) => {
-    const requestedPrompt = (promptOverride ?? prompt)
+    const enteredPrompt = (promptOverride ?? prompt)
       .replace(/\s+/g, " ")
       .trim();
-    if (!requestedPrompt) {
-      setToast("만들고 싶은 설문을 한 문장으로 적어주세요.");
+    if (!enteredPrompt && !hasSurveyReferences(references)) {
+      setToast("설문 내용을 적거나 참고할 사진·링크를 추가해주세요.");
       window.setTimeout(() => setToast(""), 2200);
       document.getElementById("survey-maker")?.focus();
       return;
     }
-    if (requestedPrompt.length > 300) {
+    if (enteredPrompt.length > 300) {
       setToast("설문 내용은 300자 이하로 적어주세요.");
       window.setTimeout(() => setToast(""), 2200);
       return;
     }
+    const requestedPrompt =
+      enteredPrompt || "첨부 자료를 바탕으로 만족도와 개선점을 조사하고 싶어요.";
 
     const requestId = analysisRequestRef.current + 1;
     analysisRequestRef.current = requestId;
@@ -3608,6 +3949,10 @@ export default function Home() {
           prompt: requestedPrompt,
           targetGrade,
           questionCount,
+          references: {
+            images: references.images.map(({ name, dataUrl }) => ({ name, dataUrl })),
+            links: references.links,
+          },
         }),
       });
       const result = (await response.json()) as
@@ -3848,6 +4193,8 @@ export default function Home() {
         <HomeView
           prompt={prompt}
           setPrompt={updatePrompt}
+          references={references}
+          setReferences={updateReferences}
           onCreate={() => navigate("create")}
           onOpenBoard={() => navigate("board")}
           onOpenSurvey={openSurvey}
@@ -3881,6 +4228,8 @@ export default function Home() {
         <CreateView
           prompt={prompt}
           setPrompt={updatePrompt}
+          references={references}
+          setReferences={updateReferences}
           targetGrade={targetGrade}
           setTargetGrade={setTargetGrade}
           questionCount={questionCount}
