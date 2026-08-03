@@ -86,6 +86,7 @@ export async function GET(request: Request) {
           campus: surveys.campus,
           questionsJson: surveys.questionsJson,
           durationMinutes: surveys.durationMinutes,
+          rewardCash: surveys.rewardCash,
           listingRequested: surveys.listingRequested,
           isListed: surveys.isListed,
           manageToken: surveys.manageToken,
@@ -126,6 +127,7 @@ export async function GET(request: Request) {
         category: surveys.category,
         campus: surveys.campus,
         durationMinutes: surveys.durationMinutes,
+        rewardCash: surveys.rewardCash,
         createdAt: surveys.createdAt,
       })
       .from(surveys)
@@ -317,6 +319,7 @@ export async function POST(request: Request) {
       campus: schoolLabel(sessionUser?.schoolId ?? "yonsei"),
       questionsJson: JSON.stringify(normalizedQuestions),
       durationMinutes,
+      rewardCash: 30,
       isPublic: true,
       listingRequested: publication.listingRequested,
       isListed: publication.isListed,
@@ -334,6 +337,7 @@ export async function POST(request: Request) {
           category: isSurveyCategory(category) ? category : "campus",
           campus: schoolLabel(sessionUser?.schoolId ?? "yonsei"),
           durationMinutes,
+          rewardCash: 30,
           listingRequested: publication.listingRequested,
           isListed: publication.isListed,
           manageToken,
