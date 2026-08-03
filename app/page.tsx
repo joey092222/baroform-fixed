@@ -897,7 +897,7 @@ function LandingView({
             <p>
               조사하고 싶은 내용을 한 줄로 적어보세요.
               <br />
-              문항 설계부터 응답 수집, 결과 확인까지 바로폼이 함께해요.
+              문항 설계부터 결과 확인까지 바로폼이 함께해요.
             </p>
             <button
               type="button"
@@ -1110,6 +1110,24 @@ function LandingView({
                   <strong>취업 준비 과정에서 필요한 지원 조사</strong>
                   <small><Clock3 size={13} /> 약 5분</small>
                 </article>
+              </div>
+            </div>
+            <div className="landing-response-highlight">
+              <div className="response-highlight-icon" aria-hidden="true">
+                <UsersRound size={30} />
+              </div>
+              <div>
+                <span>응답자 모집까지 바로폼에서</span>
+                <h3>
+                  설문 링크를 직접 돌리며
+                  <br />
+                  응답자를 모으지 않아도 돼요
+                </h3>
+                <p>
+                  학교 설문 게시판에 올리면 참여할 대학생들이 바로폼 안에서
+                  설문을 발견해요. 리워드가 참여를 도와주니, 링크를 여기저기
+                  보내는 수고를 줄일 수 있어요.
+                </p>
               </div>
             </div>
           </div>
