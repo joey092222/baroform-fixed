@@ -1,6 +1,8 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { databaseErrorMessage, getDb } from "@/db";
-import { responses, surveys } from "@/db/schema";
+import { getSessionUser } from "@/db/auth";
+import { cashTransactions, responses, surveys } from "@/db/schema";
+import { surveyRewardAmount } from "@/app/rewards";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -84,9 +86,13 @@ export async function POST(
     }
 
     const db = await getDb();
+    const sessionUser = await getSessionUser(request);
     const [survey] = await db
       .select({
         id: surveys.id,
+        title: surveys.title,
+        ownerId: surveys.ownerId,
+        rewardCash: surveys.rewardCash,
         questionsJson: surveys.questionsJson,
       })
       .from(surveys)
@@ -98,6 +104,25 @@ export async function POST(
         { error: "응답을 받을 수 없는 설문이에요." },
         { status: 404 },
       );
+    }
+
+    if (sessionUser) {
+      const [previousResponse] = await db
+        .select({ id: responses.id })
+        .from(responses)
+        .where(
+          and(
+            eq(responses.surveyId, survey.id),
+            eq(responses.memberId, sessionUser.id),
+          ),
+        )
+        .limit(1);
+      if (previousResponse) {
+        return Response.json(
+          { error: "이미 참여한 설문이에요. 캐시는 설문마다 한 번만 받을 수 있어요." },
+          { status: 409, headers: noStoreHeaders },
+        );
+      }
     }
 
     const questions = JSON.parse(survey.questionsJson) as StoredQuestion[];
@@ -221,9 +246,11 @@ export async function POST(
       }
     }
 
-    await db.insert(responses).values({
-      id: crypto.randomUUID(),
+    const responseId = crypto.randomUUID();
+    const responseInsert = db.insert(responses).values({
+      id: responseId,
       surveyId: survey.id,
+      memberId: sessionUser?.id ?? null,
       answersJson: JSON.stringify(normalizedAnswers),
       completionSeconds: Math.max(
         0,
@@ -231,11 +258,61 @@ export async function POST(
       ),
     });
 
+    const rewardAmount = surveyRewardAmount({
+      respondentId: sessionUser?.id,
+      ownerId: survey.ownerId,
+      rewardCash: survey.rewardCash,
+    });
+
+    if (sessionUser && rewardAmount > 0) {
+      await db.batch([
+        responseInsert,
+        db.insert(cashTransactions).values({
+          id: crypto.randomUUID(),
+          memberId: sessionUser.id,
+          surveyId: survey.id,
+          responseId,
+          amount: rewardAmount,
+          description: `설문 참여 적립 · ${survey.title.slice(0, 80)}`,
+        }),
+      ]);
+    } else {
+      await responseInsert;
+    }
+
+    let balance: number | null = null;
+    if (sessionUser) {
+      const [wallet] = await db
+        .select({
+          balance: sql<number>`COALESCE(SUM(${cashTransactions.amount}), 0)::int`.mapWith(Number),
+        })
+        .from(cashTransactions)
+        .where(eq(cashTransactions.memberId, sessionUser.id));
+      balance = Number(wallet?.balance ?? 0);
+    }
+
     return Response.json(
-      { ok: true },
+      {
+        ok: true,
+        reward: {
+          amount: rewardAmount,
+          balance,
+          requiresLogin: !sessionUser,
+          ownSurvey: Boolean(sessionUser && sessionUser.id === survey.ownerId),
+        },
+      },
       { status: 201, headers: noStoreHeaders },
     );
   } catch (error) {
+    if (
+      error instanceof Error &&
+      /duplicate key|unique constraint|responses_member_survey_unique/i.test(error.message)
+    ) {
+      return Response.json(
+        { error: "이미 참여한 설문이에요. 캐시는 설문마다 한 번만 받을 수 있어요." },
+        { status: 409, headers: noStoreHeaders },
+      );
+    }
     return Response.json(
       { error: databaseErrorMessage(error) },
       { status: 503, headers: noStoreHeaders },
