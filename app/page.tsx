@@ -13,6 +13,7 @@ import {
   ChevronUp,
   CircleHelp,
   Clock3,
+  Coins,
   Copy,
   Download,
   Eye,
@@ -66,11 +67,13 @@ import {
   downloadSurveyExcel,
   downloadSurveyWord,
 } from "./survey-export";
+import CommunityView from "./community-view";
 
 type View =
   | "landing"
   | "home"
   | "board"
+  | "community"
   | "mypage"
   | "create"
   | "editor"
@@ -87,6 +90,7 @@ type PublicSurvey = {
   category: SurveyCategory;
   campus: string;
   durationMinutes: number;
+  rewardCash: number;
   createdAt?: string;
   questions?: Question[];
 };
@@ -145,6 +149,16 @@ type AuthUser = {
   email: string;
   name: string;
   schoolId: string;
+};
+
+type WalletData = {
+  balance: number;
+  transactions: Array<{
+    id: string;
+    amount: number;
+    description: string;
+    createdAt: string;
+  }>;
 };
 
 type ManagedSurveySnapshot = {
@@ -430,12 +444,14 @@ function Header({
   user,
   onAuth,
   onProfile,
+  cashBalance,
 }: {
   view: View;
   onNavigate: (view: View) => void;
   user: AuthUser | null;
   onAuth: () => void;
   onProfile: () => void;
+  cashBalance: number;
 }) {
   const scrollToMaker = () => {
     onNavigate("create");
@@ -456,6 +472,14 @@ function Header({
         <nav className="main-nav" aria-label="주요 메뉴">
           <button
             type="button"
+            className={view === "community" ? "active" : ""}
+            aria-current={view === "community" ? "page" : undefined}
+            onClick={() => onNavigate("community")}
+          >
+            커뮤니티
+          </button>
+          <button
+            type="button"
             className={view === "board" ? "active" : ""}
             aria-current={view === "board" ? "page" : undefined}
             onClick={() => onNavigate("board")}
@@ -471,10 +495,16 @@ function Header({
         </nav>
         <div className="header-actions">
           {user ? (
-            <span className="member-school">
-              <School size={14} />
-              {schoolLabel(user.schoolId)}
-            </span>
+            <>
+              <span className="member-school">
+                <School size={14} />
+                {schoolLabel(user.schoolId)}
+              </span>
+              <button className="cash-chip" type="button" onClick={onProfile}>
+                <Coins size={14} />
+                {cashBalance.toLocaleString("ko-KR")}C
+              </button>
+            </>
           ) : (
             <span className="no-login-note">
               <Check size={13} strokeWidth={2.5} />
@@ -536,6 +566,10 @@ function CampusSurveyCard({
             <Clock3 size={15} />
           </span>
           <strong>약 {survey.durationMinutes}분</strong>
+        </span>
+        <span className="survey-cash">
+          <Coins size={14} />
+          <strong>+{(survey.rewardCash ?? 30).toLocaleString("ko-KR")}C</strong>
         </span>
         <span className="survey-time">
           참여하기
@@ -1009,7 +1043,7 @@ function LandingView({
               <h2>
                 링크 하나로 가볍게,
                 <br />
-                우리 학교 게시판으로 더 넓게
+                대학생 커뮤니티로 더 넓게
               </h2>
             </div>
             <div className="landing-response-grid">
@@ -1029,21 +1063,21 @@ function LandingView({
                 <div className="response-card-icon">
                   <School size={22} />
                 </div>
-                <h3>학교 설문 게시판에 공개</h3>
+                <h3>학교·전체 커뮤니티에서 발견</h3>
                 <p>
-                  개인 링크 공유에 더해 같은 학교 학생들이 보는 게시판에도
-                  설문을 올릴 수 있어요.
+                  같은 학교 학생끼리, 또는 전국 대학생과 자유롭게 이야기를
+                  나누고 필요한 설문 참여자를 만날 수 있어요.
                 </p>
               </article>
               <article>
                 <span>03</span>
                 <div className="response-card-icon">
-                  <CheckCircle2 size={22} />
+                  <Coins size={22} />
                 </div>
-                <h3>모바일에서도 편한 응답</h3>
+                <h3>완료하면 캐시가 차곡차곡</h3>
                 <p>
-                  문항 유형마다 답하기 쉬운 화면을 제공해요. 휴대폰에서도
-                  흐름이 끊기지 않아요.
+                  로그인 후 다른 사람의 설문을 완료하면 설문마다 한 번
+                  바로폼 캐시가 적립돼요.
                 </p>
               </article>
             </div>
@@ -1502,6 +1536,7 @@ function MyPageView({
   onOpenAnalytics,
   onOpenBoard,
   onLogout,
+  wallet,
 }: {
   user: AuthUser;
   surveys: OwnedSurvey[];
@@ -1512,6 +1547,7 @@ function MyPageView({
   onOpenAnalytics: (survey: OwnedSurvey) => void;
   onOpenBoard: () => void;
   onLogout: () => void;
+  wallet: WalletData;
 }) {
   const [copiedSlug, setCopiedSlug] = useState("");
   const totalResponses = surveys.reduce(
@@ -1569,6 +1605,45 @@ function MyPageView({
             <strong>{listedCount}</strong>
             <small>현재 공개 중</small>
           </article>
+          <article className="mypage-cash-summary">
+            <span>보유 캐시</span>
+            <strong>{wallet.balance.toLocaleString("ko-KR")}<em>C</em></strong>
+            <small>설문 참여 적립</small>
+          </article>
+        </section>
+
+        <section className="wallet-section">
+          <div className="wallet-card">
+            <div className="wallet-card-top">
+              <span className="wallet-icon"><Coins size={22} /></span>
+              <div>
+                <span>바로폼 캐시</span>
+                <strong>{wallet.balance.toLocaleString("ko-KR")}C</strong>
+              </div>
+            </div>
+            <p>로그인한 상태로 다른 사람의 설문을 완료하면 설문마다 30C가 한 번 적립돼요.</p>
+          </div>
+          <div className="wallet-history">
+            <div>
+              <span className="eyebrow">최근 적립 내역</span>
+              <strong>{wallet.transactions.length > 0 ? `${wallet.transactions.length}건` : "아직 없음"}</strong>
+            </div>
+            {wallet.transactions.length > 0 ? (
+              <ul>
+                {wallet.transactions.slice(0, 4).map((transaction) => (
+                  <li key={transaction.id}>
+                    <span>
+                      <strong>{transaction.description}</strong>
+                      <small>{new Date(transaction.createdAt).toLocaleDateString("ko-KR")}</small>
+                    </span>
+                    <em>+{transaction.amount.toLocaleString("ko-KR")}C</em>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>학교 설문에 참여하면 이곳에서 적립 내역을 확인할 수 있어요.</p>
+            )}
+          </div>
         </section>
 
         <section className="my-surveys-section">
@@ -3119,9 +3194,17 @@ function PublishedView({
 function SurveyView({
   survey,
   onBack,
+  user,
+  authToken,
+  onAuth,
+  onReward,
 }: {
   survey: PublicSurvey;
   onBack: () => void;
+  user: AuthUser | null;
+  authToken: string;
+  onAuth: () => void;
+  onReward: () => void;
 }) {
   const [answers, setAnswers] = useState<Record<number, number | string | string[]>>(
     {},
@@ -3129,6 +3212,12 @@ function SurveyView({
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [rewardResult, setRewardResult] = useState<{
+    amount: number;
+    balance: number | null;
+    requiresLogin: boolean;
+    ownSurvey: boolean;
+  } | null>(null);
   const startedAt = useRef(0);
   const questions = survey.questions ?? [];
 
@@ -3171,7 +3260,10 @@ function SurveyView({
     try {
       const response = await fetch(`/api/surveys/${survey.slug}/responses`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
+        },
         body: JSON.stringify({
           answers: questions.map((question) => ({
             questionId: question.id,
@@ -3182,11 +3274,21 @@ function SurveyView({
           completionSeconds: Math.round((Date.now() - startedAt.current) / 1000),
         }),
       });
-      const result = (await response.json()) as { error?: string };
+      const result = (await response.json()) as {
+        error?: string;
+        reward?: {
+          amount: number;
+          balance: number | null;
+          requiresLogin: boolean;
+          ownSurvey: boolean;
+        };
+      };
       if (!response.ok) {
         throw new Error(result.error || "응답을 저장하지 못했어요.");
       }
+      setRewardResult(result.reward ?? null);
       setSubmitted(true);
+      if ((result.reward?.amount ?? 0) > 0) onReward();
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -3212,12 +3314,24 @@ function SurveyView({
             목적에 맞게 결과에 반영됩니다.
           </p>
           <div className="reward-result completion-info">
-            <CheckCircle2 size={20} />
+            {rewardResult && rewardResult.amount > 0 ? <Coins size={21} /> : <CheckCircle2 size={20} />}
             <span>
-              <small>제출 상태</small>
-              <strong>정상적으로 저장됐어요</strong>
+              <small>{rewardResult && rewardResult.amount > 0 ? "캐시 적립 완료" : "제출 상태"}</small>
+              <strong>
+                {rewardResult && rewardResult.amount > 0
+                  ? `+${rewardResult.amount.toLocaleString("ko-KR")}C · 총 ${(rewardResult.balance ?? 0).toLocaleString("ko-KR")}C`
+                  : rewardResult?.ownSurvey
+                    ? "내 설문은 캐시 적립 대상이 아니에요"
+                    : "정상적으로 저장됐어요"}
+              </strong>
             </span>
           </div>
+          {rewardResult?.requiresLogin && (
+            <button type="button" className="submission-login" onClick={onAuth}>
+              다음 설문부터 로그인하고 캐시 받기
+              <Coins size={16} />
+            </button>
+          )}
           <button type="button" onClick={onBack}>
             다른 학교 설문 보기
             <ArrowRight size={16} />
@@ -3235,19 +3349,24 @@ function SurveyView({
           <strong>바로폼</strong>
         </button>
         <span>
-          <Check size={13} />
-          로그인 없이 참여 중
+          {user ? <Coins size={13} /> : <Check size={13} />}
+          {user ? `완료 시 +${(survey.rewardCash ?? 30).toLocaleString("ko-KR")}C` : "로그인 없이 참여 중"}
         </span>
       </div>
       <div className="respondent-shell">
         <div className="reward-banner">
-          <span className="reward-circle">
-            <CheckCircle2 size={19} />
+          <span className="reward-circle cash-reward-circle">
+            <Coins size={19} />
           </span>
           <div>
-            <small>공개 설문</small>
-            <strong>{survey.ownerName || "게시자 이름 미표시"}</strong>
+            <small>{user ? "완료 후 바로 적립" : "로그인하면 받을 수 있어요"}</small>
+            <strong>+{(survey.rewardCash ?? 30).toLocaleString("ko-KR")}C</strong>
           </div>
+          {!user && (
+            <button type="button" className="reward-login-button" onClick={onAuth}>
+              로그인
+            </button>
+          )}
           <span className="reward-time">
             <Clock3 size={14} />
             약 {survey.durationMinutes}분
@@ -4390,6 +4509,7 @@ export default function Home() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authToken, setAuthToken] = useState("");
   const [authOpen, setAuthOpen] = useState(false);
+  const [wallet, setWallet] = useState<WalletData>({ balance: 0, transactions: [] });
   const analysisRequestRef = useRef(0);
   const [publishOpen, setPublishOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -4465,6 +4585,27 @@ export default function Home() {
       );
     } finally {
       setLoadingMySurveys(false);
+    }
+  }, []);
+
+  const refreshWallet = useCallback(async (token: string) => {
+    if (!token) {
+      setWallet({ balance: 0, transactions: [] });
+      return;
+    }
+    try {
+      const response = await fetch("/api/wallet", {
+        cache: "no-store",
+        headers: { authorization: `Bearer ${token}` },
+      });
+      const result = (await response.json()) as Partial<WalletData>;
+      if (!response.ok) throw new Error();
+      setWallet({
+        balance: Number(result.balance ?? 0),
+        transactions: Array.isArray(result.transactions) ? result.transactions : [],
+      });
+    } catch {
+      setWallet({ balance: 0, transactions: [] });
     }
   }, []);
 
@@ -4606,10 +4747,11 @@ export default function Home() {
         // A locally managed survey may already belong to another account.
       }
       await refreshMySurveys(authToken);
+      await refreshWallet(authToken);
     };
 
     void connectLatestSurvey();
-  }, [authToken, refreshMySurveys]);
+  }, [authToken, refreshMySurveys, refreshWallet]);
 
   const navigate = (nextView: View) => {
     setView(nextView);
@@ -4823,6 +4965,7 @@ export default function Home() {
           category: SurveyCategory;
           campus: string;
           durationMinutes: number;
+          rewardCash: number;
           listingRequested: boolean;
           isListed: boolean;
           manageToken: string;
@@ -4848,6 +4991,7 @@ export default function Home() {
         category: result.survey.category,
         campus: result.survey.campus,
         durationMinutes: result.survey.durationMinutes,
+        rewardCash: result.survey.rewardCash ?? 30,
         createdAt: result.survey.createdAt,
         questions,
       };
@@ -4902,6 +5046,7 @@ export default function Home() {
     setMySurveys([]);
     setMySurveysError("");
     setLoadingMySurveys(false);
+    setWallet({ balance: 0, transactions: [] });
     window.localStorage.removeItem(authTokenStorageKey);
     if (token) {
       void fetch("/api/auth/session", {
@@ -4917,13 +5062,14 @@ export default function Home() {
   return (
     <div className="app-shell">
       {view === "landing" && <LandingView onEnterSite={enterSite} />}
-      {(view === "home" || view === "board" || view === "mypage") && (
+      {(view === "home" || view === "board" || view === "community" || view === "mypage") && (
         <Header
           view={view}
           onNavigate={navigate}
           user={user}
           onAuth={() => setAuthOpen(true)}
           onProfile={() => navigate("mypage")}
+          cashBalance={wallet.balance}
         />
       )}
       {view === "home" && (
@@ -4948,6 +5094,17 @@ export default function Home() {
           onCreate={() => navigate("create")}
         />
       )}
+      {view === "community" && (
+        <>
+          <CommunityView
+            user={user}
+            authToken={authToken}
+            onAuth={() => setAuthOpen(true)}
+            onCreateSurvey={() => navigate("create")}
+          />
+          <Footer />
+        </>
+      )}
       {view === "mypage" && user && (
         <MyPageView
           user={user}
@@ -4959,6 +5116,7 @@ export default function Home() {
           onOpenAnalytics={openOwnedAnalytics}
           onOpenBoard={() => navigate("board")}
           onLogout={logout}
+          wallet={wallet}
         />
       )}
       {view === "create" && (
@@ -5002,7 +5160,14 @@ export default function Home() {
         />
       )}
       {view === "survey" && activeSurvey && (
-        <SurveyView survey={activeSurvey} onBack={() => navigate("home")} />
+        <SurveyView
+          survey={activeSurvey}
+          onBack={() => navigate("home")}
+          user={user}
+          authToken={authToken}
+          onAuth={() => setAuthOpen(true)}
+          onReward={() => void refreshWallet(authToken)}
+        />
       )}
       {view === "analytics" && (
         <RealAnalyticsView
@@ -5032,7 +5197,7 @@ export default function Home() {
             setAuthToken(token);
             setUser(signedInUser);
             setAuthOpen(false);
-            if (!publishOpen) navigate("mypage");
+            if (!publishOpen && view !== "survey" && view !== "community") navigate("mypage");
             setToast(`${schoolLabel(signedInUser.schoolId)} 계정으로 로그인했어요.`);
             window.setTimeout(() => setToast(""), 2200);
           }}
