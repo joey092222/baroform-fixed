@@ -14,7 +14,9 @@ import {
   CircleHelp,
   Clock3,
   Copy,
+  Download,
   Eye,
+  FileSpreadsheet,
   FileText,
   GripVertical,
   ImagePlus,
@@ -59,6 +61,11 @@ import {
   referenceFileChunkBytes,
   referenceFileMimeTypes,
 } from "./reference-files";
+import {
+  downloadSurveyCsv,
+  downloadSurveyExcel,
+  downloadSurveyWord,
+} from "./survey-export";
 
 type View =
   | "home"
@@ -3626,6 +3633,10 @@ function RealAnalyticsView({
   const [responses, setResponses] = useState<StoredResponse[]>([]);
   const [loading, setLoading] = useState(Boolean(slug && manageToken));
   const [error, setError] = useState("");
+  const [exporting, setExporting] = useState<"excel" | "word" | "csv" | null>(
+    null,
+  );
+  const [exportError, setExportError] = useState("");
 
   useEffect(() => {
     if (!slug || !manageToken) {
@@ -3740,6 +3751,26 @@ function RealAnalyticsView({
     };
     });
 
+  const exportResults = async (format: "excel" | "word" | "csv") => {
+    if (responses.length === 0 || exporting) return;
+    setExporting(format);
+    setExportError("");
+    const payload = { title, questions, responses };
+    try {
+      if (format === "excel") {
+        await downloadSurveyExcel(payload);
+      } else if (format === "word") {
+        await downloadSurveyWord(payload);
+      } else {
+        downloadSurveyCsv(payload);
+      }
+    } catch {
+      setExportError("결과 파일을 만들지 못했어요. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setExporting(null);
+    }
+  };
+
   return (
     <main className="analytics-page">
       <div className="analytics-topbar">
@@ -3766,10 +3797,45 @@ function RealAnalyticsView({
             </p>
           </div>
           {title && (
-            <span className="live-state">
-              <i />
-              실제 저장 데이터
-            </span>
+            <div className="analytics-heading-tools">
+              <span className="live-state">
+                <i />
+                실제 저장 데이터
+              </span>
+              {!loading && !error && (
+                <div className="result-export-actions" aria-label="결과 내보내기">
+                  <button
+                    type="button"
+                    disabled={responses.length === 0 || exporting !== null}
+                    onClick={() => void exportResults("excel")}
+                  >
+                    <FileSpreadsheet size={15} />
+                    {exporting === "excel" ? "Excel 준비 중…" : "Excel"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={responses.length === 0 || exporting !== null}
+                    onClick={() => void exportResults("word")}
+                  >
+                    <FileText size={15} />
+                    {exporting === "word" ? "Word 준비 중…" : "Word"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={responses.length === 0 || exporting !== null}
+                    onClick={() => void exportResults("csv")}
+                  >
+                    <Download size={15} />
+                    CSV
+                  </button>
+                </div>
+              )}
+              {exportError && (
+                <span className="result-export-error" role="alert">
+                  {exportError}
+                </span>
+              )}
+            </div>
           )}
         </div>
 
