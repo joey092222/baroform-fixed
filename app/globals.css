@@ -2176,7 +2176,7 @@ select:focus-visible {
 .editor-layout {
   min-height: calc(100vh - 64px);
   display: grid;
-  grid-template-columns: 235px minmax(540px, 1fr) 255px;
+  grid-template-columns: 235px minmax(540px, 1fr) 280px;
 }
 
 .question-sidebar,
