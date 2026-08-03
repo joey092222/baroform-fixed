@@ -2905,7 +2905,7 @@ select:focus-visible {
 
 .modal-step {
   color: #98a2b2;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.1em;
 }
@@ -2932,7 +2932,7 @@ select:focus-visible {
   max-width: 390px;
   margin: 10px 0 0;
   color: #7d899b;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.7;
 }
 
@@ -2951,14 +2951,14 @@ select:focus-visible {
 .publish-summary > span,
 .publish-option label {
   color: #919baa;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 750;
 }
 
 .publish-summary > strong {
   overflow: hidden;
   color: var(--navy-950);
-  font-size: 12px;
+  font-size: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2968,7 +2968,7 @@ select:focus-visible {
   display: flex;
   gap: 12px;
   color: #6e7a8e;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .publish-summary > div span {
@@ -2992,7 +2992,7 @@ select:focus-visible {
   border-radius: 10px;
   background: white;
   color: #4f5c72;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .publish-option input {
@@ -3003,12 +3003,12 @@ select:focus-visible {
   outline: 0;
   background: white;
   color: #4f5c72;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .publish-option small {
   color: #9aa4b3;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .listing-consent {
@@ -3038,12 +3038,12 @@ select:focus-visible {
 
 .listing-consent strong {
   color: var(--navy-950);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .listing-consent small {
   color: #8d98a8;
-  font-size: 8px;
+  font-size: 10px;
   line-height: 1.45;
 }
 
@@ -3075,12 +3075,12 @@ select:focus-visible {
 
 .board-school-summary small {
   color: #8a96a7;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .board-school-summary strong {
   color: var(--navy-900);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .board-login-callout {
@@ -3094,7 +3094,7 @@ select:focus-visible {
   border-radius: 9px;
   background: var(--navy-900);
   color: white;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 750;
 }
 
@@ -3131,7 +3131,7 @@ select:focus-visible {
   border-radius: 12px;
   background: var(--navy-950);
   color: white;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -3141,7 +3141,7 @@ select:focus-visible {
   align-items: center;
   gap: 5px;
   color: #8994a5;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .published-page,
@@ -3803,6 +3803,55 @@ select:focus-visible {
   box-shadow: 0 0 0 4px rgba(41, 168, 120, 0.1);
 }
 
+.analytics-heading-tools {
+  display: grid;
+  justify-items: end;
+  gap: 12px;
+}
+
+.result-export-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.result-export-actions button {
+  height: 38px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #dce2e9;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #344156;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.result-export-actions button:hover:not(:disabled) {
+  border-color: #aebed2;
+  background: #f8fafc;
+}
+
+.result-export-actions button:first-child {
+  border-color: var(--navy-900);
+  background: var(--navy-900);
+  color: #ffffff;
+}
+
+.result-export-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.result-export-error {
+  max-width: 310px;
+  color: #b54038;
+  font-size: 10px;
+  text-align: right;
+}
+
 .metric-grid {
   margin-top: 28px;
   display: grid;
@@ -3949,14 +3998,14 @@ select:focus-visible {
 
 .card-title > span {
   color: #99a3b2;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 700;
 }
 
 .card-title h2 {
   margin: 6px 0 0;
   color: var(--navy-950);
-  font-size: 15px;
+  font-size: 17px;
   letter-spacing: -0.03em;
 }
 
@@ -4360,7 +4409,7 @@ select:focus-visible {
 
 .live-summary-list article > span {
   color: #9ca6b4;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 800;
 }
 
@@ -4373,7 +4422,7 @@ select:focus-visible {
 .live-summary-list article strong {
   overflow: hidden;
   color: #425069;
-  font-size: 9px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -4394,7 +4443,7 @@ select:focus-visible {
 
 .live-summary-list article em {
   color: var(--navy-950);
-  font-size: 9px;
+  font-size: 11px;
   font-style: normal;
   font-weight: 750;
   text-align: right;
@@ -4412,12 +4461,12 @@ select:focus-visible {
   gap: 8px;
   border-top: 1px solid #edf0f4;
   color: #8792a3;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .recent-responses-live article strong {
   color: #4f5c72;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .recent-responses-live article small {
@@ -5090,6 +5139,20 @@ select:focus-visible {
 
   .analytics-heading h1 {
     font-size: 29px;
+  }
+
+  .analytics-heading-tools {
+    width: 100%;
+    justify-items: start;
+  }
+
+  .result-export-actions {
+    width: 100%;
+  }
+
+  .result-export-actions button {
+    flex: 1;
+    justify-content: center;
   }
 
   .metric-grid {
