@@ -5,6 +5,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 export const surveys = pgTable(
@@ -23,6 +24,7 @@ export const surveys = pgTable(
       .default("연세대학교 신촌캠퍼스"),
     questionsJson: text("questions_json").notNull(),
     durationMinutes: integer("duration_minutes").notNull().default(2),
+    rewardCash: integer("reward_cash").notNull().default(30),
     isPublic: boolean("is_public").notNull().default(true),
     listingRequested: boolean("listing_requested").notNull().default(false),
     isListed: boolean("is_listed").notNull().default(false),
@@ -87,6 +89,9 @@ export const responses = pgTable(
     surveyId: text("survey_id")
       .notNull()
       .references(() => surveys.id, { onDelete: "cascade" }),
+    memberId: text("member_id").references(() => members.id, {
+      onDelete: "set null",
+    }),
     answersJson: text("answers_json").notNull(),
     completionSeconds: integer("completion_seconds").notNull().default(0),
     createdAt: timestamp("created_at", {
@@ -101,5 +106,126 @@ export const responses = pgTable(
       table.surveyId,
       table.createdAt,
     ),
+    uniqueIndex("responses_member_survey_unique").on(
+      table.memberId,
+      table.surveyId,
+    ),
+  ],
+);
+
+export const cashTransactions = pgTable(
+  "cash_transactions",
+  {
+    id: text("id").primaryKey(),
+    memberId: text("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    surveyId: text("survey_id")
+      .notNull()
+      .references(() => surveys.id, { onDelete: "cascade" }),
+    responseId: text("response_id")
+      .notNull()
+      .references(() => responses.id, { onDelete: "cascade" }),
+    amount: integer("amount").notNull(),
+    description: text("description").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("cash_transactions_member_survey_unique").on(
+      table.memberId,
+      table.surveyId,
+    ),
+    index("cash_transactions_member_created_idx").on(
+      table.memberId,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const communityPosts = pgTable(
+  "community_posts",
+  {
+    id: text("id").primaryKey(),
+    memberId: text("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    schoolId: text("school_id").notNull(),
+    visibility: text("visibility").notNull().default("all"),
+    category: text("category").notNull().default("free"),
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("community_posts_scope_created_idx").on(
+      table.visibility,
+      table.schoolId,
+      table.createdAt,
+    ),
+    index("community_posts_member_created_idx").on(
+      table.memberId,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const communityComments = pgTable(
+  "community_comments",
+  {
+    id: text("id").primaryKey(),
+    postId: text("post_id")
+      .notNull()
+      .references(() => communityPosts.id, { onDelete: "cascade" }),
+    memberId: text("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("community_comments_post_created_idx").on(
+      table.postId,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const communityLikes = pgTable(
+  "community_likes",
+  {
+    postId: text("post_id")
+      .notNull()
+      .references(() => communityPosts.id, { onDelete: "cascade" }),
+    memberId: text("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("community_likes_post_member_unique").on(
+      table.postId,
+      table.memberId,
+    ),
+    index("community_likes_post_idx").on(table.postId),
   ],
 );
