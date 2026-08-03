@@ -34,6 +34,7 @@ export async function GET(
         campus: surveys.campus,
         questionsJson: surveys.questionsJson,
         durationMinutes: surveys.durationMinutes,
+        rewardCash: surveys.rewardCash,
       })
       .from(surveys)
       .where(and(eq(surveys.slug, slug), eq(surveys.isPublic, true)))
