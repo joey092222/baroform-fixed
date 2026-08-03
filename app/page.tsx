@@ -172,6 +172,32 @@ function referenceFilesTotalBytes(references: SurveyReferences) {
   return references.files.reduce((total, file) => total + file.size, 0);
 }
 
+function estimateGenerationSeconds(
+  references: SurveyReferences,
+  questionCount: number,
+) {
+  const imageSeconds =
+    Math.min(references.images.length, 5) * 2 +
+    Math.max(0, references.images.length - 5);
+  const fileSeconds = references.files.length * 4;
+  const linkSeconds = references.links.length * 5;
+  const extraQuestionSeconds = Math.max(0, questionCount - 7);
+
+  return Math.min(
+    75,
+    20 + imageSeconds + fileSeconds + linkSeconds + extraQuestionSeconds,
+  );
+}
+
+function formatRemainingTime(seconds: number) {
+  if (seconds >= 60) {
+    const minutes = Math.floor(seconds / 60);
+    const rest = seconds % 60;
+    return rest > 0 ? `약 ${minutes}분 ${rest}초` : `약 ${minutes}분`;
+  }
+  return `약 ${seconds}초`;
+}
+
 function readFileAsDataUrl(file: Blob) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -3878,6 +3904,80 @@ function Footer() {
   );
 }
 
+function GenerationOverlay({
+  references,
+  questionCount,
+}: {
+  references: SurveyReferences;
+  questionCount: number;
+}) {
+  const estimatedSeconds = estimateGenerationSeconds(references, questionCount);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  useEffect(() => {
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [estimatedSeconds]);
+
+  const remainingSeconds = Math.max(0, estimatedSeconds - elapsedSeconds);
+  const progressRatio = elapsedSeconds / estimatedSeconds;
+  const progress =
+    remainingSeconds > 0
+      ? Math.min(90, Math.round(12 + progressRatio * 78))
+      : Math.min(96, 90 + Math.floor((elapsedSeconds - estimatedSeconds) / 3));
+  const phase = progressRatio < 0.28 ? 0 : progressRatio < 0.68 ? 1 : 2;
+  const phaseTitles = [
+    "입력한 내용을 정리하고 있어요",
+    "핵심 기준을 찾고 있어요",
+    "질문을 자연스럽게 다듬고 있어요",
+  ];
+
+  return (
+    <div className="generation-overlay" role="status" aria-live="polite">
+      <div className="generation-card research-loading-card">
+        <span className="generation-orbit">
+          <Search size={24} />
+        </span>
+        <strong>{phaseTitles[phase]}</strong>
+        <p>
+          응답 대상과 조사 목적을 구분하고, 필요한 참고자료를 반영해 설문을
+          설계해요.
+        </p>
+        <div className="generation-time">
+          <span>
+            <Clock3 size={14} />
+            예상 남은 시간
+          </span>
+          <output>
+            {remainingSeconds > 0
+              ? formatRemainingTime(remainingSeconds)
+              : "마무리 중"}
+          </output>
+        </div>
+        <div className="research-loading-steps" aria-hidden="true">
+          <span className={phase === 0 ? "active" : ""}>요청 분석</span>
+          <span className={phase === 1 ? "active" : ""}>자료 검토</span>
+          <span className={phase === 2 ? "active" : ""}>문항 구성</span>
+        </div>
+        <div
+          className="loading-line"
+          role="progressbar"
+          aria-label="설문 생성 진행률"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progress}
+        >
+          <span className="generation-progress" style={{ width: `${progress}%` }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [view, setView] = useState<View>("home");
   const [prompt, setPrompt] = useState("");
@@ -4520,26 +4620,10 @@ export default function Home() {
         />
       )}
       {isAnalyzing && (
-        <div className="generation-overlay" role="status" aria-live="polite">
-          <div className="generation-card research-loading-card">
-            <span className="generation-orbit">
-              <Search size={24} />
-            </span>
-            <strong>입력한 내용을 정확히 이해하고 있어요</strong>
-            <p>
-              응답 대상과 평가 경험을 먼저 나누고, 필요한 경우에만 공개
-              자료를 빠르게 확인해 문항을 설계해요.
-            </p>
-            <div className="research-loading-steps" aria-hidden>
-              <span>문맥 분석</span>
-              <span>필요 자료 확인</span>
-              <span>문항 설계</span>
-            </div>
-            <div className="loading-line">
-              <span />
-            </div>
-          </div>
-        </div>
+        <GenerationOverlay
+          references={references}
+          questionCount={questionCount}
+        />
       )}
       {clarification && !isAnalyzing && (
         <ClarificationModal
