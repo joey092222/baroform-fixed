@@ -892,12 +892,12 @@ function LandingView({
           <div className="landing-hero-glow landing-hero-glow-left" />
           <div className="landing-hero-glow landing-hero-glow-right" />
           <div className="landing-hero-content">
-            <span className="landing-kicker">대학생을 위한 설문 플랫폼</span>
+            <span className="landing-kicker">대학생 설문, 더 쉽고 빠르게</span>
             <h1 id="landing-title">BAROFORM</h1>
             <p>
-              주제를 한 줄로 적으면 문항 설계부터 배포, 분석까지.
+              조사하고 싶은 내용을 한 줄로 적어보세요.
               <br />
-              설문에 드는 시간을 더 좋은 질문에 쓰세요.
+              문항 설계부터 응답 수집, 결과 확인까지 바로폼이 함께해요.
             </p>
             <button
               type="button"
@@ -919,49 +919,49 @@ function LandingView({
             <div className="landing-section-heading">
               <span className="landing-eyebrow">설문 만들기</span>
               <h2>
-                설문 하나 만드는 과정을
+                설문 만들기,
                 <br />
-                세 단계로 줄였어요
+                세 단계면 충분해요
               </h2>
             </div>
             <div className="landing-step-grid">
               <article>
                 <span>01</span>
-                <h3>조사 목적을 알려주세요</h3>
+                <h3>조사할 내용을 적어주세요</h3>
                 <p>
-                  무엇을 알고 싶은지 한 문장으로 적으세요. 사진·파일·링크가
-                  있다면 함께 첨부할 수 있어요.
+                  무엇을 알아보고 싶은지 한 문장으로 적으면 돼요. 참고할
+                  사진·파일·링크도 함께 넣을 수 있어요.
                 </p>
               </article>
               <article>
                 <span>02</span>
-                <h3>문항을 확인하고 다듬어요</h3>
+                <h3>AI가 문항을 만들어줘요</h3>
                 <p>
-                  AI가 목적에 맞게 문항의 흐름과 형식을 설계해요. 원하는
-                  문장은 에디터에서 바로 바꿀 수 있어요.
+                  조사 목적에 맞춰 질문 순서와 형식을 구성해요. 문항은 직접
+                  고치거나 AI에게 다시 요청할 수 있어요.
                 </p>
               </article>
               <article>
                 <span>03</span>
-                <h3>링크를 공유하고 응답을 모아요</h3>
+                <h3>공유하고 응답을 받아요</h3>
                 <p>
-                  설문을 배포하면 공유 링크가 만들어져요. 필요하면 우리 학교
-                  게시판에도 함께 공개할 수 있어요.
+                  설문을 배포하면 참여 링크가 바로 만들어져요. 우리 학교 설문
+                  게시판에도 함께 올릴 수 있어요.
                 </p>
               </article>
             </div>
             <div className="landing-fact-row" aria-label="바로폼 주요 기능">
               <div>
                 <strong>9가지</strong>
-                <span>지원하는 문항 형식</span>
+                <span>다양한 문항 형식</span>
               </div>
               <div>
                 <strong>로그인 없이</strong>
-                <span>링크에서 바로 응답</span>
+                <span>링크만 열면 바로 참여</span>
               </div>
               <div>
                 <strong>3가지</strong>
-                <span>Excel · Word · CSV 내보내기</span>
+                <span>Excel · Word · CSV 결과 파일</span>
               </div>
             </div>
           </div>
@@ -970,28 +970,28 @@ function LandingView({
         <section className="landing-section landing-context-section">
           <div className="landing-container landing-split-heading">
             <div className="landing-section-heading">
-              <span className="landing-eyebrow">자료 기반 설계</span>
+              <span className="landing-eyebrow">참고자료 반영</span>
               <h2>
-                첨부한 자료의 맥락까지
+                자료를 함께 넣으면,
                 <br />
-                질문에 담아요
+                질문이 더 정확해져요
               </h2>
             </div>
             <p>
-              문서에 적힌 핵심 사실과 문제 원인, 비교해야 할 기준을 읽고
-              설문에 반영해요. 똑같은 만족도 문항을 반복하는 대신 실제로
-              필요한 답을 얻을 수 있게 설계합니다.
+              사진·문서·링크에 담긴 조사 대상과 핵심 내용을 파악해 문항에
+              반영해요. 막연한 질문 대신, 지금 필요한 답을 얻을 수 있는
+              질문을 만들어요.
             </p>
           </div>
           <div className="landing-context-visual" aria-label="참고자료가 설문 문항으로 바뀌는 예시">
             <div className="context-source-stack">
               <div className="context-source-card context-source-back">
                 <ImagePlus size={18} />
-                <span>인터뷰 화면 캡처</span>
+                <span>인터뷰 내용 캡처</span>
               </div>
               <div className="context-source-card context-source-mid">
                 <Link2 size={18} />
-                <span>서비스 소개 링크</span>
+                <span>참고할 서비스 링크</span>
               </div>
               <div className="context-source-card context-source-front">
                 <span className="context-file-icon">PDF</span>
@@ -1015,7 +1015,7 @@ function LandingView({
                   <span>문항 3</span>
                   <small>복수 선택</small>
                 </div>
-                <h3>도서관 이용을 포기하게 된 이유를 모두 골라주세요.</h3>
+                <h3>도서관을 이용하지 않게 된 이유를 모두 골라주세요.</h3>
                 <ul>
                   <li><span />원하는 좌석을 찾기 어려워서</li>
                   <li><span />혼잡도를 미리 알 수 없어서</li>
@@ -1039,11 +1039,11 @@ function LandingView({
         <section className="landing-section landing-response-section">
           <div className="landing-container">
             <div className="landing-section-heading">
-              <span className="landing-eyebrow">응답 모으기</span>
+              <span className="landing-eyebrow">응답 모집과 리워드</span>
               <h2>
-                링크 하나로 가볍게,
+                공유는 간편하게,
                 <br />
-                대학생 커뮤니티로 더 넓게
+                참여에는 작은 보상을
               </h2>
             </div>
             <div className="landing-response-grid">
@@ -1052,10 +1052,10 @@ function LandingView({
                 <div className="response-card-icon">
                   <Link2 size={22} />
                 </div>
-                <h3>로그인 없이 바로 응답</h3>
+                <h3>링크만 열면 바로 참여</h3>
                 <p>
-                  공유 링크를 누르면 별도 가입 없이 설문이 열려요. 참여
-                  과정에서 생기는 불필요한 이탈을 줄여요.
+                  공유 링크를 누르면 회원가입 없이 바로 설문이 열려요. 누구나
+                  부담 없이 참여할 수 있어요.
                 </p>
               </article>
               <article>
@@ -1063,10 +1063,10 @@ function LandingView({
                 <div className="response-card-icon">
                   <School size={22} />
                 </div>
-                <h3>학교·전체 커뮤니티에서 발견</h3>
+                <h3>게시판과 커뮤니티에서 만나요</h3>
                 <p>
-                  같은 학교 학생끼리, 또는 전국 대학생과 자유롭게 이야기를
-                  나누고 필요한 설문 참여자를 만날 수 있어요.
+                  우리 학교 게시판에서 응답을 모집하고, 전체·학교별
+                  커뮤니티에서 대학생들과 자유롭게 소통할 수 있어요.
                 </p>
               </article>
               <article>
@@ -1074,10 +1074,10 @@ function LandingView({
                 <div className="response-card-icon">
                   <Coins size={22} />
                 </div>
-                <h3>완료하면 캐시가 차곡차곡</h3>
+                <h3>설문 하나에 30C 적립</h3>
                 <p>
-                  로그인 후 다른 사람의 설문을 완료하면 설문마다 한 번
-                  바로폼 캐시가 적립돼요.
+                  로그인한 뒤 다른 사람의 설문을 완료하면, 설문마다 한 번
+                  30C가 쌓여요.
                 </p>
               </article>
             </div>
@@ -1120,14 +1120,14 @@ function LandingView({
             <div className="landing-analysis-copy">
               <span className="landing-eyebrow">결과 분석</span>
               <h2>
-                응답이 들어오는 순간,
+                응답이 들어오면,
                 <br />
-                결과가 읽히기 시작해요
+                결과가 바로 보여요
               </h2>
               <p>
-                응답 수와 문항별 분포를 한눈에 확인하고, 서술형 답변까지
-                모아볼 수 있어요. 더 깊게 분석하고 싶다면 원하는 형식으로
-                내려받으세요.
+                응답 수와 문항별 분포, 서술형 답변을 한 화면에서 확인할 수
+                있어요. Excel·Word·CSV로 내려받아 필요한 곳에 바로
+                활용하세요.
               </p>
               <div className="analysis-export-list">
                 <span><FileSpreadsheet size={17} />Excel</span>
@@ -1181,9 +1181,9 @@ function LandingView({
           <div>
             <span>BAROFORM</span>
             <h2>
-              다음 설문은,
+              다음 설문은
               <br />
-              질문 한 줄에서 시작해보세요.
+              바로폼에서 시작해보세요.
             </h2>
           </div>
           <button type="button" onClick={onEnterSite}>
