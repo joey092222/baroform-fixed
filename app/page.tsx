@@ -68,6 +68,7 @@ import {
 } from "./survey-export";
 
 type View =
+  | "landing"
   | "home"
   | "board"
   | "mypage"
@@ -845,7 +846,324 @@ function SurveyReferenceControls({
   );
 }
 
-function HomeView({
+function LandingView({
+  onEnterSite,
+}: {
+  onEnterSite: () => void;
+}) {
+  return (
+    <>
+      <main className="landing-page">
+        <section className="landing-hero" aria-labelledby="landing-title">
+          <div className="landing-hero-glow landing-hero-glow-left" />
+          <div className="landing-hero-glow landing-hero-glow-right" />
+          <div className="landing-hero-content">
+            <span className="landing-kicker">대학생을 위한 설문 플랫폼</span>
+            <h1 id="landing-title">BAROFORM</h1>
+            <p>
+              주제를 한 줄로 적으면 문항 설계부터 배포, 분석까지.
+              <br />
+              설문에 드는 시간을 더 좋은 질문에 쓰세요.
+            </p>
+            <button
+              type="button"
+              className="landing-primary landing-enter-button"
+              onClick={onEnterSite}
+            >
+              사이트로 이동
+              <ArrowRight size={18} />
+            </button>
+          </div>
+          <a className="landing-scroll-cue" href="#how-it-works" aria-label="아래 내용 보기">
+            <span>SCROLL</span>
+            <ChevronDown size={18} />
+          </a>
+        </section>
+
+        <section className="landing-section landing-process" id="how-it-works">
+          <div className="landing-container">
+            <div className="landing-section-heading">
+              <span className="landing-eyebrow">설문 만들기</span>
+              <h2>
+                설문 하나 만드는 과정을
+                <br />
+                세 단계로 줄였어요
+              </h2>
+            </div>
+            <div className="landing-step-grid">
+              <article>
+                <span>01</span>
+                <h3>조사 목적을 알려주세요</h3>
+                <p>
+                  무엇을 알고 싶은지 한 문장으로 적으세요. 사진·파일·링크가
+                  있다면 함께 첨부할 수 있어요.
+                </p>
+              </article>
+              <article>
+                <span>02</span>
+                <h3>문항을 확인하고 다듬어요</h3>
+                <p>
+                  AI가 목적에 맞게 문항의 흐름과 형식을 설계해요. 원하는
+                  문장은 에디터에서 바로 바꿀 수 있어요.
+                </p>
+              </article>
+              <article>
+                <span>03</span>
+                <h3>링크를 공유하고 응답을 모아요</h3>
+                <p>
+                  설문을 배포하면 공유 링크가 만들어져요. 필요하면 우리 학교
+                  게시판에도 함께 공개할 수 있어요.
+                </p>
+              </article>
+            </div>
+            <div className="landing-fact-row" aria-label="바로폼 주요 기능">
+              <div>
+                <strong>9가지</strong>
+                <span>지원하는 문항 형식</span>
+              </div>
+              <div>
+                <strong>로그인 없이</strong>
+                <span>링크에서 바로 응답</span>
+              </div>
+              <div>
+                <strong>3가지</strong>
+                <span>Excel · Word · CSV 내보내기</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="landing-section landing-context-section">
+          <div className="landing-container landing-split-heading">
+            <div className="landing-section-heading">
+              <span className="landing-eyebrow">자료 기반 설계</span>
+              <h2>
+                첨부한 자료의 맥락까지
+                <br />
+                질문에 담아요
+              </h2>
+            </div>
+            <p>
+              문서에 적힌 핵심 사실과 문제 원인, 비교해야 할 기준을 읽고
+              설문에 반영해요. 똑같은 만족도 문항을 반복하는 대신 실제로
+              필요한 답을 얻을 수 있게 설계합니다.
+            </p>
+          </div>
+          <div className="landing-context-visual" aria-label="참고자료가 설문 문항으로 바뀌는 예시">
+            <div className="context-source-stack">
+              <div className="context-source-card context-source-back">
+                <ImagePlus size={18} />
+                <span>인터뷰 화면 캡처</span>
+              </div>
+              <div className="context-source-card context-source-mid">
+                <Link2 size={18} />
+                <span>서비스 소개 링크</span>
+              </div>
+              <div className="context-source-card context-source-front">
+                <span className="context-file-icon">PDF</span>
+                <div>
+                  <strong>도서관 이용 조사 기획서</strong>
+                  <small>문제 상황 · 조사 대상 · 핵심 가설</small>
+                </div>
+                <CheckCircle2 size={18} />
+              </div>
+            </div>
+            <div className="context-flow">
+              <span />
+              <div>
+                <Sparkles size={20} />
+              </div>
+              <span />
+            </div>
+            <div className="context-question-stack">
+              <article className="context-question-card is-main">
+                <div>
+                  <span>문항 3</span>
+                  <small>복수 선택</small>
+                </div>
+                <h3>도서관 이용을 포기하게 된 이유를 모두 골라주세요.</h3>
+                <ul>
+                  <li><span />원하는 좌석을 찾기 어려워서</li>
+                  <li><span />혼잡도를 미리 알 수 없어서</li>
+                  <li><span />이용 가능한 시간이 맞지 않아서</li>
+                </ul>
+              </article>
+              <article className="context-question-card is-side">
+                <div>
+                  <span>문항 5</span>
+                  <small>우선순위</small>
+                </div>
+                <h3>가장 먼저 개선되어야 할 기능은 무엇인가요?</h3>
+              </article>
+            </div>
+          </div>
+          <div className="landing-context-note">
+            사진 최대 10장 · 파일 최대 3개(개당 10MB) · 링크 최대 3개
+          </div>
+        </section>
+
+        <section className="landing-section landing-response-section">
+          <div className="landing-container">
+            <div className="landing-section-heading">
+              <span className="landing-eyebrow">응답 모으기</span>
+              <h2>
+                링크 하나로 가볍게,
+                <br />
+                우리 학교 게시판으로 더 넓게
+              </h2>
+            </div>
+            <div className="landing-response-grid">
+              <article>
+                <span>01</span>
+                <div className="response-card-icon">
+                  <Link2 size={22} />
+                </div>
+                <h3>로그인 없이 바로 응답</h3>
+                <p>
+                  공유 링크를 누르면 별도 가입 없이 설문이 열려요. 참여
+                  과정에서 생기는 불필요한 이탈을 줄여요.
+                </p>
+              </article>
+              <article>
+                <span>02</span>
+                <div className="response-card-icon">
+                  <School size={22} />
+                </div>
+                <h3>학교 설문 게시판에 공개</h3>
+                <p>
+                  개인 링크 공유에 더해 같은 학교 학생들이 보는 게시판에도
+                  설문을 올릴 수 있어요.
+                </p>
+              </article>
+              <article>
+                <span>03</span>
+                <div className="response-card-icon">
+                  <CheckCircle2 size={22} />
+                </div>
+                <h3>모바일에서도 편한 응답</h3>
+                <p>
+                  문항 유형마다 답하기 쉬운 화면을 제공해요. 휴대폰에서도
+                  흐름이 끊기지 않아요.
+                </p>
+              </article>
+            </div>
+            <div className="landing-board-preview">
+              <div className="board-preview-top">
+                <div>
+                  <span className="campus-symbol">Y</span>
+                  <div>
+                    <small>연세대학교 신촌캠퍼스</small>
+                    <strong>지금 참여할 수 있는 설문</strong>
+                  </div>
+                </div>
+                <span className="board-preview-label">
+                  학교 설문 게시판 <ArrowRight size={15} />
+                </span>
+              </div>
+              <div className="board-preview-list">
+                <article>
+                  <span>캠퍼스</span>
+                  <strong>학교 도서관 이용 경험 조사</strong>
+                  <small><Clock3 size={13} /> 약 3분</small>
+                </article>
+                <article>
+                  <span>서비스</span>
+                  <strong>대학생 일정 관리 앱 사용성 평가</strong>
+                  <small><Clock3 size={13} /> 약 4분</small>
+                </article>
+                <article>
+                  <span>진로</span>
+                  <strong>취업 준비 과정에서 필요한 지원 조사</strong>
+                  <small><Clock3 size={13} /> 약 5분</small>
+                </article>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="landing-section landing-analysis-section">
+          <div className="landing-container landing-analysis-grid">
+            <div className="landing-analysis-copy">
+              <span className="landing-eyebrow">결과 분석</span>
+              <h2>
+                응답이 들어오는 순간,
+                <br />
+                결과가 읽히기 시작해요
+              </h2>
+              <p>
+                응답 수와 문항별 분포를 한눈에 확인하고, 서술형 답변까지
+                모아볼 수 있어요. 더 깊게 분석하고 싶다면 원하는 형식으로
+                내려받으세요.
+              </p>
+              <div className="analysis-export-list">
+                <span><FileSpreadsheet size={17} />Excel</span>
+                <span><FileText size={17} />Word</span>
+                <span><Download size={17} />CSV</span>
+              </div>
+            </div>
+            <div className="landing-dashboard" aria-label="설문 결과 분석 화면 예시">
+              <div className="dashboard-window-top">
+                <div>
+                  <span />
+                  <span />
+                  <span />
+                </div>
+                <small>학교 도서관 이용 경험 조사</small>
+              </div>
+              <div className="dashboard-summary-row">
+                <div>
+                  <small>총 응답</small>
+                  <strong>128</strong>
+                  <span>명</span>
+                </div>
+                <div>
+                  <small>평균 완료 시간</small>
+                  <strong>2:46</strong>
+                  <span>분</span>
+                </div>
+                <div className="dashboard-summary-accent">
+                  <small>오늘 응답</small>
+                  <strong>+24</strong>
+                  <span>명</span>
+                </div>
+              </div>
+              <div className="dashboard-chart-card">
+                <div>
+                  <strong>도서관을 가장 자주 이용하는 목적은 무엇인가요?</strong>
+                  <small>문항 2 · 단일 선택</small>
+                </div>
+                <ul>
+                  <li><span>개인 공부</span><i><b style={{ width: "72%" }} /></i><strong>72%</strong></li>
+                  <li><span>팀 프로젝트</span><i><b style={{ width: "48%" }} /></i><strong>48%</strong></li>
+                  <li><span>자료 열람</span><i><b style={{ width: "31%" }} /></i><strong>31%</strong></li>
+                  <li><span>휴식</span><i><b style={{ width: "18%" }} /></i><strong>18%</strong></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="landing-final-cta">
+          <div>
+            <span>BAROFORM</span>
+            <h2>
+              다음 설문은,
+              <br />
+              질문 한 줄에서 시작해보세요.
+            </h2>
+          </div>
+          <button type="button" onClick={onEnterSite}>
+            사이트로 이동
+            <ArrowRight size={19} />
+          </button>
+        </section>
+      </main>
+      <Footer />
+    </>
+  );
+}
+
+function ProductHomeView({
   prompt,
   setPrompt,
   references,
@@ -1022,6 +1340,7 @@ function HomeView({
     </>
   );
 }
+
 
 function SchoolBoardView({
   surveys,
@@ -4045,7 +4364,7 @@ function GenerationOverlay({
 }
 
 export default function Home() {
-  const [view, setView] = useState<View>("home");
+  const [view, setView] = useState<View>("landing");
   const [prompt, setPrompt] = useState("");
   const [references, setReferencesState] = useState<SurveyReferences>({
     images: [],
@@ -4203,7 +4522,8 @@ export default function Home() {
       if (!cancelled) void refreshPublicSurveys();
     });
 
-    const directSlug = new URLSearchParams(window.location.search).get("survey");
+    const pageParams = new URLSearchParams(window.location.search);
+    const directSlug = pageParams.get("survey");
     if (directSlug) {
       fetch(`/api/surveys/${directSlug}`, { cache: "no-store" })
         .then(async (response) => {
@@ -4233,11 +4553,27 @@ export default function Home() {
             window.setTimeout(() => setToast(""), 2400);
           }
         });
+    } else if (pageParams.get("app") === "1") {
+      window.queueMicrotask(() => {
+        if (!cancelled) setView("home");
+      });
     }
     return () => {
       cancelled = true;
     };
   }, [refreshPublicSurveys]);
+
+  useEffect(() => {
+    const syncEntryView = () => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("survey")) return;
+      setView(params.get("app") === "1" ? "home" : "landing");
+      window.scrollTo({ top: 0 });
+    };
+
+    window.addEventListener("popstate", syncEntryView);
+    return () => window.removeEventListener("popstate", syncEntryView);
+  }, []);
 
   useEffect(() => {
     if (!authToken) return;
@@ -4281,9 +4617,25 @@ export default function Home() {
     if (nextView === "mypage" && authToken) {
       void refreshMySurveys(authToken);
     }
-    if (nextView !== "survey" && window.location.search) {
-      window.history.replaceState({}, "", window.location.pathname);
+    if (nextView !== "survey") {
+      const nextUrl =
+        nextView === "landing"
+          ? window.location.pathname
+          : `${window.location.pathname}?app=1`;
+      if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
+        window.history.replaceState({}, "", nextUrl);
+      }
     }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const enterSite = () => {
+    window.history.pushState(
+      { baroformEntry: "app" },
+      "",
+      `${window.location.pathname}?app=1`,
+    );
+    setView("home");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -4564,6 +4916,7 @@ export default function Home() {
 
   return (
     <div className="app-shell">
+      {view === "landing" && <LandingView onEnterSite={enterSite} />}
       {(view === "home" || view === "board" || view === "mypage") && (
         <Header
           view={view}
@@ -4574,7 +4927,7 @@ export default function Home() {
         />
       )}
       {view === "home" && (
-        <HomeView
+        <ProductHomeView
           prompt={prompt}
           setPrompt={updatePrompt}
           references={references}
