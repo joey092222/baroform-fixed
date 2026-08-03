@@ -67,6 +67,9 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
 CREATE INDEX IF NOT EXISTS auth_sessions_member_idx
   ON auth_sessions (member_id);
 
+ALTER TABLE surveys ADD COLUMN IF NOT EXISTS owner_id TEXT;
+ALTER TABLE surveys ADD COLUMN IF NOT EXISTS school_id TEXT NOT NULL DEFAULT 'yonsei';
+ALTER TABLE surveys ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'campus';
 ALTER TABLE surveys ADD COLUMN IF NOT EXISTS reward_cash INTEGER NOT NULL DEFAULT 30;
 ALTER TABLE responses ADD COLUMN IF NOT EXISTS member_id TEXT;
 
