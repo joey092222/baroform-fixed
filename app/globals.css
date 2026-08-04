@@ -12176,7 +12176,7 @@ button {
 
 .preview-survey-grid .preview-featured-card {
   min-height: 100%;
-  padding: 28px 30px 24px;
+  padding: 24px 22px 21px;
   border-color: #e0e4ec;
   border-radius: 18px;
   background: #ffffff;
@@ -12212,7 +12212,7 @@ button {
 }
 
 .preview-card-owner {
-  margin-top: 23px;
+  margin-top: 20px;
   color: #8993a2;
   font-size: 11px;
   font-weight: 650;
@@ -12220,7 +12220,7 @@ button {
 
 .preview-survey-grid .preview-featured-card h3 {
   margin-top: 8px;
-  font-size: clamp(19px, 1.65vw, 23px);
+  font-size: clamp(17px, 1.35vw, 21px);
   line-height: 1.42;
   -webkit-line-clamp: 2;
 }
@@ -12230,7 +12230,7 @@ button {
   display: -webkit-box;
   overflow: hidden;
   color: #7b8594;
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.62;
   word-break: keep-all;
   -webkit-box-orient: vertical;
@@ -12241,10 +12241,10 @@ button {
   margin-top: auto;
   padding-top: 20px;
   justify-content: flex-start;
-  gap: 20px;
+  gap: 10px;
   border-top: 1px solid #e8ebf0;
   color: #6f7c90;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 750;
 }
 
