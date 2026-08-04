@@ -4885,6 +4885,7 @@ select:focus-visible {
 }
 
 .question-copy input,
+.question-title-input,
 .question-copy h2 {
   width: 100%;
   margin: 0;
@@ -4897,6 +4898,16 @@ select:focus-visible {
   font-weight: 750;
   line-height: 1.45;
   letter-spacing: -0.025em;
+}
+
+.question-title-input {
+  display: block;
+  min-height: 1.45em;
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
 }
 
 .question-copy h2 em {
@@ -9567,6 +9578,7 @@ button {
 }
 
 .question-copy input,
+.question-title-input,
 .question-copy h2,
 .title-input {
   color: #1b2739;
@@ -10630,6 +10642,7 @@ button {
 }
 
 .question-copy input,
+.question-title-input,
 .question-copy h2 {
   font-size: 17px;
   line-height: 1.55;
@@ -10845,6 +10858,7 @@ button {
   }
 
   .question-copy input,
+  .question-title-input,
   .question-copy h2 {
     font-size: 15px;
   }
