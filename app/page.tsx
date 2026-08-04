@@ -534,6 +534,152 @@ function Header({
   );
 }
 
+function WorkspaceSidebar({
+  view,
+  user,
+  surveys,
+  wallet,
+  onNavigate,
+  onCreate,
+  onOpenSurvey,
+  onAuth,
+}: {
+  view: View;
+  user: AuthUser | null;
+  surveys: OwnedSurvey[];
+  wallet: WalletData;
+  onNavigate: (view: View) => void;
+  onCreate: () => void;
+  onOpenSurvey: (survey: OwnedSurvey) => void;
+  onAuth: () => void;
+}) {
+  const openProfile = () => {
+    if (user) onNavigate("mypage");
+    else onAuth();
+  };
+
+  return (
+    <aside className="workspace-sidebar" aria-label="바로폼 작업 메뉴">
+      <button
+        type="button"
+        className="workspace-brand"
+        onClick={() => onNavigate("home")}
+        aria-label="바로폼 홈"
+      >
+        <BrandMark />
+        <span>
+          <strong>바로폼</strong>
+          <small>BAROFORM</small>
+        </span>
+      </button>
+
+      <button
+        type="button"
+        className={`workspace-create ${view === "create" ? "active" : ""}`}
+        onClick={onCreate}
+      >
+        <Plus size={18} />
+        새 설문 만들기
+      </button>
+
+      <nav className="workspace-nav" aria-label="서비스 메뉴">
+        <button
+          type="button"
+          className={view === "home" ? "active" : ""}
+          onClick={() => onNavigate("home")}
+        >
+          <WandSparkles size={17} />
+          설문 제작 홈
+        </button>
+        <button
+          type="button"
+          className={view === "board" ? "active" : ""}
+          onClick={() => onNavigate("board")}
+        >
+          <School size={17} />
+          학교 설문
+        </button>
+        <button
+          type="button"
+          className={view === "community" ? "active" : ""}
+          onClick={() => onNavigate("community")}
+        >
+          <UsersRound size={17} />
+          커뮤니티
+        </button>
+        <button
+          type="button"
+          className={view === "mypage" ? "active" : ""}
+          onClick={openProfile}
+        >
+          <UserRound size={17} />
+          마이페이지
+        </button>
+      </nav>
+
+      <section className="workspace-history" aria-labelledby="recent-surveys-title">
+        <div className="workspace-section-heading">
+          <span id="recent-surveys-title">최근 설문</span>
+          {user && surveys.length > 0 && (
+            <button type="button" onClick={() => onNavigate("mypage")}>전체 보기</button>
+          )}
+        </div>
+        {user ? (
+          surveys.length > 0 ? (
+            <div className="workspace-recent-list">
+              {surveys.slice(0, 4).map((survey) => (
+                <button
+                  type="button"
+                  key={survey.slug}
+                  onClick={() => onOpenSurvey(survey)}
+                  title={survey.title}
+                >
+                  <FileText size={15} />
+                  <span>
+                    <strong>{survey.title}</strong>
+                    <small>응답 {survey.responseCount}개</small>
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <button type="button" className="workspace-empty-history" onClick={onCreate}>
+              아직 만든 설문이 없어요
+              <small>첫 설문 만들기</small>
+            </button>
+          )
+        ) : (
+          <button type="button" className="workspace-empty-history" onClick={onAuth}>
+            로그인하면 과거 내역을 볼 수 있어요
+            <small>로그인하기</small>
+          </button>
+        )}
+      </section>
+
+      <div className="workspace-account">
+        <button type="button" className="workspace-cash" onClick={openProfile}>
+          <span>
+            <Coins size={16} />
+            내 캐시
+          </span>
+          <strong>{wallet.balance.toLocaleString("ko-KR")}C</strong>
+          <small>
+            {wallet.transactions[0]?.description ?? "설문 참여 후 캐시를 받아보세요"}
+          </small>
+        </button>
+        <button type="button" className="workspace-profile" onClick={openProfile}>
+          <span className="workspace-avatar">{user?.name.slice(0, 1) ?? "바"}</span>
+          <span>
+            <strong>{user?.name ?? "로그인"}</strong>
+            <small>{user ? schoolLabel(user.schoolId) : "내 설문과 캐시 확인"}</small>
+          </span>
+          <ChevronRight size={16} />
+        </button>
+      </div>
+    </aside>
+  );
+}
+
 function CampusSurveyCard({
   survey,
   onClick,
@@ -1296,7 +1442,15 @@ function ProductHomeView({
                 disabled={isAnalyzing}
               />
               <div className="prompt-footer">
-                <span>{prompt.length}/300</span>
+                <div className={`prompt-readiness ${canContinue ? "ready" : ""}`}>
+                  <i />
+                  <span>
+                    {canContinue
+                      ? "입력 완료 · AI가 문항을 설계할 준비가 됐어요"
+                      : "설문 주제나 목적을 입력해주세요"}
+                  </span>
+                </div>
+                <span className="prompt-counter">{prompt.length}/300</span>
                 <button
                   type="button"
                   className="prompt-submit"
@@ -1304,7 +1458,9 @@ function ProductHomeView({
                   disabled={isAnalyzing || !canContinue}
                   aria-label="AI 문항 설계 시작"
                 >
-                  {isAnalyzing ? <Sparkles size={19} /> : <ArrowUp size={20} />}
+                  <Sparkles size={17} />
+                  <span>{isAnalyzing ? "설문 만드는 중" : "AI로 설문 만들기"}</span>
+                  {!isAnalyzing && <ArrowRight size={16} />}
                 </button>
               </div>
             </div>
@@ -1846,14 +2002,20 @@ function CreateView({
             disabled={isAnalyzing}
           />
           <div className="create-composer-footer">
-            <span>{prompt.length}/300</span>
+            <div className={`create-readiness ${canGenerate ? "ready" : ""}`}>
+              <i />
+              <span>{canGenerate ? "문항을 만들 준비가 됐어요" : "주제나 자료를 입력해주세요"}</span>
+            </div>
+            <span className="create-counter">{prompt.length}/300</span>
             <button
               type="button"
               onClick={onCreate}
               disabled={isAnalyzing || !canGenerate}
               aria-label="설문 생성하기"
             >
-              {isAnalyzing ? <Sparkles size={19} /> : <ArrowUp size={20} />}
+              <Sparkles size={17} />
+              <span>{isAnalyzing ? "설문 만드는 중" : "AI로 설문 만들기"}</span>
+              {!isAnalyzing && <ArrowRight size={16} />}
             </button>
           </div>
         </div>
@@ -2468,6 +2630,17 @@ function EditorView({
         )}
 
         <section className="editor-canvas">
+          <div className="editor-canvas-heading">
+            <div>
+              <span>AI 추천 · 목표 {questions.length}문항</span>
+              <h1>{preview ? "응답 화면 미리보기" : "설문 미리보기"}</h1>
+            </div>
+            <p>
+              {preview
+                ? "응답자가 보게 될 화면을 확인하고 있어요."
+                : "문항을 클릭하면 바로 수정할 수 있어요."}
+            </p>
+          </div>
           <div className="canvas-width">
             <div className="survey-title-card">
               <span className="tiny-brand">BAROFORM</span>
@@ -5082,9 +5255,28 @@ export default function Home() {
     window.setTimeout(() => setToast(""), 1800);
   };
 
+  const workspaceSidebarVisible =
+    view === "home" ||
+    view === "board" ||
+    view === "community" ||
+    view === "mypage" ||
+    view === "create";
+
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${workspaceSidebarVisible ? "has-workspace-sidebar" : ""}`}>
       {view === "landing" && <LandingView onEnterSite={enterSite} />}
+      {workspaceSidebarVisible && (
+        <WorkspaceSidebar
+          view={view}
+          user={user}
+          surveys={mySurveys}
+          wallet={wallet}
+          onNavigate={navigate}
+          onCreate={() => navigate("create")}
+          onOpenSurvey={openOwnedAnalytics}
+          onAuth={() => setAuthOpen(true)}
+        />
+      )}
       {(view === "home" || view === "board" || view === "community" || view === "mypage") && (
         <Header
           view={view}
