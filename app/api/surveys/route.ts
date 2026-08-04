@@ -12,6 +12,7 @@ import {
   schoolLabel,
   surveyPublicationState,
 } from "@/app/survey-board";
+import { rewardCashForDuration } from "@/app/rewards";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -129,6 +130,12 @@ export async function GET(request: Request) {
         durationMinutes: surveys.durationMinutes,
         rewardCash: surveys.rewardCash,
         createdAt: surveys.createdAt,
+        questionsJson: surveys.questionsJson,
+        responseCount: sql<number>`(
+          SELECT COUNT(*)::int
+          FROM responses
+          WHERE responses.survey_id = ${surveys.id}
+        )`.mapWith(Number),
       })
       .from(surveys)
       .where(
@@ -142,7 +149,14 @@ export async function GET(request: Request) {
       .limit(30);
 
     return Response.json(
-      { surveys: rows, storageConfigured: true },
+      {
+        surveys: rows.map(({ questionsJson, ...survey }) => ({
+          ...survey,
+          questionCount: (JSON.parse(questionsJson) as IncomingQuestion[])
+            .filter((question) => question.type !== "section").length,
+        })),
+        storageConfigured: true,
+      },
       { headers: noStoreHeaders },
     );
   } catch (error) {
@@ -279,6 +293,7 @@ export async function POST(request: Request) {
       return total + 20;
     }, 20);
     const durationMinutes = Math.max(1, Math.ceil(estimatedSeconds / 60));
+    const rewardCash = rewardCashForDuration(durationMinutes);
 
     const normalizedQuestions = questions.map((question, index) => ({
       id: index + 1,
@@ -319,7 +334,7 @@ export async function POST(request: Request) {
       campus: schoolLabel(sessionUser?.schoolId ?? "yonsei"),
       questionsJson: JSON.stringify(normalizedQuestions),
       durationMinutes,
-      rewardCash: 30,
+      rewardCash,
       isPublic: true,
       listingRequested: publication.listingRequested,
       isListed: publication.isListed,
@@ -337,7 +352,7 @@ export async function POST(request: Request) {
           category: isSurveyCategory(category) ? category : "campus",
           campus: schoolLabel(sessionUser?.schoolId ?? "yonsei"),
           durationMinutes,
-          rewardCash: 30,
+          rewardCash,
           listingRequested: publication.listingRequested,
           isListed: publication.isListed,
           manageToken,
