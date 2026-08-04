@@ -885,6 +885,27 @@ function LandingView({
 }: {
   onEnterSite: () => void;
 }) {
+  const surveyRows = [
+    [
+      { category: "캠퍼스", title: "학교 도서관 이용 경험 조사", questions: 12, minutes: 3 },
+      { category: "진로", title: "대학생 인턴 준비 과정 조사", questions: 15, minutes: 4 },
+      { category: "서비스", title: "일정 관리 앱 사용성 평가", questions: 14, minutes: 3 },
+      { category: "소비", title: "구독 서비스 이용 실태", questions: 11, minutes: 3 },
+      { category: "교육", title: "전공 수업 만족도 조사", questions: 16, minutes: 4 },
+      { category: "생활", title: "대학생 자취 생활 불편 조사", questions: 13, minutes: 3 },
+      { category: "취업", title: "채용 플랫폼 이용 경험", questions: 18, minutes: 5 },
+    ],
+    [
+      { category: "문화", title: "대학생 여가·소비 패턴", questions: 15, minutes: 4 },
+      { category: "심리", title: "시험 기간 스트레스 조사", questions: 12, minutes: 3 },
+      { category: "미디어", title: "숏폼 콘텐츠 이용 행태", questions: 14, minutes: 3 },
+      { category: "캠퍼스", title: "교내 편의시설 만족도", questions: 17, minutes: 4 },
+      { category: "금융", title: "대학생 간편결제 이용 조사", questions: 13, minutes: 3 },
+      { category: "건강", title: "운동 습관과 건강 인식", questions: 16, minutes: 4 },
+      { category: "UX", title: "학교 앱 사용성 평가", questions: 11, minutes: 3 },
+    ],
+  ];
+
   return (
     <>
       <main className="landing-page">
@@ -919,35 +940,24 @@ function LandingView({
             <div className="landing-section-heading">
               <span className="landing-eyebrow">설문 만들기</span>
               <h2>
-                설문 만들기,
-                <br />
-                세 단계면 충분해요
+                한 줄로 시작해요
               </h2>
             </div>
             <div className="landing-step-grid">
               <article>
                 <span>01</span>
-                <h3>조사할 내용을 적어주세요</h3>
-                <p>
-                  무엇을 알아보고 싶은지 한 문장으로 적으면 돼요. 참고할
-                  사진·파일·링크도 함께 넣을 수 있어요.
-                </p>
+                <h3>조사 목적 입력</h3>
+                <p>알고 싶은 내용을 한 문장으로 적어요.</p>
               </article>
               <article>
                 <span>02</span>
-                <h3>AI가 문항을 만들어줘요</h3>
-                <p>
-                  조사 목적에 맞춰 질문 순서와 형식을 구성해요. 문항은 직접
-                  고치거나 AI에게 다시 요청할 수 있어요.
-                </p>
+                <h3>AI 문항 완성</h3>
+                <p>질문과 순서를 만들고, 원하는 대로 수정해요.</p>
               </article>
               <article>
                 <span>03</span>
-                <h3>공유하고 응답을 받아요</h3>
-                <p>
-                  설문을 배포하면 참여 링크가 바로 만들어져요. 우리 학교 설문
-                  게시판에도 함께 올릴 수 있어요.
-                </p>
+                <h3>바로 공유</h3>
+                <p>링크나 학교 게시판으로 곧바로 배포해요.</p>
               </article>
             </div>
             <div className="landing-fact-row" aria-label="바로폼 주요 기능">
@@ -967,20 +977,63 @@ function LandingView({
           </div>
         </section>
 
+        <section className="landing-survey-showcase" aria-labelledby="survey-showcase-title">
+          <div className="landing-container landing-showcase-heading">
+            <div className="landing-section-heading">
+              <span className="landing-eyebrow">참여할 설문</span>
+              <h2 id="survey-showcase-title">지금, 이런 설문이 열려 있어요</h2>
+            </div>
+            <p>관심 있는 설문에 참여하고, 내 설문도 올려보세요.</p>
+          </div>
+          <div className="landing-survey-marquee" aria-label="참여 가능한 설문 예시">
+            {surveyRows.map((row, rowIndex) => (
+              <div className="survey-marquee-row" key={`survey-row-${rowIndex}`}>
+                <div className={`survey-marquee-track${rowIndex === 1 ? " is-reverse" : ""}`}>
+                  {[0, 1].map((copyIndex) => (
+                    <div
+                      className="survey-marquee-group"
+                      key={`survey-group-${rowIndex}-${copyIndex}`}
+                      aria-hidden={copyIndex === 1}
+                    >
+                      {row.map((survey) => (
+                        <article className="landing-survey-card" key={`${copyIndex}-${survey.title}`}>
+                          <div className="survey-card-topline">
+                            <span>{survey.category}</span>
+                            <strong>+30C</strong>
+                          </div>
+                          <h3>{survey.title}</h3>
+                          <p>{survey.questions}문항 · 약 {survey.minutes}분</p>
+                          <div className="survey-card-preview" aria-hidden="true">
+                            <span />
+                            <div>
+                              <i />
+                              <i />
+                              <i />
+                            </div>
+                            <span />
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="landing-section landing-context-section">
           <div className="landing-container landing-split-heading">
             <div className="landing-section-heading">
-              <span className="landing-eyebrow">참고자료 반영</span>
+              <span className="landing-eyebrow">참고자료</span>
               <h2>
-                자료를 함께 넣으면,
+                자료를 넣으면,
                 <br />
                 질문이 더 정확해져요
               </h2>
             </div>
             <p>
-              사진·문서·링크에 담긴 조사 대상과 핵심 내용을 파악해 문항에
-              반영해요. 막연한 질문 대신, 지금 필요한 답을 얻을 수 있는
-              질문을 만들어요.
+              사진·문서·링크의 핵심을 읽고 문항에 반영해요.
             </p>
           </div>
           <div className="landing-context-visual" aria-label="참고자료가 설문 문항으로 바뀌는 예시">
@@ -1032,7 +1085,7 @@ function LandingView({
             </div>
           </div>
           <div className="landing-context-note">
-            사진 최대 10장 · 파일 최대 3개(개당 10MB) · 링크 최대 3개
+            사진 · 문서 · 링크 첨부 가능
           </div>
         </section>
 
@@ -1041,9 +1094,9 @@ function LandingView({
             <div className="landing-section-heading">
               <span className="landing-eyebrow">응답 모집과 리워드</span>
               <h2>
-                공유는 간편하게,
+                모집은 바로폼에서,
                 <br />
-                참여에는 작은 보상을
+                참여하면 30C
               </h2>
             </div>
             <div className="landing-response-grid">
@@ -1052,65 +1105,25 @@ function LandingView({
                 <div className="response-card-icon">
                   <Link2 size={22} />
                 </div>
-                <h3>링크만 열면 바로 참여</h3>
-                <p>
-                  공유 링크를 누르면 회원가입 없이 바로 설문이 열려요. 누구나
-                  부담 없이 참여할 수 있어요.
-                </p>
+                <h3>로그인 없이 참여</h3>
+                <p>공유 링크만 열면 바로 응답할 수 있어요.</p>
               </article>
               <article>
                 <span>02</span>
                 <div className="response-card-icon">
                   <School size={22} />
                 </div>
-                <h3>게시판과 커뮤니티에서 만나요</h3>
-                <p>
-                  우리 학교 게시판에서 응답을 모집하고, 전체·학교별
-                  커뮤니티에서 대학생들과 자유롭게 소통할 수 있어요.
-                </p>
+                <h3>학교별 게시판</h3>
+                <p>대학생 전체·학교별로 설문을 알릴 수 있어요.</p>
               </article>
               <article>
                 <span>03</span>
                 <div className="response-card-icon">
                   <Coins size={22} />
                 </div>
-                <h3>설문 하나에 30C 적립</h3>
-                <p>
-                  로그인한 뒤 다른 사람의 설문을 완료하면, 설문마다 한 번
-                  30C가 쌓여요.
-                </p>
+                <h3>설문당 30C</h3>
+                <p>로그인한 참여자에게 설문마다 30C가 쌓여요.</p>
               </article>
-            </div>
-            <div className="landing-board-preview">
-              <div className="board-preview-top">
-                <div>
-                  <span className="campus-symbol">Y</span>
-                  <div>
-                    <small>연세대학교 신촌캠퍼스</small>
-                    <strong>지금 참여할 수 있는 설문</strong>
-                  </div>
-                </div>
-                <span className="board-preview-label">
-                  학교 설문 게시판 <ArrowRight size={15} />
-                </span>
-              </div>
-              <div className="board-preview-list">
-                <article>
-                  <span>캠퍼스</span>
-                  <strong>학교 도서관 이용 경험 조사</strong>
-                  <small><Clock3 size={13} /> 약 3분</small>
-                </article>
-                <article>
-                  <span>서비스</span>
-                  <strong>대학생 일정 관리 앱 사용성 평가</strong>
-                  <small><Clock3 size={13} /> 약 4분</small>
-                </article>
-                <article>
-                  <span>진로</span>
-                  <strong>취업 준비 과정에서 필요한 지원 조사</strong>
-                  <small><Clock3 size={13} /> 약 5분</small>
-                </article>
-              </div>
             </div>
             <div className="landing-response-highlight">
               <div className="response-highlight-icon" aria-hidden="true">
@@ -1124,9 +1137,7 @@ function LandingView({
                   응답자를 모으지 않아도 돼요
                 </h3>
                 <p>
-                  학교 설문 게시판에 올리면 참여할 대학생들이 바로폼 안에서
-                  설문을 발견해요. 리워드가 참여를 도와주니, 링크를 여기저기
-                  보내는 수고를 줄일 수 있어요.
+                  학교 게시판과 리워드가 응답자 모집을 도와줘요.
                 </p>
               </div>
             </div>
@@ -1143,9 +1154,7 @@ function LandingView({
                 결과가 바로 보여요
               </h2>
               <p>
-                응답 수와 문항별 분포, 서술형 답변을 한 화면에서 확인할 수
-                있어요. Excel·Word·CSV로 내려받아 필요한 곳에 바로
-                활용하세요.
+                문항별 결과를 확인하고 Excel·Word·CSV로 내려받아요.
               </p>
               <div className="analysis-export-list">
                 <span><FileSpreadsheet size={17} />Excel</span>
