@@ -732,11 +732,6 @@ function CampusSurveyCard({
   survey: PublicSurvey;
   onClick: () => void;
 }) {
-  const questionCount =
-    survey.questionCount ??
-    survey.questions?.filter((question) => question.type !== "section").length ??
-    0;
-
   return (
     <button
       type="button"
@@ -746,35 +741,15 @@ function CampusSurveyCard({
     >
       <div className="survey-card-top">
         <span className="category-pill">{categoryLabel(survey.category)}</span>
-        <span className="verified-poster">
-          <School size={13} />
-          학교 프로필
-        </span>
-      </div>
-      <div className="survey-owner">
-        {survey.ownerName || "게시자 이름 미표시"}
-      </div>
-      <h3>{survey.title}</h3>
-      <p className="survey-description">{survey.description}</p>
-      <div className="survey-facts" aria-label="설문 참여 정보">
-        <span><UsersRound size={14} />응답 {survey.responseCount ?? 0}명</span>
-        {questionCount > 0 && <span><FileText size={14} />{questionCount}문항</span>}
-        <span><Clock3 size={14} />약 {survey.durationMinutes}분</span>
-        <span><CalendarDays size={14} />상시 모집</span>
-      </div>
-      <div className="reward-line">
-        <span className="participation-rule">
-          비회원 참여 가능
-          <small>로그인 참여 시 적립</small>
-        </span>
         <span className="survey-cash">
           <Coins size={14} />
           <strong>+{(survey.rewardCash ?? 30).toLocaleString("ko-KR")}C</strong>
         </span>
-        <span className="survey-time">
-          바로 참여
-          <ArrowRight size={13} />
-        </span>
+      </div>
+      <h3>{survey.title}</h3>
+      <div className="survey-card-compact-meta">
+        <span><Clock3 size={15} />약 {survey.durationMinutes}분</span>
+        <ArrowRight size={16} />
       </div>
     </button>
   );
@@ -1111,15 +1086,9 @@ function LandingView({
           <div className="landing-hero-glow landing-hero-glow-left" />
           <div className="landing-hero-glow landing-hero-glow-right" />
           <div className="landing-hero-content">
-            <span className="landing-kicker">BAROFORM · 대학생 설문 플랫폼</span>
-            <h1 id="landing-title">
-              설문 만들고,<br />
-              <span>응답자까지 바로 모으세요.</span>
-            </h1>
-            <p>
-              주제만 적으면 AI가 문항을 만들고,<br />
-              우리 학교 학생들에게 설문을 알릴 수 있어요.
-            </p>
+            <span className="landing-kicker">대학생 설문, 더 쉽고 빠르게</span>
+            <h1 id="landing-title">BAROFORM</h1>
+            <p>설문 제작부터 응답 모집까지 한곳에서.</p>
             <div className="landing-hero-actions">
               <button
                 type="button"
@@ -1139,11 +1108,6 @@ function LandingView({
                 설문 참여하기
               </button>
             </div>
-            <div className="landing-trust-strip" aria-label="참여 안내">
-              <span><Check size={14} />비회원 참여 가능</span>
-              <span><Coins size={14} />로그인 참여 시 리워드</span>
-              <span><School size={14} />학교별 설문 게시판</span>
-            </div>
           </div>
         </section>
 
@@ -1152,7 +1116,7 @@ function LandingView({
             <div className="landing-section-heading">
               <span className="landing-eyebrow">{hasLiveSurveys ? "지금 우리 학교" : "설문 예시"}</span>
               <h2 id="survey-showcase-title">
-                {loadingSurveys ? "참여할 설문을 불러오는 중" : hasLiveSurveys ? "지금 참여 가능한 설문" : "이런 설문을 바로 만들 수 있어요"}
+                {loadingSurveys ? "설문을 불러오는 중" : hasLiveSurveys ? "지금 열려 있는 설문" : "이런 설문을 만들 수 있어요"}
               </h2>
             </div>
             <button type="button" className="landing-board-link" onClick={() => onEnterSite("board")}>
@@ -1176,11 +1140,7 @@ function LandingView({
                             <strong>+{survey.rewardCash}C</strong>
                           </div>
                           <h3>{survey.title}</h3>
-                          <p>{survey.questionCount ?? survey.questions?.length ?? "-"}문항 · 약 {survey.durationMinutes}분</p>
-                          <div className="landing-card-status">
-                            <span><UsersRound size={13} />{survey.responseCount ?? 0}명 참여</span>
-                            <span>로그인 시 적립</span>
-                          </div>
+                          <p><Clock3 size={13} />약 {survey.durationMinutes}분</p>
                         </article>
                       ))}
                     </div>
@@ -1201,20 +1161,17 @@ function LandingView({
               <article>
                 <span>01</span>
                 <div className="landing-step-icon"><Sparkles size={22} /></div>
-                <h3>AI로 설문 만들기</h3>
-                <p>주제를 한 줄로 적어요. 필요하면 사진·문서·링크도 함께 넣을 수 있어요.</p>
+                <h3>AI로 만들기</h3>
               </article>
               <article>
                 <span>02</span>
                 <div className="landing-step-icon"><UsersRound size={22} /></div>
-                <h3>우리 학교에서 모집하기</h3>
-                <p>링크를 공유하거나 학교 게시판에 올려 필요한 응답자를 만나요.</p>
+                <h3>응답 모집하기</h3>
               </article>
               <article>
                 <span>03</span>
                 <div className="landing-step-icon"><BarChart3 size={22} /></div>
-                <h3>결과 바로 확인하기</h3>
-                <p>문항별 결과를 보고 Excel·Word·CSV로 내려받아요.</p>
+                <h3>결과 확인하기</h3>
               </article>
             </div>
           </div>
@@ -1223,10 +1180,7 @@ function LandingView({
         <section className="landing-final-cta">
           <div>
             <span>만들기와 모집, 한곳에서</span>
-            <h2>
-              다음 설문은 응답자 걱정 없이<br />
-              바로폼에서 시작해보세요.
-            </h2>
+            <h2>다음 설문도 바로폼에서.</h2>
           </div>
           <div className="landing-final-actions">
             <button type="button" onClick={() => onEnterSite("create")}>
@@ -1276,15 +1230,7 @@ function ProductHomeView({
             <span className="campus-symbol">Y</span>
             <span>연세대학교 신촌캠퍼스 · 베타</span>
           </div>
-          <h1>
-            설문 문항 설계부터,
-            <br />
-            우리 학교 응답 모집까지 <span>바로.</span>
-          </h1>
-          <p>
-            조사 목적을 한 문장으로 적으면 AI가 문항을 설계하고,
-            연세대 게시판에서 필요한 응답자를 만날 수 있어요.
-          </p>
+          <h1>만들거나, 참여하거나.</h1>
         </section>
 
         <section className="home-path-chooser" aria-label="바로폼에서 할 일 선택">
@@ -1295,9 +1241,7 @@ function ProductHomeView({
           >
             <span className="home-path-icon"><Sparkles size={21} /></span>
             <span>
-              <small>설문이 필요해요</small>
               <strong>설문 만들기</strong>
-              <em>주제 입력 → AI 제작 → 응답 모집</em>
             </span>
             <ArrowRight size={19} />
           </button>
@@ -1308,9 +1252,7 @@ function ProductHomeView({
           >
             <span className="home-path-icon"><Coins size={21} /></span>
             <span>
-              <small>짧게 참여하고 싶어요</small>
               <strong>설문 참여하기</strong>
-              <em>우리 학교 설문 → 참여 → 캐시 적립</em>
             </span>
             <ArrowRight size={19} />
           </button>
@@ -1320,9 +1262,6 @@ function ProductHomeView({
           <div className="maker-panel">
             <span className="maker-ai-mark">01 · 빠른 설문 제작</span>
             <h2>어떤 설문을 만들까요?</h2>
-            <p className="maker-helper">
-              내용을 적거나 참고할 사진·파일·링크를 추가해주세요.
-            </p>
             <div className="prompt-box">
               <textarea
                 id="survey-maker"
@@ -1352,8 +1291,8 @@ function ProductHomeView({
                   <i />
                   <span>
                     {canContinue
-                      ? "입력 완료 · AI가 문항을 설계할 준비가 됐어요"
-                      : "설문 주제나 목적을 입력해주세요"}
+                      ? "준비 완료"
+                      : "주제를 입력하세요"}
                   </span>
                 </div>
                 <span className="prompt-counter">{prompt.length}/300</span>
@@ -1380,7 +1319,7 @@ function ProductHomeView({
             <div className="section-title-row compact-title-row">
               <div>
                 <span className="eyebrow">02 · 지금 우리 학교</span>
-                <h2>참여를 기다리는 설문</h2>
+                <h2>지금 열려 있는 설문</h2>
               </div>
               <button
                 type="button"
@@ -1437,36 +1376,6 @@ function ProductHomeView({
           </div>
         </section>
 
-        <section className="cash-rule-note" aria-label="바로폼 캐시 이용 안내">
-          <div>
-            <Coins size={20} />
-            <span><strong>캐시는 이렇게 쌓여요</strong><small>현재 베타에서는 서비스 내 포인트로 운영돼요.</small></span>
-          </div>
-          <ul>
-            <li><Check size={14} />로그인 후 참여 시 지급</li>
-            <li><Check size={14} />제출 직후 바로 적립</li>
-            <li><Check size={14} />설문당 한 번만 지급</li>
-            <li><Check size={14} />예상 시간에 따라 30C·50C·70C</li>
-          </ul>
-        </section>
-
-        <section className="campus-cta">
-          <div>
-            <span className="cta-label">원하는 설문이 아직 없나요?</span>
-            <h2>
-              주제만 입력하면,
-              <br />
-              AI가 설문 문항을 설계해드려요.
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={onCreate}
-          >
-            설문 만들기
-            <ArrowRight size={18} />
-          </button>
-        </section>
       </main>
       <Footer />
     </>
@@ -1523,21 +1432,11 @@ function SchoolBoardView({
               연세대학교 신촌캠퍼스
             </span>
             <h1>학교 설문 게시판</h1>
-            <p>
-              수업 과제부터 동아리·학회 연구까지, 연세대 구성원이 올린
-              설문을 한곳에서 찾아 참여해보세요.
-            </p>
           </div>
           <button type="button" className="board-create-button" onClick={onCreate}>
             <Plus size={18} />
             내 설문 올리기
           </button>
-        </section>
-
-        <section className="board-reward-info" aria-label="참여와 캐시 안내">
-          <span><Coins size={18} /></span>
-          <p><strong>비회원도 바로 참여할 수 있어요.</strong> 캐시는 로그인한 상태로 제출하면 즉시 적립돼요.</p>
-          <small>30C · 50C · 70C</small>
         </section>
 
         <section className="school-surveys-section board-page-section" id="school-surveys">
