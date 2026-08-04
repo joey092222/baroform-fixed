@@ -24,6 +24,7 @@ import {
   Link2,
   LogIn,
   LogOut,
+  Menu,
   Minus,
   MoreHorizontal,
   Plus,
@@ -67,6 +68,10 @@ import {
   downloadSurveyExcel,
   downloadSurveyWord,
 } from "./survey-export";
+import {
+  deduplicateSurveyOptions,
+  shortenSurveyQuestionTitle,
+} from "./survey-revision";
 import CommunityView from "./community-view";
 
 type View =
@@ -441,6 +446,7 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
 function Header({
   view,
   onNavigate,
+  onMenu,
   user,
   onAuth,
   onProfile,
@@ -448,6 +454,7 @@ function Header({
 }: {
   view: View;
   onNavigate: (view: View) => void;
+  onMenu: () => void;
   user: AuthUser | null;
   onAuth: () => void;
   onProfile: () => void;
@@ -460,6 +467,15 @@ function Header({
   return (
     <header className="site-header">
       <div className="header-inner">
+        <button
+          className="workspace-menu-trigger"
+          type="button"
+          onClick={onMenu}
+          aria-label="작업 메뉴 열기"
+        >
+          <Menu size={19} />
+          <span>메뉴</span>
+        </button>
         <button
           className="brand"
           type="button"
@@ -535,6 +551,7 @@ function Header({
 }
 
 function WorkspaceSidebar({
+  open,
   view,
   user,
   surveys,
@@ -543,7 +560,9 @@ function WorkspaceSidebar({
   onCreate,
   onOpenSurvey,
   onAuth,
+  onClose,
 }: {
+  open: boolean;
   view: View;
   user: AuthUser | null;
   surveys: OwnedSurvey[];
@@ -552,86 +571,117 @@ function WorkspaceSidebar({
   onCreate: () => void;
   onOpenSurvey: (survey: OwnedSurvey) => void;
   onAuth: () => void;
+  onClose: () => void;
 }) {
+  const go = (nextView: View) => {
+    onNavigate(nextView);
+    onClose();
+  };
+
   const openProfile = () => {
-    if (user) onNavigate("mypage");
+    if (user) go("mypage");
     else onAuth();
+    onClose();
   };
 
   return (
-    <aside className="workspace-sidebar" aria-label="바로폼 작업 메뉴">
+    <>
       <button
         type="button"
-        className="workspace-brand"
-        onClick={() => onNavigate("home")}
-        aria-label="바로폼 홈"
+        className={`workspace-sidebar-backdrop ${open ? "open" : ""}`}
+        onClick={onClose}
+        aria-label="작업 메뉴 닫기"
+        tabIndex={open ? 0 : -1}
+      />
+      <aside
+        className={`workspace-sidebar ${open ? "open" : ""}`}
+        aria-label="바로폼 작업 메뉴"
+        aria-hidden={!open}
       >
-        <BrandMark />
-        <span>
-          <strong>바로폼</strong>
-          <small>BAROFORM</small>
-        </span>
-      </button>
-
-      <button
-        type="button"
-        className={`workspace-create ${view === "create" ? "active" : ""}`}
-        onClick={onCreate}
-      >
-        <Plus size={18} />
-        새 설문 만들기
-      </button>
-
-      <nav className="workspace-nav" aria-label="서비스 메뉴">
-        <button
-          type="button"
-          className={view === "home" ? "active" : ""}
-          onClick={() => onNavigate("home")}
-        >
-          <WandSparkles size={17} />
-          설문 제작 홈
-        </button>
-        <button
-          type="button"
-          className={view === "board" ? "active" : ""}
-          onClick={() => onNavigate("board")}
-        >
-          <School size={17} />
-          학교 설문
-        </button>
-        <button
-          type="button"
-          className={view === "community" ? "active" : ""}
-          onClick={() => onNavigate("community")}
-        >
-          <UsersRound size={17} />
-          커뮤니티
-        </button>
-        <button
-          type="button"
-          className={view === "mypage" ? "active" : ""}
-          onClick={openProfile}
-        >
-          <UserRound size={17} />
-          마이페이지
-        </button>
-      </nav>
-
-      <section className="workspace-history" aria-labelledby="recent-surveys-title">
-        <div className="workspace-section-heading">
-          <span id="recent-surveys-title">최근 설문</span>
-          {user && surveys.length > 0 && (
-            <button type="button" onClick={() => onNavigate("mypage")}>전체 보기</button>
-          )}
+        <div className="workspace-sidebar-head">
+          <button
+            type="button"
+            className="workspace-brand"
+            onClick={() => go("home")}
+            aria-label="바로폼 홈"
+          >
+            <BrandMark />
+            <span>
+              <strong>바로폼</strong>
+              <small>대학생 설문 공간</small>
+            </span>
+          </button>
+          <button
+            type="button"
+            className="workspace-sidebar-close"
+            onClick={onClose}
+            aria-label="작업 메뉴 닫기"
+          >
+            <X size={18} />
+          </button>
         </div>
-        {user ? (
-          surveys.length > 0 ? (
+
+        <button
+          type="button"
+          className={`workspace-create ${view === "create" ? "active" : ""}`}
+          onClick={() => {
+            onCreate();
+            onClose();
+          }}
+        >
+          <Plus size={18} />
+          새 설문 만들기
+        </button>
+
+        <nav className="workspace-nav" aria-label="서비스 메뉴">
+          <button
+            type="button"
+            className={view === "home" ? "active" : ""}
+            onClick={() => go("home")}
+          >
+            <WandSparkles size={17} />
+            홈
+          </button>
+          <button
+            type="button"
+            className={view === "board" ? "active" : ""}
+            onClick={() => go("board")}
+          >
+            <School size={17} />
+            설문 찾기
+          </button>
+          <button
+            type="button"
+            className={view === "community" ? "active" : ""}
+            onClick={() => go("community")}
+          >
+            <UsersRound size={17} />
+            커뮤니티
+          </button>
+          <button
+            type="button"
+            className={view === "mypage" ? "active" : ""}
+            onClick={openProfile}
+          >
+            <UserRound size={17} />
+            마이페이지
+          </button>
+        </nav>
+
+        <section className="workspace-history" aria-labelledby="recent-surveys-title">
+          <div className="workspace-section-heading">
+            <span id="recent-surveys-title">최근 만든 설문</span>
+          </div>
+          {user && surveys.length > 0 ? (
             <div className="workspace-recent-list">
-              {surveys.slice(0, 4).map((survey) => (
+              {surveys.slice(0, 2).map((survey) => (
                 <button
                   type="button"
                   key={survey.slug}
-                  onClick={() => onOpenSurvey(survey)}
+                  onClick={() => {
+                    onOpenSurvey(survey);
+                    onClose();
+                  }}
                   title={survey.title}
                 >
                   <FileText size={15} />
@@ -643,40 +693,33 @@ function WorkspaceSidebar({
               ))}
             </div>
           ) : (
-            <button type="button" className="workspace-empty-history" onClick={onCreate}>
-              아직 만든 설문이 없어요
-              <small>첫 설문 만들기</small>
+            <button
+              type="button"
+              className="workspace-empty-history"
+              onClick={() => {
+                if (user) onCreate();
+                else onAuth();
+                onClose();
+              }}
+            >
+              {user ? "아직 만든 설문이 없어요" : "로그인하면 내 설문을 볼 수 있어요"}
             </button>
-          )
-        ) : (
-          <button type="button" className="workspace-empty-history" onClick={onAuth}>
-            로그인하면 과거 내역을 볼 수 있어요
-            <small>로그인하기</small>
-          </button>
-        )}
-      </section>
+          )}
+        </section>
 
-      <div className="workspace-account">
-        <button type="button" className="workspace-cash" onClick={openProfile}>
-          <span>
-            <Coins size={16} />
-            내 캐시
-          </span>
-          <strong>{wallet.balance.toLocaleString("ko-KR")}C</strong>
-          <small>
-            {wallet.transactions[0]?.description ?? "설문 참여 후 캐시를 받아보세요"}
-          </small>
-        </button>
         <button type="button" className="workspace-profile" onClick={openProfile}>
           <span className="workspace-avatar">{user?.name.slice(0, 1) ?? "바"}</span>
           <span>
             <strong>{user?.name ?? "로그인"}</strong>
-            <small>{user ? schoolLabel(user.schoolId) : "내 설문과 캐시 확인"}</small>
+            <small>{user ? schoolLabel(user.schoolId) : "내 기록 확인하기"}</small>
           </span>
-          <ChevronRight size={16} />
+          <span className="workspace-profile-cash">
+            <Coins size={14} />
+            {wallet.balance.toLocaleString("ko-KR")}C
+          </span>
         </button>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }
 
@@ -2294,8 +2337,28 @@ function EditorView({
   const [aiInstruction, setAiInstruction] = useState("");
   const [aiRevising, setAiRevising] = useState(false);
   const [aiMessage, setAiMessage] = useState("");
+  const [quickAction, setQuickAction] = useState<{
+    id: "shorten" | "dedupe" | "neutral";
+    message: string;
+  } | null>(null);
+  const quickActionTimer = useRef<number | null>(null);
   const selectedQuestion =
     questions.find((question) => question.id === selectedId) ?? questions[0];
+
+  useEffect(() => {
+    return () => {
+      if (quickActionTimer.current) window.clearTimeout(quickActionTimer.current);
+    };
+  }, []);
+
+  const showQuickAction = (
+    id: "shorten" | "dedupe" | "neutral",
+    message: string,
+  ) => {
+    setQuickAction({ id, message });
+    if (quickActionTimer.current) window.clearTimeout(quickActionTimer.current);
+    quickActionTimer.current = window.setTimeout(() => setQuickAction(null), 2600);
+  };
 
   function updateQuestion<K extends keyof Question>(
     id: number,
@@ -2463,28 +2526,24 @@ function EditorView({
 
   const shortenSelectedQuestion = () => {
     if (!selectedQuestion) return;
-    const shortened = selectedQuestion.title
-      .replace("현재 ", "")
-      .replace("전반적으로 ", "")
-      .replace("가장 먼저 ", "")
-      .trim();
-    updateQuestion(
-      selectedQuestion.id,
-      "title",
-      shortened || selectedQuestion.title,
-    );
+    const shortened = shortenSurveyQuestionTitle(selectedQuestion.title);
+    if (!shortened || shortened === selectedQuestion.title) {
+      showQuickAction("shorten", "이미 충분히 짧은 문장이에요");
+      return;
+    }
+    updateQuestion(selectedQuestion.id, "title", shortened);
+    showQuickAction("shorten", "문장을 짧게 바꿨어요");
   };
 
   const deduplicateSelectedOptions = () => {
     if (!selectedQuestion?.options) return;
-    const unique = [
-      ...new Set(
-        selectedQuestion.options
-          .map((option) => option.trim())
-          .filter(Boolean),
-      ),
-    ];
+    const unique = deduplicateSurveyOptions(selectedQuestion.options);
+    if (unique.length === selectedQuestion.options.length) {
+      showQuickAction("dedupe", "겹치는 선택지가 없어요");
+      return;
+    }
     updateQuestion(selectedQuestion.id, "options", unique);
+    showQuickAction("dedupe", "중복 선택지를 정리했어요");
   };
 
   const addNeutralOption = () => {
@@ -2496,11 +2555,15 @@ function EditorView({
       return;
     }
     const options = selectedQuestion.options ?? [];
-    if (options.includes("잘 모르겠음")) return;
+    if (options.includes("잘 모르겠음")) {
+      showQuickAction("neutral", "이미 추가되어 있어요");
+      return;
+    }
     updateQuestion(selectedQuestion.id, "options", [
       ...options,
       "잘 모르겠음",
     ]);
+    showQuickAction("neutral", "선택지를 추가했어요");
   };
 
   const structureChecks = [
@@ -3095,13 +3158,21 @@ function EditorView({
               <strong>{selectedQuestion?.title}</strong>
             </div>
             <div className="assistant-suggestions">
-              <span>빠른 수정</span>
-              <button type="button" onClick={shortenSelectedQuestion}>
+              <div className="quick-edit-heading">
+                <span>빠른 수정</span>
+                <small>누르면 선택 문항에 바로 적용돼요</small>
+              </div>
+              <button
+                type="button"
+                className={quickAction?.id === "shorten" ? "applied" : ""}
+                onClick={shortenSelectedQuestion}
+              >
                 문장을 더 짧게 정리
-                <ChevronRight size={14} />
+                {quickAction?.id === "shorten" ? <Check size={14} /> : <ChevronRight size={14} />}
               </button>
               <button
                 type="button"
+                className={quickAction?.id === "dedupe" ? "applied" : ""}
                 onClick={deduplicateSelectedOptions}
                 disabled={
                   selectedQuestion?.type !== "single" &&
@@ -3110,10 +3181,11 @@ function EditorView({
                 }
               >
                 중복 선택지 정리
-                <ChevronRight size={14} />
+                {quickAction?.id === "dedupe" ? <Check size={14} /> : <ChevronRight size={14} />}
               </button>
               <button
                 type="button"
+                className={quickAction?.id === "neutral" ? "applied" : ""}
                 onClick={addNeutralOption}
                 disabled={
                   selectedQuestion?.type !== "single" &&
@@ -3121,8 +3193,12 @@ function EditorView({
                 }
               >
                 ‘잘 모르겠음’ 추가
-                <ChevronRight size={14} />
+                {quickAction?.id === "neutral" ? <Check size={14} /> : <ChevronRight size={14} />}
               </button>
+              <p className={`quick-edit-status ${quickAction ? "visible" : ""}`} role="status">
+                <CheckCircle2 size={14} />
+                {quickAction?.message ?? "선택한 문항을 빠르게 다듬을 수 있어요"}
+              </p>
             </div>
             <div className="ai-quality">
               <div>
@@ -4715,6 +4791,16 @@ export default function Home() {
   const [publishedListingRequested, setPublishedListingRequested] =
     useState(false);
   const [toast, setToast] = useState("");
+  const [workspaceSidebarOpen, setWorkspaceSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    if (!workspaceSidebarOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setWorkspaceSidebarOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [workspaceSidebarOpen]);
 
   const loadSurvey = async (slug: string) => {
     const response = await fetch(`/api/surveys/${slug}`, {
@@ -4950,6 +5036,7 @@ export default function Home() {
   }, [authToken, refreshMySurveys, refreshWallet]);
 
   const navigate = (nextView: View) => {
+    setWorkspaceSidebarOpen(false);
     setView(nextView);
     if (nextView === "board") void refreshPublicSurveys();
     if (nextView === "mypage" && authToken) {
@@ -4968,6 +5055,7 @@ export default function Home() {
   };
 
   const enterSite = () => {
+    setWorkspaceSidebarOpen(false);
     window.history.pushState(
       { baroformEntry: "app" },
       "",
@@ -5259,14 +5347,14 @@ export default function Home() {
     view === "home" ||
     view === "board" ||
     view === "community" ||
-    view === "mypage" ||
-    view === "create";
+    view === "mypage";
 
   return (
-    <div className={`app-shell ${workspaceSidebarVisible ? "has-workspace-sidebar" : ""}`}>
+    <div className="app-shell student-app">
       {view === "landing" && <LandingView onEnterSite={enterSite} />}
       {workspaceSidebarVisible && (
         <WorkspaceSidebar
+          open={workspaceSidebarOpen}
           view={view}
           user={user}
           surveys={mySurveys}
@@ -5275,12 +5363,14 @@ export default function Home() {
           onCreate={() => navigate("create")}
           onOpenSurvey={openOwnedAnalytics}
           onAuth={() => setAuthOpen(true)}
+          onClose={() => setWorkspaceSidebarOpen(false)}
         />
       )}
       {(view === "home" || view === "board" || view === "community" || view === "mypage") && (
         <Header
           view={view}
           onNavigate={navigate}
+          onMenu={() => setWorkspaceSidebarOpen((open) => !open)}
           user={user}
           onAuth={() => setAuthOpen(true)}
           onProfile={() => navigate("mypage")}
