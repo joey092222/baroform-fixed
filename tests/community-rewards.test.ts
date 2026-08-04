@@ -6,7 +6,10 @@ import {
   isCommunityScope,
   normalizedCommunityPost,
 } from "../app/community";
-import { surveyRewardAmount } from "../app/rewards";
+import {
+  rewardCashForDuration,
+  surveyRewardAmount,
+} from "../app/rewards";
 
 test("커뮤니티 글의 범위와 카테고리를 안전하게 정규화한다", () => {
   assert.equal(isCommunityScope("all"), true);
@@ -34,4 +37,12 @@ test("캐시는 로그인한 타인 설문 응답자에게 설문당 한 번 지
   assert.equal(surveyRewardAmount({ respondentId: "owner", ownerId: "owner", rewardCash: 30 }), 0);
   assert.equal(surveyRewardAmount({ respondentId: "member", ownerId: "owner", rewardCash: 30 }), 30);
   assert.equal(surveyRewardAmount({ respondentId: "member", ownerId: "owner", rewardCash: 5000 }), 1000);
+});
+
+test("예상 응답 시간에 따라 리워드를 30C, 50C, 70C로 정한다", () => {
+  assert.equal(rewardCashForDuration(1), 30);
+  assert.equal(rewardCashForDuration(3), 30);
+  assert.equal(rewardCashForDuration(4), 50);
+  assert.equal(rewardCashForDuration(6), 50);
+  assert.equal(rewardCashForDuration(7), 70);
 });
