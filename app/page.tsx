@@ -1396,7 +1396,7 @@ function ProductHomeView({
             <div
               className={`preview-survey-grid preview-count-${Math.min(
                 surveys.length,
-                1,
+                2,
               )}`}
             >
               {loadingSurveys ? (
@@ -1407,7 +1407,7 @@ function ProductHomeView({
                   <p>공개 설문을 불러오고 있어요.</p>
                 </div>
               ) : surveys.length > 0 ? (
-                surveys.slice(0, 1).map((survey) => (
+                surveys.slice(0, 2).map((survey) => (
                   <CampusSurveyCard
                     key={survey.slug}
                     survey={survey}
