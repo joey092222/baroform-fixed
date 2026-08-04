@@ -9074,7 +9074,7 @@ button {
 .first-viewport-grid {
   min-height: 466px;
   gap: 16px;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .maker-panel,
@@ -11395,6 +11395,10 @@ button {
   margin-top: 34px;
 }
 
+.landing-hero-actions .landing-primary {
+  min-width: 170px;
+}
+
 .landing-primary,
 .landing-secondary {
   min-height: 56px;
@@ -12170,6 +12174,97 @@ button {
   margin-left: auto;
 }
 
+.preview-survey-grid .preview-featured-card {
+  min-height: 100%;
+  padding: 28px 30px 24px;
+  border-color: #e0e4ec;
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.preview-card-topline,
+.preview-card-footer {
+  display: flex;
+  align-items: center;
+}
+
+.preview-card-topline {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.preview-open-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #748092;
+  font-size: 11px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.preview-open-status i {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #35a675;
+}
+
+.preview-card-owner {
+  margin-top: 23px;
+  color: #8993a2;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.preview-survey-grid .preview-featured-card h3 {
+  margin-top: 8px;
+  font-size: clamp(19px, 1.65vw, 23px);
+  line-height: 1.42;
+  -webkit-line-clamp: 2;
+}
+
+.preview-card-description {
+  margin: 8px 0 0;
+  display: -webkit-box;
+  overflow: hidden;
+  color: #7b8594;
+  font-size: 12px;
+  line-height: 1.62;
+  word-break: keep-all;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.preview-card-footer {
+  margin-top: auto;
+  padding-top: 20px;
+  justify-content: flex-start;
+  gap: 20px;
+  border-top: 1px solid #e8ebf0;
+  color: #6f7c90;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.preview-card-footer > span,
+.preview-card-footer > strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.preview-card-footer .preview-card-reward {
+  color: #2466a8;
+}
+
+.preview-card-footer > strong {
+  margin-left: auto;
+  color: #355f96;
+  white-space: nowrap;
+}
+
 .board-hero {
   align-items: center;
 }
@@ -12201,5 +12296,14 @@ button {
   .survey-card {
     min-height: 164px;
     padding: 20px;
+  }
+
+  .preview-survey-grid .preview-featured-card {
+    min-height: 300px;
+    padding: 23px 21px 20px;
+  }
+
+  .preview-card-footer {
+    gap: 13px;
   }
 }
