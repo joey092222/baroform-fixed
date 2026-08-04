@@ -10860,3 +10860,457 @@ button {
     width: calc(100% - 30px);
   }
 }
+
+/* Student workspace: light, friendly, and intentionally uncluttered. */
+.student-app {
+  --student-indigo: #5366c7;
+  --student-indigo-dark: #263566;
+  --student-lavender: #eef0ff;
+  --student-sky: #edf7ff;
+  --student-cream: #fffaf0;
+  min-height: 100vh;
+  background: #fbfbff;
+}
+
+.student-app > .site-header {
+  border-bottom-color: #e6e7f4;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.student-app > .site-header .header-inner {
+  width: min(1200px, calc(100% - 40px));
+  gap: 12px;
+}
+
+.student-app > .site-header .main-nav {
+  display: none;
+}
+
+.student-app > .site-header .header-actions {
+  margin-left: auto;
+}
+
+.workspace-menu-trigger {
+  min-width: 72px;
+  height: 40px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #dfe2f2;
+  border-radius: 12px;
+  background: #f7f7ff;
+  color: #48546f;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.workspace-menu-trigger:hover {
+  border-color: #cbd0ec;
+  background: #eff1ff;
+  color: #303d72;
+}
+
+.workspace-sidebar-backdrop {
+  position: fixed;
+  z-index: 89;
+  inset: 0;
+  border: 0;
+  background: rgba(26, 34, 58, 0.26);
+  opacity: 0;
+  pointer-events: none;
+  backdrop-filter: blur(2px);
+  transition: opacity 0.2s ease;
+}
+
+.workspace-sidebar-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.workspace-sidebar {
+  position: fixed;
+  z-index: 90;
+  inset: 12px auto 12px 12px;
+  width: 292px;
+  height: auto;
+  padding: 16px;
+  display: flex;
+  overflow: hidden;
+  border: 1px solid #d9ddf2;
+  border-radius: 23px;
+  background:
+    radial-gradient(circle at 90% 2%, rgba(192, 214, 255, 0.72), transparent 32%),
+    #eef0ff;
+  box-shadow: 0 24px 70px rgba(25, 36, 73, 0.22);
+  transform: translateX(calc(-100% - 28px));
+  visibility: hidden;
+  transition: transform 0.24s ease, visibility 0.24s ease;
+}
+
+.workspace-sidebar.open {
+  transform: translateX(0);
+  visibility: visible;
+}
+
+.workspace-sidebar-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.workspace-brand {
+  min-width: 0;
+  padding: 4px 5px 14px;
+  flex: 1;
+}
+
+.workspace-brand small {
+  color: #7f87a8;
+  font-size: 9px;
+  letter-spacing: -0.01em;
+}
+
+.workspace-sidebar-close {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 10px;
+  border: 1px solid rgba(106, 116, 170, 0.16);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.68);
+  color: #66708e;
+}
+
+.workspace-sidebar-close:hover {
+  background: #ffffff;
+  color: #263566;
+}
+
+.workspace-create {
+  min-height: 48px;
+  border: 0;
+  border-radius: 14px;
+  background: #334579;
+  color: white;
+  box-shadow: 0 8px 20px rgba(51, 69, 121, 0.17);
+}
+
+.workspace-create:hover,
+.workspace-create.active {
+  background: #263566;
+}
+
+.workspace-nav {
+  margin-top: 14px;
+  padding-bottom: 14px;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  border-bottom-color: rgba(91, 103, 157, 0.14);
+}
+
+.workspace-nav button {
+  min-height: 44px;
+  padding: 0 11px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.42);
+  color: #596481;
+}
+
+.workspace-nav button:hover,
+.workspace-nav button.active {
+  border-color: rgba(86, 99, 157, 0.16);
+  background: #ffffff;
+  color: #263566;
+  box-shadow: 0 5px 14px rgba(63, 75, 130, 0.08);
+}
+
+.workspace-nav button.active svg {
+  color: #5366c7;
+}
+
+.workspace-history {
+  margin-top: 14px;
+}
+
+.workspace-section-heading {
+  padding: 0 7px 4px;
+}
+
+.workspace-section-heading > span {
+  color: #6e7897;
+}
+
+.workspace-recent-list {
+  gap: 5px;
+}
+
+.workspace-recent-list > button {
+  min-height: 52px;
+  border: 1px solid rgba(107, 117, 168, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.workspace-recent-list > button:hover {
+  background: #ffffff;
+}
+
+.workspace-empty-history {
+  padding: 14px 12px;
+  border-color: rgba(101, 112, 165, 0.22);
+  background: rgba(255, 255, 255, 0.48);
+}
+
+.workspace-profile {
+  margin-top: auto;
+  padding: 10px;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  border: 1px solid rgba(92, 104, 161, 0.14);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.workspace-profile:hover {
+  background: #ffffff;
+}
+
+.workspace-avatar {
+  width: 36px;
+  height: 36px;
+  background: #dde5ff;
+  color: #4357a8;
+}
+
+.workspace-profile-cash {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #4056a3;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+/* Softer campus character without turning the product into a toy. */
+.student-app .home-main,
+.student-app .school-board-page,
+.student-app .mypage-page,
+.student-app .community-page {
+  position: relative;
+}
+
+.student-app .campus-kicker,
+.student-app .board-campus-badge {
+  width: fit-content;
+  padding: 6px 10px 6px 7px;
+  border: 1px solid #dfe3f7;
+  border-radius: 999px;
+  background: #f4f5ff;
+}
+
+.student-app .maker-panel,
+.student-app .campus-preview-panel {
+  border-radius: 26px;
+}
+
+.student-app .maker-panel {
+  border-color: #dfe2f7;
+  background:
+    radial-gradient(circle at 92% 8%, rgba(198, 210, 255, 0.58), transparent 28%),
+    #f5f4ff;
+}
+
+.student-app .maker-ai-mark,
+.student-app .create-ai-mark {
+  border-radius: 999px;
+  background: #e7eaff;
+  color: #4f5eaa;
+}
+
+.student-app .campus-preview-panel {
+  border-color: #eee2c9;
+  background: var(--student-cream);
+}
+
+.student-app .campus-preview-panel .survey-card {
+  border-radius: 17px;
+}
+
+.student-app .campus-cta {
+  overflow: hidden;
+  border-radius: 27px;
+  background:
+    radial-gradient(circle at 88% 15%, rgba(164, 187, 255, 0.32), transparent 26%),
+    linear-gradient(135deg, #273762, #41588f);
+}
+
+.student-app .board-hero,
+.student-app .mypage-hero {
+  margin-top: 42px;
+  padding: 34px 38px;
+  border: 1px solid #e0e4f6;
+  border-radius: 25px;
+  background: linear-gradient(135deg, #f3f4ff, #eef8ff);
+}
+
+.student-app .community-hero {
+  border: 1px solid #e0e4f6;
+  background:
+    radial-gradient(circle at 88% 12%, rgba(184, 205, 255, 0.5), transparent 32%),
+    linear-gradient(135deg, #f2f1ff, #edf7ff);
+  color: #26345c;
+}
+
+.student-app .community-hero .eyebrow {
+  color: #586ba7;
+}
+
+.student-app .community-hero p {
+  color: #68748d;
+}
+
+.student-app .community-write-button {
+  border-color: #d7dcf0;
+  background: #334579;
+  color: white;
+}
+
+.student-app .create-page {
+  background:
+    radial-gradient(circle at 16% 14%, rgba(224, 220, 255, 0.72), transparent 28%),
+    #f8f8ff;
+}
+
+.student-app .create-composer,
+.student-app .create-settings {
+  border-color: #dfe2f2;
+  border-radius: 21px;
+}
+
+/* Make quick edits look and behave like controls, not explanatory artwork. */
+.assistant-suggestions {
+  margin-top: 16px;
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid #dbe1ee;
+  border-radius: 15px;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(32, 49, 78, 0.055);
+}
+
+.quick-edit-heading {
+  margin-bottom: 3px;
+  display: grid;
+  gap: 3px;
+}
+
+.quick-edit-heading > span {
+  color: #273650;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.quick-edit-heading small {
+  color: #8a94a5;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.assistant-suggestions > button {
+  min-height: 44px;
+  padding: 0 11px 0 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #e0e5ee;
+  border-radius: 11px;
+  background: #f8fafc;
+  color: #405069;
+  font-size: 11px;
+  font-weight: 720;
+  text-align: left;
+}
+
+.assistant-suggestions > button:hover:not(:disabled) {
+  border-color: #aebfe0;
+  background: #f1f5ff;
+  color: #2f4f86;
+  transform: translateY(-1px);
+}
+
+.assistant-suggestions > button.applied {
+  border-color: #9bd0b7;
+  background: #effaf4;
+  color: #23704d;
+}
+
+.assistant-suggestions > button:disabled {
+  opacity: 0.42;
+}
+
+.quick-edit-status {
+  min-height: 30px;
+  margin: 2px 0 0;
+  padding: 7px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 9px;
+  background: #f4f6f9;
+  color: #8b95a3;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.quick-edit-status.visible {
+  background: #edf8f2;
+  color: #24714d;
+}
+
+@media (max-width: 1180px) {
+  .workspace-sidebar {
+    display: flex;
+  }
+}
+
+@media (max-width: 720px) {
+  .student-app > .site-header .header-inner {
+    width: calc(100% - 24px);
+  }
+
+  .workspace-menu-trigger {
+    min-width: 40px;
+    width: 40px;
+    padding: 0;
+  }
+
+  .workspace-menu-trigger span,
+  .student-app .member-school,
+  .student-app .no-login-note {
+    display: none;
+  }
+
+  .workspace-sidebar {
+    inset: 8px auto 8px 8px;
+    width: min(292px, calc(100vw - 24px));
+    border-radius: 20px;
+  }
+
+  .student-app .board-hero,
+  .student-app .mypage-hero {
+    margin-top: 24px;
+    padding: 26px 22px;
+    border-radius: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-sidebar,
+  .workspace-sidebar-backdrop {
+    transition: none;
+  }
+}
