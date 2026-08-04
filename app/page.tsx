@@ -981,7 +981,7 @@ function LandingView({
           <div className="landing-container landing-showcase-heading">
             <div className="landing-section-heading">
               <span className="landing-eyebrow">참여할 설문</span>
-              <h2 id="survey-showcase-title">지금, 이런 설문이 열려 있어요</h2>
+              <h2 id="survey-showcase-title">지금 열려 있는 설문</h2>
             </div>
             <p>관심 있는 설문에 참여하고, 내 설문도 올려보세요.</p>
           </div>
@@ -1148,11 +1148,7 @@ function LandingView({
           <div className="landing-container landing-analysis-grid">
             <div className="landing-analysis-copy">
               <span className="landing-eyebrow">결과 분석</span>
-              <h2>
-                응답이 들어오면,
-                <br />
-                결과가 바로 보여요
-              </h2>
+              <h2>결과는 바로 보여요</h2>
               <p>
                 문항별 결과를 확인하고 Excel·Word·CSV로 내려받아요.
               </p>
