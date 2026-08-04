@@ -12061,3 +12061,123 @@ button {
     margin-top: 7px;
   }
 }
+
+/* Minimal-copy pass: keep the product readable without explanatory clutter. */
+.landing-hero-content {
+  max-width: 1240px;
+}
+
+.landing-hero h1 {
+  max-width: none;
+  font-size: clamp(76px, 13.3vw, 196px);
+  line-height: 0.86;
+  letter-spacing: -0.085em;
+  white-space: nowrap;
+}
+
+.landing-hero-content > p {
+  word-break: keep-all;
+}
+
+.landing-section-heading h2,
+.landing-final-cta h2,
+.home-intro h1 {
+  white-space: nowrap;
+  word-break: keep-all;
+}
+
+.landing-step-grid article,
+.landing-step-grid article + article {
+  min-height: 220px;
+}
+
+.landing-survey-card {
+  min-height: 150px;
+}
+
+.landing-survey-card h3 {
+  margin-top: 20px;
+}
+
+.landing-survey-card > p {
+  margin-top: auto;
+  padding-top: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.home-path-card {
+  min-height: 96px;
+}
+
+.survey-card {
+  min-height: 176px;
+  padding: 24px 26px 22px;
+}
+
+.survey-card h3 {
+  margin-top: 24px;
+  font-size: 19px;
+  line-height: 1.42;
+}
+
+.survey-card-compact-meta {
+  margin-top: auto;
+  padding-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #738096;
+  font-size: 11px;
+  font-weight: 780;
+}
+
+.survey-card-compact-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.survey-card-compact-meta > svg {
+  color: #6678b9;
+  transition: transform 180ms ease;
+}
+
+.survey-card:hover .survey-card-compact-meta > svg {
+  transform: translateX(3px);
+}
+
+.survey-card-top .survey-cash {
+  margin-left: auto;
+}
+
+.board-hero {
+  align-items: center;
+}
+
+.board-hero h1 {
+  margin-bottom: 0;
+}
+
+@media (max-width: 720px) {
+  .landing-hero h1 {
+    font-size: clamp(52px, 16.5vw, 92px);
+    letter-spacing: -0.075em;
+  }
+
+  .landing-section-heading h2,
+  .landing-final-cta h2,
+  .home-intro h1 {
+    white-space: normal;
+  }
+
+  .home-path-card {
+    min-height: 88px;
+  }
+
+  .survey-card {
+    min-height: 164px;
+    padding: 20px;
+  }
+}
