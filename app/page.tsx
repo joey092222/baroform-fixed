@@ -769,10 +769,44 @@ function WorkspaceSidebar({
 function CampusSurveyCard({
   survey,
   onClick,
+  featured = false,
 }: {
   survey: PublicSurvey;
   onClick: () => void;
+  featured?: boolean;
 }) {
+  if (featured) {
+    return (
+      <button
+        type="button"
+        className="survey-card preview-featured-card accent-blue"
+        onClick={onClick}
+        aria-label={`${survey.title} 설문 참여하기`}
+      >
+        <div className="preview-card-topline">
+          <span className="category-pill">{categoryLabel(survey.category)}</span>
+          <span className="preview-open-status">
+            <i />
+            로그인 없이 참여
+          </span>
+        </div>
+        <span className="preview-card-owner">{survey.ownerName}</span>
+        <h3>{survey.title}</h3>
+        {survey.description && (
+          <p className="preview-card-description">{survey.description}</p>
+        )}
+        <div className="preview-card-footer">
+          <span><Clock3 size={16} />약 {survey.durationMinutes}분</span>
+          <span className="preview-card-reward">
+            <Coins size={16} />
+            +{(survey.rewardCash ?? 30).toLocaleString("ko-KR")}C
+          </span>
+          <strong>참여하기 <ArrowRight size={17} /></strong>
+        </div>
+      </button>
+    );
+  }
+
   return (
     <button
       type="button"
@@ -1101,7 +1135,7 @@ function LandingView({
   surveys,
   loadingSurveys,
 }: {
-  onEnterSite: (destination: "create" | "board") => void;
+  onEnterSite: () => void;
   surveys: PublicSurvey[];
   loadingSurveys: boolean;
 }) {
@@ -1134,19 +1168,10 @@ function LandingView({
               <button
                 type="button"
                 className="landing-primary"
-                onClick={() => onEnterSite("create")}
+                onClick={onEnterSite}
               >
-                <Sparkles size={18} />
-                설문 만들기
+                사이트로 이동
                 <ArrowRight size={18} />
-              </button>
-              <button
-                type="button"
-                className="landing-secondary"
-                onClick={() => onEnterSite("board")}
-              >
-                <Coins size={18} />
-                설문 참여하기
               </button>
             </div>
           </div>
@@ -1160,8 +1185,8 @@ function LandingView({
                 {loadingSurveys ? "설문을 불러오는 중" : hasLiveSurveys ? "지금 열려 있는 설문" : "이런 설문을 만들 수 있어요"}
               </h2>
             </div>
-            <button type="button" className="landing-board-link" onClick={() => onEnterSite("board")}>
-              학교 설문 전체 보기 <ArrowRight size={16} />
+            <button type="button" className="landing-board-link" onClick={onEnterSite}>
+              사이트로 이동 <ArrowRight size={16} />
             </button>
           </div>
           <div className="landing-survey-marquee" aria-label={hasLiveSurveys ? "현재 참여 가능한 설문" : "설문 예시"}>
@@ -1224,11 +1249,8 @@ function LandingView({
             <h2>다음 설문도 바로폼에서.</h2>
           </div>
           <div className="landing-final-actions">
-            <button type="button" onClick={() => onEnterSite("create")}>
-              설문 만들기 <ArrowRight size={19} />
-            </button>
-            <button type="button" className="is-ghost" onClick={() => onEnterSite("board")}>
-              설문 참여하기
+            <button type="button" onClick={onEnterSite}>
+              사이트로 이동 <ArrowRight size={19} />
             </button>
           </div>
         </section>
@@ -1374,7 +1396,7 @@ function ProductHomeView({
             <div
               className={`preview-survey-grid preview-count-${Math.min(
                 surveys.length,
-                2,
+                1,
               )}`}
             >
               {loadingSurveys ? (
@@ -1385,11 +1407,12 @@ function ProductHomeView({
                   <p>공개 설문을 불러오고 있어요.</p>
                 </div>
               ) : surveys.length > 0 ? (
-                surveys.slice(0, 2).map((survey) => (
+                surveys.slice(0, 1).map((survey) => (
                   <CampusSurveyCard
                     key={survey.slug}
                     survey={survey}
                     onClick={() => onOpenSurvey(survey)}
+                    featured
                   />
                 ))
               ) : (
@@ -5219,7 +5242,7 @@ export default function Home() {
     <div className="app-shell student-app">
       {view === "landing" && (
         <LandingView
-          onEnterSite={enterSite}
+          onEnterSite={() => enterSite("home")}
           surveys={publicSurveys}
           loadingSurveys={loadingSurveys}
         />
