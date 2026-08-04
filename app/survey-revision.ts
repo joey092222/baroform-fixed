@@ -163,6 +163,23 @@ const allowedTypes = new Set<SurveyQuestionType>([
   "section",
 ]);
 
+export function shortenSurveyQuestionTitle(title: string) {
+  return title
+    .replace(/현재 다니고 계신 전공/g, "현재 전공")
+    .replace(/귀하께서는|응답자께서는/g, "")
+    .replace(/전반적으로|가장 먼저|평소에|평소 /g, "")
+    .replace(/있으십니까\??$/g, "있나요?")
+    .replace(/하셨습니까\??$/g, "했나요?")
+    .replace(/무엇입니까\??$/g, "무엇인가요?")
+    .replace(/어떻게 생각하십니까\??$/g, "어떻게 생각하나요?")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function deduplicateSurveyOptions(options: string[]) {
+  return [...new Set(options.map((option) => option.trim()).filter(Boolean))];
+}
+
 export function parseSurveyRevisionResponse(rawPayload: unknown) {
   if (!isRecord(rawPayload)) throw new Error("AI 수정 결과를 읽지 못했어요.");
   const text = responseText(rawPayload);
