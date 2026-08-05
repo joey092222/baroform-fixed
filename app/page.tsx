@@ -504,7 +504,7 @@ function Header({
   cashBalance: number;
 }) {
   const scrollToMaker = () => {
-    onNavigate("home");
+    onNavigate("create");
   };
 
   return (
@@ -543,14 +543,9 @@ function Header({
             aria-current={view === "board" ? "page" : undefined}
             onClick={() => onNavigate("board")}
           >
-            설문 참여하기
+            학교 설문
           </button>
-          <button
-            type="button"
-            className={view === "home" ? "active" : ""}
-            aria-current={view === "home" ? "page" : undefined}
-            onClick={scrollToMaker}
-          >
+          <button type="button" onClick={scrollToMaker}>
             설문 만들기
           </button>
           <button type="button" onClick={() => onNavigate("analytics")}>
@@ -688,7 +683,7 @@ function WorkspaceSidebar({
             onClick={() => go("home")}
           >
             <WandSparkles size={17} />
-            설문 만들기
+            홈
           </button>
           <button
             type="button"
@@ -696,7 +691,7 @@ function WorkspaceSidebar({
             onClick={() => go("board")}
           >
             <School size={17} />
-            설문 참여하기
+            설문 찾기
           </button>
           <button
             type="button"
@@ -1137,12 +1132,10 @@ function SurveyReferenceControls({
 
 function LandingView({
   onEnterSite,
-  onAuth,
   surveys,
   loadingSurveys,
 }: {
   onEnterSite: () => void;
-  onAuth: () => void;
   surveys: PublicSurvey[];
   loadingSurveys: boolean;
 }) {
@@ -1153,64 +1146,38 @@ function LandingView({
     { slug: "sample-4", title: "축제 참여자 만족도 조사", description: "", ownerName: "학생기획단", schoolId: "yonsei", category: "club", campus: "신촌캠퍼스", durationMinutes: 2, rewardCash: 30, questionCount: 9, responseCount: 126 },
     { slug: "sample-5", title: "대학생 소비 습관 연구", description: "", ownerName: "소비자행동 연구팀", schoolId: "yonsei", category: "course", campus: "신촌캠퍼스", durationMinutes: 7, rewardCash: 70, questionCount: 18, responseCount: 54 },
     { slug: "sample-6", title: "교내 편의시설 만족도", description: "", ownerName: "캠퍼스 개선팀", schoolId: "yonsei", category: "campus", campus: "신촌캠퍼스", durationMinutes: 3, rewardCash: 30, questionCount: 11, responseCount: 92 },
-    { slug: "sample-7", title: "전공 수업 팀플 경험 조사", description: "", ownerName: "수업 프로젝트팀", schoolId: "yonsei", category: "course", campus: "신촌캠퍼스", durationMinutes: 4, rewardCash: 50, questionCount: 13, responseCount: 67 },
-    { slug: "sample-8", title: "신촌 상권 이용 행태 조사", description: "", ownerName: "마케팅 학회", schoolId: "yonsei", category: "research", campus: "신촌캠퍼스", durationMinutes: 5, rewardCash: 50, questionCount: 15, responseCount: 44 },
   ];
   const hasLiveSurveys = surveys.length > 0;
-  const showcaseSurveys = hasLiveSurveys ? surveys.slice(0, 8) : fallbackSurveys;
-  const scrollToSection = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-  };
+  const marqueeSurveys = hasLiveSurveys ? surveys.slice(0, 12) : fallbackSurveys;
+  const surveyRows = [
+    marqueeSurveys.filter((_, index) => index % 2 === 0),
+    marqueeSurveys.filter((_, index) => index % 2 === 1),
+  ].filter((row) => row.length > 0);
 
   return (
     <>
       <main className="landing-page">
-        <header className="landing-header">
-          <div className="landing-nav-inner">
-            <button type="button" className="landing-brand" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-              <BrandMark />
-              <strong>바로폼</strong>
-            </button>
-            <nav aria-label="랜딩 주요 메뉴">
-              <button type="button" onClick={() => scrollToSection("landing-surveys")}>설문 둘러보기</button>
-              <button type="button" onClick={() => scrollToSection("how-it-works")}>이용 방법</button>
-              <button type="button" onClick={() => scrollToSection("landing-rewards")}>리워드</button>
-            </nav>
-            <div className="landing-nav-actions">
-              <button type="button" className="landing-login" onClick={onAuth}>로그인</button>
-              <button type="button" className="landing-start" onClick={onEnterSite}>시작하기</button>
-            </div>
-          </div>
-        </header>
         <section className="landing-hero" aria-labelledby="landing-title">
           <div className="landing-hero-glow landing-hero-glow-left" />
           <div className="landing-hero-glow landing-hero-glow-right" />
           <div className="landing-hero-content">
-            <span className="landing-kicker">BAROFORM · 대학생 설문 플랫폼</span>
-            <h1 id="landing-title">설문 만들고 응답 모으는 일,<br />이제 한 곳에서 끝내세요</h1>
-            <p>AI로 설문을 만들고, 우리 학교 응답까지 바로 모아보세요.</p>
+            <span className="landing-kicker">대학생 설문, 더 쉽고 빠르게</span>
+            <h1 id="landing-title">BAROFORM</h1>
+            <p>설문 제작부터 응답 모집까지 한곳에서.</p>
             <div className="landing-hero-actions">
               <button
                 type="button"
                 className="landing-primary"
                 onClick={onEnterSite}
               >
-                바로 설문 만들기
+                사이트로 이동
                 <ArrowRight size={18} />
               </button>
-              <button type="button" className="landing-secondary" onClick={() => scrollToSection("landing-surveys")}>
-                설문 둘러보기
-              </button>
-            </div>
-            <div className="landing-trust-strip" aria-label="바로폼 주요 기능">
-              <span><Sparkles size={13} />AI 문항 설계</span>
-              <span><UsersRound size={13} />학교별 응답 모집</span>
-              <span><BarChart3 size={13} />결과 자동 정리</span>
             </div>
           </div>
         </section>
 
-        <section className="landing-survey-showcase" id="landing-surveys" aria-labelledby="survey-showcase-title">
+        <section className="landing-survey-showcase" aria-labelledby="survey-showcase-title">
           <div className="landing-container landing-showcase-heading">
             <div className="landing-section-heading">
               <span className="landing-eyebrow">{hasLiveSurveys ? "지금 우리 학교" : "설문 예시"}</span>
@@ -1219,19 +1186,33 @@ function LandingView({
               </h2>
             </div>
             <button type="button" className="landing-board-link" onClick={onEnterSite}>
-              전체 보기 <ArrowRight size={16} />
+              사이트로 이동 <ArrowRight size={16} />
             </button>
           </div>
-          <div className="landing-container landing-survey-grid" aria-label={hasLiveSurveys ? "현재 참여 가능한 설문" : "설문 예시"}>
-            {showcaseSurveys.map((survey) => (
-              <article className="landing-survey-card" key={survey.slug}>
-                <div className="survey-card-topline">
-                  <span>{categoryLabel(survey.category)}</span>
-                  <strong>+{survey.rewardCash}C</strong>
+          <div className="landing-survey-marquee" aria-label={hasLiveSurveys ? "현재 참여 가능한 설문" : "설문 예시"}>
+            {surveyRows.map((row, rowIndex) => (
+              <div className="survey-marquee-row" key={`survey-row-${rowIndex}`}>
+                <div className={`survey-marquee-track${rowIndex === 1 ? " is-reverse" : ""}`}>
+                  {[0, 1].map((copyIndex) => (
+                    <div
+                      className="survey-marquee-group"
+                      key={`survey-group-${rowIndex}-${copyIndex}`}
+                      aria-hidden={copyIndex === 1}
+                    >
+                      {row.map((survey) => (
+                        <article className="landing-survey-card" key={`${copyIndex}-${survey.title}`}>
+                          <div className="survey-card-topline">
+                            <span>{categoryLabel(survey.category)}</span>
+                            <strong>+{survey.rewardCash}C</strong>
+                          </div>
+                          <h3>{survey.title}</h3>
+                          <p><Clock3 size={13} />약 {survey.durationMinutes}분</p>
+                        </article>
+                      ))}
+                    </div>
+                  ))}
                 </div>
-                <h3>{survey.title}</h3>
-                <p><Clock3 size={13} />약 {survey.durationMinutes}분</p>
-              </article>
+              </div>
             ))}
           </div>
         </section>
@@ -1247,44 +1228,29 @@ function LandingView({
                 <span>01</span>
                 <div className="landing-step-icon"><Sparkles size={22} /></div>
                 <h3>AI로 만들기</h3>
-                <p>주제만 입력하면 목적과 대상에 맞는 문항을 바로 설계해요.</p>
               </article>
               <article>
                 <span>02</span>
                 <div className="landing-step-icon"><UsersRound size={22} /></div>
                 <h3>응답 모집하기</h3>
-                <p>학교 게시판에서 설문을 발견하고 리워드와 함께 참여해요.</p>
               </article>
               <article>
                 <span>03</span>
                 <div className="landing-step-icon"><BarChart3 size={22} /></div>
                 <h3>결과 확인하기</h3>
-                <p>모인 응답을 문항별로 정리하고 필요한 파일로 내보내요.</p>
               </article>
             </div>
           </div>
         </section>
 
-        <section className="landing-speed-section" id="landing-rewards">
-          <div className="landing-speed-shape landing-speed-shape-left" aria-hidden="true" />
-          <div className="landing-speed-shape landing-speed-shape-right" aria-hidden="true" />
-          <span>바로폼이면</span>
-          <h2>설문 하나 만드는데,<br />1시간이나 걸릴 이유는 없으니까요.</h2>
-          <div>
-            <span><Check size={14} />AI 문항 설계</span>
-            <span><Check size={14} />리워드 응답 모집</span>
-            <span><Check size={14} />결과 자동 정리</span>
-          </div>
-        </section>
-
         <section className="landing-final-cta">
           <div>
-            <span>설문은 만들고, 응답은 모으고</span>
+            <span>만들기와 모집, 한곳에서</span>
             <h2>다음 설문도 바로폼에서.</h2>
           </div>
           <div className="landing-final-actions">
             <button type="button" onClick={onEnterSite}>
-              지금 바로 시작 <ArrowRight size={19} />
+              사이트로 이동 <ArrowRight size={19} />
             </button>
           </div>
         </section>
@@ -1299,38 +1265,65 @@ function ProductHomeView({
   setPrompt,
   references,
   setReferences,
+  onCreate,
+  onOpenBoard,
+  onOpenSurvey,
   surveys,
   loadingSurveys,
-  onOpenSurvey,
-  onCreate,
   isAnalyzing,
 }: {
   prompt: string;
   setPrompt: (value: string) => void;
   references: SurveyReferences;
   setReferences: (value: SurveyReferences) => void;
+  onCreate: () => void;
+  onOpenBoard: () => void;
+  onOpenSurvey: (survey: PublicSurvey) => void;
   surveys: PublicSurvey[];
   loadingSurveys: boolean;
-  onOpenSurvey: (survey: PublicSurvey) => void;
-  onCreate: () => void;
   isAnalyzing: boolean;
 }) {
   const canContinue = prompt.trim().length >= 2 || hasSurveyReferences(references);
 
   return (
     <>
-      <main className="home-main integrated-home-main">
-        <section className="home-intro creation-home-intro">
+      <main className="home-main">
+        <section className="home-intro">
           <div className="campus-kicker">
             <span className="campus-symbol">Y</span>
             <span>연세대학교 신촌캠퍼스 · 베타</span>
           </div>
-          <h1>설문 만들기</h1>
+          <h1>만들거나, 참여하거나.</h1>
         </section>
 
-        <section className="creation-workspace">
-          <div className="maker-panel creation-maker-panel">
-            <span className="maker-ai-mark">AI 설문 제작</span>
+        <section className="home-path-chooser" aria-label="바로폼에서 할 일 선택">
+          <button
+            type="button"
+            className="home-path-card maker-choice"
+            onClick={() => document.getElementById("survey-maker")?.focus()}
+          >
+            <span className="home-path-icon"><Sparkles size={21} /></span>
+            <span>
+              <strong>설문 만들기</strong>
+            </span>
+            <ArrowRight size={19} />
+          </button>
+          <button
+            type="button"
+            className="home-path-card response-choice"
+            onClick={onOpenBoard}
+          >
+            <span className="home-path-icon"><Coins size={21} /></span>
+            <span>
+              <strong>설문 참여하기</strong>
+            </span>
+            <ArrowRight size={19} />
+          </button>
+        </section>
+
+        <section className="first-viewport-grid">
+          <div className="maker-panel">
+            <span className="maker-ai-mark">01 · 빠른 설문 제작</span>
             <h2>어떤 설문을 만들까요?</h2>
             <div className="prompt-box">
               <textarea
@@ -1380,15 +1373,73 @@ function ProductHomeView({
               </div>
             </div>
           </div>
+
+          <div
+            className={`campus-preview-panel ${
+              !loadingSurveys && surveys.length === 0 ? "empty" : ""
+            }`}
+          >
+            <div className="section-title-row compact-title-row">
+              <div>
+                <span className="eyebrow">02 · 지금 우리 학교</span>
+                <h2>지금 열려 있는 설문</h2>
+              </div>
+              <button
+                type="button"
+                className="text-link"
+                onClick={onOpenBoard}
+              >
+                게시판 보기
+                <ChevronRight size={16} />
+              </button>
+            </div>
+            <div
+              className={`preview-survey-grid preview-count-${Math.min(
+                surveys.length,
+                2,
+              )}`}
+            >
+              {loadingSurveys ? (
+                <div className="survey-loading-state" aria-live="polite">
+                  <span />
+                  <span />
+                  <span />
+                  <p>공개 설문을 불러오고 있어요.</p>
+                </div>
+              ) : surveys.length > 0 ? (
+                surveys.slice(0, 2).map((survey) => (
+                  <CampusSurveyCard
+                    key={survey.slug}
+                    survey={survey}
+                    onClick={() => onOpenSurvey(survey)}
+                    featured
+                  />
+                ))
+              ) : (
+                <button
+                  type="button"
+                  className="real-empty-state board-entry-empty"
+                  onClick={onOpenBoard}
+                  aria-label="연세대학교 설문 게시판으로 이동"
+                >
+                  <span className="empty-state-icon">
+                    <School size={25} />
+                  </span>
+                  <strong>아직 공개된 학교 설문이 없어요.</strong>
+                  <p>
+                    게시판에서 카테고리별 설문을 확인하거나 첫 설문을
+                    올려보세요.
+                  </p>
+                  <span className="board-entry-action">
+                    학교 설문 게시판으로 이동
+                    <ArrowRight size={15} />
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
         </section>
 
-        <SurveyBoardSection
-          surveys={surveys}
-          loadingSurveys={loadingSurveys}
-          onOpenSurvey={onOpenSurvey}
-          onCreate={onCreate}
-          embedded
-        />
       </main>
       <Footer />
     </>
@@ -1396,18 +1447,16 @@ function ProductHomeView({
 }
 
 
-function SurveyBoardSection({
+function SchoolBoardView({
   surveys,
   loadingSurveys,
   onOpenSurvey,
   onCreate,
-  embedded = false,
 }: {
   surveys: PublicSurvey[];
   loadingSurveys: boolean;
   onOpenSurvey: (survey: PublicSurvey) => void;
   onCreate: () => void;
-  embedded?: boolean;
 }) {
   const [filter, setFilter] = useState<"all" | SurveyCategory>("all");
   const [search, setSearch] = useState("");
@@ -1438,22 +1487,23 @@ function SurveyBoardSection({
   }, [filter, search, sort, surveys]);
 
   return (
-        <section className={`school-surveys-section board-page-section${embedded ? " embedded-board-section" : ""}`} id="school-surveys">
-          {embedded && (
-            <div className="home-participation-heading">
-              <div>
-                <span className="board-campus-badge">
-                  <span>Y</span>
-                  연세대학교 신촌캠퍼스
-                </span>
-                <h2>설문 참여하기</h2>
-              </div>
-              <button type="button" className="board-create-button" onClick={onCreate}>
-                <Plus size={18} />
-                내 설문 올리기
-              </button>
-            </div>
-          )}
+    <>
+      <main className="school-board-page">
+        <section className="board-hero">
+          <div>
+            <span className="board-campus-badge">
+              <span>Y</span>
+              연세대학교 신촌캠퍼스
+            </span>
+            <h1>학교 설문 게시판</h1>
+          </div>
+          <button type="button" className="board-create-button" onClick={onCreate}>
+            <Plus size={18} />
+            내 설문 올리기
+          </button>
+        </section>
+
+        <section className="school-surveys-section board-page-section" id="school-surveys">
           <div className="board-toolbar">
             <div className="school-board-select" aria-label="현재 학교">
               <School size={17} />
@@ -1551,42 +1601,6 @@ function SurveyBoardSection({
             </div>
           )}
         </section>
-  );
-}
-
-function SchoolBoardView({
-  surveys,
-  loadingSurveys,
-  onOpenSurvey,
-  onCreate,
-}: {
-  surveys: PublicSurvey[];
-  loadingSurveys: boolean;
-  onOpenSurvey: (survey: PublicSurvey) => void;
-  onCreate: () => void;
-}) {
-  return (
-    <>
-      <main className="school-board-page">
-        <section className="board-hero">
-          <div>
-            <span className="board-campus-badge">
-              <span>Y</span>
-              연세대학교 신촌캠퍼스
-            </span>
-            <h1>설문 참여하기</h1>
-          </div>
-          <button type="button" className="board-create-button" onClick={onCreate}>
-            <Plus size={18} />
-            내 설문 올리기
-          </button>
-        </section>
-        <SurveyBoardSection
-          surveys={surveys}
-          loadingSurveys={loadingSurveys}
-          onOpenSurvey={onOpenSurvey}
-          onCreate={onCreate}
-        />
       </main>
       <Footer />
     </>
@@ -4851,17 +4865,9 @@ export default function Home() {
             window.setTimeout(() => setToast(""), 2400);
           }
         });
-    } else if (pageParams.get("app")) {
+    } else if (pageParams.get("app") === "1") {
       window.queueMicrotask(() => {
-        if (!cancelled) {
-          setView("home");
-          if (pageParams.get("app") === "surveys") {
-            window.setTimeout(
-              () => document.getElementById("school-surveys")?.scrollIntoView(),
-              80,
-            );
-          }
-        }
+        if (!cancelled) setView("home");
       });
     }
     return () => {
@@ -4873,16 +4879,8 @@ export default function Home() {
     const syncEntryView = () => {
       const params = new URLSearchParams(window.location.search);
       if (params.get("survey")) return;
-      const appPage = params.get("app");
-      setView(appPage ? "home" : "landing");
-      if (appPage === "surveys") {
-        window.setTimeout(
-          () => document.getElementById("school-surveys")?.scrollIntoView(),
-          80,
-        );
-      } else {
-        window.scrollTo({ top: 0 });
-      }
+      setView(params.get("app") === "1" ? "home" : "landing");
+      window.scrollTo({ top: 0 });
     };
 
     window.addEventListener("popstate", syncEntryView);
@@ -4927,51 +4925,33 @@ export default function Home() {
   }, [authToken, refreshMySurveys, refreshWallet]);
 
   const navigate = (nextView: View) => {
-    const openParticipation = nextView === "board";
-    const destination = openParticipation ? "home" : nextView;
     setWorkspaceSidebarOpen(false);
-    setView(destination);
-    if (openParticipation) void refreshPublicSurveys();
-    if (destination === "mypage" && authToken) {
+    setView(nextView);
+    if (nextView === "board") void refreshPublicSurveys();
+    if (nextView === "mypage" && authToken) {
       void refreshMySurveys(authToken);
     }
-    if (destination !== "survey") {
+    if (nextView !== "survey") {
       const nextUrl =
-        destination === "landing"
+        nextView === "landing"
           ? window.location.pathname
-          : `${window.location.pathname}?app=${destination === "home" ? "home" : "create"}`;
+          : `${window.location.pathname}?app=1`;
       if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
         window.history.replaceState({}, "", nextUrl);
       }
     }
-    if (openParticipation) {
-      window.setTimeout(
-        () => document.getElementById("school-surveys")?.scrollIntoView({ behavior: "smooth" }),
-        50,
-      );
-    } else {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const enterSite = (destination: "home" | "create" | "board" = "home") => {
-    const openParticipation = destination === "board";
-    const resolvedDestination = openParticipation ? "home" : destination;
     setWorkspaceSidebarOpen(false);
     window.history.pushState(
       { baroformEntry: "app" },
       "",
-      `${window.location.pathname}?app=home`,
+      `${window.location.pathname}?app=1`,
     );
-    setView(resolvedDestination);
-    if (openParticipation) {
-      window.setTimeout(
-        () => document.getElementById("school-surveys")?.scrollIntoView({ behavior: "smooth" }),
-        50,
-      );
-    } else {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
+    setView(destination);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const updatePrompt = (value: string) => {
@@ -5263,7 +5243,6 @@ export default function Home() {
       {view === "landing" && (
         <LandingView
           onEnterSite={() => enterSite("home")}
-          onAuth={() => setAuthOpen(true)}
           surveys={publicSurveys}
           loadingSurveys={loadingSurveys}
         />
@@ -5299,10 +5278,11 @@ export default function Home() {
           setPrompt={updatePrompt}
           references={references}
           setReferences={updateReferences}
+          onCreate={() => navigate("create")}
+          onOpenBoard={() => navigate("board")}
+          onOpenSurvey={openSurvey}
           surveys={publicSurveys}
           loadingSurveys={loadingSurveys}
-          onOpenSurvey={openSurvey}
-          onCreate={() => navigate("create")}
           isAnalyzing={isAnalyzing}
         />
       )}
