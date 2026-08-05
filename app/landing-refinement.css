@@ -1,0 +1,177 @@
+/* Landing refinement: clearer product story, lighter hero scale, unified indigo backgrounds. */
+
+.landing-page {
+  --landing-refine-hue: 233;
+  background: hsl(var(--landing-refine-hue) 34% 98%);
+}
+
+/* Keep every landing section in one indigo family while varying saturation. */
+.landing-page .landing-hero {
+  min-height: 680px;
+  padding: 96px 24px 78px;
+  background:
+    radial-gradient(
+      circle at 14% 18%,
+      hsl(var(--landing-refine-hue) 64% 91% / 0.92),
+      transparent 29%
+    ),
+    radial-gradient(
+      circle at 86% 20%,
+      hsl(var(--landing-refine-hue) 72% 94% / 0.86),
+      transparent 28%
+    ),
+    linear-gradient(
+      150deg,
+      hsl(var(--landing-refine-hue) 48% 98%) 0%,
+      hsl(var(--landing-refine-hue) 44% 95%) 54%,
+      hsl(var(--landing-refine-hue) 36% 97%) 100%
+    );
+}
+
+.landing-page .landing-survey-showcase {
+  background: hsl(var(--landing-refine-hue) 26% 98%);
+}
+
+.landing-page .landing-process {
+  background:
+    linear-gradient(
+      hsl(var(--landing-refine-hue) 36% 52% / 0.055) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      hsl(var(--landing-refine-hue) 36% 52% / 0.055) 1px,
+      transparent 1px
+    ),
+    hsl(var(--landing-refine-hue) 42% 97%);
+  background-size: 28px 28px;
+}
+
+.landing-page .landing-final-cta {
+  background:
+    radial-gradient(
+      circle at 82% 20%,
+      hsl(var(--landing-refine-hue) 66% 88% / 0.58),
+      transparent 31%
+    ),
+    hsl(var(--landing-refine-hue) 50% 94%);
+}
+
+.landing-page + .site-footer {
+  background: hsl(var(--landing-refine-hue) 24% 97%);
+}
+
+/* The brand stays bold, but no longer occupies almost the whole viewport. */
+.landing-page .landing-hero-content {
+  max-width: 1080px;
+}
+
+.landing-page .landing-hero h1 {
+  max-width: 100%;
+  margin-top: 24px;
+  font-size: clamp(70px, 10.4vw, 142px);
+  line-height: 0.9;
+  letter-spacing: -0.078em;
+  white-space: nowrap;
+}
+
+.landing-page .landing-hero-content > p {
+  max-width: 760px;
+  margin-right: auto;
+  margin-left: auto;
+  color: #52608b;
+  font-size: clamp(17px, 1.55vw, 20px);
+  line-height: 1.65;
+  word-break: keep-all;
+}
+
+.landing-page .landing-hero-content > p::after {
+  content: "원하는 설문을 한 문장으로 만들고, 학교 안에서 응답을 모은 뒤 결과까지 바로 확인하세요.";
+  display: block;
+  max-width: 720px;
+  margin: 8px auto 0;
+  color: #7782a6;
+  font-size: clamp(13px, 1.1vw, 15px);
+  font-weight: 560;
+  line-height: 1.7;
+  letter-spacing: -0.02em;
+}
+
+/* A short explanation under each of the three steps. */
+.landing-page .landing-step-grid article,
+.landing-page .landing-step-grid article + article {
+  min-height: 268px;
+}
+
+.landing-page .landing-step-grid article::after {
+  display: block;
+  max-width: 280px;
+  margin-top: 10px;
+  color: #727b96;
+  font-size: 13px;
+  font-weight: 560;
+  line-height: 1.65;
+  letter-spacing: -0.018em;
+  word-break: keep-all;
+}
+
+.landing-page .landing-step-grid article:nth-child(1)::after {
+  content: "설문 목적만 입력하면 AI가 문항과 흐름을 설계해요.";
+}
+
+.landing-page .landing-step-grid article:nth-child(2)::after {
+  content: "학교 안에서 필요한 응답을 더 빠르게 모아보세요.";
+}
+
+.landing-page .landing-step-grid article:nth-child(3)::after {
+  content: "응답을 한눈에 보고 결과 파일까지 바로 정리해요.";
+}
+
+@media (max-width: 900px) {
+  .landing-page .landing-hero {
+    min-height: 640px;
+  }
+
+  .landing-page .landing-step-grid article,
+  .landing-page .landing-step-grid article + article {
+    min-height: 224px;
+  }
+
+  .landing-page .landing-step-grid article::after {
+    max-width: 520px;
+  }
+}
+
+@media (max-width: 720px) {
+  .landing-page .landing-hero {
+    min-height: 600px;
+    padding: 82px 20px 64px;
+  }
+
+  .landing-page .landing-hero h1 {
+    font-size: clamp(50px, 17.5vw, 72px);
+    line-height: 0.94;
+    white-space: normal;
+  }
+
+  .landing-page .landing-hero-content > p {
+    margin-top: 23px;
+    font-size: 15px;
+  }
+
+  .landing-page .landing-hero-content > p::after {
+    max-width: 350px;
+    margin-top: 7px;
+    font-size: 12px;
+    line-height: 1.65;
+  }
+
+  .landing-page .landing-step-grid article,
+  .landing-page .landing-step-grid article + article {
+    min-height: 216px;
+  }
+
+  .landing-page .landing-step-grid article::after {
+    font-size: 12px;
+  }
+}
