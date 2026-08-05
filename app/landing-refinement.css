@@ -1,177 +1,296 @@
-/* Landing refinement: clearer product story, lighter hero scale, unified indigo backgrounds. */
+/* Landing refinement: copy-led hero and a unified indigo color system. */
 
 .landing-page {
-  --landing-refine-hue: 233;
-  background: hsl(var(--landing-refine-hue) 34% 98%);
+  --landing-refine-navy: #223260;
+  --landing-refine-deep: #2e427f;
+  --landing-refine-indigo: #536bd0;
+  --landing-refine-blue: #7589e4;
+  --landing-refine-ink: #26345f;
+  --landing-refine-muted: #6f7b9e;
+  --landing-refine-line: #cfd8f4;
+  background: #f2f5ff;
 }
 
-/* Keep every landing section in one indigo family while varying saturation. */
+/* Use one blue-indigo family throughout the landing page. */
 .landing-page .landing-hero {
-  min-height: 680px;
-  padding: 96px 24px 78px;
+  min-height: 720px;
+  padding: 96px 24px 82px;
   background:
-    radial-gradient(
-      circle at 14% 18%,
-      hsl(var(--landing-refine-hue) 64% 91% / 0.92),
-      transparent 29%
-    ),
-    radial-gradient(
-      circle at 86% 20%,
-      hsl(var(--landing-refine-hue) 72% 94% / 0.86),
-      transparent 28%
-    ),
-    linear-gradient(
-      150deg,
-      hsl(var(--landing-refine-hue) 48% 98%) 0%,
-      hsl(var(--landing-refine-hue) 44% 95%) 54%,
-      hsl(var(--landing-refine-hue) 36% 97%) 100%
-    );
+    radial-gradient(circle at 14% 16%, rgba(112, 133, 224, 0.24), transparent 29%),
+    radial-gradient(circle at 86% 18%, rgba(76, 103, 204, 0.18), transparent 27%),
+    linear-gradient(150deg, #f8f9ff 0%, #edf1ff 54%, #e5ebff 100%);
+}
+
+.landing-page .landing-hero-glow,
+.landing-page .landing-hero::after {
+  display: none;
 }
 
 .landing-page .landing-survey-showcase {
-  background: hsl(var(--landing-refine-hue) 26% 98%);
+  background: #f1f4ff;
 }
 
 .landing-page .landing-process {
-  background:
-    linear-gradient(
-      hsl(var(--landing-refine-hue) 36% 52% / 0.055) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      90deg,
-      hsl(var(--landing-refine-hue) 36% 52% / 0.055) 1px,
-      transparent 1px
-    ),
-    hsl(var(--landing-refine-hue) 42% 97%);
-  background-size: 28px 28px;
+  padding-top: 104px;
+  padding-bottom: 112px;
+  background: linear-gradient(180deg, #e3e9ff 0%, #edf1ff 100%);
+  background-size: auto;
 }
 
 .landing-page .landing-final-cta {
   background:
-    radial-gradient(
-      circle at 82% 20%,
-      hsl(var(--landing-refine-hue) 66% 88% / 0.58),
-      transparent 31%
-    ),
-    hsl(var(--landing-refine-hue) 50% 94%);
+    radial-gradient(circle at 82% 18%, rgba(151, 170, 246, 0.28), transparent 29%),
+    linear-gradient(135deg, #26396f 0%, #3d55a1 100%);
+  color: #ffffff;
+}
+
+.landing-page .landing-final-cta span,
+.landing-page .landing-final-cta h2 {
+  color: #ffffff;
+}
+
+.landing-page .landing-final-cta button {
+  background: #ffffff;
+  color: var(--landing-refine-navy);
+}
+
+.landing-page .landing-final-cta button:hover {
+  background: #edf1ff;
 }
 
 .landing-page + .site-footer {
-  background: hsl(var(--landing-refine-hue) 24% 97%);
+  background: #e9eeff;
 }
 
-/* The brand stays bold, but no longer occupies almost the whole viewport. */
+/* Make the Korean value proposition the visual center, not the wordmark. */
 .landing-page .landing-hero-content {
-  max-width: 1080px;
+  max-width: 1120px;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  text-align: center;
+}
+
+.landing-page .landing-kicker {
+  order: 1;
+  padding: 7px 12px;
+  border: 1px solid rgba(83, 107, 208, 0.2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
+  color: #4f65bd;
+  font-size: 13px;
+  font-weight: 820;
 }
 
 .landing-page .landing-hero h1 {
+  order: 2;
   max-width: 100%;
-  margin-top: 24px;
-  font-size: clamp(70px, 10.4vw, 142px);
-  line-height: 0.9;
-  letter-spacing: -0.078em;
+  margin: 25px 0 0;
+  color: #4c61b6;
+  font-size: clamp(34px, 4.2vw, 54px);
+  line-height: 1;
+  letter-spacing: -0.055em;
   white-space: nowrap;
 }
 
 .landing-page .landing-hero-content > p {
-  max-width: 760px;
-  margin-right: auto;
-  margin-left: auto;
-  color: #52608b;
-  font-size: clamp(17px, 1.55vw, 20px);
-  line-height: 1.65;
+  order: 3;
+  width: 100%;
+  max-width: 1050px;
+  margin: 34px auto 0;
+  color: transparent;
+  font-size: 0;
+  line-height: 0;
   word-break: keep-all;
 }
 
-.landing-page .landing-hero-content > p::after {
-  content: "원하는 설문을 한 문장으로 만들고, 학교 안에서 응답을 모은 뒤 결과까지 바로 확인하세요.";
+.landing-page .landing-hero-content > p::before {
+  content: "설문 제작부터 응답 모집,\A결과 확인까지 한곳에서.";
   display: block;
-  max-width: 720px;
-  margin: 8px auto 0;
-  color: #7782a6;
-  font-size: clamp(13px, 1.1vw, 15px);
-  font-weight: 560;
-  line-height: 1.7;
-  letter-spacing: -0.02em;
+  color: var(--landing-refine-navy);
+  font-size: clamp(54px, 7.1vw, 96px);
+  font-weight: 880;
+  line-height: 1.08;
+  letter-spacing: -0.067em;
+  white-space: pre-line;
 }
 
-/* A short explanation under each of the three steps. */
+.landing-page .landing-hero-content > p::after {
+  content: "원하는 설문을 한 문장으로 만들고, 학교 안에서 필요한 응답을 모아 결과까지 바로 확인하세요.";
+  display: block;
+  max-width: 760px;
+  margin: 24px auto 0;
+  color: var(--landing-refine-muted);
+  font-size: clamp(15px, 1.35vw, 18px);
+  font-weight: 560;
+  line-height: 1.75;
+  letter-spacing: -0.025em;
+}
+
+.landing-page .landing-hero-actions {
+  order: 4;
+  margin-top: 34px;
+}
+
+.landing-page .landing-primary {
+  border-color: var(--landing-refine-deep);
+  background: var(--landing-refine-deep);
+  box-shadow: 0 15px 32px rgba(46, 66, 127, 0.25);
+}
+
+.landing-page .landing-primary:hover {
+  background: #24366d;
+}
+
+/* Keep the showcase cards in the same family instead of mixing yellow and green. */
+.landing-page .landing-board-link {
+  border-color: #cad4f2;
+  background: #f8f9ff;
+  color: #40569f;
+}
+
+.landing-page .landing-survey-card,
+.landing-page .landing-survey-card:nth-child(3n + 2),
+.landing-page .landing-survey-card:nth-child(3n) {
+  border-color: #d7def4;
+  background: linear-gradient(155deg, #ffffff 0%, #f0f3ff 100%);
+}
+
+.landing-page .landing-survey-card:nth-child(3n + 2) {
+  background: linear-gradient(155deg, #ffffff 0%, #eaf0ff 100%);
+}
+
+.landing-page .landing-survey-card:nth-child(3n) {
+  background: linear-gradient(155deg, #ffffff 0%, #e4ebff 100%);
+}
+
+/* Two concise explanation lines under every process card. */
+.landing-page .landing-step-grid {
+  gap: 18px;
+}
+
 .landing-page .landing-step-grid article,
 .landing-page .landing-step-grid article + article {
-  min-height: 268px;
+  min-height: 292px;
+  border-color: var(--landing-refine-line);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 16px 38px rgba(40, 57, 111, 0.08);
+}
+
+.landing-page .landing-step-grid article > span {
+  color: #8998c4;
+}
+
+.landing-page .landing-step-icon,
+.landing-page .landing-step-grid article:nth-child(2) .landing-step-icon,
+.landing-page .landing-step-grid article:nth-child(3) .landing-step-icon {
+  background: #e4eaff;
+  color: #536bd0;
+}
+
+.landing-page .landing-step-grid article:nth-child(2) .landing-step-icon {
+  background: #dbe4ff;
+  color: #405dc0;
+}
+
+.landing-page .landing-step-grid article:nth-child(3) .landing-step-icon {
+  background: #d1ddff;
+  color: #2e4eaa;
+}
+
+.landing-page .landing-step-grid h3 {
+  color: var(--landing-refine-ink);
 }
 
 .landing-page .landing-step-grid article::after {
   display: block;
-  max-width: 280px;
-  margin-top: 10px;
-  color: #727b96;
+  max-width: 310px;
+  margin-top: 11px;
+  color: var(--landing-refine-muted);
   font-size: 13px;
   font-weight: 560;
-  line-height: 1.65;
-  letter-spacing: -0.018em;
+  line-height: 1.78;
+  letter-spacing: -0.02em;
+  white-space: pre-line;
   word-break: keep-all;
 }
 
 .landing-page .landing-step-grid article:nth-child(1)::after {
-  content: "설문 목적만 입력하면 AI가 문항과 흐름을 설계해요.";
+  content: "설문 목적만 입력하면 AI가 문항과 흐름을 설계해요.\A초안을 확인한 뒤 원하는 방향으로 바로 수정할 수 있어요.";
 }
 
 .landing-page .landing-step-grid article:nth-child(2)::after {
-  content: "학교 안에서 필요한 응답을 더 빠르게 모아보세요.";
+  content: "학교 안에서 필요한 응답을 더 빠르게 모아보세요.\A링크를 공유하고 참여 현황까지 한곳에서 확인해요.";
 }
 
 .landing-page .landing-step-grid article:nth-child(3)::after {
-  content: "응답을 한눈에 보고 결과 파일까지 바로 정리해요.";
+  content: "응답을 한눈에 보고 결과 파일까지 바로 정리해요.\A핵심 결과를 확인하고 엑셀·워드로 내보낼 수 있어요.";
 }
 
 @media (max-width: 900px) {
   .landing-page .landing-hero {
-    min-height: 640px;
+    min-height: 680px;
+  }
+
+  .landing-page .landing-hero-content > p::before {
+    font-size: clamp(48px, 8vw, 72px);
   }
 
   .landing-page .landing-step-grid article,
   .landing-page .landing-step-grid article + article {
-    min-height: 224px;
+    min-height: 238px;
   }
 
   .landing-page .landing-step-grid article::after {
-    max-width: 520px;
+    max-width: 620px;
   }
 }
 
 @media (max-width: 720px) {
   .landing-page .landing-hero {
-    min-height: 600px;
-    padding: 82px 20px 64px;
+    min-height: 650px;
+    padding: 84px 20px 66px;
+  }
+
+  .landing-page .landing-kicker {
+    font-size: 11px;
   }
 
   .landing-page .landing-hero h1 {
-    font-size: clamp(50px, 17.5vw, 72px);
-    line-height: 0.94;
+    margin-top: 20px;
+    font-size: clamp(28px, 9vw, 40px);
     white-space: normal;
   }
 
   .landing-page .landing-hero-content > p {
-    margin-top: 23px;
-    font-size: 15px;
+    margin-top: 28px;
+  }
+
+  .landing-page .landing-hero-content > p::before {
+    content: "설문 제작부터 응답 모집,\A결과 확인까지 한곳에서.";
+    font-size: clamp(39px, 11.3vw, 56px);
+    line-height: 1.12;
   }
 
   .landing-page .landing-hero-content > p::after {
-    max-width: 350px;
-    margin-top: 7px;
-    font-size: 12px;
-    line-height: 1.65;
+    max-width: 380px;
+    margin-top: 19px;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+
+  .landing-page .landing-process {
+    padding-top: 76px;
+    padding-bottom: 80px;
   }
 
   .landing-page .landing-step-grid article,
   .landing-page .landing-step-grid article + article {
-    min-height: 216px;
+    min-height: 228px;
   }
 
   .landing-page .landing-step-grid article::after {
     font-size: 12px;
+    line-height: 1.72;
   }
 }
