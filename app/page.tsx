@@ -1292,23 +1292,88 @@ function homeRelativeTime(value: string) {
   });
 }
 
+function HomeSurveyCard({
+  survey,
+  onClick,
+}: {
+  survey: PublicSurvey;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className="home-live-survey-card" onClick={onClick}>
+      <span className="home-live-survey-top">
+        <span>{categoryLabel(survey.category)}</span>
+        <em><i /> 참여 가능</em>
+      </span>
+      <strong>{survey.title}</strong>
+      <span className="home-survey-meta">
+        <span><Clock3 size={13} /> 약 {survey.durationMinutes}분</span>
+        <span>{survey.questionCount ?? survey.questions?.length ?? 0}문항</span>
+      </span>
+      <span className="home-survey-reward">
+        <Coins size={13} />
+        {(survey.rewardCash ?? 30).toLocaleString("ko-KR")}C
+      </span>
+      <span className="home-survey-campus">
+        <CheckCircle2 size={13} />
+        <span>{survey.campus || schoolLabel(survey.schoolId)}</span>
+      </span>
+      <span className="home-live-survey-footer">
+        <span>응답 {(survey.responseCount ?? 0).toLocaleString("ko-KR")}개</span>
+        <strong>참여하기 <ArrowRight size={15} /></strong>
+      </span>
+    </button>
+  );
+}
+
+function HomeOwnedSurveyCard({
+  survey,
+  onClick,
+}: {
+  survey: OwnedSurvey;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className="home-owned-survey-card" onClick={onClick}>
+      <span>
+        <small>{categoryLabel(survey.category)}</small>
+        <em>{survey.isListed ? "공개 중" : "링크 공개"}</em>
+      </span>
+      <strong>{survey.title}</strong>
+      <div>
+        <span><FileText size={14} /> {survey.questionCount ?? survey.questions?.length ?? 0}문항</span>
+        <span><UsersRound size={14} /> 응답 {survey.responseCount}개</span>
+      </div>
+      <footer>
+        결과 확인하기 <ArrowRight size={15} />
+      </footer>
+    </button>
+  );
+}
+
 function ProductHomeView({
   surveys,
+  ownedSurveys,
   loadingSurveys,
   onCreate,
   onOpenBoard,
   onOpenSurvey,
+  onOpenOwnedSurvey,
   onOpenCommunity,
 }: {
   surveys: PublicSurvey[];
+  ownedSurveys: OwnedSurvey[];
   loadingSurveys: boolean;
   onCreate: () => void;
   onOpenBoard: () => void;
   onOpenSurvey: (survey: PublicSurvey) => void;
+  onOpenOwnedSurvey: (survey: OwnedSurvey) => void;
   onOpenCommunity: () => void;
 }) {
   const [communityPosts, setCommunityPosts] = useState<HomeCommunityPost[]>([]);
   const [loadingCommunity, setLoadingCommunity] = useState(true);
+  const [surveySearch, setSurveySearch] = useState("");
+  const [surveyFilter, setSurveyFilter] = useState<"all" | SurveyCategory>("all");
 
   useEffect(() => {
     let cancelled = false;
@@ -1335,15 +1400,24 @@ function ProductHomeView({
     };
   }, []);
 
-  const homeSurveys = useMemo(
-    () =>
-      [...surveys]
-        .sort((left, right) =>
-          (right.createdAt ?? "").localeCompare(left.createdAt ?? ""),
-        )
-        .slice(0, 6),
-    [surveys],
-  );
+  const filteredHomeSurveys = useMemo(() => {
+    const keyword = surveySearch.replace(/\s+/g, " ").trim().toLocaleLowerCase("ko-KR");
+    return [...surveys]
+      .filter((survey) => surveyFilter === "all" || survey.category === surveyFilter)
+      .filter((survey) =>
+        !keyword ||
+        [survey.title, survey.ownerName, survey.description, categoryLabel(survey.category)]
+          .join(" ")
+          .toLocaleLowerCase("ko-KR")
+          .includes(keyword),
+      )
+      .sort((left, right) =>
+        (right.createdAt ?? "").localeCompare(left.createdAt ?? ""),
+      );
+  }, [surveyFilter, surveySearch, surveys]);
+  const filteringSurveys = Boolean(surveySearch.trim()) || surveyFilter !== "all";
+  const recommendedSurveys = filteredHomeSurveys.slice(0, filteringSurveys ? 9 : 3);
+  const moreSurveys = filteringSurveys ? [] : filteredHomeSurveys.slice(3, 9);
   const totalResponses = surveys.reduce(
     (total, survey) => total + (survey.responseCount ?? 0),
     0,
@@ -1407,15 +1481,48 @@ function ProductHomeView({
           </div>
         </section>
 
-        <section className="campus-home-section" aria-labelledby="home-surveys-title">
+        <section className="home-survey-discovery" aria-label="설문 찾기">
+          <label className="home-survey-search">
+            <Search size={18} />
+            <input
+              value={surveySearch}
+              onChange={(event) => setSurveySearch(event.target.value)}
+              placeholder="설문 제목이나 주제를 검색해 보세요"
+              aria-label="메인 설문 검색"
+            />
+            {surveySearch && (
+              <button type="button" aria-label="검색어 지우기" onClick={() => setSurveySearch("")}>
+                <X size={16} />
+              </button>
+            )}
+          </label>
+          <div className="home-category-tabs" role="tablist" aria-label="메인 설문 카테고리">
+            {[{ id: "all" as const, label: "전체" }, ...surveyCategories].map((category) => (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={surveyFilter === category.id}
+                className={surveyFilter === category.id ? "active" : ""}
+                key={category.id}
+                onClick={() => setSurveyFilter(category.id)}
+              >
+                {category.label}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="campus-home-section home-survey-section" aria-labelledby="home-surveys-title">
           <div className="campus-section-heading">
             <div>
-              <span>OPEN SURVEYS</span>
-              <h2 id="home-surveys-title">지금 올라와 있는 설문</h2>
+              <span>{filteringSurveys ? "SEARCH RESULTS" : "RECOMMENDED"}</span>
+              <h2 id="home-surveys-title">
+                {filteringSurveys ? "조건에 맞는 설문" : "먼저 만나볼 설문"}
+              </h2>
             </div>
-            <button type="button" onClick={onOpenBoard}>
-              전체 설문 보기 <ArrowRight size={16} />
-            </button>
+            <span className="home-section-count">
+              {loadingSurveys ? "불러오는 중" : `${filteredHomeSurveys.length}개`}
+            </span>
           </div>
 
           {loadingSurveys ? (
@@ -1424,39 +1531,79 @@ function ProductHomeView({
                 <span className="home-content-skeleton" key={item} />
               ))}
             </div>
-          ) : homeSurveys.length > 0 ? (
+          ) : recommendedSurveys.length > 0 ? (
             <div className="home-survey-grid">
-              {homeSurveys.map((survey) => (
-                <button
-                  type="button"
-                  className="home-live-survey-card"
+              {recommendedSurveys.map((survey) => (
+                <HomeSurveyCard
                   key={survey.slug}
+                  survey={survey}
                   onClick={() => onOpenSurvey(survey)}
-                >
-                  <span className="home-live-survey-top">
-                    <span>{categoryLabel(survey.category)}</span>
-                    <em><i /> 참여 가능</em>
-                  </span>
-                  <small>{survey.ownerName}</small>
-                  <strong>{survey.title}</strong>
-                  {survey.description && <p>{survey.description}</p>}
-                  <span className="home-live-survey-footer">
-                    <span><Clock3 size={14} /> 약 {survey.durationMinutes}분</span>
-                    <span><Eye size={14} /> {survey.responseCount ?? 0}</span>
-                    <b>+{(survey.rewardCash ?? 30).toLocaleString("ko-KR")}C</b>
-                    <ArrowRight size={16} />
-                  </span>
-                </button>
+                />
               ))}
             </div>
           ) : (
-            <button type="button" className="home-section-empty" onClick={onCreate}>
-              <span><Plus size={20} /></span>
-              <strong>아직 공개된 설문이 없어요.</strong>
-              <small>첫 번째 설문을 만들어 캠퍼스에 질문해 보세요.</small>
+            <button
+              type="button"
+              className="home-section-empty"
+              onClick={() => {
+                if (surveys.length > 0) {
+                  setSurveySearch("");
+                  setSurveyFilter("all");
+                } else {
+                  onCreate();
+                }
+              }}
+            >
+              <span>{surveys.length > 0 ? <Search size={20} /> : <Plus size={20} />}</span>
+              <strong>{surveys.length > 0 ? "조건에 맞는 설문이 없어요." : "아직 공개된 설문이 없어요."}</strong>
+              <small>{surveys.length > 0 ? "검색어나 카테고리를 다시 선택해 보세요." : "첫 번째 설문을 만들어 캠퍼스에 질문해 보세요."}</small>
             </button>
           )}
         </section>
+
+        {moreSurveys.length > 0 && (
+          <section className="campus-home-section home-survey-section home-more-surveys" aria-labelledby="home-more-surveys-title">
+            <div className="campus-section-heading">
+              <div>
+                <span>MORE SURVEYS</span>
+                <h2 id="home-more-surveys-title">더 둘러보기</h2>
+              </div>
+              <button type="button" onClick={onOpenBoard}>
+                전체 설문 보기 <ArrowRight size={16} />
+              </button>
+            </div>
+            <div className="home-survey-grid">
+              {moreSurveys.map((survey) => (
+                <HomeSurveyCard
+                  key={survey.slug}
+                  survey={survey}
+                  onClick={() => onOpenSurvey(survey)}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {ownedSurveys.length > 0 && (
+          <section className="campus-home-section home-owned-section" aria-labelledby="home-owned-title">
+            <div className="campus-section-heading">
+              <div>
+                <span>MY SURVEYS</span>
+                <h2 id="home-owned-title">내가 만든 설문</h2>
+              </div>
+              <span className="home-section-count">{ownedSurveys.length}개</span>
+            </div>
+            <div className="home-owned-survey-grid">
+              {ownedSurveys.slice(0, 4).map((survey) => (
+                <HomeOwnedSurveyCard
+                  key={survey.slug}
+                  survey={survey}
+                  onClick={() => onOpenOwnedSurvey(survey)}
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
         <section className="campus-home-lower-grid">
           <div className="campus-community-preview">
@@ -1471,7 +1618,7 @@ function ProductHomeView({
             </div>
             <div className="home-community-list">
               {loadingCommunity ? (
-                [0, 1, 2].map((item) => (
+                [0, 1, 2, 3].map((item) => (
                   <span className="home-community-skeleton" key={item} />
                 ))
               ) : communityPosts.length > 0 ? (
@@ -1499,32 +1646,6 @@ function ProductHomeView({
               )}
             </div>
           </div>
-
-          <aside className="campus-home-hub" aria-labelledby="home-hub-title">
-            <span className="campus-home-eyebrow">QUICK ACCESS</span>
-            <h2 id="home-hub-title">필요한 곳으로 바로</h2>
-            <div>
-              <button type="button" onClick={onCreate}>
-                <span><WandSparkles size={18} /></span>
-                <strong>새 설문 제작</strong>
-                <ArrowRight size={15} />
-              </button>
-              <button type="button" onClick={onOpenBoard}>
-                <span><Coins size={18} /></span>
-                <strong>설문 참여</strong>
-                <ArrowRight size={15} />
-              </button>
-              <button type="button" onClick={onOpenCommunity}>
-                <span><MessageCircle size={18} /></span>
-                <strong>커뮤니티</strong>
-                <ArrowRight size={15} />
-              </button>
-            </div>
-            <p>
-              결과 분석, 캠퍼스 투표 등 새로운 기능도 이 허브에 자연스럽게
-              연결할 수 있어요.
-            </p>
-          </aside>
         </section>
       </main>
       <Footer />
@@ -5795,10 +5916,12 @@ export default function Home() {
       {view === "home" && (
         <ProductHomeView
           surveys={publicSurveys}
+          ownedSurveys={mySurveys}
           loadingSurveys={loadingSurveys}
           onCreate={() => navigate("create")}
           onOpenBoard={() => navigate("board")}
           onOpenSurvey={openSurvey}
+          onOpenOwnedSurvey={openOwnedAnalytics}
           onOpenCommunity={() => navigate("community")}
         />
       )}
