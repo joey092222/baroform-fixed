@@ -4075,6 +4075,223 @@ function AnalyticsView({
 }
 */
 
+type ResultShareCardInput = {
+  title: string;
+  responseCount: number;
+  highlightQuestion: string;
+  highlightResult: string;
+  surveyUrl: string;
+};
+
+function InstagramGlyph({ size = 18 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function drawCanvasRoundedRect(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+) {
+  const corner = Math.min(radius, width / 2, height / 2);
+  context.beginPath();
+  context.moveTo(x + corner, y);
+  context.arcTo(x + width, y, x + width, y + height, corner);
+  context.arcTo(x + width, y + height, x, y + height, corner);
+  context.arcTo(x, y + height, x, y, corner);
+  context.arcTo(x, y, x + width, y, corner);
+  context.closePath();
+}
+
+function drawWrappedCanvasText(
+  context: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number,
+  maxLines: number,
+) {
+  const characters = Array.from(text.trim());
+  const lines: string[] = [];
+  let line = "";
+
+  characters.forEach((character) => {
+    const nextLine = `${line}${character}`;
+    if (line && context.measureText(nextLine).width > maxWidth) {
+      lines.push(line.trim());
+      line = character.trimStart();
+    } else {
+      line = nextLine;
+    }
+  });
+  if (line) lines.push(line.trim());
+
+  const visibleLines = lines.slice(0, maxLines);
+  if (lines.length > maxLines) {
+    let lastLine = visibleLines[maxLines - 1] ?? "";
+    while (
+      lastLine &&
+      context.measureText(`${lastLine}…`).width > maxWidth
+    ) {
+      lastLine = lastLine.slice(0, -1);
+    }
+    visibleLines[maxLines - 1] = `${lastLine.trimEnd()}…`;
+  }
+
+  visibleLines.forEach((visibleLine, index) => {
+    context.fillText(visibleLine, x, y + index * lineHeight);
+  });
+  return y + visibleLines.length * lineHeight;
+}
+
+async function createInstagramResultCard({
+  title,
+  responseCount,
+  highlightQuestion,
+  highlightResult,
+  surveyUrl,
+}: ResultShareCardInput) {
+  await document.fonts.ready;
+  const canvas = document.createElement("canvas");
+  canvas.width = 1080;
+  canvas.height = 1350;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("결과 카드 캔버스를 만들지 못했어요.");
+
+  const background = context.createLinearGradient(0, 0, 1080, 1350);
+  background.addColorStop(0, "#f8f8ff");
+  background.addColorStop(0.52, "#e9edff");
+  background.addColorStop(1, "#dce5ff");
+  context.fillStyle = background;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  const glow = context.createRadialGradient(860, 160, 20, 860, 160, 460);
+  glow.addColorStop(0, "rgba(115, 136, 226, 0.42)");
+  glow.addColorStop(1, "rgba(115, 136, 226, 0)");
+  context.fillStyle = glow;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  context.fillStyle = "#273762";
+  drawCanvasRoundedRect(context, 78, 70, 78, 78, 22);
+  context.fill();
+  context.fillStyle = "#ffffff";
+  drawCanvasRoundedRect(context, 96, 88, 20, 20, 5);
+  context.fill();
+  drawCanvasRoundedRect(context, 119, 111, 20, 20, 5);
+  context.fill();
+
+  context.fillStyle = "#273762";
+  context.font = '800 34px "Noto Sans KR Variable", sans-serif';
+  context.fillText("BAROFORM", 180, 122);
+  context.fillStyle = "#5969b0";
+  context.font = '800 22px "Noto Sans KR Variable", sans-serif';
+  context.fillText("RESULT CARD", 810, 119);
+
+  context.fillStyle = "#172442";
+  context.font = '850 60px "Noto Sans KR Variable", sans-serif';
+  const titleBottom = drawWrappedCanvasText(
+    context,
+    title || "우리 학교 설문 결과",
+    82,
+    252,
+    900,
+    78,
+    2,
+  );
+
+  context.fillStyle = "#6f7b9b";
+  context.font = '650 26px "Noto Sans KR Variable", sans-serif';
+  context.fillText("지금까지 모인 실제 응답", 84, titleBottom + 35);
+  context.fillStyle = "#273762";
+  context.font = '900 144px "Noto Sans KR Variable", sans-serif';
+  context.fillText(responseCount.toLocaleString("ko-KR"), 80, titleBottom + 190);
+  const countWidth = context.measureText(
+    responseCount.toLocaleString("ko-KR"),
+  ).width;
+  context.font = '850 48px "Noto Sans KR Variable", sans-serif';
+  context.fillText("개", 96 + countWidth, titleBottom + 187);
+
+  const insightTop = Math.max(640, titleBottom + 255);
+  context.fillStyle = "#273762";
+  drawCanvasRoundedRect(context, 78, insightTop, 924, 400, 42);
+  context.fill();
+  context.fillStyle = "#9eaded";
+  context.font = '800 23px "Noto Sans KR Variable", sans-serif';
+  context.fillText("가장 눈에 띄는 결과", 130, insightTop + 72);
+  context.fillStyle = "#ffffff";
+  context.font = '750 35px "Noto Sans KR Variable", sans-serif';
+  const questionBottom = drawWrappedCanvasText(
+    context,
+    highlightQuestion,
+    130,
+    insightTop + 135,
+    820,
+    48,
+    3,
+  );
+  context.fillStyle = "#f2c66d";
+  context.font = '900 53px "Noto Sans KR Variable", sans-serif';
+  drawWrappedCanvasText(
+    context,
+    highlightResult,
+    130,
+    questionBottom + 34,
+    820,
+    66,
+    2,
+  );
+
+  context.fillStyle = "#5f6d8f";
+  context.font = '650 24px "Noto Sans KR Variable", sans-serif';
+  context.fillText(
+    `응답 ${responseCount.toLocaleString("ko-KR")}개 기준 · 개별 응답 내용은 포함하지 않았어요.`,
+    82,
+    1184,
+  );
+  context.fillStyle = "#273762";
+  context.font = '800 25px "Noto Sans KR Variable", sans-serif';
+  const displayUrl = surveyUrl.replace(/^https?:\/\//, "");
+  context.fillText(displayUrl, 82, 1245);
+  context.fillStyle = "#8190b5";
+  context.font = '600 20px "Noto Sans KR Variable", sans-serif';
+  context.fillText("이 결과는 참여 응답을 요약한 것으로 전체 학생을 대표하지 않을 수 있어요.", 82, 1295);
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("결과 카드 이미지를 만들지 못했어요."));
+    }, "image/png");
+  });
+}
+
+function downloadResultShareFile(file: File) {
+  const url = URL.createObjectURL(file);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = file.name;
+  anchor.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 function RealAnalyticsView({
   onHome,
   title,
@@ -4095,6 +4312,9 @@ function RealAnalyticsView({
     null,
   );
   const [exportError, setExportError] = useState("");
+  const [shareOpen, setShareOpen] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [shareStatus, setShareStatus] = useState("");
 
   useEffect(() => {
     if (!slug || !manageToken) {
@@ -4209,6 +4429,104 @@ function RealAnalyticsView({
     };
     });
 
+  const shareSummary = questionSummaries.find(
+    (summary) => summary.label !== "응답 없음",
+  );
+  const shareQuestion =
+    shareSummary?.question.title ?? "우리 학교의 의견을 모으고 있어요.";
+  const shareResult =
+    shareSummary?.label ?? `${responses.length.toLocaleString("ko-KR")}개의 응답`;
+  const sharePath = slug ? `/?survey=${encodeURIComponent(slug)}` : "/";
+
+  const createResultShareFile = async () => {
+    const surveyUrl = `${window.location.origin}${sharePath}`;
+    const blob = await createInstagramResultCard({
+      title: title || "우리 학교 설문 결과",
+      responseCount: responses.length,
+      highlightQuestion: shareQuestion,
+      highlightResult: shareResult,
+      surveyUrl,
+    });
+    const safeTitle = (title || "바로폼-설문-결과")
+      .replace(/[\\/:*?"<>|]/g, "")
+      .trim()
+      .slice(0, 45);
+    const file = new File([blob], `${safeTitle || "바로폼-설문-결과"}.png`, {
+      type: "image/png",
+    });
+    const caption = [
+      `${title || "우리 학교 설문"} 결과`,
+      `현재 ${responses.length.toLocaleString("ko-KR")}개의 응답이 모였어요.`,
+      `${shareQuestion}: ${shareResult}`,
+      `설문 참여하기 ${surveyUrl}`,
+      "#바로폼 #대학생설문 #설문결과",
+    ].join("\n");
+    return { file, caption };
+  };
+
+  const shareResultToInstagram = async () => {
+    if (responses.length === 0 || sharing) return;
+    setSharing(true);
+    setShareStatus("");
+    try {
+      const { file, caption } = await createResultShareFile();
+      const canShareFile =
+        typeof navigator.share === "function" &&
+        (typeof navigator.canShare !== "function" ||
+          navigator.canShare({ files: [file] }));
+
+      if (canShareFile) {
+        setShareStatus("공유 앱 목록에서 Instagram을 선택해주세요.");
+        await navigator.share({
+          files: [file],
+          title: `${title || "바로폼 설문"} 결과`,
+          text: caption,
+        });
+        setShareStatus("결과 카드를 공유했어요.");
+      } else {
+        downloadResultShareFile(file);
+        try {
+          await navigator.clipboard.writeText(caption);
+          setShareStatus(
+            "이미지를 저장하고 인스타그램용 캡션도 복사했어요.",
+          );
+        } catch {
+          setShareStatus(
+            "이미지를 저장했어요. 인스타그램에서 사진을 선택해주세요.",
+          );
+        }
+      }
+    } catch (shareError) {
+      if (shareError instanceof DOMException && shareError.name === "AbortError") {
+        setShareStatus("공유를 취소했어요.");
+      } else {
+        setShareStatus("결과 카드를 만들지 못했어요. 다시 시도해주세요.");
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const downloadInstagramCard = async () => {
+    if (responses.length === 0 || sharing) return;
+    setSharing(true);
+    setShareStatus("");
+    try {
+      const { file, caption } = await createResultShareFile();
+      downloadResultShareFile(file);
+      try {
+        await navigator.clipboard.writeText(caption);
+        setShareStatus("카드 이미지 저장과 캡션 복사를 완료했어요.");
+      } catch {
+        setShareStatus("카드 이미지를 저장했어요.");
+      }
+    } catch {
+      setShareStatus("결과 카드를 만들지 못했어요. 다시 시도해주세요.");
+    } finally {
+      setSharing(false);
+    }
+  };
+
   const exportResults = async (format: "excel" | "word" | "csv") => {
     if (responses.length === 0 || exporting) return;
     setExporting(format);
@@ -4239,8 +4557,17 @@ function RealAnalyticsView({
         <div className="analytics-survey-select">
           <span>{title || "분석할 설문을 선택해주세요"}</span>
         </div>
-        <button type="button" className="share-results" onClick={onHome}>
-          홈으로
+        <button
+          type="button"
+          className="share-results"
+          disabled={responses.length === 0}
+          onClick={() => {
+            setShareStatus("");
+            setShareOpen(true);
+          }}
+        >
+          <Share2 size={15} />
+          결과 공유
         </button>
       </div>
       <div className="analytics-shell">
@@ -4346,6 +4673,40 @@ function RealAnalyticsView({
               </div>
             </div>
 
+            {responses.length > 0 && (
+              <section className="result-share-feature">
+                <div className="result-share-feature-preview" aria-hidden="true">
+                  <span>BAROFORM RESULTS</span>
+                  <strong>{title || "우리 학교 설문 결과"}</strong>
+                  <div>
+                    <small>실제 응답</small>
+                    <b>{responses.length.toLocaleString("ko-KR")}개</b>
+                  </div>
+                  <p>{shareQuestion}</p>
+                  <em>{shareResult}</em>
+                </div>
+                <div className="result-share-feature-copy">
+                  <span><InstagramGlyph size={17} /> INSTAGRAM 4:5</span>
+                  <h2>결과를 카드로 바로 공유하세요.</h2>
+                  <p>
+                    인스타그램 피드에 맞는 1080×1350 이미지와 캡션을
+                    자동으로 만들어요. 개별 응답 내용은 포함하지 않아요.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShareStatus("");
+                      setShareOpen(true);
+                    }}
+                  >
+                    <InstagramGlyph size={18} />
+                    인스타그램 공유 카드 만들기
+                    <ArrowRight size={17} />
+                  </button>
+                </div>
+              </section>
+            )}
+
             {responses.length === 0 ? (
               <div className="analytics-empty response-empty">
                 <span>
@@ -4409,6 +4770,79 @@ function RealAnalyticsView({
           </>
         )}
       </div>
+      {shareOpen && (
+        <div
+          className="modal-backdrop result-share-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="result-share-title"
+        >
+          <div className="result-share-modal">
+            <button
+              type="button"
+              className="result-share-close"
+              aria-label="결과 공유 닫기"
+              onClick={() => setShareOpen(false)}
+            >
+              <X size={20} />
+            </button>
+            <div className="result-share-preview">
+              <div className="result-share-preview-brand">
+                <span><BrandMark compact /> BAROFORM</span>
+                <em>RESULT CARD</em>
+              </div>
+              <h2>{title || "우리 학교 설문 결과"}</h2>
+              <span>지금까지 모인 실제 응답</span>
+              <strong>{responses.length.toLocaleString("ko-KR")}개</strong>
+              <div className="result-share-preview-insight">
+                <small>가장 눈에 띄는 결과</small>
+                <p>{shareQuestion}</p>
+                <b>{shareResult}</b>
+              </div>
+              <footer>
+                <span>응답 {responses.length.toLocaleString("ko-KR")}개 기준</span>
+                <strong>baroform-fixed.vercel.app{sharePath}</strong>
+                <small>
+                  전체 학생을 대표하지 않을 수 있으며 개별 응답 내용은
+                  포함하지 않았어요.
+                </small>
+              </footer>
+            </div>
+            <div className="result-share-controls">
+              <span className="eyebrow">SHARE RESULTS</span>
+              <h2 id="result-share-title">인스타그램용 카드가 준비됐어요.</h2>
+              <p>
+                모바일에서는 공유 앱 목록에서 Instagram을 선택하면 바로
+                이어집니다. 지원하지 않는 기기에서는 이미지와 캡션을
+                자동으로 저장해요.
+              </p>
+              <button
+                type="button"
+                className="instagram-share-button"
+                disabled={sharing}
+                onClick={() => void shareResultToInstagram()}
+              >
+                <InstagramGlyph size={19} />
+                {sharing ? "카드 만드는 중…" : "인스타그램에 공유"}
+              </button>
+              <button
+                type="button"
+                className="result-card-download"
+                disabled={sharing}
+                onClick={() => void downloadInstagramCard()}
+              >
+                <Download size={17} />
+                이미지 저장 + 캡션 복사
+              </button>
+              {shareStatus && (
+                <span className="result-share-status" role="status">
+                  {shareStatus}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
