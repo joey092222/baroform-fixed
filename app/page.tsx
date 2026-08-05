@@ -24,7 +24,9 @@ import {
   Link2,
   LogIn,
   LogOut,
+  Heart,
   Menu,
+  MessageCircle,
   Minus,
   MoreHorizontal,
   Plus,
@@ -73,6 +75,10 @@ import {
   shortenSurveyQuestionTitle,
 } from "./survey-revision";
 import CommunityView from "./community-view";
+import {
+  communityCategoryLabel,
+  type CommunityCategory,
+} from "./community";
 
 type View =
   | "landing"
@@ -1260,44 +1266,265 @@ function LandingView({
   );
 }
 
+type HomeCommunityPost = {
+  id: string;
+  title: string;
+  content: string;
+  category: CommunityCategory;
+  authorName: string;
+  createdAt: string;
+  likeCount: number;
+  commentCount: number;
+};
+
+function homeRelativeTime(value: string) {
+  const elapsed = Math.max(0, Date.now() - new Date(value).getTime());
+  const minutes = Math.floor(elapsed / 60_000);
+  if (minutes < 1) return "방금 전";
+  if (minutes < 60) return `${minutes}분 전`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}시간 전`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}일 전`;
+  return new Date(value).toLocaleDateString("ko-KR", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
 function ProductHomeView({
+  surveys,
+  loadingSurveys,
   onCreate,
   onOpenBoard,
+  onOpenSurvey,
+  onOpenCommunity,
 }: {
+  surveys: PublicSurvey[];
+  loadingSurveys: boolean;
   onCreate: () => void;
   onOpenBoard: () => void;
+  onOpenSurvey: (survey: PublicSurvey) => void;
+  onOpenCommunity: () => void;
 }) {
+  const [communityPosts, setCommunityPosts] = useState<HomeCommunityPost[]>([]);
+  const [loadingCommunity, setLoadingCommunity] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadCommunityPreview = async () => {
+      try {
+        const response = await fetch("/api/community?scope=all&school=yonsei", {
+          cache: "no-store",
+        });
+        const result = (await response.json()) as {
+          posts?: HomeCommunityPost[];
+        };
+        if (!cancelled && response.ok) {
+          setCommunityPosts((result.posts ?? []).slice(0, 4));
+        }
+      } catch {
+        if (!cancelled) setCommunityPosts([]);
+      } finally {
+        if (!cancelled) setLoadingCommunity(false);
+      }
+    };
+    void loadCommunityPreview();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const homeSurveys = useMemo(
+    () =>
+      [...surveys]
+        .sort((left, right) =>
+          (right.createdAt ?? "").localeCompare(left.createdAt ?? ""),
+        )
+        .slice(0, 6),
+    [surveys],
+  );
+  const totalResponses = surveys.reduce(
+    (total, survey) => total + (survey.responseCount ?? 0),
+    0,
+  );
+
   return (
     <>
-      <main className="home-main home-choice-main">
-        <section
-          className="home-path-chooser home-path-chooser--stacked"
-          aria-label="바로폼에서 할 일 선택"
-        >
-          <button
-            type="button"
-            className="home-path-card maker-choice"
-            onClick={onCreate}
-          >
-            <span className="home-path-icon"><Sparkles size={30} /></span>
-            <span className="home-path-copy">
-              <strong>설문 만들기</strong>
-              <small>AI로 쉽고 빠르게 설문을 제작해 보세요.</small>
+      <main className="campus-home-main">
+        <section className="campus-home-heading" aria-labelledby="campus-home-title">
+          <div>
+            <span className="campus-home-eyebrow">CAMPUS HOME</span>
+            <h1 id="campus-home-title">캠퍼스의 질문과 답을 한곳에서.</h1>
+          </div>
+          <span className="campus-home-status">
+            <i />
+            지금 참여 가능한 설문 {surveys.length}개
+          </span>
+        </section>
+
+        <section className="campus-home-hero" aria-label="바로폼 주요 기능">
+          <button type="button" className="campus-create-card" onClick={onCreate}>
+            <span className="campus-create-copy">
+              <span className="campus-create-label">
+                <WandSparkles size={15} /> AI SURVEY STUDIO
+              </span>
+              <strong>제작하기</strong>
+              <small>
+                떠오른 주제를 한 문장으로 적으면 설계부터 배포까지 바로
+                시작할 수 있어요.
+              </small>
+              <span className="campus-create-action">
+                새 설문 시작하기 <ArrowRight size={17} />
+              </span>
             </span>
-            <ArrowRight size={26} />
-          </button>
-          <button
-            type="button"
-            className="home-path-card response-choice"
-            onClick={onOpenBoard}
-          >
-            <span className="home-path-icon"><Coins size={30} /></span>
-            <span className="home-path-copy">
-              <strong>설문 참여하기</strong>
-              <small>지금 우리 학교 설문을 확인해 보세요.</small>
+            <span className="campus-create-flow" aria-hidden="true">
+              <span><i>01</i><b>AI 초안</b><em>질문을 구조화해요</em></span>
+              <span><i>02</i><b>응답 모집</b><em>학교 안에서 연결해요</em></span>
+              <span><i>03</i><b>결과 공유</b><em>카드로 바로 알려요</em></span>
             </span>
-            <ArrowRight size={26} />
           </button>
+
+          <div className="campus-home-quick-stack">
+            <button type="button" className="campus-quick-card survey-quick" onClick={onOpenBoard}>
+              <span className="campus-quick-icon"><School size={20} /></span>
+              <span>
+                <small>SURVEYS</small>
+                <strong>올라온 설문 보기</strong>
+                <em>{surveys.length}개 설문 · 응답 {totalResponses.toLocaleString("ko-KR")}개</em>
+              </span>
+              <ArrowRight size={18} />
+            </button>
+            <button type="button" className="campus-quick-card community-quick" onClick={onOpenCommunity}>
+              <span className="campus-quick-icon"><UsersRound size={20} /></span>
+              <span>
+                <small>COMMUNITY</small>
+                <strong>커뮤니티 둘러보기</strong>
+                <em>질문, 모집, 학교 이야기를 함께 나눠요</em>
+              </span>
+              <ArrowRight size={18} />
+            </button>
+          </div>
+        </section>
+
+        <section className="campus-home-section" aria-labelledby="home-surveys-title">
+          <div className="campus-section-heading">
+            <div>
+              <span>OPEN SURVEYS</span>
+              <h2 id="home-surveys-title">지금 올라와 있는 설문</h2>
+            </div>
+            <button type="button" onClick={onOpenBoard}>
+              전체 설문 보기 <ArrowRight size={16} />
+            </button>
+          </div>
+
+          {loadingSurveys ? (
+            <div className="home-survey-grid" aria-label="설문 목록 불러오는 중">
+              {[0, 1, 2].map((item) => (
+                <span className="home-content-skeleton" key={item} />
+              ))}
+            </div>
+          ) : homeSurveys.length > 0 ? (
+            <div className="home-survey-grid">
+              {homeSurveys.map((survey) => (
+                <button
+                  type="button"
+                  className="home-live-survey-card"
+                  key={survey.slug}
+                  onClick={() => onOpenSurvey(survey)}
+                >
+                  <span className="home-live-survey-top">
+                    <span>{categoryLabel(survey.category)}</span>
+                    <em><i /> 참여 가능</em>
+                  </span>
+                  <small>{survey.ownerName}</small>
+                  <strong>{survey.title}</strong>
+                  {survey.description && <p>{survey.description}</p>}
+                  <span className="home-live-survey-footer">
+                    <span><Clock3 size={14} /> 약 {survey.durationMinutes}분</span>
+                    <span><Eye size={14} /> {survey.responseCount ?? 0}</span>
+                    <b>+{(survey.rewardCash ?? 30).toLocaleString("ko-KR")}C</b>
+                    <ArrowRight size={16} />
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <button type="button" className="home-section-empty" onClick={onCreate}>
+              <span><Plus size={20} /></span>
+              <strong>아직 공개된 설문이 없어요.</strong>
+              <small>첫 번째 설문을 만들어 캠퍼스에 질문해 보세요.</small>
+            </button>
+          )}
+        </section>
+
+        <section className="campus-home-lower-grid">
+          <div className="campus-community-preview">
+            <div className="campus-section-heading compact">
+              <div>
+                <span>COMMUNITY</span>
+                <h2>캠퍼스에서 나누는 이야기</h2>
+              </div>
+              <button type="button" onClick={onOpenCommunity}>
+                전체 보기 <ArrowRight size={16} />
+              </button>
+            </div>
+            <div className="home-community-list">
+              {loadingCommunity ? (
+                [0, 1, 2].map((item) => (
+                  <span className="home-community-skeleton" key={item} />
+                ))
+              ) : communityPosts.length > 0 ? (
+                communityPosts.map((post) => (
+                  <button type="button" key={post.id} onClick={onOpenCommunity}>
+                    <span className="home-community-post-head">
+                      <b>{communityCategoryLabel(post.category)}</b>
+                      <small>{homeRelativeTime(post.createdAt)}</small>
+                    </span>
+                    <strong>{post.title}</strong>
+                    <p>{post.content}</p>
+                    <span className="home-community-post-meta">
+                      <em>{post.authorName}</em>
+                      <span><Heart size={13} /> {post.likeCount}</span>
+                      <span><MessageCircle size={13} /> {post.commentCount}</span>
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <button type="button" className="home-community-empty" onClick={onOpenCommunity}>
+                  <UsersRound size={22} />
+                  <span><strong>아직 첫 이야기를 기다리고 있어요.</strong><small>커뮤니티에서 질문을 남겨보세요.</small></span>
+                  <ArrowRight size={17} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <aside className="campus-home-hub" aria-labelledby="home-hub-title">
+            <span className="campus-home-eyebrow">QUICK ACCESS</span>
+            <h2 id="home-hub-title">필요한 곳으로 바로</h2>
+            <div>
+              <button type="button" onClick={onCreate}>
+                <span><WandSparkles size={18} /></span>
+                <strong>새 설문 제작</strong>
+                <ArrowRight size={15} />
+              </button>
+              <button type="button" onClick={onOpenBoard}>
+                <span><Coins size={18} /></span>
+                <strong>설문 참여</strong>
+                <ArrowRight size={15} />
+              </button>
+              <button type="button" onClick={onOpenCommunity}>
+                <span><MessageCircle size={18} /></span>
+                <strong>커뮤니티</strong>
+                <ArrowRight size={15} />
+              </button>
+            </div>
+            <p>
+              결과 분석, 캠퍼스 투표 등 새로운 기능도 이 허브에 자연스럽게
+              연결할 수 있어요.
+            </p>
+          </aside>
         </section>
       </main>
       <Footer />
@@ -5567,8 +5794,12 @@ export default function Home() {
       )}
       {view === "home" && (
         <ProductHomeView
+          surveys={publicSurveys}
+          loadingSurveys={loadingSurveys}
           onCreate={() => navigate("create")}
           onOpenBoard={() => navigate("board")}
+          onOpenSurvey={openSurvey}
+          onOpenCommunity={() => navigate("community")}
         />
       )}
       {view === "board" && (
