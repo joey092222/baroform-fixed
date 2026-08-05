@@ -148,12 +148,6 @@ type CampusPulse = {
   totalVotes: number;
   myVote: number | null;
   overall: number[];
-  segments: {
-    grade: Record<string, number[]>;
-    department: Record<string, number[]>;
-    gender: Record<string, number[]>;
-    school: Record<string, number[]>;
-  };
 };
 
 type ClarificationState = {
@@ -1519,23 +1513,9 @@ function CampusPulseSection({
   onReload: () => void;
   onCreate: () => void;
 }) {
-  const [grade, setGrade] = useState("");
-  const [department, setDepartment] = useState("");
-  const [gender, setGender] = useState("");
-  const [segmentType, setSegmentType] = useState<"overall" | "grade" | "department" | "gender" | "school">("overall");
-  const [segmentValue, setSegmentValue] = useState("");
   const [voting, setVoting] = useState(false);
   const [error, setError] = useState("");
-  const segmentValues = useMemo(
-    () => pulse && segmentType !== "overall" ? Object.keys(pulse.segments[segmentType]) : [],
-    [pulse, segmentType],
-  );
-  const activeSegmentValue = segmentValue || segmentValues[0] || "";
-  const resultCounts = pulse
-    ? segmentType === "overall"
-      ? pulse.overall
-      : pulse.segments[segmentType][activeSegmentValue] ?? pulse.overall
-    : [];
+  const resultCounts = pulse?.overall ?? [];
   const resultTotal = resultCounts.reduce((sum, count) => sum + count, 0);
 
   const vote = async (optionIndex: number) => {
@@ -1547,7 +1527,7 @@ function CampusPulseSection({
       const response = await fetch(`/api/pulses/${pulse.id}/vote`, {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ optionIndex, grade, department, gender }),
+        body: JSON.stringify({ optionIndex }),
       });
       const result = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(result.error || "투표를 저장하지 못했어요.");
@@ -1572,13 +1552,8 @@ function CampusPulseSection({
             <h3>{pulse.question}</h3>
             {pulse.myVote === null ? (
               <>
-                <div className="pulse-profile-fields">
-                  <select aria-label="학년" value={grade} onChange={(event) => setGrade(event.target.value)}><option value="">학년 선택</option><option value="1">1학년</option><option value="2">2학년</option><option value="3">3학년</option><option value="4">4학년</option><option value="graduate">대학원</option></select>
-                  <input aria-label="학과" value={department} maxLength={40} onChange={(event) => setDepartment(event.target.value)} placeholder="학과 (선택)" />
-                  <select aria-label="성별" value={gender} onChange={(event) => setGender(event.target.value)}><option value="">성별 선택</option><option value="female">여성</option><option value="male">남성</option><option value="other">기타/응답 안 함</option></select>
-                </div>
                 <div className="pulse-vote-options">{pulse.options.map((option, index) => <button type="button" key={option} disabled={voting} onClick={() => void vote(index)}><span>{index + 1}</span>{option}<ArrowRight size={16} /></button>)}</div>
-                {!user && <small className="pulse-login-note">학교별 결과 보호를 위해 로그인 후 한 번만 참여할 수 있어요.</small>}
+                <small className="pulse-login-note">선택지만 누르면 바로 반영돼요. 학교 계정당 한 번 참여할 수 있어요.</small>
               </>
             ) : (
               <div className="pulse-voted-message"><CheckCircle2 size={19} /><span><strong>투표했어요.</strong> 선택은 투표 기간 동안 다시 바꿀 수 있어요.</span></div>
@@ -1586,9 +1561,9 @@ function CampusPulseSection({
             {error && <span className="feature-modal-error" role="alert">{error}</span>}
           </div>
           <div className="pulse-result-panel">
-            <div className="pulse-result-head"><span>즉시 결과</span><div><select value={segmentType} onChange={(event) => { setSegmentType(event.target.value as typeof segmentType); setSegmentValue(""); }}><option value="overall">전체 대학생</option><option value="school">학교별</option><option value="grade">학년별</option><option value="department">학과별</option><option value="gender">성별</option></select>{segmentType !== "overall" && <select value={activeSegmentValue} onChange={(event) => setSegmentValue(event.target.value)} disabled={segmentValues.length === 0}>{segmentValues.length > 0 ? segmentValues.map((value) => <option key={value} value={value}>{value === "graduate" ? "대학원" : segmentType === "school" ? schoolLabel(value) : value}</option>) : <option>데이터 없음</option>}</select>}</div></div>
+            <div className="pulse-result-head"><span>즉시 결과</span><strong>{pulse.totalVotes.toLocaleString("ko-KR")}명 참여</strong></div>
             <div className="pulse-result-bars">{pulse.options.map((option, index) => { const percentage = resultTotal > 0 ? Math.round(((resultCounts[index] ?? 0) / resultTotal) * 100) : 0; return <div key={option}><span><strong>{option}</strong><em>{percentage}% · {resultCounts[index] ?? 0}명</em></span><i><b style={{ width: `${percentage}%` }} /></i></div>; })}</div>
-            <small>학교 인증 계정의 투표만 집계해요. 표본이 적을 때는 해석에 주의해주세요.</small>
+            <small>학교 인증 계정의 투표만 집계해요. 학년·학과 같은 추가 정보는 받지 않아요.</small>
           </div>
         </div>
       ) : (
@@ -3727,6 +3702,14 @@ function PublishModal({
             )}
           </div>
         )}
+        <div className="publish-instagram-callout">
+          <span><InstagramGlyph size={19} /></span>
+          <div>
+            <strong>인스타그램 배포 카드도 함께 만들 수 있어요</strong>
+            <small>배포 완료 후 4:5 홍보 이미지와 참여 캡션을 바로 공유해요.</small>
+          </div>
+          <CheckCircle2 size={16} />
+        </div>
         {error && (
           <p className="publish-error" role="alert">
             {error}
@@ -3778,6 +3761,8 @@ function PublishedView({
   onBoard: () => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const [instagramSharing, setInstagramSharing] = useState(false);
+  const [instagramStatus, setInstagramStatus] = useState("");
   const shareUrl =
     typeof window === "undefined"
       ? `?survey=${slug}`
@@ -3793,6 +3778,53 @@ function PublishedView({
     window.setTimeout(() => setCopied(false), 1800);
   };
 
+  const shareSurveyToInstagram = async () => {
+    if (instagramSharing) return;
+    setInstagramSharing(true);
+    setInstagramStatus("");
+    try {
+      const blob = await createInstagramSurveyCard({ title, surveyUrl: shareUrl });
+      const safeTitle = (title || "바로폼-설문")
+        .replace(/[\\/:*?"<>|]/g, "")
+        .trim()
+        .slice(0, 45);
+      const file = new File([blob], `${safeTitle || "바로폼-설문"}-참여.png`, {
+        type: "image/png",
+      });
+      const caption = [
+        title,
+        "로그인 없이 바로 참여할 수 있어요.",
+        `설문 참여하기 ${shareUrl}`,
+        "#바로폼 #대학생설문 #설문조사",
+      ].join("\n");
+      const canShareFile =
+        typeof navigator.share === "function" &&
+        (typeof navigator.canShare !== "function" || navigator.canShare({ files: [file] }));
+
+      if (canShareFile) {
+        setInstagramStatus("공유 앱 목록에서 Instagram을 선택해주세요.");
+        await navigator.share({ files: [file], title, text: caption });
+        setInstagramStatus("인스타그램용 설문 카드를 공유했어요.");
+      } else {
+        downloadResultShareFile(file);
+        try {
+          await navigator.clipboard.writeText(caption);
+          setInstagramStatus("홍보 카드 저장과 참여 캡션 복사를 완료했어요.");
+        } catch {
+          setInstagramStatus("인스타그램용 홍보 카드를 저장했어요.");
+        }
+      }
+    } catch (shareError) {
+      if (shareError instanceof DOMException && shareError.name === "AbortError") {
+        setInstagramStatus("공유를 취소했어요.");
+      } else {
+        setInstagramStatus("홍보 카드를 만들지 못했어요. 다시 시도해주세요.");
+      }
+    } finally {
+      setInstagramSharing(false);
+    }
+  };
+
   return (
     <main className="published-page">
       <div className="published-shell">
@@ -3806,11 +3838,21 @@ function PublishedView({
         </p>
         <div className="share-box">
           <span>{shareUrl}</span>
-          <button type="button" onClick={copyLink}>
+          <button type="button" className="copy-share-button" onClick={copyLink}>
             {copied ? <Check size={18} /> : <Copy size={18} />}
             {copied ? "복사됨" : "링크 복사"}
           </button>
+          <button
+            type="button"
+            className="instagram-publish-button"
+            onClick={() => void shareSurveyToInstagram()}
+            disabled={instagramSharing}
+          >
+            <InstagramGlyph size={18} />
+            {instagramSharing ? "카드 만드는 중…" : "인스타로 배포"}
+          </button>
         </div>
+        {instagramStatus && <span className="published-share-status" role="status">{instagramStatus}</span>}
         <div className="share-banner">
           <div>
             <BrandMark compact />
@@ -3818,7 +3860,7 @@ function PublishedView({
           </div>
           <h2>{title}</h2>
           <p>로그인 없이 참여 · 익명 응답</p>
-          <span className="share-banner-badge">링크를 복사해 바로 공유하세요</span>
+          <span className="share-banner-badge"><InstagramGlyph size={13} /> 인스타그램 4:5 카드 지원</span>
         </div>
         <div className="access-info">
           <div>
@@ -4758,6 +4800,11 @@ type ResultShareCardInput = {
   surveyUrl: string;
 };
 
+type SurveyShareCardInput = {
+  title: string;
+  surveyUrl: string;
+};
+
 function InstagramGlyph({ size = 18 }: { size?: number }) {
   return (
     <svg
@@ -4836,6 +4883,106 @@ function drawWrappedCanvasText(
     context.fillText(visibleLine, x, y + index * lineHeight);
   });
   return y + visibleLines.length * lineHeight;
+}
+
+async function createInstagramSurveyCard({
+  title,
+  surveyUrl,
+}: SurveyShareCardInput) {
+  await document.fonts.ready;
+  const canvas = document.createElement("canvas");
+  canvas.width = 1080;
+  canvas.height = 1350;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("설문 홍보 카드 캔버스를 만들지 못했어요.");
+
+  const background = context.createLinearGradient(0, 0, 1080, 1350);
+  background.addColorStop(0, "#f8f9ff");
+  background.addColorStop(0.56, "#edf1ff");
+  background.addColorStop(1, "#fff6e9");
+  context.fillStyle = background;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  const glow = context.createRadialGradient(900, 130, 10, 900, 130, 450);
+  glow.addColorStop(0, "rgba(106, 128, 220, 0.36)");
+  glow.addColorStop(1, "rgba(106, 128, 220, 0)");
+  context.fillStyle = glow;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  context.fillStyle = "#20345f";
+  drawCanvasRoundedRect(context, 76, 68, 76, 76, 21);
+  context.fill();
+  context.fillStyle = "#ffffff";
+  drawCanvasRoundedRect(context, 94, 86, 19, 19, 5);
+  context.fill();
+  drawCanvasRoundedRect(context, 117, 109, 19, 19, 5);
+  context.fill();
+
+  context.fillStyle = "#20345f";
+  context.font = '800 34px "Noto Sans KR Variable", sans-serif';
+  context.fillText("BAROFORM", 178, 119);
+  context.fillStyle = "#6676b6";
+  context.font = '800 21px "Noto Sans KR Variable", sans-serif';
+  context.fillText("SURVEY INVITATION", 765, 116);
+
+  context.fillStyle = "#dfe6ff";
+  drawCanvasRoundedRect(context, 76, 218, 254, 54, 27);
+  context.fill();
+  context.fillStyle = "#465caa";
+  context.font = '800 22px "Noto Sans KR Variable", sans-serif';
+  context.fillText("지금 참여해주세요", 105, 253);
+
+  context.fillStyle = "#182640";
+  context.font = '850 70px "Noto Sans KR Variable", sans-serif';
+  const titleBottom = drawWrappedCanvasText(
+    context,
+    title || "우리 학교 설문",
+    76,
+    372,
+    920,
+    94,
+    4,
+  );
+
+  context.fillStyle = "#68758f";
+  context.font = '650 29px "Noto Sans KR Variable", sans-serif';
+  context.fillText("당신의 답이 더 좋은 캠퍼스를 만들어요.", 80, titleBottom + 55);
+
+  context.fillStyle = "#ffffff";
+  drawCanvasRoundedRect(context, 76, 790, 928, 322, 36);
+  context.fill();
+  context.strokeStyle = "#dce2f0";
+  context.lineWidth = 2;
+  context.stroke();
+
+  context.fillStyle = "#20345f";
+  context.font = '850 27px "Noto Sans KR Variable", sans-serif';
+  context.fillText("로그인 없이 바로 참여", 126, 866);
+  context.fillStyle = "#77839a";
+  context.font = '620 23px "Noto Sans KR Variable", sans-serif';
+  context.fillText("링크를 열고 설문을 완료해주세요.", 126, 913);
+
+  context.fillStyle = "#20345f";
+  drawCanvasRoundedRect(context, 126, 968, 828, 90, 22);
+  context.fill();
+  context.fillStyle = "#ffffff";
+  context.font = '750 24px "Noto Sans KR Variable", sans-serif';
+  const displayUrl = surveyUrl.replace(/^https?:\/\//, "");
+  drawWrappedCanvasText(context, displayUrl, 164, 1022, 750, 31, 2);
+
+  context.fillStyle = "#6d7a96";
+  context.font = '650 22px "Noto Sans KR Variable", sans-serif';
+  context.fillText("바로폼에서 만든 설문 · 익명 응답", 78, 1247);
+  context.fillStyle = "#20345f";
+  context.font = '800 22px "Noto Sans KR Variable", sans-serif';
+  context.fillText("baroform", 875, 1247);
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("설문 홍보 카드 이미지를 만들지 못했어요."));
+    }, "image/png");
+  });
 }
 
 async function createInstagramResultCard({

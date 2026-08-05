@@ -44,13 +44,6 @@ export async function GET(request: Request) {
     const pulses = pulseRows.map((pulse) => {
       const options = JSON.parse(pulse.optionsJson) as string[];
       const votes = voteRows.filter((vote) => vote.pulseId === pulse.id);
-      const segment = (key: "grade" | "department" | "gender") =>
-        Object.fromEntries(
-          [...new Set(votes.map((vote) => vote[key]).filter(Boolean))].map((value) => [
-            value,
-            countsFor(votes.filter((vote) => vote[key] === value), options.length),
-          ]),
-        );
       return {
         id: pulse.id,
         question: pulse.question,
@@ -60,12 +53,6 @@ export async function GET(request: Request) {
         totalVotes: votes.length,
         myVote: user ? votes.find((vote) => vote.memberId === user.id)?.optionIndex ?? null : null,
         overall: countsFor(votes, options.length),
-        segments: {
-          grade: segment("grade"),
-          department: segment("department"),
-          gender: segment("gender"),
-          school: { [schoolId]: countsFor(votes, options.length) },
-        },
       };
     });
     return Response.json({ pulses }, { headers: noStoreHeaders });

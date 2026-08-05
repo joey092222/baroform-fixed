@@ -20,9 +20,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const { id } = await context.params;
     const payload = (await request.json()) as {
       optionIndex?: number;
-      grade?: string;
-      department?: string;
-      gender?: string;
     };
     const db = await getDb();
     const [pulse] = await db
@@ -39,20 +36,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (!pulse || !Number.isInteger(optionIndex) || optionIndex < 0 || optionIndex >= optionCount) {
       return Response.json({ error: "선택 가능한 투표 항목을 골라주세요." }, { status: 400 });
     }
-    const grade = ["1", "2", "3", "4", "graduate"].includes(payload.grade ?? "") ? payload.grade ?? "" : "";
-    const gender = ["female", "male", "other"].includes(payload.gender ?? "") ? payload.gender ?? "" : "";
-    const department = payload.department?.replace(/\s+/g, " ").trim().slice(0, 40) ?? "";
     await db.insert(campusPulseVotes).values({
       id: crypto.randomUUID(),
       pulseId: id,
       memberId: user.id,
       optionIndex,
-      grade,
-      department,
-      gender,
     }).onConflictDoUpdate({
       target: [campusPulseVotes.pulseId, campusPulseVotes.memberId],
-      set: { optionIndex, grade, department, gender, createdAt: new Date().toISOString() },
+      set: { optionIndex, createdAt: new Date().toISOString() },
     });
     return Response.json({ ok: true }, { status: 201 });
   } catch (error) {
