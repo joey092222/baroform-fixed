@@ -504,7 +504,7 @@ function Header({
   cashBalance: number;
 }) {
   const scrollToMaker = () => {
-    onNavigate("create");
+    onNavigate("home");
   };
 
   return (
@@ -543,9 +543,14 @@ function Header({
             aria-current={view === "board" ? "page" : undefined}
             onClick={() => onNavigate("board")}
           >
-            학교 설문
+            설문 참여하기
           </button>
-          <button type="button" onClick={scrollToMaker}>
+          <button
+            type="button"
+            className={view === "home" ? "active" : ""}
+            aria-current={view === "home" ? "page" : undefined}
+            onClick={scrollToMaker}
+          >
             설문 만들기
           </button>
           <button type="button" onClick={() => onNavigate("analytics")}>
@@ -683,7 +688,7 @@ function WorkspaceSidebar({
             onClick={() => go("home")}
           >
             <WandSparkles size={17} />
-            홈
+            설문 만들기
           </button>
           <button
             type="button"
@@ -691,7 +696,7 @@ function WorkspaceSidebar({
             onClick={() => go("board")}
           >
             <School size={17} />
-            설문 찾기
+            설문 참여하기
           </button>
           <button
             type="button"
@@ -1266,10 +1271,6 @@ function ProductHomeView({
   references,
   setReferences,
   onCreate,
-  onOpenBoard,
-  onOpenSurvey,
-  surveys,
-  loadingSurveys,
   isAnalyzing,
 }: {
   prompt: string;
@@ -1277,53 +1278,24 @@ function ProductHomeView({
   references: SurveyReferences;
   setReferences: (value: SurveyReferences) => void;
   onCreate: () => void;
-  onOpenBoard: () => void;
-  onOpenSurvey: (survey: PublicSurvey) => void;
-  surveys: PublicSurvey[];
-  loadingSurveys: boolean;
   isAnalyzing: boolean;
 }) {
   const canContinue = prompt.trim().length >= 2 || hasSurveyReferences(references);
 
   return (
     <>
-      <main className="home-main">
-        <section className="home-intro">
+      <main className="home-main creation-home-main">
+        <section className="home-intro creation-home-intro">
           <div className="campus-kicker">
             <span className="campus-symbol">Y</span>
             <span>연세대학교 신촌캠퍼스 · 베타</span>
           </div>
-          <h1>만들거나, 참여하거나.</h1>
+          <h1>설문 만들기</h1>
         </section>
 
-        <section className="home-path-chooser" aria-label="바로폼에서 할 일 선택">
-          <button
-            type="button"
-            className="home-path-card maker-choice"
-            onClick={() => document.getElementById("survey-maker")?.focus()}
-          >
-            <span className="home-path-icon"><Sparkles size={21} /></span>
-            <span>
-              <strong>설문 만들기</strong>
-            </span>
-            <ArrowRight size={19} />
-          </button>
-          <button
-            type="button"
-            className="home-path-card response-choice"
-            onClick={onOpenBoard}
-          >
-            <span className="home-path-icon"><Coins size={21} /></span>
-            <span>
-              <strong>설문 참여하기</strong>
-            </span>
-            <ArrowRight size={19} />
-          </button>
-        </section>
-
-        <section className="first-viewport-grid">
-          <div className="maker-panel">
-            <span className="maker-ai-mark">01 · 빠른 설문 제작</span>
+        <section className="creation-workspace">
+          <div className="maker-panel creation-maker-panel">
+            <span className="maker-ai-mark">AI 설문 제작</span>
             <h2>어떤 설문을 만들까요?</h2>
             <div className="prompt-box">
               <textarea
@@ -1373,73 +1345,7 @@ function ProductHomeView({
               </div>
             </div>
           </div>
-
-          <div
-            className={`campus-preview-panel ${
-              !loadingSurveys && surveys.length === 0 ? "empty" : ""
-            }`}
-          >
-            <div className="section-title-row compact-title-row">
-              <div>
-                <span className="eyebrow">02 · 지금 우리 학교</span>
-                <h2>지금 열려 있는 설문</h2>
-              </div>
-              <button
-                type="button"
-                className="text-link"
-                onClick={onOpenBoard}
-              >
-                게시판 보기
-                <ChevronRight size={16} />
-              </button>
-            </div>
-            <div
-              className={`preview-survey-grid preview-count-${Math.min(
-                surveys.length,
-                2,
-              )}`}
-            >
-              {loadingSurveys ? (
-                <div className="survey-loading-state" aria-live="polite">
-                  <span />
-                  <span />
-                  <span />
-                  <p>공개 설문을 불러오고 있어요.</p>
-                </div>
-              ) : surveys.length > 0 ? (
-                surveys.slice(0, 2).map((survey) => (
-                  <CampusSurveyCard
-                    key={survey.slug}
-                    survey={survey}
-                    onClick={() => onOpenSurvey(survey)}
-                    featured
-                  />
-                ))
-              ) : (
-                <button
-                  type="button"
-                  className="real-empty-state board-entry-empty"
-                  onClick={onOpenBoard}
-                  aria-label="연세대학교 설문 게시판으로 이동"
-                >
-                  <span className="empty-state-icon">
-                    <School size={25} />
-                  </span>
-                  <strong>아직 공개된 학교 설문이 없어요.</strong>
-                  <p>
-                    게시판에서 카테고리별 설문을 확인하거나 첫 설문을
-                    올려보세요.
-                  </p>
-                  <span className="board-entry-action">
-                    학교 설문 게시판으로 이동
-                    <ArrowRight size={15} />
-                  </span>
-                </button>
-              )}
-            </div>
-          </div>
         </section>
-
       </main>
       <Footer />
     </>
@@ -1495,7 +1401,7 @@ function SchoolBoardView({
               <span>Y</span>
               연세대학교 신촌캠퍼스
             </span>
-            <h1>학교 설문 게시판</h1>
+            <h1>설문 참여하기</h1>
           </div>
           <button type="button" className="board-create-button" onClick={onCreate}>
             <Plus size={18} />
@@ -4865,9 +4771,11 @@ export default function Home() {
             window.setTimeout(() => setToast(""), 2400);
           }
         });
-    } else if (pageParams.get("app") === "1") {
+    } else if (pageParams.get("app")) {
       window.queueMicrotask(() => {
-        if (!cancelled) setView("home");
+        if (!cancelled) {
+          setView(pageParams.get("app") === "surveys" ? "board" : "home");
+        }
       });
     }
     return () => {
@@ -4879,7 +4787,10 @@ export default function Home() {
     const syncEntryView = () => {
       const params = new URLSearchParams(window.location.search);
       if (params.get("survey")) return;
-      setView(params.get("app") === "1" ? "home" : "landing");
+      const appPage = params.get("app");
+      setView(
+        appPage === "surveys" ? "board" : appPage ? "home" : "landing",
+      );
       window.scrollTo({ top: 0 });
     };
 
@@ -4935,7 +4846,9 @@ export default function Home() {
       const nextUrl =
         nextView === "landing"
           ? window.location.pathname
-          : `${window.location.pathname}?app=1`;
+          : `${window.location.pathname}?app=${
+              nextView === "board" ? "surveys" : "create"
+            }`;
       if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
         window.history.replaceState({}, "", nextUrl);
       }
@@ -4948,7 +4861,9 @@ export default function Home() {
     window.history.pushState(
       { baroformEntry: "app" },
       "",
-      `${window.location.pathname}?app=1`,
+      `${window.location.pathname}?app=${
+        destination === "board" ? "surveys" : "create"
+      }`,
     );
     setView(destination);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -5279,10 +5194,6 @@ export default function Home() {
           references={references}
           setReferences={updateReferences}
           onCreate={() => navigate("create")}
-          onOpenBoard={() => navigate("board")}
-          onOpenSurvey={openSurvey}
-          surveys={publicSurveys}
-          loadingSurveys={loadingSurveys}
           isAnalyzing={isAnalyzing}
         />
       )}
