@@ -94,6 +94,7 @@ export const responses = pgTable(
     }),
     answersJson: text("answers_json").notNull(),
     completionSeconds: integer("completion_seconds").notNull().default(0),
+    fingerprintHash: text("fingerprint_hash"),
     createdAt: timestamp("created_at", {
       withTimezone: true,
       mode: "string",
@@ -110,6 +111,109 @@ export const responses = pgTable(
       table.memberId,
       table.surveyId,
     ),
+  ],
+);
+
+export const externalSurveys = pgTable(
+  "external_surveys",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    schoolId: text("school_id").notNull().default("yonsei"),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    externalUrl: text("external_url").notNull(),
+    platform: text("platform").notNull().default("external"),
+    category: text("category").notNull().default("campus"),
+    campus: text("campus").notNull(),
+    durationMinutes: integer("duration_minutes").notNull().default(3),
+    targetResponses: integer("target_responses").notNull().default(50),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("external_surveys_school_created_idx").on(
+      table.schoolId,
+      table.createdAt,
+    ),
+    index("external_surveys_owner_created_idx").on(
+      table.ownerId,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const externalSurveyVisits = pgTable(
+  "external_survey_visits",
+  {
+    id: text("id").primaryKey(),
+    externalSurveyId: text("external_survey_id")
+      .notNull()
+      .references(() => externalSurveys.id, { onDelete: "cascade" }),
+    memberId: text("member_id").references(() => members.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("external_survey_visits_survey_idx").on(table.externalSurveyId),
+  ],
+);
+
+export const campusPulses = pgTable(
+  "campus_pulses",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    schoolId: text("school_id").notNull().default("yonsei"),
+    question: text("question").notNull(),
+    optionsJson: text("options_json").notNull(),
+    status: text("status").notNull().default("active"),
+    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "string" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("campus_pulses_school_created_idx").on(
+      table.schoolId,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const campusPulseVotes = pgTable(
+  "campus_pulse_votes",
+  {
+    id: text("id").primaryKey(),
+    pulseId: text("pulse_id")
+      .notNull()
+      .references(() => campusPulses.id, { onDelete: "cascade" }),
+    memberId: text("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    optionIndex: integer("option_index").notNull(),
+    grade: text("grade").notNull().default(""),
+    department: text("department").notNull().default(""),
+    gender: text("gender").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("campus_pulse_votes_member_unique").on(
+      table.pulseId,
+      table.memberId,
+    ),
+    index("campus_pulse_votes_pulse_idx").on(table.pulseId),
   ],
 );
 

@@ -1,8 +1,14 @@
 import { and, desc, eq, sql } from "drizzle-orm";
+import { createHash } from "node:crypto";
 import { databaseErrorMessage, getDb } from "@/db";
 import { getSessionUser } from "@/db/auth";
 import { cashTransactions, responses, surveys } from "@/db/schema";
 import { surveyRewardAmount } from "@/app/rewards";
+import {
+  addBatchQualityFlags,
+  assessResponseQuality,
+  responseTextFingerprint,
+} from "@/app/response-quality";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -94,6 +100,7 @@ export async function POST(
         ownerId: surveys.ownerId,
         rewardCash: surveys.rewardCash,
         questionsJson: surveys.questionsJson,
+        durationMinutes: surveys.durationMinutes,
       })
       .from(surveys)
       .where(and(eq(surveys.slug, slug), eq(surveys.isPublic, true)))
@@ -247,6 +254,14 @@ export async function POST(
     }
 
     const responseId = crypto.randomUUID();
+    const requestFingerprint = [
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown",
+      request.headers.get("user-agent")?.slice(0, 240) ?? "unknown",
+      survey.id,
+    ].join("|");
+    const fingerprintHash = createHash("sha256")
+      .update(requestFingerprint)
+      .digest("hex");
     const responseInsert = db.insert(responses).values({
       id: responseId,
       surveyId: survey.id,
@@ -256,6 +271,7 @@ export async function POST(
         0,
         Math.min(86400, Math.round(payload.completionSeconds ?? 0)),
       ),
+      fingerprintHash,
     });
 
     const rewardAmount = surveyRewardAmount({
@@ -341,6 +357,8 @@ export async function GET(
       .select({
         id: surveys.id,
         manageToken: surveys.manageToken,
+        questionsJson: surveys.questionsJson,
+        durationMinutes: surveys.durationMinutes,
       })
       .from(surveys)
       .where(eq(surveys.slug, slug))
@@ -358,6 +376,7 @@ export async function GET(
         id: responses.id,
         answersJson: responses.answersJson,
         completionSeconds: responses.completionSeconds,
+        fingerprintHash: responses.fingerprintHash,
         createdAt: responses.createdAt,
       })
       .from(responses)
@@ -365,11 +384,44 @@ export async function GET(
       .orderBy(desc(responses.createdAt))
       .limit(500);
 
-    const parsed = rows.map((row) => ({
+    const questions = JSON.parse(survey.questionsJson) as StoredQuestion[];
+    const fingerprintCounts = new Map<string, number>();
+    const textCounts = new Map<string, number>();
+    const base = rows.map((row) => {
+      const answers = JSON.parse(row.answersJson);
+      const textFingerprint = responseTextFingerprint(answers);
+      if (row.fingerprintHash) {
+        fingerprintCounts.set(
+          row.fingerprintHash,
+          (fingerprintCounts.get(row.fingerprintHash) ?? 0) + 1,
+        );
+      }
+      if (textFingerprint) {
+        textCounts.set(textFingerprint, (textCounts.get(textFingerprint) ?? 0) + 1);
+      }
+      return { row, answers, textFingerprint };
+    });
+    const parsed = base.map(({ row, answers, textFingerprint }) => ({
       id: row.id,
-      answers: JSON.parse(row.answersJson),
+      answers,
       completionSeconds: row.completionSeconds,
       createdAt: row.createdAt,
+      quality: addBatchQualityFlags(
+        assessResponseQuality({
+          answers,
+          questions,
+          completionSeconds: row.completionSeconds,
+          durationMinutes: survey.durationMinutes,
+        }),
+        {
+          duplicateDevice: Boolean(
+            row.fingerprintHash && (fingerprintCounts.get(row.fingerprintHash) ?? 0) > 1,
+          ),
+          duplicateText: Boolean(
+            textFingerprint && (textCounts.get(textFingerprint) ?? 0) > 1,
+          ),
+        },
+      ),
     }));
 
     return Response.json({ responses: parsed }, { headers: noStoreHeaders });

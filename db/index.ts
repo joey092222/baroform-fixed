@@ -139,6 +139,9 @@ async function ensureSchema(database: Database) {
     ALTER TABLE responses ADD COLUMN IF NOT EXISTS member_id TEXT
   `);
   await database.execute(sql`
+    ALTER TABLE responses ADD COLUMN IF NOT EXISTS fingerprint_hash TEXT
+  `);
+  await database.execute(sql`
     CREATE UNIQUE INDEX IF NOT EXISTS responses_member_survey_unique
       ON responses (member_id, survey_id)
   `);
@@ -202,6 +205,76 @@ async function ensureSchema(database: Database) {
   await database.execute(sql`
     CREATE INDEX IF NOT EXISTS community_likes_post_idx
       ON community_likes (post_id)
+  `);
+  await database.execute(sql`
+    CREATE TABLE IF NOT EXISTS external_surveys (
+      id TEXT PRIMARY KEY,
+      owner_id TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+      school_id TEXT NOT NULL DEFAULT 'yonsei',
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      external_url TEXT NOT NULL,
+      platform TEXT NOT NULL DEFAULT 'external',
+      category TEXT NOT NULL DEFAULT 'campus',
+      campus TEXT NOT NULL,
+      duration_minutes INTEGER NOT NULL DEFAULT 3,
+      target_responses INTEGER NOT NULL DEFAULT 50,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await database.execute(sql`
+    CREATE INDEX IF NOT EXISTS external_surveys_school_created_idx
+      ON external_surveys (school_id, created_at DESC)
+  `);
+  await database.execute(sql`
+    CREATE INDEX IF NOT EXISTS external_surveys_owner_created_idx
+      ON external_surveys (owner_id, created_at DESC)
+  `);
+  await database.execute(sql`
+    CREATE TABLE IF NOT EXISTS external_survey_visits (
+      id TEXT PRIMARY KEY,
+      external_survey_id TEXT NOT NULL REFERENCES external_surveys(id) ON DELETE CASCADE,
+      member_id TEXT REFERENCES members(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await database.execute(sql`
+    CREATE INDEX IF NOT EXISTS external_survey_visits_survey_idx
+      ON external_survey_visits (external_survey_id)
+  `);
+  await database.execute(sql`
+    CREATE TABLE IF NOT EXISTS campus_pulses (
+      id TEXT PRIMARY KEY,
+      owner_id TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+      school_id TEXT NOT NULL DEFAULT 'yonsei',
+      question TEXT NOT NULL,
+      options_json TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      expires_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await database.execute(sql`
+    CREATE INDEX IF NOT EXISTS campus_pulses_school_created_idx
+      ON campus_pulses (school_id, created_at DESC)
+  `);
+  await database.execute(sql`
+    CREATE TABLE IF NOT EXISTS campus_pulse_votes (
+      id TEXT PRIMARY KEY,
+      pulse_id TEXT NOT NULL REFERENCES campus_pulses(id) ON DELETE CASCADE,
+      member_id TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+      option_index INTEGER NOT NULL,
+      grade TEXT NOT NULL DEFAULT '',
+      department TEXT NOT NULL DEFAULT '',
+      gender TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (pulse_id, member_id)
+    )
+  `);
+  await database.execute(sql`
+    CREATE INDEX IF NOT EXISTS campus_pulse_votes_pulse_idx
+      ON campus_pulse_votes (pulse_id)
   `);
 }
 

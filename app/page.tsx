@@ -93,6 +93,7 @@ type View =
   | "analytics";
 
 type PublicSurvey = {
+  source?: "internal" | "external";
   slug: string;
   title: string;
   description: string;
@@ -106,6 +107,10 @@ type PublicSurvey = {
   questionCount?: number;
   createdAt?: string;
   questions?: Question[];
+  externalUrl?: string;
+  platform?: string;
+  targetResponses?: number;
+  participantCount?: number;
 };
 
 type OwnedSurvey = PublicSurvey & {
@@ -127,6 +132,28 @@ type StoredResponse = {
   answers: StoredAnswer[];
   completionSeconds: number;
   createdAt: string;
+  quality?: {
+    score: number;
+    status: "usable" | "review" | "exclude";
+    reasons: string[];
+  };
+};
+
+type CampusPulse = {
+  id: string;
+  question: string;
+  options: string[];
+  createdAt: string;
+  expiresAt: string;
+  totalVotes: number;
+  myVote: number | null;
+  overall: number[];
+  segments: {
+    grade: Record<string, number[]>;
+    department: Record<string, number[]>;
+    gender: Record<string, number[]>;
+    school: Record<string, number[]>;
+  };
 };
 
 type ClarificationState = {
@@ -793,7 +820,7 @@ function CampusSurveyCard({
           <span className="category-pill">{categoryLabel(survey.category)}</span>
           <span className="preview-open-status">
             <i />
-            로그인 없이 참여
+            {survey.source === "external" ? survey.platform ?? "외부 설문" : "로그인 없이 참여"}
           </span>
         </div>
         <span className="preview-card-owner">{survey.ownerName}</span>
@@ -803,10 +830,11 @@ function CampusSurveyCard({
         )}
         <div className="preview-card-footer">
           <span><Clock3 size={16} />약 {survey.durationMinutes}분</span>
-          <span className="preview-card-reward">
-            <Coins size={16} />
-            +{(survey.rewardCash ?? 30).toLocaleString("ko-KR")}C
-          </span>
+          {survey.source === "external" ? (
+            <span className="preview-card-reward"><UsersRound size={16} /> 목표 {survey.targetResponses ?? 0}명</span>
+          ) : (
+            <span className="preview-card-reward"><Coins size={16} />+{(survey.rewardCash ?? 30).toLocaleString("ko-KR")}C</span>
+          )}
           <strong>참여하기 <ArrowRight size={17} /></strong>
         </div>
       </button>
@@ -823,8 +851,8 @@ function CampusSurveyCard({
       <div className="survey-card-top">
         <span className="category-pill">{categoryLabel(survey.category)}</span>
         <span className="survey-cash">
-          <Coins size={14} />
-          <strong>+{(survey.rewardCash ?? 30).toLocaleString("ko-KR")}C</strong>
+          {survey.source === "external" ? <Link2 size={14} /> : <Coins size={14} />}
+          <strong>{survey.source === "external" ? survey.platform ?? "외부 설문" : `+${(survey.rewardCash ?? 30).toLocaleString("ko-KR")}C`}</strong>
         </span>
       </div>
       <h3>{survey.title}</h3>
@@ -1307,23 +1335,23 @@ function HomeSurveyCard({
     >
       <span className="home-live-survey-top">
         <span>{categoryLabel(survey.category)}</span>
-        <em><i /> 참여 가능</em>
+        <em><i /> {survey.source === "external" ? survey.platform ?? "외부 설문" : "참여 가능"}</em>
       </span>
       <strong>{survey.title}</strong>
       <span className="home-survey-meta">
         <span><Clock3 size={13} /> 약 {survey.durationMinutes}분</span>
-        <span>{survey.questionCount ?? survey.questions?.length ?? 0}문항</span>
+        <span>{survey.source === "external" ? "링크 설문" : `${survey.questionCount ?? survey.questions?.length ?? 0}문항`}</span>
       </span>
       <span className="home-survey-reward">
-        <Coins size={13} />
-        {(survey.rewardCash ?? 30).toLocaleString("ko-KR")}C
+        {survey.source === "external" ? <UsersRound size={13} /> : <Coins size={13} />}
+        {survey.source === "external" ? `목표 ${survey.targetResponses ?? 0}명` : `${(survey.rewardCash ?? 30).toLocaleString("ko-KR")}C`}
       </span>
       <span className="home-survey-campus">
         <CheckCircle2 size={13} />
         <span>{survey.campus || schoolLabel(survey.schoolId)}</span>
       </span>
       <span className="home-live-survey-footer">
-        <span>응답 {(survey.responseCount ?? 0).toLocaleString("ko-KR")}개</span>
+        <span>{survey.source === "external" ? "참여 이동" : "응답"} {(survey.responseCount ?? 0).toLocaleString("ko-KR")}{survey.source === "external" ? "회" : "개"}</span>
         <strong>참여하기 <ArrowRight size={15} /></strong>
       </span>
     </button>
@@ -1355,10 +1383,229 @@ function HomeOwnedSurveyCard({
   );
 }
 
+function ExternalSurveyModal({
+  authToken,
+  onClose,
+  onSaved,
+}: {
+  authToken: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [externalUrl, setExternalUrl] = useState("");
+  const [description, setDescription] = useState("");
+  const [durationMinutes, setDurationMinutes] = useState(3);
+  const [targetResponses, setTargetResponses] = useState(50);
+  const [category, setCategory] = useState<SurveyCategory>("campus");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch("/api/external-surveys", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ title, externalUrl, description, durationMinutes, targetResponses, category }),
+      });
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(result.error || "외부 설문을 등록하지 못했어요.");
+      onSaved();
+      onClose();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "외부 설문을 등록하지 못했어요.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop feature-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="external-survey-title">
+      <form className="feature-modal" onSubmit={submit}>
+        <button type="button" className="feature-modal-close" onClick={onClose} aria-label="닫기"><X size={20} /></button>
+        <span className="feature-modal-kicker"><Link2 size={16} /> EXTERNAL SURVEY</span>
+        <h2 id="external-survey-title">이미 만든 설문도 바로 모집하세요.</h2>
+        <p>Google Forms, Typeform 등 공개 링크를 등록하면 학교 설문 목록에서 응답자를 찾을 수 있어요.</p>
+        <label><span>설문 제목</span><input required minLength={2} maxLength={100} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="예: 축제 라인업 만족도 조사" /></label>
+        <label><span>설문 링크</span><input required type="url" value={externalUrl} onChange={(event) => setExternalUrl(event.target.value)} placeholder="https://forms.google.com/..." /></label>
+        <label><span>한 줄 소개 <small>선택</small></span><textarea maxLength={600} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="누가, 왜 참여하면 좋은지 알려주세요." /></label>
+        <div className="feature-modal-row">
+          <label><span>예상 시간</span><input type="number" min={1} max={60} value={durationMinutes} onChange={(event) => setDurationMinutes(Number(event.target.value))} /><em>분</em></label>
+          <label><span>목표 인원</span><input type="number" min={5} max={5000} value={targetResponses} onChange={(event) => setTargetResponses(Number(event.target.value))} /><em>명</em></label>
+        </div>
+        <label><span>카테고리</span><select value={category} onChange={(event) => setCategory(event.target.value as SurveyCategory)}>{surveyCategories.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+        {error && <span className="feature-modal-error" role="alert">{error}</span>}
+        <button type="submit" className="feature-modal-submit" disabled={saving}>{saving ? "등록 중…" : "학교 게시판에 등록하기"}<ArrowRight size={17} /></button>
+      </form>
+    </div>
+  );
+}
+
+function PulseCreateModal({
+  authToken,
+  onClose,
+  onSaved,
+}: {
+  authToken: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [question, setQuestion] = useState("");
+  const [options, setOptions] = useState(["", ""]);
+  const [expiresHours, setExpiresHours] = useState(24);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch("/api/pulses", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ question, options, expiresHours }),
+      });
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(result.error || "투표를 만들지 못했어요.");
+      onSaved();
+      onClose();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "투표를 만들지 못했어요.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop feature-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="pulse-create-title">
+      <form className="feature-modal pulse-create-modal" onSubmit={submit}>
+        <button type="button" className="feature-modal-close" onClick={onClose} aria-label="닫기"><X size={20} /></button>
+        <span className="feature-modal-kicker"><BarChart3 size={16} /> CAMPUS PULSE</span>
+        <h2 id="pulse-create-title">10초짜리 캠퍼스 질문을 열어보세요.</h2>
+        <p>긴 설문이 아니어도 괜찮아요. 투표가 끝나는 즉시 학교 구성원의 결과가 보여요.</p>
+        <label><span>질문</span><input required minLength={5} maxLength={120} value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="예: 이번 축제 라인업, 만족한다 vs 아쉽다" /></label>
+        <div className="pulse-option-editor">
+          {options.map((option, index) => (
+            <label key={index}><span>선택지 {index + 1}</span><input required maxLength={40} value={option} onChange={(event) => setOptions((current) => current.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} />{options.length > 2 && <button type="button" onClick={() => setOptions((current) => current.filter((_, itemIndex) => itemIndex !== index))}><X size={15} /></button>}</label>
+          ))}
+          {options.length < 4 && <button type="button" className="pulse-add-option" onClick={() => setOptions((current) => [...current, ""])}><Plus size={15} /> 선택지 추가</button>}
+        </div>
+        <label><span>투표 기간</span><select value={expiresHours} onChange={(event) => setExpiresHours(Number(event.target.value))}><option value={6}>6시간</option><option value={24}>24시간</option><option value={72}>3일</option><option value={168}>7일</option></select></label>
+        {error && <span className="feature-modal-error" role="alert">{error}</span>}
+        <button type="submit" className="feature-modal-submit" disabled={saving}>{saving ? "게시 중…" : "캠퍼스에 투표 열기"}<ArrowRight size={17} /></button>
+      </form>
+    </div>
+  );
+}
+
+function CampusPulseSection({
+  pulse,
+  loading,
+  user,
+  authToken,
+  onAuth,
+  onReload,
+  onCreate,
+}: {
+  pulse?: CampusPulse;
+  loading: boolean;
+  user: AuthUser | null;
+  authToken: string;
+  onAuth: () => void;
+  onReload: () => void;
+  onCreate: () => void;
+}) {
+  const [grade, setGrade] = useState("");
+  const [department, setDepartment] = useState("");
+  const [gender, setGender] = useState("");
+  const [segmentType, setSegmentType] = useState<"overall" | "grade" | "department" | "gender" | "school">("overall");
+  const [segmentValue, setSegmentValue] = useState("");
+  const [voting, setVoting] = useState(false);
+  const [error, setError] = useState("");
+  const segmentValues = useMemo(
+    () => pulse && segmentType !== "overall" ? Object.keys(pulse.segments[segmentType]) : [],
+    [pulse, segmentType],
+  );
+  const activeSegmentValue = segmentValue || segmentValues[0] || "";
+  const resultCounts = pulse
+    ? segmentType === "overall"
+      ? pulse.overall
+      : pulse.segments[segmentType][activeSegmentValue] ?? pulse.overall
+    : [];
+  const resultTotal = resultCounts.reduce((sum, count) => sum + count, 0);
+
+  const vote = async (optionIndex: number) => {
+    if (!user) { onAuth(); return; }
+    if (!pulse || voting) return;
+    setVoting(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/pulses/${pulse.id}/vote`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ optionIndex, grade, department, gender }),
+      });
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(result.error || "투표를 저장하지 못했어요.");
+      onReload();
+    } catch (voteError) {
+      setError(voteError instanceof Error ? voteError.message : "투표를 저장하지 못했어요.");
+    } finally {
+      setVoting(false);
+    }
+  };
+
+  return (
+    <section className="campus-pulse-section" id="campus-pulse" aria-labelledby="campus-pulse-title">
+      <div className="campus-section-heading pulse-heading">
+        <div><span>CAMPUS PULSE</span><h2 id="campus-pulse-title">오늘 캠퍼스의 생각</h2></div>
+        <button type="button" onClick={user ? onCreate : onAuth}><Plus size={16} /> 새 투표 열기</button>
+      </div>
+      {loading ? <span className="home-content-skeleton pulse-skeleton" /> : pulse ? (
+        <div className="campus-pulse-card">
+          <div className="pulse-question-panel">
+            <span className="pulse-live"><i /> LIVE · {pulse.totalVotes}명 참여</span>
+            <h3>{pulse.question}</h3>
+            {pulse.myVote === null ? (
+              <>
+                <div className="pulse-profile-fields">
+                  <select aria-label="학년" value={grade} onChange={(event) => setGrade(event.target.value)}><option value="">학년 선택</option><option value="1">1학년</option><option value="2">2학년</option><option value="3">3학년</option><option value="4">4학년</option><option value="graduate">대학원</option></select>
+                  <input aria-label="학과" value={department} maxLength={40} onChange={(event) => setDepartment(event.target.value)} placeholder="학과 (선택)" />
+                  <select aria-label="성별" value={gender} onChange={(event) => setGender(event.target.value)}><option value="">성별 선택</option><option value="female">여성</option><option value="male">남성</option><option value="other">기타/응답 안 함</option></select>
+                </div>
+                <div className="pulse-vote-options">{pulse.options.map((option, index) => <button type="button" key={option} disabled={voting} onClick={() => void vote(index)}><span>{index + 1}</span>{option}<ArrowRight size={16} /></button>)}</div>
+                {!user && <small className="pulse-login-note">학교별 결과 보호를 위해 로그인 후 한 번만 참여할 수 있어요.</small>}
+              </>
+            ) : (
+              <div className="pulse-voted-message"><CheckCircle2 size={19} /><span><strong>투표했어요.</strong> 선택은 투표 기간 동안 다시 바꿀 수 있어요.</span></div>
+            )}
+            {error && <span className="feature-modal-error" role="alert">{error}</span>}
+          </div>
+          <div className="pulse-result-panel">
+            <div className="pulse-result-head"><span>즉시 결과</span><div><select value={segmentType} onChange={(event) => { setSegmentType(event.target.value as typeof segmentType); setSegmentValue(""); }}><option value="overall">전체 대학생</option><option value="school">학교별</option><option value="grade">학년별</option><option value="department">학과별</option><option value="gender">성별</option></select>{segmentType !== "overall" && <select value={activeSegmentValue} onChange={(event) => setSegmentValue(event.target.value)} disabled={segmentValues.length === 0}>{segmentValues.length > 0 ? segmentValues.map((value) => <option key={value} value={value}>{value === "graduate" ? "대학원" : segmentType === "school" ? schoolLabel(value) : value}</option>) : <option>데이터 없음</option>}</select>}</div></div>
+            <div className="pulse-result-bars">{pulse.options.map((option, index) => { const percentage = resultTotal > 0 ? Math.round(((resultCounts[index] ?? 0) / resultTotal) * 100) : 0; return <div key={option}><span><strong>{option}</strong><em>{percentage}% · {resultCounts[index] ?? 0}명</em></span><i><b style={{ width: `${percentage}%` }} /></i></div>; })}</div>
+            <small>학교 인증 계정의 투표만 집계해요. 표본이 적을 때는 해석에 주의해주세요.</small>
+          </div>
+        </div>
+      ) : (
+        <button type="button" className="pulse-empty" onClick={user ? onCreate : onAuth}><BarChart3 size={24} /><span><strong>아직 진행 중인 캠퍼스 투표가 없어요.</strong><small>첫 질문을 열고 10초 만에 학교의 생각을 확인해보세요.</small></span><ArrowRight size={18} /></button>
+      )}
+    </section>
+  );
+}
+
 function ProductHomeView({
   surveys,
   ownedSurveys,
   loadingSurveys,
+  user,
+  authToken,
+  onAuth,
+  onRefreshSurveys,
   onCreate,
   onOpenBoard,
   onOpenSurvey,
@@ -1368,6 +1615,10 @@ function ProductHomeView({
   surveys: PublicSurvey[];
   ownedSurveys: OwnedSurvey[];
   loadingSurveys: boolean;
+  user: AuthUser | null;
+  authToken: string;
+  onAuth: () => void;
+  onRefreshSurveys: () => void;
   onCreate: () => void;
   onOpenBoard: () => void;
   onOpenSurvey: (survey: PublicSurvey) => void;
@@ -1378,6 +1629,49 @@ function ProductHomeView({
   const [loadingCommunity, setLoadingCommunity] = useState(true);
   const [surveySearch, setSurveySearch] = useState("");
   const [surveyFilter, setSurveyFilter] = useState<"all" | SurveyCategory>("all");
+  const [externalSurveyOpen, setExternalSurveyOpen] = useState(false);
+  const [pulseCreateOpen, setPulseCreateOpen] = useState(false);
+  const [pulses, setPulses] = useState<CampusPulse[]>([]);
+  const [loadingPulses, setLoadingPulses] = useState(true);
+
+  const loadPulses = useCallback(async () => {
+    try {
+      const response = await fetch("/api/pulses?school=yonsei", {
+        cache: "no-store",
+        headers: authToken ? { authorization: `Bearer ${authToken}` } : {},
+      });
+      const result = (await response.json()) as { pulses?: CampusPulse[] };
+      if (!response.ok) throw new Error();
+      setPulses(result.pulses ?? []);
+    } catch {
+      setPulses([]);
+    } finally {
+      setLoadingPulses(false);
+    }
+  }, [authToken]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/pulses?school=yonsei", {
+      cache: "no-store",
+      headers: authToken ? { authorization: `Bearer ${authToken}` } : {},
+    })
+      .then(async (response) => {
+        const result = (await response.json()) as { pulses?: CampusPulse[] };
+        if (!response.ok) throw new Error();
+        return result.pulses ?? [];
+      })
+      .then((nextPulses) => {
+        if (!cancelled) setPulses(nextPulses);
+      })
+      .catch(() => {
+        if (!cancelled) setPulses([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingPulses(false);
+      });
+    return () => { cancelled = true; };
+  }, [authToken]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1473,13 +1767,18 @@ function ProductHomeView({
               </span>
               <ArrowRight size={18} />
             </button>
-            <button type="button" className="campus-quick-card community-quick" onClick={onOpenCommunity}>
-              <span className="campus-quick-icon"><UsersRound size={20} /></span>
+            <button type="button" className="campus-quick-card external-quick" onClick={() => user ? setExternalSurveyOpen(true) : onAuth()}>
+              <span className="campus-quick-icon"><Link2 size={20} /></span>
               <span>
-                <small>COMMUNITY</small>
-                <strong>커뮤니티 둘러보기</strong>
-                <em>질문, 모집, 학교 이야기를 함께 나눠요</em>
+                <small>BRING YOUR FORM</small>
+                <strong>외부 설문 등록하기</strong>
+                <em>만든 링크 그대로 응답자를 모집해요</em>
               </span>
+              <ArrowRight size={18} />
+            </button>
+            <button type="button" className="campus-quick-card pulse-quick" onClick={() => document.getElementById("campus-pulse")?.scrollIntoView({ behavior: "smooth" })}>
+              <span className="campus-quick-icon"><BarChart3 size={20} /></span>
+              <span><small>CAMPUS PULSE</small><strong>오늘의 10초 투표</strong><em>응답 즉시 학교별 결과를 확인해요</em></span>
               <ArrowRight size={18} />
             </button>
           </div>
@@ -1588,6 +1887,16 @@ function ProductHomeView({
           </section>
         )}
 
+        <CampusPulseSection
+          pulse={pulses[0]}
+          loading={loadingPulses}
+          user={user}
+          authToken={authToken}
+          onAuth={onAuth}
+          onReload={() => void loadPulses()}
+          onCreate={() => setPulseCreateOpen(true)}
+        />
+
         {ownedSurveys.length > 0 && (
           <section className="campus-home-section home-owned-section" aria-labelledby="home-owned-title">
             <div className="campus-section-heading">
@@ -1653,6 +1962,20 @@ function ProductHomeView({
         </section>
       </main>
       <Footer />
+      {externalSurveyOpen && (
+        <ExternalSurveyModal
+          authToken={authToken}
+          onClose={() => setExternalSurveyOpen(false)}
+          onSaved={onRefreshSurveys}
+        />
+      )}
+      {pulseCreateOpen && (
+        <PulseCreateModal
+          authToken={authToken}
+          onClose={() => setPulseCreateOpen(false)}
+          onSaved={() => void loadPulses()}
+        />
+      )}
     </>
   );
 }
@@ -4708,13 +5031,20 @@ function RealAnalyticsView({
     };
   }, [slug, manageToken]);
 
+  const reviewResponses = responses.filter((response) => response.quality?.status === "review");
+  const excludedResponses = responses.filter((response) => response.quality?.status === "exclude");
+  const analysisResponses = responses.filter((response) => response.quality?.status !== "exclude");
+  const qualityReasons = [...new Set(
+    [...reviewResponses, ...excludedResponses].flatMap((response) => response.quality?.reasons ?? []),
+  )].slice(0, 4);
+
   const averageSeconds =
-    responses.length > 0
+    analysisResponses.length > 0
       ? Math.round(
-          responses.reduce(
+          analysisResponses.reduce(
             (total, response) => total + response.completionSeconds,
             0,
-          ) / responses.length,
+          ) / analysisResponses.length,
         )
       : 0;
   const lastResponse = responses[0]?.createdAt
@@ -4729,7 +5059,7 @@ function RealAnalyticsView({
   const questionSummaries = questions
     .filter((question) => question.type !== "section")
     .map((question) => {
-    const values = responses
+    const values = analysisResponses
       .map(
         (response) =>
           response.answers.find(
@@ -4769,7 +5099,7 @@ function RealAnalyticsView({
         question,
         label: top ? `${top[0]} · ${top[1]}명` : "응답 없음",
         percentage:
-          top && responses.length > 0 ? (top[1] / responses.length) * 100 : 0,
+          top && analysisResponses.length > 0 ? (top[1] / analysisResponses.length) * 100 : 0,
       };
     }
 
@@ -4777,7 +5107,7 @@ function RealAnalyticsView({
       question,
       label: values.length > 0 ? `주관식 ${values.length}개` : "응답 없음",
       percentage:
-        responses.length > 0 ? (values.length / responses.length) * 100 : 0,
+        analysisResponses.length > 0 ? (values.length / analysisResponses.length) * 100 : 0,
     };
     });
 
@@ -4787,14 +5117,14 @@ function RealAnalyticsView({
   const shareQuestion =
     shareSummary?.question.title ?? "우리 학교의 의견을 모으고 있어요.";
   const shareResult =
-    shareSummary?.label ?? `${responses.length.toLocaleString("ko-KR")}개의 응답`;
+    shareSummary?.label ?? `${analysisResponses.length.toLocaleString("ko-KR")}개의 응답`;
   const sharePath = slug ? `/?survey=${encodeURIComponent(slug)}` : "/";
 
   const createResultShareFile = async () => {
     const surveyUrl = `${window.location.origin}${sharePath}`;
     const blob = await createInstagramResultCard({
       title: title || "우리 학교 설문 결과",
-      responseCount: responses.length,
+      responseCount: analysisResponses.length,
       highlightQuestion: shareQuestion,
       highlightResult: shareResult,
       surveyUrl,
@@ -4808,7 +5138,7 @@ function RealAnalyticsView({
     });
     const caption = [
       `${title || "우리 학교 설문"} 결과`,
-      `현재 ${responses.length.toLocaleString("ko-KR")}개의 응답이 모였어요.`,
+      `품질 확인을 통과한 ${analysisResponses.length.toLocaleString("ko-KR")}개의 응답을 분석했어요.`,
       `${shareQuestion}: ${shareResult}`,
       `설문 참여하기 ${surveyUrl}`,
       "#바로폼 #대학생설문 #설문결과",
@@ -4817,7 +5147,7 @@ function RealAnalyticsView({
   };
 
   const shareResultToInstagram = async () => {
-    if (responses.length === 0 || sharing) return;
+    if (analysisResponses.length === 0 || sharing) return;
     setSharing(true);
     setShareStatus("");
     try {
@@ -4860,7 +5190,7 @@ function RealAnalyticsView({
   };
 
   const downloadInstagramCard = async () => {
-    if (responses.length === 0 || sharing) return;
+    if (analysisResponses.length === 0 || sharing) return;
     setSharing(true);
     setShareStatus("");
     try {
@@ -4912,7 +5242,7 @@ function RealAnalyticsView({
         <button
           type="button"
           className="share-results"
-          disabled={responses.length === 0}
+          disabled={analysisResponses.length === 0}
           onClick={() => {
             setShareStatus("");
             setShareOpen(true);
@@ -5025,14 +5355,29 @@ function RealAnalyticsView({
               </div>
             </div>
 
-            {responses.length > 0 && (
+            <section className="response-quality-panel" aria-labelledby="response-quality-title">
+              <div className="response-quality-copy">
+                <span><CheckCircle2 size={17} /> RESPONSE QUALITY</span>
+                <h2 id="response-quality-title">분석 전에 응답 품질부터 확인했어요.</h2>
+                <p>응답 속도, 같은 선택 반복, 주관식 반복·복사, 동일 기기 패턴을 자동 점검합니다. 원본은 삭제하지 않고 제외를 권장해요.</p>
+                {qualityReasons.length > 0 && <div>{qualityReasons.map((reason) => <em key={reason}>{reason}</em>)}</div>}
+              </div>
+              <div className="response-quality-stats">
+                <span><small>전체 응답</small><strong>{responses.length}</strong></span>
+                <span className="quality-usable"><small>분석 가능</small><strong>{analysisResponses.length}</strong></span>
+                <span className="quality-review"><small>검토 필요</small><strong>{reviewResponses.length}</strong></span>
+                <span className="quality-exclude"><small>제외 권장</small><strong>{excludedResponses.length}</strong></span>
+              </div>
+            </section>
+
+            {analysisResponses.length > 0 && (
               <section className="result-share-feature">
                 <div className="result-share-feature-preview" aria-hidden="true">
                   <span>BAROFORM RESULTS</span>
                   <strong>{title || "우리 학교 설문 결과"}</strong>
                   <div>
-                    <small>실제 응답</small>
-                    <b>{responses.length.toLocaleString("ko-KR")}개</b>
+                    <small>분석 가능 응답</small>
+                    <b>{analysisResponses.length.toLocaleString("ko-KR")}개</b>
                   </div>
                   <p>{shareQuestion}</p>
                   <em>{shareResult}</em>
@@ -5074,7 +5419,7 @@ function RealAnalyticsView({
                 <section className="question-results-live">
                   <div className="card-title">
                     <span>문항별 실제 결과</span>
-                    <h2>총 {responses.length}개의 응답을 반영했어요</h2>
+                    <h2>품질 확인을 통과한 {analysisResponses.length}개 응답을 반영했어요</h2>
                   </div>
                   <div className="live-summary-list">
                     {questionSummaries.map((summary, index) => (
@@ -5113,6 +5458,9 @@ function RealAnalyticsView({
                           })}
                         </strong>
                         <small>{response.completionSeconds || 0}초</small>
+                        <em className={`quality-status ${response.quality?.status ?? "usable"}`}>
+                          {response.quality?.status === "exclude" ? "제외 권장" : response.quality?.status === "review" ? "검토" : "정상"}
+                        </em>
                       </article>
                     ))}
                   </div>
@@ -5144,15 +5492,15 @@ function RealAnalyticsView({
                 <em>RESULT CARD</em>
               </div>
               <h2>{title || "우리 학교 설문 결과"}</h2>
-              <span>지금까지 모인 실제 응답</span>
-              <strong>{responses.length.toLocaleString("ko-KR")}개</strong>
+              <span>품질 확인된 분석 가능 응답</span>
+              <strong>{analysisResponses.length.toLocaleString("ko-KR")}개</strong>
               <div className="result-share-preview-insight">
                 <small>가장 눈에 띄는 결과</small>
                 <p>{shareQuestion}</p>
                 <b>{shareResult}</b>
               </div>
               <footer>
-                <span>응답 {responses.length.toLocaleString("ko-KR")}개 기준</span>
+                <span>분석 가능 응답 {analysisResponses.length.toLocaleString("ko-KR")}개 기준</span>
                 <strong>baroform-fixed.vercel.app{sharePath}</strong>
                 <small>
                   전체 학생을 대표하지 않을 수 있으며 개별 응답 내용은
@@ -5355,15 +5703,20 @@ export default function Home() {
   const refreshPublicSurveys = useCallback(async () => {
     setLoadingSurveys(true);
     try {
-      const response = await fetch("/api/surveys?school=yonsei", {
-        cache: "no-store",
-      });
+      const [response, externalResponse] = await Promise.all([
+        fetch("/api/surveys?school=yonsei", { cache: "no-store" }),
+        fetch("/api/external-surveys?school=yonsei", { cache: "no-store" }),
+      ]);
       const result = (await response.json()) as {
         surveys?: PublicSurvey[];
         error?: string;
       };
+      const externalResult = (await externalResponse.json()) as { surveys?: PublicSurvey[] };
       if (!response.ok) throw new Error(result.error);
-      setPublicSurveys(result.surveys ?? []);
+      setPublicSurveys(
+        [...(result.surveys ?? []), ...(externalResponse.ok ? externalResult.surveys ?? [] : [])]
+          .sort((left, right) => (right.createdAt ?? "").localeCompare(left.createdAt ?? "")),
+      );
     } catch {
       setPublicSurveys([]);
     } finally {
@@ -5703,6 +6056,14 @@ export default function Home() {
   };
 
   const openSurvey = async (survey: PublicSurvey) => {
+    if (survey.source === "external" && survey.externalUrl) {
+      void fetch(`/api/external-surveys/${encodeURIComponent(survey.slug)}/visit`, {
+        method: "POST",
+        headers: authToken ? { authorization: `Bearer ${authToken}` } : {},
+      }).finally(() => void refreshPublicSurveys());
+      window.open(survey.externalUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
     setToast("설문을 불러오고 있어요.");
     try {
       await loadSurvey(survey.slug);
@@ -5922,6 +6283,10 @@ export default function Home() {
           surveys={publicSurveys}
           ownedSurveys={mySurveys}
           loadingSurveys={loadingSurveys}
+          user={user}
+          authToken={authToken}
+          onAuth={() => setAuthOpen(true)}
+          onRefreshSurveys={() => void refreshPublicSurveys()}
           onCreate={() => navigate("create")}
           onOpenBoard={() => navigate("board")}
           onOpenSurvey={openSurvey}
