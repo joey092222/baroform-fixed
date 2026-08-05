@@ -1300,7 +1300,11 @@ function HomeSurveyCard({
   onClick: () => void;
 }) {
   return (
-    <button type="button" className="home-live-survey-card" onClick={onClick}>
+    <button
+      type="button"
+      className={`home-live-survey-card category-${survey.category}`}
+      onClick={onClick}
+    >
       <span className="home-live-survey-top">
         <span>{categoryLabel(survey.category)}</span>
         <em><i /> 참여 가능</em>

@@ -14024,3 +14024,351 @@ button {
     grid-template-columns: 1fr;
   }
 }
+
+/* Campus home readability pass */
+.campus-home-main {
+  width: min(1680px, calc(100% - 32px));
+  padding-top: 58px;
+}
+
+.campus-home-eyebrow,
+.campus-section-heading > div > span {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.campus-home-heading h1 {
+  font-size: clamp(44px, 4.7vw, 70px);
+  font-weight: 720;
+  letter-spacing: -0.048em;
+}
+
+.campus-home-status {
+  padding: 12px 17px;
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.campus-create-card {
+  min-height: 350px;
+  padding: 42px;
+  border-radius: 30px;
+}
+
+.campus-create-label {
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.campus-create-copy > strong {
+  font-size: clamp(52px, 5.2vw, 76px);
+  font-weight: 780;
+  letter-spacing: -0.052em;
+}
+
+.campus-create-copy > small {
+  max-width: 520px;
+  font-size: 15px;
+  font-weight: 620;
+  line-height: 1.75;
+}
+
+.campus-create-action {
+  padding: 14px 19px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.campus-create-flow {
+  border-radius: 24px;
+}
+
+.campus-create-flow > span {
+  min-height: 76px;
+  border-radius: 17px;
+}
+
+.campus-create-flow i {
+  font-size: 11px;
+}
+
+.campus-create-flow b {
+  font-size: 14px;
+  font-weight: 820;
+}
+
+.campus-create-flow em {
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.campus-quick-card {
+  padding: 28px;
+  border-radius: 26px;
+}
+
+.campus-quick-icon {
+  width: 53px;
+  height: 53px;
+  border-radius: 17px;
+}
+
+.community-quick .campus-quick-icon {
+  background: #fff1d7;
+  color: #a06c18;
+}
+
+.campus-quick-card small {
+  font-size: 10px;
+}
+
+.campus-quick-card strong {
+  font-size: 20px;
+  font-weight: 820;
+}
+
+.campus-quick-card em {
+  font-size: 11px;
+  font-weight: 680;
+}
+
+.home-survey-search {
+  min-height: 60px;
+  padding: 0 21px;
+  border-radius: 17px;
+}
+
+.home-survey-search input {
+  font-size: 14px;
+  font-weight: 620;
+}
+
+.home-category-tabs {
+  gap: 10px;
+}
+
+.home-category-tabs button {
+  min-height: 39px;
+  padding: 0 17px;
+  font-size: 11px;
+  font-weight: 780;
+}
+
+.campus-section-heading h2 {
+  margin-top: 10px;
+  font-size: clamp(31px, 3.2vw, 44px);
+  font-weight: 740;
+  letter-spacing: -0.045em;
+}
+
+.campus-section-heading > button,
+.home-section-count {
+  font-size: 12px;
+  font-weight: 790;
+}
+
+.home-survey-grid {
+  gap: 16px;
+}
+
+.home-live-survey-card {
+  --category-color: #5269b3;
+  --category-bg: #edf1ff;
+  --category-border: #cbd5f6;
+  min-height: 270px;
+  padding: 24px;
+  border-top-width: 3px;
+  border-top-color: var(--category-border);
+  border-radius: 22px;
+  font-family: "Noto Sans KR Variable", "Noto Sans KR", sans-serif;
+}
+
+.home-live-survey-card.category-course {
+  --category-color: #704fc0;
+  --category-bg: #f1ebff;
+  --category-border: #d7c8fa;
+}
+
+.home-live-survey-card.category-club {
+  --category-color: #23795c;
+  --category-bg: #e7f7ef;
+  --category-border: #bde5d2;
+}
+
+.home-live-survey-card.category-research {
+  --category-color: #3471b5;
+  --category-bg: #e8f2ff;
+  --category-border: #bfd9f5;
+}
+
+.home-live-survey-card.category-campus {
+  --category-color: #a26316;
+  --category-bg: #fff2d9;
+  --category-border: #f0d6a7;
+}
+
+.home-live-survey-card.category-career {
+  --category-color: #a84f6d;
+  --category-bg: #fdebf1;
+  --category-border: #f2c7d6;
+}
+
+.home-live-survey-card.category-other {
+  --category-color: #61708a;
+  --category-bg: #edf0f5;
+  --category-border: #d4dae3;
+}
+
+.home-live-survey-top > span {
+  padding: 6px 10px;
+  background: var(--category-bg);
+  color: var(--category-color);
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.home-live-survey-top em {
+  font-size: 10px;
+  font-weight: 760;
+}
+
+.home-live-survey-card > strong {
+  min-height: 58px;
+  margin-top: 21px;
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.52;
+  letter-spacing: -0.025em;
+}
+
+.home-survey-meta {
+  margin-top: 14px;
+  font-size: 11px;
+  font-weight: 720;
+}
+
+.home-survey-reward {
+  margin-top: 14px;
+  padding: 6px 10px;
+  background: #fff2dc;
+  color: #9b6413;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.home-survey-campus {
+  margin-top: 14px;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.home-live-survey-footer {
+  padding-top: 15px;
+}
+
+.home-live-survey-footer > span {
+  font-size: 10px;
+  font-weight: 720;
+}
+
+.home-live-survey-footer > strong {
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.home-owned-survey-card {
+  min-height: 210px;
+  padding: 22px;
+  border-radius: 20px;
+}
+
+.home-owned-survey-card small,
+.home-owned-survey-card em {
+  font-size: 10px;
+}
+
+.home-owned-survey-card > strong {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.home-owned-survey-card > div > span,
+.home-owned-survey-card footer {
+  font-size: 10.5px;
+}
+
+.campus-section-heading.compact h2 {
+  font-size: 36px;
+  font-weight: 740;
+}
+
+.home-community-list {
+  gap: 14px;
+}
+
+.home-community-list > button {
+  min-height: 190px;
+  padding: 22px;
+  border-radius: 20px;
+}
+
+.home-community-post-head b,
+.home-community-post-head small {
+  font-size: 10px;
+}
+
+.home-community-list > button > strong {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.home-community-list > button > p {
+  font-size: 11px;
+}
+
+.home-community-post-meta em,
+.home-community-post-meta > span {
+  font-size: 10px;
+}
+
+@media (max-width: 1040px) {
+  .campus-home-main {
+    width: calc(100% - 24px);
+  }
+
+  .home-live-survey-card {
+    min-height: 255px;
+  }
+}
+
+@media (max-width: 720px) {
+  .campus-home-main {
+    width: calc(100% - 20px);
+    padding-top: 30px;
+  }
+
+  .campus-home-heading h1 {
+    font-size: 40px;
+  }
+
+  .campus-create-card {
+    padding: 28px 24px;
+  }
+
+  .campus-create-copy > strong {
+    font-size: 52px;
+  }
+
+  .home-live-survey-card {
+    min-height: 250px;
+    padding: 22px;
+  }
+
+  .home-live-survey-card > strong {
+    font-size: 18px;
+  }
+}
