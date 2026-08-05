@@ -1261,185 +1261,44 @@ function LandingView({
 }
 
 function ProductHomeView({
-  prompt,
-  setPrompt,
-  references,
-  setReferences,
   onCreate,
   onOpenBoard,
-  onOpenSurvey,
-  surveys,
-  loadingSurveys,
-  isAnalyzing,
 }: {
-  prompt: string;
-  setPrompt: (value: string) => void;
-  references: SurveyReferences;
-  setReferences: (value: SurveyReferences) => void;
   onCreate: () => void;
   onOpenBoard: () => void;
-  onOpenSurvey: (survey: PublicSurvey) => void;
-  surveys: PublicSurvey[];
-  loadingSurveys: boolean;
-  isAnalyzing: boolean;
 }) {
-  const canContinue = prompt.trim().length >= 2 || hasSurveyReferences(references);
-
   return (
     <>
-      <main className="home-main">
-        <section className="home-intro">
-          <div className="campus-kicker">
-            <span className="campus-symbol">Y</span>
-            <span>연세대학교 신촌캠퍼스 · 베타</span>
-          </div>
-          <h1>만들거나, 참여하거나.</h1>
-        </section>
-
-        <section className="home-path-chooser" aria-label="바로폼에서 할 일 선택">
+      <main className="home-main home-choice-main">
+        <section
+          className="home-path-chooser home-path-chooser--stacked"
+          aria-label="바로폼에서 할 일 선택"
+        >
           <button
             type="button"
             className="home-path-card maker-choice"
-            onClick={() => document.getElementById("survey-maker")?.focus()}
+            onClick={onCreate}
           >
-            <span className="home-path-icon"><Sparkles size={21} /></span>
-            <span>
+            <span className="home-path-icon"><Sparkles size={30} /></span>
+            <span className="home-path-copy">
               <strong>설문 만들기</strong>
+              <small>AI로 쉽고 빠르게 설문을 제작해 보세요.</small>
             </span>
-            <ArrowRight size={19} />
+            <ArrowRight size={26} />
           </button>
           <button
             type="button"
             className="home-path-card response-choice"
             onClick={onOpenBoard}
           >
-            <span className="home-path-icon"><Coins size={21} /></span>
-            <span>
+            <span className="home-path-icon"><Coins size={30} /></span>
+            <span className="home-path-copy">
               <strong>설문 참여하기</strong>
+              <small>지금 우리 학교 설문을 확인해 보세요.</small>
             </span>
-            <ArrowRight size={19} />
+            <ArrowRight size={26} />
           </button>
         </section>
-
-        <section className="first-viewport-grid">
-          <div className="maker-panel">
-            <span className="maker-ai-mark">01 · 빠른 설문 제작</span>
-            <h2>어떤 설문을 만들까요?</h2>
-            <div className="prompt-box">
-              <textarea
-                id="survey-maker"
-                value={prompt}
-                onChange={(event) => setPrompt(event.target.value)}
-                placeholder="예) 연세대 재학생의 도서관 이용 만족도를 조사하고 싶어요"
-                rows={3}
-                maxLength={300}
-                onKeyDown={(event) => {
-                  if (
-                    event.key === "Enter" &&
-                    !event.shiftKey &&
-                    !event.nativeEvent.isComposing
-                  ) {
-                    event.preventDefault();
-                    if (canContinue && !isAnalyzing) onCreate();
-                  }
-                }}
-              />
-              <SurveyReferenceControls
-                references={references}
-                onChange={setReferences}
-                disabled={isAnalyzing}
-              />
-              <div className="prompt-footer">
-                <div className={`prompt-readiness ${canContinue ? "ready" : ""}`}>
-                  <i />
-                  <span>
-                    {canContinue
-                      ? "준비 완료"
-                      : "주제를 입력하세요"}
-                  </span>
-                </div>
-                <span className="prompt-counter">{prompt.length}/300</span>
-                <button
-                  type="button"
-                  className="prompt-submit"
-                  onClick={onCreate}
-                  disabled={isAnalyzing || !canContinue}
-                  aria-label="AI 문항 설계 시작"
-                >
-                  <Sparkles size={17} />
-                  <span>{isAnalyzing ? "설문 만드는 중" : "AI로 설문 만들기"}</span>
-                  {!isAnalyzing && <ArrowRight size={16} />}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div
-            className={`campus-preview-panel ${
-              !loadingSurveys && surveys.length === 0 ? "empty" : ""
-            }`}
-          >
-            <div className="section-title-row compact-title-row">
-              <div>
-                <span className="eyebrow">02 · 지금 우리 학교</span>
-                <h2>지금 열려 있는 설문</h2>
-              </div>
-              <button
-                type="button"
-                className="text-link"
-                onClick={onOpenBoard}
-              >
-                게시판 보기
-                <ChevronRight size={16} />
-              </button>
-            </div>
-            <div
-              className={`preview-survey-grid preview-count-${Math.min(
-                surveys.length,
-                2,
-              )}`}
-            >
-              {loadingSurveys ? (
-                <div className="survey-loading-state" aria-live="polite">
-                  <span />
-                  <span />
-                  <span />
-                  <p>공개 설문을 불러오고 있어요.</p>
-                </div>
-              ) : surveys.length > 0 ? (
-                surveys.slice(0, 2).map((survey) => (
-                  <CampusSurveyCard
-                    key={survey.slug}
-                    survey={survey}
-                    onClick={() => onOpenSurvey(survey)}
-                    featured
-                  />
-                ))
-              ) : (
-                <button
-                  type="button"
-                  className="real-empty-state board-entry-empty"
-                  onClick={onOpenBoard}
-                  aria-label="연세대학교 설문 게시판으로 이동"
-                >
-                  <span className="empty-state-icon">
-                    <School size={25} />
-                  </span>
-                  <strong>아직 공개된 학교 설문이 없어요.</strong>
-                  <p>
-                    게시판에서 카테고리별 설문을 확인하거나 첫 설문을
-                    올려보세요.
-                  </p>
-                  <span className="board-entry-action">
-                    학교 설문 게시판으로 이동
-                    <ArrowRight size={15} />
-                  </span>
-                </button>
-              )}
-            </div>
-          </div>
-        </section>
-
       </main>
       <Footer />
     </>
@@ -5274,16 +5133,8 @@ export default function Home() {
       )}
       {view === "home" && (
         <ProductHomeView
-          prompt={prompt}
-          setPrompt={updatePrompt}
-          references={references}
-          setReferences={updateReferences}
           onCreate={() => navigate("create")}
           onOpenBoard={() => navigate("board")}
-          onOpenSurvey={openSurvey}
-          surveys={publicSurveys}
-          loadingSurveys={loadingSurveys}
-          isAnalyzing={isAnalyzing}
         />
       )}
       {view === "board" && (
