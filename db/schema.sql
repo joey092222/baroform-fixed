@@ -186,3 +186,76 @@ CREATE TABLE IF NOT EXISTS campus_pulse_votes (
 
 CREATE INDEX IF NOT EXISTS campus_pulse_votes_pulse_idx
   ON campus_pulse_votes (pulse_id);
+
+CREATE TABLE IF NOT EXISTS workspaces (
+  id TEXT PRIMARY KEY,
+  owner_id TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  school_id TEXT NOT NULL DEFAULT 'yonsei',
+  name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  type TEXT NOT NULL DEFAULT 'team',
+  review_token TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS workspaces_owner_created_idx
+  ON workspaces (owner_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS workspace_members (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  member_id TEXT REFERENCES members(id) ON DELETE SET NULL,
+  invite_email TEXT NOT NULL,
+  display_name TEXT NOT NULL DEFAULT '',
+  role TEXT NOT NULL DEFAULT 'editor',
+  status TEXT NOT NULL DEFAULT 'pending',
+  invited_by_id TEXT REFERENCES members(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (workspace_id, invite_email),
+  UNIQUE (workspace_id, member_id)
+);
+
+CREATE INDEX IF NOT EXISTS workspace_members_user_status_idx
+  ON workspace_members (member_id, status);
+
+CREATE TABLE IF NOT EXISTS workspace_projects (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  survey_id TEXT NOT NULL REFERENCES surveys(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'draft',
+  assigned_member_id TEXT REFERENCES members(id) ON DELETE SET NULL,
+  assignment_label TEXT NOT NULL DEFAULT '전체 문항',
+  created_by_id TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (workspace_id, survey_id)
+);
+
+CREATE INDEX IF NOT EXISTS workspace_projects_workspace_updated_idx
+  ON workspace_projects (workspace_id, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS workspace_comments (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  project_id TEXT REFERENCES workspace_projects(id) ON DELETE CASCADE,
+  member_id TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS workspace_comments_workspace_created_idx
+  ON workspace_comments (workspace_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS workspace_versions (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  project_id TEXT REFERENCES workspace_projects(id) ON DELETE CASCADE,
+  member_id TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  version_number INTEGER NOT NULL DEFAULT 1,
+  summary TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS workspace_versions_workspace_created_idx
+  ON workspace_versions (workspace_id, created_at DESC);

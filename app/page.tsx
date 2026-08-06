@@ -84,6 +84,7 @@ import {
   rankCampusPulses,
   type CampusPulse,
 } from "./campus-pulse";
+import { WorkspaceReviewView, WorkspaceView } from "./workspace-view";
 
 type View =
   | "landing"
@@ -91,6 +92,8 @@ type View =
   | "board"
   | "pulses"
   | "community"
+  | "workspace"
+  | "workspace-review"
   | "mypage"
   | "create"
   | "editor"
@@ -571,6 +574,14 @@ function Header({
           >
             커뮤니티
           </button>
+          <button
+            type="button"
+            className={view === "workspace" ? "active" : ""}
+            aria-current={view === "workspace" ? "page" : undefined}
+            onClick={() => onNavigate("workspace")}
+          >
+            협업
+          </button>
           {user && (
             <button
               type="button"
@@ -740,6 +751,14 @@ function WorkspaceSidebar({
           >
             <UsersRound size={17} />
             커뮤니티
+          </button>
+          <button
+            type="button"
+            className={view === "workspace" ? "active" : ""}
+            onClick={() => go("workspace")}
+          >
+            <UsersRound size={17} />
+            협업 워크스페이스
           </button>
           <button
             type="button"
@@ -6015,6 +6034,7 @@ export default function Home() {
     useState(false);
   const [toast, setToast] = useState("");
   const [workspaceSidebarOpen, setWorkspaceSidebarOpen] = useState(false);
+  const [workspaceReviewToken, setWorkspaceReviewToken] = useState("");
 
   useEffect(() => {
     if (!workspaceSidebarOpen) return;
@@ -6175,7 +6195,15 @@ export default function Home() {
 
     const pageParams = new URLSearchParams(window.location.search);
     const directSlug = pageParams.get("survey");
-    if (directSlug) {
+    const directWorkspaceReview = pageParams.get("workspaceReview") ?? "";
+    if (/^[a-f0-9]{32}$/.test(directWorkspaceReview)) {
+      window.queueMicrotask(() => {
+        if (cancelled) return;
+        setWorkspaceReviewToken(directWorkspaceReview);
+        setView("workspace-review");
+        window.scrollTo({ top: 0 });
+      });
+    } else if (directSlug) {
       fetch(`/api/surveys/${directSlug}`, { cache: "no-store" })
         .then(async (response) => {
           const result = (await response.json()) as {
@@ -6217,6 +6245,12 @@ export default function Home() {
   useEffect(() => {
     const syncEntryView = () => {
       const params = new URLSearchParams(window.location.search);
+      const reviewToken = params.get("workspaceReview") ?? "";
+      if (/^[a-f0-9]{32}$/.test(reviewToken)) {
+        setWorkspaceReviewToken(reviewToken);
+        setView("workspace-review");
+        return;
+      }
       if (params.get("survey")) return;
       setView(params.get("app") === "1" ? "home" : "landing");
       window.scrollTo({ top: 0 });
@@ -6576,6 +6610,22 @@ export default function Home() {
     navigate("analytics");
   };
 
+  const duplicateWorkspaceSurvey = (slug: string) => {
+    const source = mySurveys.find((survey) => survey.slug === slug);
+    if (!source || !source.questions?.length) {
+      setToast("복제할 설문 문항을 불러오지 못했어요.");
+      window.setTimeout(() => setToast(""), 2200);
+      return;
+    }
+    setSurveyTitle(`${source.title} 복사본`.slice(0, 100));
+    setDescription(source.description);
+    setQuestions(source.questions.map((question, index) => ({ ...question, id: index + 1 })));
+    setQuestionCount(source.questions.length);
+    navigate("editor");
+    setToast("지난 설문을 복제했어요. 수정한 뒤 새 설문으로 배포할 수 있어요.");
+    window.setTimeout(() => setToast(""), 2600);
+  };
+
   const logout = () => {
     const token = authToken;
     setUser(null);
@@ -6601,6 +6651,7 @@ export default function Home() {
     view === "board" ||
     view === "pulses" ||
     view === "community" ||
+    view === "workspace" ||
     view === "mypage";
 
   return (
@@ -6626,7 +6677,7 @@ export default function Home() {
           onClose={() => setWorkspaceSidebarOpen(false)}
         />
       )}
-      {(view === "home" || view === "board" || view === "pulses" || view === "community" || view === "mypage") && (
+      {(view === "home" || view === "board" || view === "pulses" || view === "community" || view === "workspace" || view === "mypage") && (
         <Header
           view={view}
           onNavigate={navigate}
@@ -6680,6 +6731,31 @@ export default function Home() {
           />
           <Footer />
         </>
+      )}
+      {view === "workspace" && (
+        <WorkspaceView
+          user={user}
+          authToken={authToken}
+          ownedSurveys={mySurveys}
+          onAuth={() => setAuthOpen(true)}
+          onCreateSurvey={() => navigate("create")}
+          onOpenSurvey={(slug) => {
+            const survey = mySurveys.find((item) => item.slug === slug);
+            if (survey) openOwnedAnalytics(survey);
+          }}
+          onDuplicateSurvey={duplicateWorkspaceSurvey}
+        />
+      )}
+      {view === "workspace-review" && workspaceReviewToken && (
+        <WorkspaceReviewView
+          token={workspaceReviewToken}
+          onBack={() => {
+            setWorkspaceReviewToken("");
+            window.history.replaceState({}, "", window.location.pathname);
+            setView("landing");
+            window.scrollTo({ top: 0 });
+          }}
+        />
       )}
       {view === "mypage" && user && (
         <MyPageView
@@ -6788,7 +6864,7 @@ export default function Home() {
             if (publishAfterAuth) {
               setPublishAfterAuth(false);
               setPublishOpen(true);
-            } else if (!publishOpen && view !== "survey" && view !== "community") {
+            } else if (!publishOpen && view !== "survey" && view !== "community" && view !== "workspace") {
               navigate("mypage");
             }
             setToast(`${schoolLabel(signedInUser.schoolId)} 계정으로 로그인했어요.`);

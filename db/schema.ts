@@ -333,3 +333,149 @@ export const communityLikes = pgTable(
     index("community_likes_post_idx").on(table.postId),
   ],
 );
+
+export const workspaces = pgTable(
+  "workspaces",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    schoolId: text("school_id").notNull().default("yonsei"),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    type: text("type").notNull().default("team"),
+    reviewToken: text("review_token").notNull().unique(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("workspaces_owner_created_idx").on(table.ownerId, table.createdAt),
+  ],
+);
+
+export const workspaceMembers = pgTable(
+  "workspace_members",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    memberId: text("member_id").references(() => members.id, {
+      onDelete: "set null",
+    }),
+    inviteEmail: text("invite_email").notNull(),
+    displayName: text("display_name").notNull().default(""),
+    role: text("role").notNull().default("editor"),
+    status: text("status").notNull().default("pending"),
+    invitedById: text("invited_by_id").references(() => members.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("workspace_members_email_unique").on(
+      table.workspaceId,
+      table.inviteEmail,
+    ),
+    uniqueIndex("workspace_members_user_unique").on(
+      table.workspaceId,
+      table.memberId,
+    ),
+    index("workspace_members_user_status_idx").on(table.memberId, table.status),
+  ],
+);
+
+export const workspaceProjects = pgTable(
+  "workspace_projects",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    surveyId: text("survey_id")
+      .notNull()
+      .references(() => surveys.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    status: text("status").notNull().default("draft"),
+    assignedMemberId: text("assigned_member_id").references(() => members.id, {
+      onDelete: "set null",
+    }),
+    assignmentLabel: text("assignment_label").notNull().default("전체 문항"),
+    createdById: text("created_by_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("workspace_projects_survey_unique").on(
+      table.workspaceId,
+      table.surveyId,
+    ),
+    index("workspace_projects_workspace_updated_idx").on(
+      table.workspaceId,
+      table.updatedAt,
+    ),
+  ],
+);
+
+export const workspaceComments = pgTable(
+  "workspace_comments",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    projectId: text("project_id").references(() => workspaceProjects.id, {
+      onDelete: "cascade",
+    }),
+    memberId: text("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("workspace_comments_workspace_created_idx").on(
+      table.workspaceId,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const workspaceVersions = pgTable(
+  "workspace_versions",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    projectId: text("project_id").references(() => workspaceProjects.id, {
+      onDelete: "cascade",
+    }),
+    memberId: text("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    versionNumber: integer("version_number").notNull().default(1),
+    summary: text("summary").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("workspace_versions_workspace_created_idx").on(
+      table.workspaceId,
+      table.createdAt,
+    ),
+  ],
+);

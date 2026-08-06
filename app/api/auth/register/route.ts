@@ -1,11 +1,11 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   createPasswordSalt,
   createSession,
   passwordHash,
 } from "@/db/auth";
-import { members } from "@/db/schema";
+import { members, workspaceMembers } from "@/db/schema";
 import { isSchoolId } from "@/app/survey-board";
 
 export const runtime = "nodejs";
@@ -73,6 +73,15 @@ export async function POST(request: Request) {
       passwordHash: hash,
       passwordSalt: salt,
     });
+    await db
+      .update(workspaceMembers)
+      .set({ memberId: id, displayName: name, status: "active" })
+      .where(
+        and(
+          eq(workspaceMembers.inviteEmail, email),
+          isNull(workspaceMembers.memberId),
+        ),
+      );
     const token = await createSession(id);
     return Response.json(
       { token, user: { id, email, name, schoolId } },
