@@ -457,7 +457,9 @@ test("설문 생성 API는 명확한 SNS 이용 시간을 AI 호출 없이 시�
       clarification?: unknown;
       blueprint: {
         title: string;
+        description: string;
         goal: string;
+        respondentGroup: string;
         aiQuestions: Array<{ title: string; options?: string[] }>;
       };
     };
@@ -474,6 +476,15 @@ test("설문 생성 API는 명확한 SNS 이용 시간을 AI 호출 없이 시�
       "연세대학교 재학생 SNS 이용 시간 조사",
     );
     assert.equal(body.blueprint.goal, "실제 이용 시간 파악");
+    assert.equal(body.blueprint.respondentGroup, "연세대학교 재학생");
+    assert.match(
+      body.blueprint.description,
+      /^연세대학교 재학생을 대상으로, SNS 이용 시간을 실제 시간 단위로/,
+    );
+    assert.doesNotMatch(
+      body.blueprint.description,
+      /연세대학교 재학생을 대상으로, 연세대학교 재학생을 대상으로/,
+    );
     assert.equal(
       body.blueprint.aiQuestions[0]?.title,
       "평일 하루 평균 SNS 이용 시간은 얼마나 되나요?",
