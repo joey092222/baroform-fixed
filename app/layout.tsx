@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "@fontsource-variable/noto-sans-kr";
 import "./globals.css";
 import "./landing-refinement.css";
+import "./sana-refinement.css";
 
 export const metadata: Metadata = {
   title: "바로폼 | 우리 학교 설문 플랫폼",
