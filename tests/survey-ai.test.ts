@@ -15,6 +15,7 @@ import {
 import {
   analyzeSurveyPrompt,
   hasActionableSurveyDirection,
+  isLiteralFrequencySurveyRequest,
   isSimpleProportionSurveyRequest,
   parseSurveySemantics,
 } from "../app/survey-intent";
@@ -100,6 +101,33 @@ test("학생 소비 습관은 추가 목적 없이도 구체적인 행동 설문
   );
 });
 
+test("카공 빈도는 빈도라는 단어가 아니라 실제 카공 행동 주기를 묻는다", () => {
+  const prompt = "대학생들의 카공 빈도를 조사하라";
+  const draft = analyzeSurveyPrompt(prompt);
+  const corpus = draft.aiQuestions
+    .flatMap((item) => [item.title, ...(item.options ?? [])])
+    .join(" ");
+
+  assert.equal(isLiteralFrequencySurveyRequest(prompt), true);
+  assert.equal(draft.title, "대학생 카공 빈도 조사");
+  assert.equal(draft.aiQuestions[0]?.title, "카공을 얼마나 자주 하나요?");
+  assert.deepEqual(draft.aiQuestions[0]?.options, [
+    "전혀 하지 않음",
+    "월 1회 미만",
+    "월 1~3회",
+    "주 1~2회",
+    "주 3~4회",
+    "주 5회 이상",
+  ]);
+  assert.match(corpus, /한 번 카공할 때/);
+  assert.match(corpus, /카공할 장소/);
+  assert.match(corpus, /음료나 음식/);
+  assert.doesNotMatch(
+    corpus,
+    /카공 빈도는 어느 정도인가요|그 경험이 드는|드물게 있음|거의 항상 있음/,
+  );
+});
+
 test("설문 생성 API는 단순 비율 요청을 AI 호출 없이 최소 문항으로 반환한다", async () => {
   const previousKey = process.env.OPENAI_API_KEY;
   const previousFetch = globalThis.fetch;
@@ -165,6 +193,69 @@ test("설문 생성 API는 단순 비율 요청을 AI 호출 없이 최소 문�
       secondGrade.blueprint.aiQuestions[1]?.title,
       "현재 자취를 하고 있나요?",
     );
+    assert.equal(upstreamCalled, false);
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
+
+test("설문 생성 API는 명확한 카공 빈도를 AI 호출 없이 행동 문항으로 반환한다", async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  const previousFetch = globalThis.fetch;
+  let upstreamCalled = false;
+  process.env.OPENAI_API_KEY = "test-key";
+  globalThis.fetch = async () => {
+    upstreamCalled = true;
+    throw new Error("명확한 행동 빈도 조사에서 외부 AI를 호출하면 안 됩니다.");
+  };
+
+  try {
+    const response = await createSurveyDraft(
+      new Request("http://localhost/api/survey-draft", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          "user-agent": "baroform-direct-cagong-frequency-test",
+        },
+        body: JSON.stringify({
+          prompt: "대학생들의 카공 빈도를 조사하라",
+          targetGrade: "전학년",
+          questionCount: 7,
+          references: { images: [], files: [], links: [] },
+        }),
+      }),
+    );
+    const body = (await response.json()) as {
+      status: string;
+      clarification?: unknown;
+      blueprint: {
+        aiQuestions: Array<{ title: string; options?: string[] }>;
+      };
+    };
+
+    assert.equal(response.status, 200);
+    assert.equal(
+      response.headers.get("x-baroform-ai-fallback"),
+      "direct-frequency",
+    );
+    assert.equal(body.status, "ready");
+    assert.equal(body.clarification, undefined);
+    assert.equal(body.blueprint.aiQuestions.length, 7);
+    assert.equal(
+      body.blueprint.aiQuestions[0]?.title,
+      "카공을 얼마나 자주 하나요?",
+    );
+    assert.deepEqual(body.blueprint.aiQuestions[0]?.options, [
+      "전혀 하지 않음",
+      "월 1회 미만",
+      "월 1~3회",
+      "주 1~2회",
+      "주 3~4회",
+      "주 5회 이상",
+    ]);
     assert.equal(upstreamCalled, false);
   } finally {
     globalThis.fetch = previousFetch;
@@ -1146,7 +1237,7 @@ test("대상과 측정 내용이 명확한 빈도 조사는 추가 질문 없이
     );
     assert.equal(
       body.blueprint?.aiQuestions?.[0]?.title,
-      "학교에서 집 가고 싶다는 생각을 하는 빈도는 어느 정도인가요?",
+      "학교에서 집 가고 싶다는 생각이 얼마나 자주 드나요?",
     );
     assert.doesNotMatch(
       body.blueprint?.aiQuestions?.map((item) => item.title).join(" ") ?? "",
@@ -1237,7 +1328,7 @@ test("AI가 명확한 빈도 조사에 재질문해도 설문 초안으로 전�
     );
     assert.equal(
       parsed.blueprint.aiQuestions[0]?.title,
-      "학교에서 집 가고 싶다는 생각을 하는 빈도는 어느 정도인가요?",
+      "학교에서 집 가고 싶다는 생각이 얼마나 자주 드나요?",
     );
     assert.match(parsed.research.summary, /추가 질문 없이/);
   }

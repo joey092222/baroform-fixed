@@ -1,6 +1,7 @@
 import {
   analyzeSurveyPrompt,
   hasActionableSurveyDirection,
+  isLiteralFrequencySurveyRequest,
   isSimpleProportionSurveyRequest,
   resizeSurveyQuestions,
   type SurveyBlueprint,
@@ -596,11 +597,15 @@ export async function POST(request: Request) {
       : 7;
   const isDirectProportion =
     !hasReferences && isSimpleProportionSurveyRequest(prompt);
+  const isDirectFrequency =
+    !hasReferences && isLiteralFrequencySurveyRequest(prompt);
   const questionCount = isDirectProportion
     ? targetGrade === "전학년"
       ? 1
       : 2
-    : requestedQuestionCount;
+    : isDirectFrequency && targetGrade !== "전학년"
+      ? Math.max(2, requestedQuestionCount)
+      : requestedQuestionCount;
 
   const now = Date.now();
   pruneMemory(now);
@@ -611,14 +616,17 @@ export async function POST(request: Request) {
     return Response.json(cached.result, { headers: noStoreHeaders });
   }
 
-  if (isDirectProportion) {
+  if (isDirectProportion || isDirectFrequency) {
     const directDraft = fastDraftFallback(
       prompt,
       targetGrade,
       questionCount,
     );
     cacheResult(cacheKey, now, directDraft);
-    return fallbackResponse(directDraft, "direct-proportion");
+    return fallbackResponse(
+      directDraft,
+      isDirectProportion ? "direct-proportion" : "direct-frequency",
+    );
   }
 
   if (!(await consumeRateLimit(request, now))) {

@@ -137,6 +137,9 @@ const eventCue =
 const consumptionHabitCue =
   /(?:소비|지출|구매)\s*(?:습관|행태|패턴)|(?:소비|지출)\s*실태/;
 
+const actionFrequencyCue =
+  /(카공|공부|학습|운동|독서|외식|음주|흡연|쇼핑|구매|주문|배달|방문|이용|사용|참여|관람|게임|통학|등하교|아르바이트|지각|결석|여행|모임|식사|간식|커피|카페)/;
+
 function stripRequestWrapper(value: string) {
   let prompt = normalizePrompt(value)
     .replace(
@@ -2137,6 +2140,147 @@ function adaptationBlueprint(subject: string): SurveyBlueprint {
   };
 }
 
+function frequencyActionQuestion(focus: string) {
+  const verbNoun = focus.match(
+    /^(.+?)\s+(이용|사용|방문|구매|주문|참여|관람)$/,
+  );
+  if (verbNoun) {
+    return `${labelWithParticle(verbNoun[1], "을", "를")} 얼마나 자주 ${verbNoun[2]}하나요?`;
+  }
+  return `${labelWithParticle(focus, "을", "를")} 얼마나 자주 하나요?`;
+}
+
+function actionFrequencyBlueprint(
+  subject: string,
+  focus: string,
+): SurveyBlueprint {
+  const activity = labelWithParticle(focus, "을", "를");
+  const firstQuestion = question(
+    1,
+    frequencyActionQuestion(focus),
+    "행동이 실제로 반복되는 주기를 명확한 시간 단위로 측정해요.",
+    "single",
+    [
+      "전혀 하지 않음",
+      "월 1회 미만",
+      "월 1~3회",
+      "주 1~2회",
+      "주 3~4회",
+      "주 5회 이상",
+    ],
+  );
+  const templateQuestions = /카공/.test(focus)
+    ? [
+        firstQuestion,
+        question(
+          2,
+          "한 번 카공할 때 보통 얼마나 오래 공부하나요?",
+          "카공 1회의 평균 지속 시간을 비교해요.",
+          "single",
+          ["1시간 미만", "1시간 이상 2시간 미만", "2시간 이상 3시간 미만", "3시간 이상", "일정하지 않음"],
+        ),
+        question(
+          3,
+          "카공을 주로 하는 시간대를 모두 골라주세요.",
+          "카공이 집중되는 시간대를 확인해 이용 패턴을 파악해요.",
+          "multiple",
+          ["오전", "점심시간", "오후", "저녁", "밤", "일정하지 않음"],
+        ),
+        question(
+          4,
+          "주로 어떤 카페에서 카공하나요?",
+          "카공 장소의 유형을 비교해 선호 환경을 파악해요.",
+          "single",
+          ["학교 안 카페", "대형 프랜차이즈 카페", "개인 카페", "스터디카페", "기타", "카공하지 않음"],
+        ),
+        question(
+          5,
+          "카공할 장소를 고를 때 중요하게 보는 조건을 모두 골라주세요.",
+          "카공 장소 선택에 영향을 주는 핵심 조건을 파악해요.",
+          "multiple",
+          ["거리", "좌석과 테이블", "소음 수준", "콘센트", "영업시간", "음료 가격", "매장 분위기", "혼잡도"],
+        ),
+      ]
+    : [
+        firstQuestion,
+        question(
+          2,
+          `${activity} 주로 하는 요일을 모두 골라주세요.`,
+          "행동이 반복되는 요일과 생활 패턴을 확인해요.",
+          "multiple",
+          ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일", "일정하지 않음"],
+        ),
+        question(
+          3,
+          `${activity} 주로 하는 시간대를 모두 골라주세요.`,
+          "행동이 집중되는 시간대를 파악해요.",
+          "multiple",
+          ["오전", "점심시간", "오후", "저녁", "밤", "일정하지 않음"],
+        ),
+        question(
+          4,
+          `${activity} 하게 되는 가장 큰 이유는 무엇인가요?`,
+          "행동을 반복하게 만드는 주된 동기를 확인해요.",
+          "single",
+          ["필요해서", "습관적으로", "즐거워서", "주변 사람의 영향", "시간을 보내기 위해", "기타"],
+        ),
+        question(
+          5,
+          `${activity} 할 때 중요하게 생각하는 조건을 모두 골라주세요.`,
+          "행동의 방식과 선택에 영향을 주는 조건을 파악해요.",
+          "multiple",
+          ["시간", "비용", "장소", "편의성", "함께하는 사람", "품질·효과", "특별히 없음"],
+        ),
+      ];
+  const aiQuestions = [
+    ...templateQuestions,
+    /카공/.test(focus)
+      ? question(
+          6,
+          "카공 한 번에 음료나 음식으로 보통 얼마를 지출하나요?",
+          "카공 1회당 지출 규모를 구간별로 비교해요.",
+          "single",
+          ["5천원 미만", "5천원 이상 1만원 미만", "1만원 이상 1만 5천원 미만", "1만 5천원 이상", "지출하지 않음"],
+        )
+      : question(
+          6,
+          `3개월 전과 비교해 최근 ${activity} 하는 빈도는 어떻게 달라졌나요?`,
+          "최근 행동 빈도의 증가 또는 감소를 확인해요.",
+          "single",
+          ["많이 줄었음", "조금 줄었음", "비슷함", "조금 늘었음", "많이 늘었음"],
+        ),
+    /카공/.test(focus)
+      ? question(
+          7,
+          "카공을 하는 가장 큰 이유는 무엇인가요?",
+          "카공 행동을 선택하는 핵심 동기를 파악해요.",
+          "single",
+          ["집보다 집중이 잘돼서", "학교보다 가까워서", "공부 분위기가 좋아서", "친구와 함께 공부하려고", "음료나 공간을 이용하려고", "기타"],
+        )
+      : question(
+          7,
+          `${focus} 횟수나 상황과 관련해 덧붙이고 싶은 내용이 있다면 적어주세요.`,
+          "선택지만으로 설명하기 어려운 행동 맥락을 수집해요.",
+          "text",
+          undefined,
+          false,
+        ),
+  ];
+
+  return {
+    kind: "general",
+    intentLabel: "행동 빈도",
+    subject,
+    title: `${subject} 조사`,
+    description: `${focus} 행동이 반복되는 주기와 대표적인 이용 패턴을 확인하는 익명 설문입니다.`,
+    templateTitle: `${focus} 빈도`,
+    templateSummary: "행동 빈도를 명확한 시간 단위로 묻고 실제 이용 패턴을 함께 확인해요.",
+    detectedSignals: [`측정 행동 · ${focus}`, "목적 · 행동 빈도 파악"],
+    templateQuestions,
+    aiQuestions,
+  };
+}
+
 function frequencyBlueprint(subject: string): SurveyBlueprint {
   const focus = subject
     .replace(
@@ -2144,14 +2288,21 @@ function frequencyBlueprint(subject: string): SurveyBlueprint {
       "",
     )
     .trim();
+  if (actionFrequencyCue.test(focus)) {
+    return actionFrequencyBlueprint(subject, focus);
+  }
+
   const experienceNoun = focus.includes("생각") ? "생각이" : "경험이";
+  const occurrenceQuestion = focus.includes("생각")
+    ? `${labelWithParticle(focus, "이", "가")} 얼마나 자주 드나요?`
+    : `${labelWithParticle(focus, "을", "를")} 얼마나 자주 경험하나요?`;
   const templateQuestions = [
     question(
       1,
-      `${subject}는 어느 정도인가요?`,
-      "사용자가 요청한 핵심 빈도를 그대로 측정해요.",
+      occurrenceQuestion,
+      "생각이나 경험이 실제로 나타나는 주기를 명확한 시간 단위로 측정해요.",
       "single",
-      ["전혀 없음", "드물게 있음", "가끔 있음", "자주 있음", "거의 항상 있음"],
+      ["전혀 없음", "월 1~3일", "주 1~2일", "주 3~4일", "거의 매일", "하루에 여러 번"],
     ),
     question(
       2,
@@ -2584,6 +2735,11 @@ export function analyzeSurveyPrompt(rawPrompt: string): SurveyBlueprint {
   }
 
   return attachSemantics(blueprint, semantics);
+}
+
+export function isLiteralFrequencySurveyRequest(rawPrompt: string) {
+  const semantics = parseSurveySemantics(rawPrompt);
+  return /(?:빈도|횟수)$/.test(semantics.explicitTopic ?? "");
 }
 
 export function hasActionableSurveyDirection(rawPrompt: string) {
