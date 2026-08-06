@@ -134,6 +134,9 @@ const personHead =
 const eventCue =
   /(축제|행사|공연|세미나|워크숍|오리엔테이션|아카라카|대동제|박람회|OT(?:\s|$)|참여자|참가자|참석자|관람객)/i;
 
+const consumptionHabitCue =
+  /(?:소비|지출|구매)\s*(?:습관|행태|패턴)|(?:소비|지출)\s*실태/;
+
 function stripRequestWrapper(value: string) {
   let prompt = normalizePrompt(value)
     .replace(
@@ -695,6 +698,7 @@ export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
       : detectedKind;
   const movement = movementExperience(evaluationTarget);
   const literalFrequency = /(?:빈도|횟수)$/.test(explicitTopic);
+  const literalConsumptionHabits = consumptionHabitCue.test(explicitTopic);
   const topicWasInferred = explicitTopic.length < 2;
   const assumptions: string[] = topicWasInferred
     ? [`‘${evaluationTarget}’에 대한 조사로 문맥을 해석했어요.`]
@@ -713,6 +717,8 @@ export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
     domain,
     goalLabel: literalFrequency
       ? "빈도 파악"
+      : literalConsumptionHabits
+        ? "소비 행태 파악"
       : movement
         ? "이동 경험과 개선점"
         : goalLabels[kind],
@@ -2230,6 +2236,92 @@ function directProportionQuestionTitle(intent: DirectProportionIntent) {
   return `현재 ${condition}에 해당하나요?`;
 }
 
+function consumptionHabitsBlueprint(subject: string): SurveyBlueprint {
+  const templateQuestions = [
+    question(
+      1,
+      "최근 한 달 동안 등록금과 보증금을 제외한 생활비로 얼마 정도를 지출했나요?",
+      "학생별 월간 소비 규모를 구간으로 비교해요.",
+      "single",
+      [
+        "30만원 미만",
+        "30만원 이상 50만원 미만",
+        "50만원 이상 70만원 미만",
+        "70만원 이상 100만원 미만",
+        "100만원 이상",
+        "잘 모르겠음",
+      ],
+    ),
+    question(
+      2,
+      "평소 지출이 많은 항목을 모두 골라주세요.",
+      "생활비가 주로 쓰이는 영역을 파악해 소비 구성을 비교해요.",
+      "multiple",
+      [
+        "식비·카페",
+        "주거·관리비",
+        "교통",
+        "쇼핑·생활용품",
+        "문화·여가",
+        "교육·자기계발",
+        "통신·구독 서비스",
+        "모임·교제",
+      ],
+    ),
+    question(
+      3,
+      "지출 내역을 확인하거나 기록하는 편인가요?",
+      "소비를 점검하고 예산을 관리하는 습관의 정도를 확인해요.",
+      "single",
+      ["항상 기록함", "자주 확인함", "가끔 확인함", "거의 확인하지 않음", "전혀 확인하지 않음"],
+    ),
+    question(
+      4,
+      "물건이나 서비스를 구매할 때 중요하게 보는 기준을 모두 골라주세요.",
+      "구매 결정을 좌우하는 가격·품질·편의 기준을 비교해요.",
+      "multiple",
+      ["가격", "품질", "필요성", "할인·혜택", "후기·평점", "브랜드", "구매 편의성", "주변 추천"],
+    ),
+    question(
+      5,
+      "가장 자주 사용하는 결제 수단은 무엇인가요?",
+      "소비가 실제로 이루어지는 주된 결제 방식을 파악해요.",
+      "single",
+      ["체크카드", "신용카드", "간편결제", "현금", "계좌이체", "기타"],
+    ),
+  ];
+
+  return {
+    kind: "general",
+    intentLabel: "소비 행태",
+    subject,
+    title: `${subject} 조사`,
+    description: `${subject}의 지출 규모와 영역, 예산 관리, 구매 기준, 결제 방식 및 계획 밖 지출을 파악하는 익명 설문입니다.`,
+    templateTitle: `${subject} 핵심 문항`,
+    templateSummary: "지출 규모와 구성, 구매 결정 및 관리 습관을 구체적으로 확인해요.",
+    detectedSignals: [`조사 내용 · ${subject}`, "목적 · 소비 행태 파악"],
+    templateQuestions,
+    aiQuestions: [
+      ...templateQuestions,
+      question(
+        6,
+        "계획하지 않았던 물건이나 서비스를 충동적으로 구매하는 빈도는 어느 정도인가요?",
+        "계획 소비와 충동 소비의 차이를 비교해요.",
+        "single",
+        ["전혀 없음", "드물게", "가끔", "자주", "매우 자주"],
+      ),
+      question(
+        7,
+        "현재 소비 습관에서 줄이거나 바꾸고 싶은 부분이 있다면 적어주세요.",
+        "선택지로 드러나지 않은 소비 고민과 변화 목표를 수집해요.",
+        "text",
+        undefined,
+        false,
+      ),
+    ],
+  };
+}
+
 function proportionBlueprint(intent: DirectProportionIntent): SurveyBlueprint {
   const { population, qualifyingGroup, conditionLabel } = intent;
   const ratioQuestion = question(
@@ -2451,7 +2543,9 @@ export function analyzeSurveyPrompt(rawPrompt: string): SurveyBlueprint {
   const subject = semantics.evaluationTarget;
   let blueprint: SurveyBlueprint;
 
-  if (/(?:빈도|횟수)$/.test(semantics.explicitTopic ?? "")) {
+  if (consumptionHabitCue.test(semantics.explicitTopic ?? "")) {
+    blueprint = consumptionHabitsBlueprint(subject);
+  } else if (/(?:빈도|횟수)$/.test(semantics.explicitTopic ?? "")) {
     blueprint = frequencyBlueprint(subject);
   } else {
     switch (semantics.kind) {
@@ -2503,7 +2597,7 @@ export function hasActionableSurveyDirection(rawPrompt: string) {
     return false;
   }
 
-  return /(만족|불만|문제|개선|평가|선호|수요|인지|의향|경험|이용|사용|가입|참여|적응|학교생활|대학생활|등하교|통학|구매|불편|장벽|행태|빈도|횟수|얼마나|정도|시간|기간|비율|비중|퍼센트|여부|선택|순위|생각|느낌)/.test(
+  return /(만족|불만|문제|개선|평가|선호|수요|인지|의향|경험|이용|사용|소비|지출|습관|가입|참여|적응|학교생활|대학생활|등하교|통학|구매|불편|장벽|행태|빈도|횟수|얼마나|정도|시간|기간|비율|비중|퍼센트|여부|선택|순위|생각|느낌)/.test(
     normalized,
   );
 }

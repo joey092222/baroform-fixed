@@ -14,6 +14,7 @@ import {
 } from "../app/survey-revision";
 import {
   analyzeSurveyPrompt,
+  hasActionableSurveyDirection,
   isSimpleProportionSurveyRequest,
   parseSurveySemantics,
 } from "../app/survey-intent";
@@ -72,6 +73,30 @@ test("비율 외 조사 목적이 함께 있으면 단순 비율 전용 경로�
       "대학생 중 자취하는 학생의 비율과 자취 이유를 조사해달라",
     ),
     false,
+  );
+});
+
+test("학생 소비 습관은 추가 목적 없이도 구체적인 행동 설문으로 설계한다", () => {
+  const prompt = "학생들의 소비 습관을 조사하라";
+  const semantics = parseSurveySemantics(prompt);
+  const draft = analyzeSurveyPrompt(prompt);
+  const corpus = draft.aiQuestions
+    .flatMap((item) => [item.title, ...(item.options ?? [])])
+    .join(" ");
+
+  assert.equal(hasActionableSurveyDirection(prompt), true);
+  assert.equal(semantics.respondentGroup, "학생");
+  assert.equal(semantics.evaluationTarget, "소비 습관");
+  assert.equal(semantics.goalLabel, "소비 행태 파악");
+  assert.equal(draft.title, "학생 소비 습관 조사");
+  assert.equal(draft.aiQuestions.length, 7);
+  assert.match(corpus, /생활비/);
+  assert.match(corpus, /지출이 많은 항목/);
+  assert.match(corpus, /결제 수단/);
+  assert.match(corpus, /충동적으로 구매/);
+  assert.doesNotMatch(
+    corpus,
+    /얼마나 관련이 있나요|전반적으로 어떻게 평가하시나요|만족도와 개선점|참여 의향|불편 사항/,
   );
 });
 
@@ -1132,6 +1157,50 @@ test("대상과 측정 내용이 명확한 빈도 조사는 추가 질문 없이
   }
 });
 
+test("API 키가 없어도 학생 소비 습관은 목적을 되묻지 않고 바로 만든다", async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+  try {
+    const response = await createSurveyDraft(
+      new Request("http://localhost/api/survey-draft", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          "user-agent": "baroform-consumption-habits-test",
+        },
+        body: JSON.stringify({
+          prompt: "학생들의 소비 습관을 조사하라",
+          targetGrade: "전학년",
+          questionCount: 7,
+        }),
+      }),
+    );
+    const body = (await response.json()) as {
+      status?: string;
+      clarification?: unknown;
+      blueprint?: {
+        title?: string;
+        aiQuestions?: Array<{ title: string; options?: string[] }>;
+      };
+    };
+    const corpus =
+      body.blueprint?.aiQuestions
+        ?.flatMap((item) => [item.title, ...(item.options ?? [])])
+        .join(" ") ?? "";
+
+    assert.equal(response.status, 200);
+    assert.equal(body.status, "ready");
+    assert.equal(body.clarification, undefined);
+    assert.equal(body.blueprint?.title, "학생 소비 습관 조사");
+    assert.match(corpus, /생활비/);
+    assert.match(corpus, /결제 수단/);
+    assert.doesNotMatch(corpus, /무엇을 알아보고|만족도와 개선점|참여 의향/);
+  } finally {
+    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+  }
+});
+
 test("AI가 명확한 빈도 조사에 재질문해도 설문 초안으로 전환한다", () => {
   const prompt =
     "연세대 학생들이 학교에서 집 가고 싶다는 생각을 하는 빈도 조사";
@@ -1170,6 +1239,45 @@ test("AI가 명확한 빈도 조사에 재질문해도 설문 초안으로 전�
       parsed.blueprint.aiQuestions[0]?.title,
       "학교에서 집 가고 싶다는 생각을 하는 빈도는 어느 정도인가요?",
     );
+    assert.match(parsed.research.summary, /추가 질문 없이/);
+  }
+});
+
+test("AI가 소비 습관 조사 목적을 되물어도 구체적인 초안으로 전환한다", () => {
+  const prompt = "학생들의 소비 습관을 조사하라";
+  const questions = Array.from({ length: 7 }, (_, index) =>
+    question(index + 1, `소비 습관 질문 ${index + 1}`),
+  );
+  const payload = readyPayload({
+    prompt,
+    evaluationTarget: "소비 습관",
+    respondentGroup: "학생",
+    entityType: "other",
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
+    sourceUrls: ["https://example.com/source"],
+  });
+  editReadyPayload(payload, (result) => {
+    result.status = "needs_clarification";
+    result.question = "소비 습관에 대해 무엇을 알아보고 싶나요?";
+    result.reason = "조사 방향을 확인해야 합니다.";
+    result.options = ["만족도와 개선점", "수요와 참여 의향", "경험과 불편 사항"];
+    result.interpretation = {
+      ...(result.interpretation as Record<string, unknown>),
+      searchRequired: false,
+    };
+  });
+
+  const parsed = parseSurveyDraftResponse(payload, prompt);
+
+  assert.equal(parsed.status, "ready");
+  if (parsed.status === "ready") {
+    const corpus = parsed.blueprint.aiQuestions
+      .flatMap((item) => [item.title, ...(item.options ?? [])])
+      .join(" ");
+    assert.equal(parsed.blueprint.title, "학생 소비 습관 조사");
+    assert.match(corpus, /생활비/);
+    assert.match(corpus, /구매할 때 중요하게 보는 기준/);
     assert.match(parsed.research.summary, /추가 질문 없이/);
   }
 });
