@@ -90,10 +90,26 @@ export type SurveyDomain =
   | "student-life"
   | "general";
 
+export type SurveyMeasurementKind =
+  | "duration"
+  | "frequency"
+  | "cost"
+  | "quantity"
+  | "preference"
+  | "reason";
+
+export type SurveyMeasurement = {
+  kind: SurveyMeasurementKind;
+  target: string;
+  metricLabel: string;
+  sourceTopic: string;
+};
+
 export type SurveySemantics = {
   respondentGroup: string | null;
   evaluationTarget: string;
   explicitTopic: string | null;
+  measurement: SurveyMeasurement | null;
   kind: SurveyIntentKind;
   domain: SurveyDomain;
   goalLabel: string;
@@ -208,6 +224,112 @@ export function parseDirectProportionRequest(
 
 export function isSimpleProportionSurveyRequest(rawPrompt: string) {
   return parseDirectProportionRequest(rawPrompt) !== null;
+}
+
+function measurementFromTopic(topic: string): SurveyMeasurement | null {
+  const normalized = topic.replace(/\s+/g, " ").trim();
+  if (!normalized) return null;
+
+  const durationMatch = normalized.match(
+    /((?:이용|사용|소요|체류|대기|공부|학습|운동|시청|게임|통학|등하교|근무|활동|수면)\s*)?시간$/,
+  );
+  if (durationMatch) {
+    const target = normalized.replace(/\s*시간$/, "").trim();
+    if (target) {
+      return {
+        kind: "duration",
+        target,
+        metricLabel: durationMatch[0].trim() || "시간",
+        sourceTopic: normalized,
+      };
+    }
+  }
+
+  const frequencyMatch = normalized.match(/(?:빈도|횟수)$/);
+  if (frequencyMatch) {
+    const target = normalized.replace(/\s*(?:빈도|횟수)$/, "").trim();
+    if (target) {
+      return {
+        kind: "frequency",
+        target,
+        metricLabel: frequencyMatch[0],
+        sourceTopic: normalized,
+      };
+    }
+  }
+
+  const costMatch = normalized.match(
+    /(?:(?:일|주|월|학기|연간)\s*(?:평균\s*)?)?(?:지출\s*)?(?:금액|비용|지출액|소비액|결제액)$/,
+  );
+  if (costMatch) {
+    const target = normalized.slice(0, -costMatch[0].length).trim();
+    if (target) {
+      return {
+        kind: "cost",
+        target,
+        metricLabel: costMatch[0].trim(),
+        sourceTopic: normalized,
+      };
+    }
+  }
+
+  const quantityMatch = normalized.match(
+    /(?:이용량|사용량|섭취량|소비량|수량|개수|건수)$/,
+  );
+  if (quantityMatch) {
+    const target = normalized.slice(0, -quantityMatch[0].length).trim();
+    if (target) {
+      return {
+        kind: "quantity",
+        target,
+        metricLabel: quantityMatch[0],
+        sourceTopic: normalized,
+      };
+    }
+  }
+
+  const preferenceMatch = normalized.match(/(?:선호|선호도)$/);
+  if (preferenceMatch) {
+    const target = normalized.slice(0, -preferenceMatch[0].length).trim();
+    if (target) {
+      return {
+        kind: "preference",
+        target,
+        metricLabel: preferenceMatch[0],
+        sourceTopic: normalized,
+      };
+    }
+  }
+
+  const reasonMatch = normalized.match(/(?:이유|원인)$/);
+  if (reasonMatch) {
+    const target = normalized.slice(0, -reasonMatch[0].length).trim();
+    if (target) {
+      return {
+        kind: "reason",
+        target,
+        metricLabel: reasonMatch[0],
+        sourceTopic: normalized,
+      };
+    }
+  }
+
+  return null;
+}
+
+export function parseExplicitSurveyMeasurement(
+  rawPrompt: string,
+): SurveyMeasurement | null {
+  const prompt = stripRequestWrapper(rawPrompt);
+  const detectedKind = detectIntent(prompt);
+  const { content, topicPrefix } = splitRespondent(prompt);
+  const contentTopic = stripGoal(content, detectedKind);
+  const explicitTopic = topicPrefix
+    ? contentTopic && !topicPrefix.includes(contentTopic)
+      ? `${topicPrefix} ${contentTopic}`.trim()
+      : topicPrefix
+    : contentTopic;
+  return measurementFromTopic(explicitTopic);
 }
 
 function detectIntent(prompt: string): SurveyIntentKind {
@@ -664,6 +786,7 @@ export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
       respondentGroup: population,
       evaluationTarget: `${conditionLabel} 여부`,
       explicitTopic,
+      measurement: null,
       kind: "general",
       domain: inferDomain(population, explicitTopic, rawPrompt),
       goalLabel: "해당 학생 비율 파악",
@@ -706,6 +829,7 @@ export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
   const literalFrequency = /(?:빈도|횟수)$/.test(explicitTopic);
   const literalConsumptionHabits = consumptionHabitCue.test(explicitTopic);
   const literalSleepDuration = sleepDurationCue.test(explicitTopic);
+  const measurement = measurementFromTopic(explicitTopic);
   const topicWasInferred = explicitTopic.length < 2;
   const assumptions: string[] = topicWasInferred
     ? [`‘${evaluationTarget}’에 대한 조사로 문맥을 해석했어요.`]
@@ -720,6 +844,7 @@ export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
     respondentGroup,
     evaluationTarget: evaluationTarget.slice(0, 64),
     explicitTopic: explicitTopic.length >= 2 ? explicitTopic : null,
+    measurement,
     kind,
     domain,
     goalLabel: literalFrequency
@@ -728,6 +853,16 @@ export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
         ? "소비 행태 파악"
         : literalSleepDuration
           ? "수면 시간과 인식 파악"
+          : measurement?.kind === "duration"
+            ? `실제 ${measurement.metricLabel} 파악`
+            : measurement?.kind === "cost"
+              ? `실제 ${measurement.metricLabel} 파악`
+              : measurement?.kind === "quantity"
+                ? `실제 ${measurement.metricLabel} 파악`
+                : measurement?.kind === "preference"
+                  ? "구체적인 선호 파악"
+                  : measurement?.kind === "reason"
+                    ? "실제 이유 파악"
           : movement
             ? "이동 경험과 개선점"
             : goalLabels[kind],
@@ -2610,6 +2745,105 @@ function sleepDurationBlueprint(subject: string): SurveyBlueprint {
   };
 }
 
+function durationMeasurementBlueprint(
+  subject: string,
+  measurement: SurveyMeasurement,
+): SurveyBlueprint {
+  const focus = measurement.target;
+  const isRepeatableActivity =
+    /(이용|사용|시청|게임|공부|학습|운동|독서|통학|등하교|근무)$/.test(
+      focus,
+    );
+  const durationOptions = [
+    "전혀 하지 않음",
+    "30분 미만",
+    "30분 이상 1시간 미만",
+    "1시간 이상 2시간 미만",
+    "2시간 이상 3시간 미만",
+    "3시간 이상 4시간 미만",
+    "4시간 이상",
+  ];
+  const templateQuestions = [
+    question(
+      1,
+      `평일 하루 평균 ${focus} 시간은 얼마나 되나요?`,
+      `${measurement.sourceTopic}을 추상적으로 평가하지 않고 평일의 실제 시간량을 구간으로 측정해요.`,
+      "single",
+      durationOptions,
+    ),
+    question(
+      2,
+      `주말이나 공휴일 하루 평균 ${focus} 시간은 얼마나 되나요?`,
+      "평일과 비수업일의 시간 사용 차이를 비교해요.",
+      "single",
+      durationOptions,
+    ),
+    question(
+      3,
+      `일주일 중 ${focus} 시간이 있는 날은 보통 며칠인가요?`,
+      "하루 시간량과 별도로 일주일 동안 반복되는 일수를 확인해요.",
+      "single",
+      ["0일", "1일", "2~3일", "4~5일", "6일", "매일"],
+    ),
+    question(
+      4,
+      `${focus} 시간이 가장 긴 시간대를 모두 골라주세요.`,
+      "시간 사용이 집중되는 때를 구분해 실제 이용 패턴을 분석해요.",
+      "multiple",
+      ["오전 6~9시", "오전 9시~낮 12시", "낮 12시~오후 3시", "오후 3~6시", "오후 6~9시", "오후 9시 이후"],
+    ),
+    isRepeatableActivity
+      ? question(
+          5,
+          `${focus} 시간을 주로 어떤 목적으로 쓰나요?`,
+          "같은 이용 시간이라도 목적에 따라 시간 사용의 의미가 달라지는 점을 구분해요.",
+          "multiple",
+          ["학업·업무", "정보 탐색", "소통·교류", "오락·휴식", "습관적으로", "기타"],
+        )
+      : question(
+          5,
+          `${focus} 시간이 평소보다 길어지는 상황을 모두 골라주세요.`,
+          "시간량이 달라지는 실제 맥락을 구분해요.",
+          "multiple",
+          ["평일", "주말·공휴일", "과제·시험 기간", "이동이 많은 날", "약속·모임이 있는 날", "특정한 상황 없음"],
+        ),
+  ];
+
+  return {
+    kind: "general",
+    intentLabel: "실제 시간 사용",
+    subject,
+    title: `${subject} 조사`,
+    description: `${subject}을 실제 시간 단위로 측정하고 평일·주말, 반복 일수와 시간대별 패턴을 파악하는 익명 설문입니다.`,
+    templateTitle: `${subject} 핵심 문항`,
+    templateSummary: "측정 대상 자체를 평가하지 않고 실제 분·시간 단위와 기준 기간을 제시해 응답할 수 있게 구성했어요.",
+    detectedSignals: [
+      `행동 대상 · ${focus}`,
+      `측정 기준 · ${measurement.metricLabel}`,
+      "목적 · 실제 시간량 파악",
+    ],
+    templateQuestions,
+    aiQuestions: [
+      ...templateQuestions,
+      question(
+        6,
+        `3개월 전과 비교하면 ${focus} 시간은 어떻게 달라졌나요?`,
+        "최근 시간 사용이 늘었는지 줄었는지 추세를 확인해요.",
+        "single",
+        ["많이 줄었음", "조금 줄었음", "비슷함", "조금 늘었음", "많이 늘었음"],
+      ),
+      question(
+        7,
+        `${focus} 시간을 앞으로 어떻게 조절하고 싶은지, 그 이유와 함께 적어주세요.`,
+        "현재 시간량에 대한 해석과 원하는 변화를 구체적으로 수집해요.",
+        "text",
+        undefined,
+        false,
+      ),
+    ],
+  };
+}
+
 function generalBlueprint(subject: string): SurveyBlueprint {
   const topic = topicLabel(subject);
   const templateQuestions = [
@@ -2803,6 +3037,8 @@ export function analyzeSurveyPrompt(rawPrompt: string): SurveyBlueprint {
     blueprint = consumptionHabitsBlueprint(subject);
   } else if (/(?:빈도|횟수)$/.test(semantics.explicitTopic ?? "")) {
     blueprint = frequencyBlueprint(subject);
+  } else if (semantics.measurement?.kind === "duration") {
+    blueprint = durationMeasurementBlueprint(subject, semantics.measurement);
   } else {
     switch (semantics.kind) {
       case "membership":
@@ -2851,6 +3087,16 @@ export function isSleepDurationSurveyRequest(rawPrompt: string) {
   const semantics = parseSurveySemantics(rawPrompt);
   return sleepDurationCue.test(
     semantics.explicitTopic ?? semantics.evaluationTarget,
+  );
+}
+
+export function isExplicitDurationSurveyRequest(rawPrompt: string) {
+  const semantics = parseSurveySemantics(rawPrompt);
+  return (
+    semantics.measurement?.kind === "duration" &&
+    !sleepDurationCue.test(
+      semantics.explicitTopic ?? semantics.evaluationTarget,
+    )
   );
 }
 

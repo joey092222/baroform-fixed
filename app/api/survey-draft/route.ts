@@ -1,6 +1,7 @@
 import {
   analyzeSurveyPrompt,
   hasActionableSurveyDirection,
+  isExplicitDurationSurveyRequest,
   isLiteralFrequencySurveyRequest,
   isSleepDurationSurveyRequest,
   isSimpleProportionSurveyRequest,
@@ -602,11 +603,14 @@ export async function POST(request: Request) {
     !hasReferences && isLiteralFrequencySurveyRequest(prompt);
   const isDirectSleepDuration =
     !hasReferences && isSleepDurationSurveyRequest(prompt);
+  const isDirectDuration =
+    !hasReferences && isExplicitDurationSurveyRequest(prompt);
   const questionCount = isDirectProportion
     ? targetGrade === "전학년"
       ? 1
       : 2
-    : (isDirectFrequency || isDirectSleepDuration) && targetGrade !== "전학년"
+    : (isDirectFrequency || isDirectSleepDuration || isDirectDuration) &&
+        targetGrade !== "전학년"
       ? Math.max(2, requestedQuestionCount)
       : requestedQuestionCount;
 
@@ -619,7 +623,12 @@ export async function POST(request: Request) {
     return Response.json(cached.result, { headers: noStoreHeaders });
   }
 
-  if (isDirectProportion || isDirectFrequency || isDirectSleepDuration) {
+  if (
+    isDirectProportion ||
+    isDirectFrequency ||
+    isDirectSleepDuration ||
+    isDirectDuration
+  ) {
     const directDraft = fastDraftFallback(
       prompt,
       targetGrade,
@@ -632,7 +641,9 @@ export async function POST(request: Request) {
         ? "direct-proportion"
         : isDirectFrequency
           ? "direct-frequency"
-          : "direct-sleep-duration",
+          : isDirectSleepDuration
+            ? "direct-sleep-duration"
+            : "direct-duration",
     );
   }
 

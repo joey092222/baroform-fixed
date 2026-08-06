@@ -15,9 +15,11 @@ import {
 import {
   analyzeSurveyPrompt,
   hasActionableSurveyDirection,
+  isExplicitDurationSurveyRequest,
   isLiteralFrequencySurveyRequest,
   isSleepDurationSurveyRequest,
   isSimpleProportionSurveyRequest,
+  parseExplicitSurveyMeasurement,
   parseSurveySemantics,
 } from "../app/survey-intent";
 import { applyTargetGradeToQuestions } from "../app/survey-grade";
@@ -155,6 +157,78 @@ test("대학생 수면 시간 의견은 실제 수면 시간과 충분함을 묻
   assert.doesNotMatch(
     corpus,
     /수면 시간.*얼마나 관련이 있나요|전반적으로 어떻게 평가하시나요|중요하게 생각하는 요소/,
+  );
+});
+
+test("SNS 이용 시간은 서비스명이 아니라 실제 시간량을 묻는 측정 기준으로 해석한다", () => {
+  const prompt = "연세대학교 재학생 SNS 이용 시간 조사";
+  const semantics = parseSurveySemantics(prompt);
+  const measurement = parseExplicitSurveyMeasurement(prompt);
+  const draft = analyzeSurveyPrompt(prompt);
+  const corpus = draft.aiQuestions
+    .flatMap((item) => [item.title, ...(item.options ?? [])])
+    .join(" ");
+
+  assert.equal(isExplicitDurationSurveyRequest(prompt), true);
+  assert.equal(semantics.respondentGroup, "연세대학교 재학생");
+  assert.equal(semantics.evaluationTarget, "SNS 이용 시간");
+  assert.equal(semantics.goalLabel, "실제 이용 시간 파악");
+  assert.deepEqual(measurement, {
+    kind: "duration",
+    target: "SNS 이용",
+    metricLabel: "이용 시간",
+    sourceTopic: "SNS 이용 시간",
+  });
+  assert.equal(draft.title, "연세대학교 재학생 SNS 이용 시간 조사");
+  assert.equal(
+    draft.aiQuestions[0]?.title,
+    "평일 하루 평균 SNS 이용 시간은 얼마나 되나요?",
+  );
+  assert.deepEqual(draft.aiQuestions[0]?.options, [
+    "전혀 하지 않음",
+    "30분 미만",
+    "30분 이상 1시간 미만",
+    "1시간 이상 2시간 미만",
+    "2시간 이상 3시간 미만",
+    "3시간 이상 4시간 미만",
+    "4시간 이상",
+  ]);
+  assert.match(corpus, /주말이나 공휴일 하루 평균 SNS 이용 시간/);
+  assert.match(corpus, /일주일 중 SNS 이용 시간이 있는 날/);
+  assert.match(corpus, /SNS 이용 시간이 가장 긴 시간대/);
+  assert.doesNotMatch(
+    corpus,
+    /SNS 이용 시간.*(?:사용하거나 이용|만족|얼마나 관련)|전반적으로 어떻게 평가/,
+  );
+});
+
+test("명시된 측정 기준은 실제 대상과 분리해 공통 의미 구조로 보존한다", () => {
+  assert.deepEqual(
+    parseExplicitSurveyMeasurement("대학생 배달앱 월 지출 금액 조사"),
+    {
+      kind: "cost",
+      target: "배달앱",
+      metricLabel: "월 지출 금액",
+      sourceTopic: "배달앱 월 지출 금액",
+    },
+  );
+  assert.deepEqual(
+    parseExplicitSurveyMeasurement("대학생들의 도서관 방문 횟수 조사"),
+    {
+      kind: "frequency",
+      target: "도서관 방문",
+      metricLabel: "횟수",
+      sourceTopic: "도서관 방문 횟수",
+    },
+  );
+  assert.deepEqual(
+    parseExplicitSurveyMeasurement("대학생들의 카페 선택 이유 조사"),
+    {
+      kind: "reason",
+      target: "카페 선택",
+      metricLabel: "이유",
+      sourceTopic: "카페 선택 이유",
+    },
   );
 });
 
@@ -342,6 +416,67 @@ test("설문 생성 API는 수면 시간 의견을 AI 호출 없이 생활시간
     assert.equal(
       body.blueprint.aiQuestions[0]?.title,
       "평일에 하루 평균 몇 시간 정도 자나요?",
+    );
+    assert.equal(upstreamCalled, false);
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
+
+test("설문 생성 API는 명확한 SNS 이용 시간을 AI 호출 없이 시간 문항으로 반환한다", async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  const previousFetch = globalThis.fetch;
+  let upstreamCalled = false;
+  process.env.OPENAI_API_KEY = "test-key";
+  globalThis.fetch = async () => {
+    upstreamCalled = true;
+    throw new Error("명확한 이용 시간 조사에서 외부 AI를 호출하면 안 됩니다");
+  };
+
+  try {
+    const response = await createSurveyDraft(
+      new Request("http://localhost/api/survey-draft", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          "user-agent": "baroform-direct-sns-duration-test",
+        },
+        body: JSON.stringify({
+          prompt: "연세대학교 재학생 SNS 이용 시간 조사",
+          targetGrade: "전학년",
+          questionCount: 7,
+          references: { images: [], files: [], links: [] },
+        }),
+      }),
+    );
+    const body = (await response.json()) as {
+      status: string;
+      clarification?: unknown;
+      blueprint: {
+        title: string;
+        goal: string;
+        aiQuestions: Array<{ title: string; options?: string[] }>;
+      };
+    };
+
+    assert.equal(response.status, 200);
+    assert.equal(
+      response.headers.get("x-baroform-ai-fallback"),
+      "direct-duration",
+    );
+    assert.equal(body.status, "ready");
+    assert.equal(body.clarification, undefined);
+    assert.equal(
+      body.blueprint.title,
+      "연세대학교 재학생 SNS 이용 시간 조사",
+    );
+    assert.equal(body.blueprint.goal, "실제 이용 시간 파악");
+    assert.equal(
+      body.blueprint.aiQuestions[0]?.title,
+      "평일 하루 평균 SNS 이용 시간은 얼마나 되나요?",
     );
     assert.equal(upstreamCalled, false);
   } finally {
@@ -1656,5 +1791,33 @@ test("AI가 의견을 이용 대상으로 만든 결과는 폐기한다", () => 
         "대우관 등하교에 대한 의견 조사",
       ),
     /조사 방식 표현|이용 대상으로/,
+  );
+});
+
+test("AI가 이용 시간을 서비스처럼 해석한 결과는 폐기한다", () => {
+  const badQuestions = Array.from({ length: 7 }, (_, index) =>
+    question(
+      index + 1,
+      index === 0
+        ? "SNS 이용 시간을 얼마나 자주 사용하거나 이용하시나요?"
+        : `SNS 이용 시간 관련 질문 ${index + 1}`,
+    ),
+  );
+
+  assert.throws(
+    () =>
+      parseSurveyDraftResponse(
+        readyPayload({
+          prompt: "연세대학교 재학생 SNS 이용 시간 조사",
+          evaluationTarget: "SNS 이용 시간",
+          respondentGroup: "연세대학교 재학생",
+          entityType: "other",
+          templateQuestions: badQuestions.slice(0, 5),
+          aiQuestions: badQuestions,
+          sourceUrls: ["https://www.yonsei.ac.kr/source"],
+        }),
+        "연세대학교 재학생 SNS 이용 시간 조사",
+      ),
+    /측정 기준|측정 내용/,
   );
 });
