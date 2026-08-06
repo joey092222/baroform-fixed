@@ -530,8 +530,11 @@ function Header({
   onProfile: () => void;
   cashBalance: number;
 }) {
-  const scrollToMaker = () => {
-    onNavigate("create");
+  const jumpToHomeSection = (sectionId: string) => {
+    if (view !== "home") onNavigate("home");
+    window.setTimeout(() => {
+      document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, view === "home" ? 0 : 80);
   };
 
   return (
@@ -558,26 +561,33 @@ function Header({
         <nav className="main-nav" aria-label="주요 메뉴">
           <button
             type="button"
+            className={view === "board" ? "active" : ""}
+            aria-current={view === "board" ? "page" : undefined}
+            onClick={() => onNavigate("board")}
+          >
+            전체 설문
+          </button>
+          <button type="button" onClick={() => jumpToHomeSection("campus-pulse")}>
+            오늘의 투표
+          </button>
+          <button
+            type="button"
             className={view === "community" ? "active" : ""}
             aria-current={view === "community" ? "page" : undefined}
             onClick={() => onNavigate("community")}
           >
             커뮤니티
           </button>
-          <button
-            type="button"
-            className={view === "board" ? "active" : ""}
-            aria-current={view === "board" ? "page" : undefined}
-            onClick={() => onNavigate("board")}
-          >
-            학교 설문
-          </button>
-          <button type="button" onClick={scrollToMaker}>
-            설문 만들기
-          </button>
-          <button type="button" onClick={() => onNavigate("analytics")}>
-            결과 분석
-          </button>
+          {user && (
+            <button
+              type="button"
+              className={view === "mypage" ? "active" : ""}
+              aria-current={view === "mypage" ? "page" : undefined}
+              onClick={onProfile}
+            >
+              내 설문
+            </button>
+          )}
         </nav>
         <div className="header-actions">
           {user ? (
@@ -592,10 +602,10 @@ function Header({
               </button>
             </>
           ) : (
-            <span className="no-login-note">
-              <Check size={13} strokeWidth={2.5} />
-              응답은 로그인 없이
-            </span>
+            <button className="header-reward-note" type="button" onClick={onAuth}>
+              <Coins size={14} />
+              로그인하면 참여 캐시 적립
+            </button>
           )}
           <button
             className={`auth-button ${view === "mypage" ? "active" : ""}`}
@@ -609,10 +619,10 @@ function Header({
           <button
             className="nav-cta"
             type="button"
-            onClick={scrollToMaker}
+            onClick={() => onNavigate("create")}
           >
-            설문 만들기
-            <ArrowRight size={16} />
+            <WandSparkles size={15} />
+            제작
           </button>
         </div>
       </div>
@@ -1579,6 +1589,7 @@ function ProductHomeView({
   loadingSurveys,
   user,
   authToken,
+  cashBalance,
   onAuth,
   onRefreshSurveys,
   onCreate,
@@ -1592,6 +1603,7 @@ function ProductHomeView({
   loadingSurveys: boolean;
   user: AuthUser | null;
   authToken: string;
+  cashBalance: number;
   onAuth: () => void;
   onRefreshSurveys: () => void;
   onCreate: () => void;
@@ -1689,8 +1701,8 @@ function ProductHomeView({
       );
   }, [surveyFilter, surveySearch, surveys]);
   const filteringSurveys = Boolean(surveySearch.trim()) || surveyFilter !== "all";
-  const recommendedSurveys = filteredHomeSurveys.slice(0, filteringSurveys ? 9 : 3);
-  const moreSurveys = filteringSurveys ? [] : filteredHomeSurveys.slice(3, 9);
+  const recommendedSurveys = filteredHomeSurveys.slice(0, filteringSurveys ? 12 : 4);
+  const moreSurveys = filteringSurveys ? [] : filteredHomeSurveys.slice(4, 12);
   const totalResponses = surveys.reduce(
     (total, survey) => total + (survey.responseCount ?? 0),
     0,
@@ -1698,65 +1710,36 @@ function ProductHomeView({
 
   return (
     <>
-      <main className="campus-home-main">
-        <section className="campus-home-heading" aria-labelledby="campus-home-title">
-          <div>
-            <span className="campus-home-eyebrow">CAMPUS HOME</span>
-            <h1 id="campus-home-title">캠퍼스의 질문과 답을 한곳에서.</h1>
+      <main className="campus-home-main response-first-home">
+        <section className="home-participation-lead" aria-labelledby="campus-home-title">
+          <div className="home-participation-copy">
+            <span>PARTICIPATE</span>
+            <h1 id="campus-home-title">지금 참여할 설문</h1>
+            <p>우리 학교의 질문에 답하고, 참여 캐시를 모아보세요.</p>
           </div>
-          <span className="campus-home-status">
-            <i />
-            지금 참여 가능한 설문 {surveys.length}개
-          </span>
-        </section>
-
-        <section className="campus-home-hero" aria-label="바로폼 주요 기능">
-          <button type="button" className="campus-create-card" onClick={onCreate}>
-            <span className="campus-create-copy">
-              <span className="campus-create-label">
-                <WandSparkles size={15} /> AI SURVEY STUDIO
-              </span>
-              <strong>제작하기</strong>
-              <small>
-                떠오른 주제를 한 문장으로 적으면 설계부터 배포까지 바로
-                시작할 수 있어요.
-              </small>
-              <span className="campus-create-action">
-                새 설문 시작하기 <ArrowRight size={17} />
-              </span>
-            </span>
-            <span className="campus-create-flow" aria-hidden="true">
-              <span><i>01</i><b>AI 초안</b><em>질문을 구조화해요</em></span>
-              <span><i>02</i><b>응답 모집</b><em>학교 안에서 연결해요</em></span>
-              <span><i>03</i><b>결과 공유</b><em>카드로 바로 알려요</em></span>
-            </span>
-          </button>
-
-          <div className="campus-home-quick-stack">
-            <button type="button" className="campus-quick-card survey-quick" onClick={onOpenBoard}>
-              <span className="campus-quick-icon"><School size={20} /></span>
-              <span>
-                <small>SURVEYS</small>
-                <strong>올라온 설문 보기</strong>
-                <em>{surveys.length}개 설문 · 응답 {totalResponses.toLocaleString("ko-KR")}개</em>
-              </span>
-              <ArrowRight size={18} />
-            </button>
-            <button type="button" className="campus-quick-card external-quick" onClick={() => user ? setExternalSurveyOpen(true) : onAuth()}>
-              <span className="campus-quick-icon"><Link2 size={20} /></span>
-              <span>
-                <small>BRING YOUR FORM</small>
-                <strong>외부 설문 등록하기</strong>
-                <em>만든 링크 그대로 응답자를 모집해요</em>
-              </span>
-              <ArrowRight size={18} />
-            </button>
-            <button type="button" className="campus-quick-card pulse-quick" onClick={() => document.getElementById("campus-pulse")?.scrollIntoView({ behavior: "smooth" })}>
-              <span className="campus-quick-icon"><BarChart3 size={20} /></span>
-              <span><small>CAMPUS PULSE</small><strong>오늘의 10초 투표</strong><em>응답 즉시 학교별 결과를 확인해요</em></span>
-              <ArrowRight size={18} />
-            </button>
+          <div className="home-participation-stats" aria-label="바로폼 설문 현황">
+            <span><strong>{surveys.length}</strong><small>참여 가능</small></span>
+            <span><strong>{totalResponses.toLocaleString("ko-KR")}</strong><small>누적 응답</small></span>
           </div>
+          {user ? (
+            <div className="home-reward-state signed-in">
+              <span><Coins size={19} /></span>
+              <div>
+                <small>{user.name}님의 참여 캐시</small>
+                <strong>{cashBalance.toLocaleString("ko-KR")}C 적립 중</strong>
+              </div>
+              <CheckCircle2 size={18} />
+            </div>
+          ) : (
+            <button className="home-reward-state" type="button" onClick={onAuth}>
+              <span><Coins size={19} /></span>
+              <div>
+                <strong>로그인하고 참여 캐시 받기</strong>
+                <small>로그인 없이 참여할 수 있지만 캐시는 적립되지 않아요.</small>
+              </div>
+              <ArrowRight size={18} />
+            </button>
+          )}
         </section>
 
         <section className="home-survey-discovery" aria-label="설문 찾기">
@@ -1798,14 +1781,19 @@ function ProductHomeView({
                 {filteringSurveys ? "조건에 맞는 설문" : "먼저 만나볼 설문"}
               </h2>
             </div>
-            <span className="home-section-count">
-              {loadingSurveys ? "불러오는 중" : `${filteredHomeSurveys.length}개`}
-            </span>
+            <div className="home-section-controls">
+              <span className="home-section-count">
+                {loadingSurveys ? "불러오는 중" : `${filteredHomeSurveys.length}개`}
+              </span>
+              <button type="button" onClick={onOpenBoard}>
+                전체 설문 <ArrowRight size={16} />
+              </button>
+            </div>
           </div>
 
           {loadingSurveys ? (
             <div className="home-survey-grid" aria-label="설문 목록 불러오는 중">
-              {[0, 1, 2].map((item) => (
+              {[0, 1, 2, 3].map((item) => (
                 <span className="home-content-skeleton" key={item} />
               ))}
             </div>
@@ -1844,7 +1832,7 @@ function ProductHomeView({
             <div className="campus-section-heading">
               <div>
                 <span>MORE SURVEYS</span>
-                <h2 id="home-more-surveys-title">더 둘러보기</h2>
+                <h2 id="home-more-surveys-title">계속 둘러보기</h2>
               </div>
               <button type="button" onClick={onOpenBoard}>
                 전체 설문 보기 <ArrowRight size={16} />
@@ -1933,6 +1921,26 @@ function ProductHomeView({
                 </button>
               )}
             </div>
+          </div>
+        </section>
+
+        <section className="home-organizer-panel" aria-labelledby="home-organizer-title">
+          <div>
+            <span>FOR ORGANIZERS</span>
+            <h2 id="home-organizer-title">설문을 운영하고 있나요?</h2>
+            <p>응답자용 설문 목록과 분리된 제작·모집 도구를 이용해 보세요.</p>
+          </div>
+          <div className="home-organizer-actions">
+            <button type="button" onClick={onCreate}>
+              <span><WandSparkles size={19} /></span>
+              <div><strong>AI 설문 제작</strong><small>질문 설계부터 배포까지</small></div>
+              <ArrowRight size={17} />
+            </button>
+            <button type="button" onClick={() => user ? setExternalSurveyOpen(true) : onAuth()}>
+              <span><Link2 size={19} /></span>
+              <div><strong>외부 설문 등록</strong><small>기존 링크로 응답자 모집</small></div>
+              <ArrowRight size={17} />
+            </button>
           </div>
         </section>
       </main>
@@ -6432,6 +6440,7 @@ export default function Home() {
           loadingSurveys={loadingSurveys}
           user={user}
           authToken={authToken}
+          cashBalance={wallet.balance}
           onAuth={() => setAuthOpen(true)}
           onRefreshSurveys={() => void refreshPublicSurveys()}
           onCreate={() => navigate("create")}
