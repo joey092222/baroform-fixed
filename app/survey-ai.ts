@@ -1,5 +1,6 @@
 import {
   analyzeSurveyPrompt,
+  hasActionableSurveyDirection,
   resizeSurveyQuestions,
   type SurveyBlueprint,
   type SurveyDomain,
@@ -335,12 +336,14 @@ export const surveyAiInstructions = `
 
 [반드시 지킬 작업 순서]
 1. 사용자 입력에서 응답 대상, 평가 대상, 조사 목적, 고유명사와 실세계 대상 유형을 임시로 분리한다.
-2. 문장이 짧더라도 단어 하나만 떼어 판단하지 말고 조사 목적 표현, 조사 대상, 학교 맥락을 함께 읽는다. 부족한 세부 조건은 일반적인 설문 관행에 따라 합리적으로 보완하고 assumptions에 적는다.
-3. 고유명사·교내 시설·특정 서비스처럼 정체 확인이 문항을 바꾸는 경우에만 web_search를 사용한다. 일반적인 만족도·수요·행사 설문은 검색 없이 바로 설계한다.
-4. 검색했다면 공식 기관·공식 운영 주체·학술 자료를 우선하고, 검색하지 않았다면 확인하지 않은 사실을 전제로 쓰지 않는다.
-5. 완성 후 각 질문과 선택지가 조사 대상의 실제 유형 및 목적에 맞는지 다시 검수한다.
+2. 사용자 문장을 먼저 문자 그대로 받아들인다. 이미 적힌 응답 대상, 행동·생각·경험, 측정 기준은 넓히거나 다른 목적으로 바꾸지 않는다.
+3. 문장이 짧더라도 단어 하나만 떼어 판단하지 말고 조사 목적 표현, 조사 대상, 학교 맥락을 함께 읽는다. 부족한 세부 조건은 일반적인 설문 관행에 따라 합리적으로 보완하고 assumptions에 적는다.
+4. 고유명사·교내 시설·특정 서비스처럼 정체 확인이 문항을 바꾸는 경우에만 web_search를 사용한다. 일반적인 만족도·수요·행사 설문은 검색 없이 바로 설계한다.
+5. 검색했다면 공식 기관·공식 운영 주체·학술 자료를 우선하고, 검색하지 않았다면 확인하지 않은 사실을 전제로 쓰지 않는다.
+6. 완성 후 각 질문과 선택지가 조사 대상의 실제 유형 및 목적에 맞는지 다시 검수한다.
 
 [가장 중요한 의미 규칙]
+0. 문자 그대로 우선한다. 사용자가 '빈도', '횟수', '여부', '만족도', '선호', '의향', '정도'처럼 측정할 내용을 명시했다면 그것이 조사 목적이다. 원인·장벽·인구통계·다른 평가 목적을 확인 질문으로 되묻지 말고 바로 설계한다.
 1. 응답 대상은 실제로 답해야 하는 사람이고, 평가 대상은 그 사람이 평가할 환경·서비스·사건·행동·경험이다. 둘을 절대 섞지 않는다.
 2. 'X의/들의 만족도'에서 X가 사람 집단이면 X는 응답 대상이다. '경영학과 신입생들의 만족도'는 경영학과 신입생이 입학 후 경험한 학과생활의 만족도를 묻는다. '신입생들에게 얼마나 만족하나요?'처럼 사람 자체를 평가하게 만들지 않는다.
 3. 'X에 대한 만족도'의 X는 평가 대상이다. 'X 이용자/참여자/회원의 만족도'에서 그 사람들은 응답 대상이고 X 이용·참여·활동 경험이 평가 대상이다.
@@ -385,11 +388,13 @@ export const surveyAiInstructions = `
 9. 질문은 분석에 쓰일 구체적인 정보를 물어야 한다. '전반적인 의견은?', '중요하게 생각하는 요소는?' 같은 대상 없는 범용 문구나 번호만 바꾼 반복 문항을 쓰지 않는다. 자유응답은 막연한 소감보다 구체적 상황, 가장 큰 이유, 바꿔야 할 한 가지를 묻는다.
 10. 개인정보나 인구통계는 조사 목적에 꼭 필요할 때만 묻는다. type은 scale, single, multiple, text만 사용하며 single/multiple은 options가 2개 이상, scale/text는 options가 빈 배열이다. 현재 바로폼은 분기나 매트릭스를 지원하지 않는다.
 11. reason은 해당 답을 어떤 비교·분류·우선순위 판단에 사용할지 짧고 구체적으로 쓴다.
+12. 사용자가 학년·학과·성별·기간을 직접 요구하지 않았다면 설문 생성 전에 이를 되묻지 않는다. 문항에도 조사 목적상 꼭 필요한 경우가 아니면 임의로 추가하지 않는다.
 
 [판정]
 - 목적과 응답 대상, 평가 경험이 명확하고 필요한 고유명사도 확인됐으면 ready.
 - 고유명사만 있고 조사 목적이 없거나, 서로 다른 두 해석이 문항 내용을 실질적으로 바꾸거나, 검색이 필요한데 근거가 약하면 needs_clarification. 확인 질문은 하나만 하고 서로 실제로 다른 2~3개의 짧은 선택지를 준다. '직접 설명할게요', '기타'처럼 정보가 없는 선택지는 만들지 않는다.
-- 단순히 문장이 짧거나 세부 조건이 덜 적혔다는 이유만으로 needs_clarification을 반환하지 않는다. 평가 대상과 목적을 한 방향으로 합리적으로 추론할 수 있으면 assumptions에 적고 ready로 진행한다.
+- 단순히 문장이 짧거나 기간·척도·세부 조건이 덜 적혔다는 이유만으로 needs_clarification을 반환하지 않는다. 평가 대상과 목적을 한 방향으로 합리적으로 추론할 수 있으면 assumptions에 적고 ready로 진행한다.
+- 응답 대상과 측정 내용이 이미 적혀 있으면 needs_clarification을 반환하지 않는다. 예: '연세대 학생들이 학교에서 집 가고 싶다는 생각을 하는 빈도 조사'는 연세대 학생에게 그 생각의 빈도를 바로 묻는 설문이며, 학년·학과·이유를 먼저 확인하지 않는다.
 
 [예시]
 - '한경관 만족도 조사': 한경관은 이름만 보면 일반 건물처럼 보이지만, 연세대학교 공식 안내상 현재 식당으로 사용되고 어울샘식당이 있는 교내 식당이다. 응답 대상은 한경관 식당 이용 경험자, 평가 대상은 식사 경험이다. 강의실·엘리베이터·학습공간이 아니라 맛·메뉴·가격 대비 가치·양·대기·배식·위생·좌석과 혼잡·재이용 의향을 묻는다.
@@ -973,6 +978,58 @@ export function parseSurveyDraftResponse(
   const sources = allSources.slice(0, 5);
 
   if (result.status === "needs_clarification") {
+    if (
+      !expectsReferences &&
+      interpretation.searchRequired !== true &&
+      hasActionableSurveyDirection(prompt)
+    ) {
+      const questionCount = Math.min(
+        30,
+        Math.max(3, Math.round(requestedQuestionCount)),
+      );
+      const targetGrade = isTargetGrade(requestedTargetGrade)
+        ? requestedTargetGrade
+        : "전학년";
+      const fallback = analyzeSurveyPrompt(prompt);
+      const aiQuestions = applyTargetGradeToQuestions(
+        resizeSurveyQuestions(fallback.aiQuestions, questionCount),
+        targetGrade,
+        questionCount,
+      );
+      const templateCount = Math.min(5, questionCount);
+      return {
+        status: "ready",
+        prompt,
+        blueprint: {
+          ...fallback,
+          description: surveyDescriptionForGrade(
+            fallback.description,
+            targetGrade,
+          ),
+          respondentGroup: respondentGroupForGrade(
+            fallback.respondentGroup,
+            targetGrade,
+          ),
+          templateQuestions: applyTargetGradeToQuestions(
+            resizeSurveyQuestions(
+              fallback.templateQuestions,
+              templateCount,
+            ),
+            targetGrade,
+            templateCount,
+          ),
+          aiQuestions,
+        },
+        research: {
+          status: "fallback",
+          entity: null,
+          summary:
+            "입력에 조사 대상과 측정 내용이 명확해 추가 질문 없이 그대로 문항을 구성했어요.",
+          facts: [],
+          sources: [],
+        },
+      };
+    }
     const options = Array.isArray(result.options)
       ? result.options
           .map((option) => cleanText(option, 100))
@@ -1258,7 +1315,7 @@ export function buildSurveyAiRequest(
     hasReferences
       ? "참고자료를 요약만 하지 말고, 자료의 고유한 사실·주장·변수·비교축을 분석한 뒤 최소 두 문항의 질문 또는 선택지에 구체적으로 연결하세요. designPlan에 자료 근거, 분석축, 각 문항의 역할을 먼저 정리한 다음 문항을 완성하세요."
       : "설문 목적에 맞는 분석축과 각 문항의 역할을 먼저 정한 다음 문항을 완성하세요.",
-    "문장이 짧다는 이유로 생성을 거절하지 마세요. 한 가지 방향으로 합리적으로 해석할 수 있으면 가정을 명시하고 설문을 만들고, 서로 다른 해석이 문항을 크게 바꿀 때만 확인 질문 하나를 반환하세요.",
+    "사용자가 명시한 응답 대상과 측정 내용을 문자 그대로 우선하세요. 빈도·횟수·여부·만족도·선호·의향·정도가 적혀 있으면 기간, 척도, 학년, 학과, 원인 같은 부가 조건을 되묻지 말고 바로 설문을 만드세요. 문장이 짧다는 이유로 생성을 거절하지 마세요. 조사 대상이나 측정 내용 자체가 없어 문항을 정할 수 없을 때만 확인 질문 하나를 반환하세요.",
     "기존 규칙 기반 해석과 사전 검증 자료는 참고용이며, 확인된 사실과 다르면 바로잡으세요.",
     `<fallback_context>${JSON.stringify(contextHint)}</fallback_context>`,
   ].join("\n");

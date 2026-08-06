@@ -981,6 +981,94 @@ test("API 키가 없을 때 목적 없는 고유명사는 확인 질문을 반�
   }
 });
 
+test("대상과 측정 내용이 명확한 빈도 조사는 추가 질문 없이 바로 만든다", async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+  try {
+    const prompt =
+      "연세대 학생들이 학교에서 집 가고 싶다는 생각을 하는 빈도 조사";
+    const response = await createSurveyDraft(
+      new Request("http://localhost/api/survey-draft", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          "user-agent": "baroform-literal-frequency-test",
+        },
+        body: JSON.stringify({ prompt }),
+      }),
+    );
+    const body = (await response.json()) as {
+      status?: string;
+      clarification?: unknown;
+      blueprint?: {
+        respondentGroup?: string;
+        aiQuestions?: Array<{ title: string }>;
+      };
+    };
+
+    assert.equal(response.status, 200);
+    assert.equal(body.status, "ready");
+    assert.equal(body.clarification, undefined);
+    assert.match(
+      body.blueprint?.respondentGroup ?? "",
+      /연세대(?:학교)?\s*(?:재)?학생/,
+    );
+    assert.equal(
+      body.blueprint?.aiQuestions?.[0]?.title,
+      "학교에서 집 가고 싶다는 생각을 하는 빈도는 어느 정도인가요?",
+    );
+    assert.doesNotMatch(
+      body.blueprint?.aiQuestions?.map((item) => item.title).join(" ") ?? "",
+      /학년|학과/,
+    );
+  } finally {
+    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+  }
+});
+
+test("AI가 명확한 빈도 조사에 재질문해도 설문 초안으로 전환한다", () => {
+  const prompt =
+    "연세대 학생들이 학교에서 집 가고 싶다는 생각을 하는 빈도 조사";
+  const questions = Array.from({ length: 7 }, (_, index) =>
+    question(index + 1, `집에 가고 싶다는 생각의 빈도 질문 ${index + 1}`),
+  );
+  const payload = readyPayload({
+    prompt,
+    evaluationTarget: "학교에서 집에 가고 싶다는 생각의 빈도",
+    respondentGroup: "연세대 학생",
+    entityType: "other",
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
+    sourceUrls: ["https://www.yonsei.ac.kr/source"],
+  });
+  editReadyPayload(payload, (result) => {
+    result.status = "needs_clarification";
+    result.question = "어느 학과 학생을 대상으로 할까요?";
+    result.reason = "세부 대상을 확인해야 합니다.";
+    result.options = ["인문계열", "자연계열", "전체"];
+    result.interpretation = {
+      ...(result.interpretation as Record<string, unknown>),
+      searchRequired: false,
+    };
+  });
+
+  const parsed = parseSurveyDraftResponse(payload, prompt);
+
+  assert.equal(parsed.status, "ready");
+  if (parsed.status === "ready") {
+    assert.match(
+      parsed.blueprint.respondentGroup ?? "",
+      /연세대(?:학교)?\s*(?:재)?학생/,
+    );
+    assert.equal(
+      parsed.blueprint.aiQuestions[0]?.title,
+      "학교에서 집 가고 싶다는 생각을 하는 빈도는 어느 정도인가요?",
+    );
+    assert.match(parsed.research.summary, /추가 질문 없이/);
+  }
+});
+
 test("검색이 필요하지만 출처를 확인하지 못하면 오류 대신 확인 질문을 반환한다", () => {
   const prompt = "프로메테우스 만족도 조사";
   const questions = Array.from({ length: 7 }, (_, index) =>

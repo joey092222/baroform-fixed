@@ -313,6 +313,17 @@ function splitRespondent(prompt: string) {
     };
   }
 
+  const actorTopic = prompt.match(
+    new RegExp(`^(.*${personHead})(?:들이|이|가)\\s+(.+)$`),
+  );
+  if (actorTopic) {
+    return {
+      respondentGroup: cleanRespondent(actorTopic[1]),
+      content: actorTopic[2].trim(),
+      topicPrefix: null,
+    };
+  }
+
   const genitive = prompt.match(
     new RegExp(`^(.*${personHead}(?:들)?)(?:의)\\s+(.+)$`),
   );
@@ -629,6 +640,7 @@ export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
       ? "satisfaction"
       : detectedKind;
   const movement = movementExperience(evaluationTarget);
+  const literalFrequency = /(?:빈도|횟수)$/.test(explicitTopic);
   const topicWasInferred = explicitTopic.length < 2;
   const assumptions: string[] = topicWasInferred
     ? [`‘${evaluationTarget}’에 대한 조사로 문맥을 해석했어요.`]
@@ -645,7 +657,11 @@ export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
     explicitTopic: explicitTopic.length >= 2 ? explicitTopic : null,
     kind,
     domain,
-    goalLabel: movement ? "이동 경험과 개선점" : goalLabels[kind],
+    goalLabel: literalFrequency
+      ? "빈도 파악"
+      : movement
+        ? "이동 경험과 개선점"
+        : goalLabels[kind],
     requestedAsOpinion,
     topicWasInferred,
     assumptions,
@@ -2061,6 +2077,84 @@ function adaptationBlueprint(subject: string): SurveyBlueprint {
   };
 }
 
+function frequencyBlueprint(subject: string): SurveyBlueprint {
+  const focus = subject
+    .replace(
+      /\s*(?:을|를)?\s*(?:하는|느끼는|경험하는|떠올리는)?\s*(?:빈도|횟수)$/,
+      "",
+    )
+    .trim();
+  const experienceNoun = focus.includes("생각") ? "생각이" : "경험이";
+  const templateQuestions = [
+    question(
+      1,
+      `${subject}는 어느 정도인가요?`,
+      "사용자가 요청한 핵심 빈도를 그대로 측정해요.",
+      "single",
+      ["전혀 없음", "드물게 있음", "가끔 있음", "자주 있음", "거의 항상 있음"],
+    ),
+    question(
+      2,
+      `그 ${experienceNoun} 드는 날은 보통 하루에 몇 번 정도인가요?`,
+      "하루 안에서 반복되는 횟수를 구분해 전체 빈도를 더 정확히 해석해요.",
+      "single",
+      ["1번", "2~3번", "4~5번", "6번 이상", "해당 없음"],
+    ),
+    question(
+      3,
+      `일주일 중 그 ${experienceNoun} 드는 날은 보통 며칠인가요?`,
+      "주 단위로 나타나는 빈도를 확인해 응답자의 체감 차이를 비교해요.",
+      "single",
+      ["0일", "1~2일", "3~4일", "5~6일", "매일"],
+    ),
+    question(
+      4,
+      `그 ${experienceNoun} 가장 자주 드는 시간대를 모두 골라주세요.`,
+      "빈도가 높아지는 시간대를 확인해 결과를 구체적으로 해석해요.",
+      "multiple",
+      ["등교 직후", "오전", "점심시간", "오후", "저녁", "특정 시간대 없음"],
+    ),
+    question(
+      5,
+      `그 ${experienceNoun} 특히 자주 나타나는 상황을 모두 골라주세요.`,
+      "빈도 차이가 나타나는 대표 상황을 구분해요.",
+      "multiple",
+      ["수업 전후", "공강", "과제·시험 기간", "식사 전후", "동아리·모임 전후", "특정 상황 없음"],
+    ),
+  ];
+  const aiQuestions = [
+    ...templateQuestions,
+    question(
+      6,
+      `학기 초와 비교해 최근 그 ${experienceNoun} 드는 빈도는 어떻게 달라졌나요?`,
+      "최근 빈도의 변화를 확인해 일시적인 응답과 지속적인 경향을 구분해요.",
+      "single",
+      ["많이 줄었음", "조금 줄었음", "비슷함", "조금 늘었음", "많이 늘었음"],
+    ),
+    question(
+      7,
+      "빈도와 관련해 덧붙이고 싶은 상황이 있다면 적어주세요.",
+      "정해진 선택지로 설명하기 어려운 빈도 맥락만 선택적으로 받아요.",
+      "text",
+      undefined,
+      false,
+    ),
+  ];
+
+  return {
+    kind: "general",
+    intentLabel: "빈도 조사",
+    subject,
+    title: `${subject} 조사`,
+    description: `${focus || subject}의 빈도를 문자 그대로 확인하는 익명 설문입니다.`,
+    templateTitle: `${focus || subject} 빈도`,
+    templateSummary: "요청한 빈도를 기간과 반복 횟수 기준으로 확인해요.",
+    detectedSignals: [`측정 내용 · ${subject}`, "목적 · 빈도 파악"],
+    templateQuestions,
+    aiQuestions,
+  };
+}
+
 function generalBlueprint(subject: string): SurveyBlueprint {
   const topic = topicLabel(subject);
   const templateQuestions = [
@@ -2245,39 +2339,59 @@ export function analyzeSurveyPrompt(rawPrompt: string): SurveyBlueprint {
   const subject = semantics.evaluationTarget;
   let blueprint: SurveyBlueprint;
 
-  switch (semantics.kind) {
-    case "membership":
-      blueprint = membershipBlueprint(subject);
-      break;
-    case "problem":
-      blueprint = problemBlueprint(subject);
-      break;
-    case "satisfaction":
-      blueprint = satisfactionBlueprint(semantics);
-      break;
-    case "event":
-      blueprint = eventBlueprint(subject, normalized);
-      break;
-    case "adoption":
-      blueprint = adoptionBlueprint(subject);
-      break;
-    case "usage":
-      blueprint = usageBlueprint(
-        subject.replace(/\s*(?:이용|사용)\s*경험$/, "").trim() || subject,
-      );
-      break;
-    case "needs":
-      blueprint = needsBlueprint(subject);
-      break;
-    case "awareness":
-      blueprint = awarenessBlueprint(subject);
-      break;
-    case "adaptation":
-      blueprint = adaptationBlueprint(subject);
-      break;
-    default:
-      blueprint = generalBlueprint(subject);
+  if (/(?:빈도|횟수)$/.test(semantics.explicitTopic ?? "")) {
+    blueprint = frequencyBlueprint(subject);
+  } else {
+    switch (semantics.kind) {
+      case "membership":
+        blueprint = membershipBlueprint(subject);
+        break;
+      case "problem":
+        blueprint = problemBlueprint(subject);
+        break;
+      case "satisfaction":
+        blueprint = satisfactionBlueprint(semantics);
+        break;
+      case "event":
+        blueprint = eventBlueprint(subject, normalized);
+        break;
+      case "adoption":
+        blueprint = adoptionBlueprint(subject);
+        break;
+      case "usage":
+        blueprint = usageBlueprint(
+          subject.replace(/\s*(?:이용|사용)\s*경험$/, "").trim() || subject,
+        );
+        break;
+      case "needs":
+        blueprint = needsBlueprint(subject);
+        break;
+      case "awareness":
+        blueprint = awarenessBlueprint(subject);
+        break;
+      case "adaptation":
+        blueprint = adaptationBlueprint(subject);
+        break;
+      default:
+        blueprint = generalBlueprint(subject);
+    }
   }
 
   return attachSemantics(blueprint, semantics);
+}
+
+export function hasActionableSurveyDirection(rawPrompt: string) {
+  const normalized = rawPrompt.replace(/\s+/g, " ").trim();
+  if (
+    !normalized ||
+    /^(?:설문|설문\s*조사|조사|만족도|의견|생각|평가|수요|문제점|개선점|대학생\s*설문|학교\s*설문)$/.test(
+      normalized,
+    )
+  ) {
+    return false;
+  }
+
+  return /(만족|불만|문제|개선|평가|선호|수요|인지|의향|경험|이용|사용|가입|참여|적응|학교생활|대학생활|등하교|통학|구매|불편|장벽|행태|빈도|횟수|얼마나|정도|시간|기간|비율|여부|선택|순위|생각|느낌)/.test(
+    normalized,
+  );
 }

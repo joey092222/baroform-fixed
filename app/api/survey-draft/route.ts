@@ -1,5 +1,6 @@
 import {
   analyzeSurveyPrompt,
+  hasActionableSurveyDirection,
   resizeSurveyQuestions,
   type SurveyBlueprint,
 } from "../../survey-intent";
@@ -207,20 +208,6 @@ function fastDraftFallback(
   };
 }
 
-function hasUsableSurveyDirection(prompt: string) {
-  const normalized = prompt.replace(/\s+/g, " ").trim();
-  if (
-    /^(?:설문|설문\s*조사|조사|만족도|의견|생각|평가|수요|문제점|개선점|대학생\s*설문|학교\s*설문)$/.test(
-      normalized,
-    )
-  ) {
-    return false;
-  }
-  return /(만족|불만|문제|개선|평가|선호|수요|인지|의향|경험|이용|사용|가입|참여|적응|학교생활|대학생활|등하교|통학|구매|불편|장벽|행태|빈도)/.test(
-    normalized,
-  );
-}
-
 function clarificationOptions(blueprint: SurveyBlueprint) {
   switch (blueprint.domain) {
     case "club":
@@ -299,7 +286,7 @@ function resilientDraftFallback(
   targetGrade: TargetGrade,
   questionCount: number,
 ) {
-  return hasUsableSurveyDirection(prompt)
+  return hasActionableSurveyDirection(prompt)
     ? fastDraftFallback(prompt, targetGrade, questionCount)
     : clarificationFallback(prompt, targetGrade, questionCount);
 }
