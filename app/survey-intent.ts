@@ -137,6 +137,9 @@ const eventCue =
 const consumptionHabitCue =
   /(?:소비|지출|구매)\s*(?:습관|행태|패턴)|(?:소비|지출)\s*실태/;
 
+const sleepDurationCue =
+  /(?:평균\s*)?(?:하루\s*)?(?:수면|잠(?:을\s*)?자는)\s*(?:시간|시간대|패턴)|(?:취침|기상)\s*시간|수면량/;
+
 const actionFrequencyCue =
   /(카공|공부|학습|운동|독서|외식|음주|흡연|쇼핑|구매|주문|배달|방문|이용|사용|참여|관람|게임|통학|등하교|아르바이트|지각|결석|여행|모임|식사|간식|커피|카페)/;
 
@@ -702,6 +705,7 @@ export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
   const movement = movementExperience(evaluationTarget);
   const literalFrequency = /(?:빈도|횟수)$/.test(explicitTopic);
   const literalConsumptionHabits = consumptionHabitCue.test(explicitTopic);
+  const literalSleepDuration = sleepDurationCue.test(explicitTopic);
   const topicWasInferred = explicitTopic.length < 2;
   const assumptions: string[] = topicWasInferred
     ? [`‘${evaluationTarget}’에 대한 조사로 문맥을 해석했어요.`]
@@ -722,9 +726,11 @@ export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
       ? "빈도 파악"
       : literalConsumptionHabits
         ? "소비 행태 파악"
-      : movement
-        ? "이동 경험과 개선점"
-        : goalLabels[kind],
+        : literalSleepDuration
+          ? "수면 시간과 인식 파악"
+          : movement
+            ? "이동 경험과 개선점"
+            : goalLabels[kind],
     requestedAsOpinion,
     topicWasInferred,
     assumptions,
@@ -2507,6 +2513,103 @@ function proportionBlueprint(intent: DirectProportionIntent): SurveyBlueprint {
   };
 }
 
+function sleepDurationBlueprint(subject: string): SurveyBlueprint {
+  const durationOptions = [
+    "5시간 미만",
+    "5시간 이상 6시간 미만",
+    "6시간 이상 7시간 미만",
+    "7시간 이상 8시간 미만",
+    "8시간 이상 9시간 미만",
+    "9시간 이상",
+  ];
+  const templateQuestions = [
+    question(
+      1,
+      "평일에 하루 평균 몇 시간 정도 자나요?",
+      "수업이 있는 평일의 실제 수면 시간을 구간별로 비교해요.",
+      "single",
+      durationOptions,
+    ),
+    question(
+      2,
+      "주말이나 공휴일에는 하루 평균 몇 시간 정도 자나요?",
+      "주말 수면 시간을 평일과 비교해 부족한 잠을 보충하는 경향을 확인해요.",
+      "single",
+      durationOptions,
+    ),
+    question(
+      3,
+      "현재 수면 시간이 본인에게 충분하다고 느끼나요?",
+      "실제 수면 시간과 응답자가 느끼는 충분함의 차이를 확인해요.",
+      "single",
+      ["매우 부족함", "부족한 편", "보통", "충분한 편", "매우 충분함"],
+    ),
+    question(
+      4,
+      "본인에게 가장 적절하다고 생각하는 하루 수면 시간은 얼마인가요?",
+      "대학생이 생각하는 적정 수면 시간을 실제 수면 시간과 비교해요.",
+      "single",
+      durationOptions,
+    ),
+    question(
+      5,
+      "수면 시간이 부족해지는 주된 이유를 모두 골라주세요.",
+      "충분한 수면을 방해하는 생활 요인을 구체적으로 파악해요.",
+      "multiple",
+      [
+        "과제·시험",
+        "아르바이트",
+        "스마트폰·SNS·영상 시청",
+        "모임·약속",
+        "통학 시간",
+        "스트레스·불면",
+        "생활 리듬이 불규칙해서",
+        "수면 시간이 부족하지 않음",
+      ],
+    ),
+  ];
+
+  return {
+    kind: "general",
+    intentLabel: "수면 시간",
+    subject,
+    title: `${subject} 조사`,
+    description:
+      "대학생의 평일·주말 수면 시간과 충분함, 적정 수면 시간에 대한 인식, 수면 부족의 원인과 영향을 파악하는 익명 설문입니다.",
+    templateTitle: "대학생 수면 시간 핵심 문항",
+    templateSummary:
+      "실제 수면 시간과 충분함에 대한 의견을 함께 물어 생활 패턴을 구체적으로 확인해요.",
+    detectedSignals: ["측정 내용 · 수면 시간", "목적 · 실제 시간과 인식 파악"],
+    templateQuestions,
+    aiQuestions: [
+      ...templateQuestions,
+      question(
+        6,
+        "수면 시간 부족이 일상에 미치는 영향을 모두 골라주세요.",
+        "수면 부족이 학업과 생활에 연결되는 양상을 구분해요.",
+        "multiple",
+        [
+          "낮 시간 피로·졸림",
+          "수업·과제 집중력 저하",
+          "기분 변화·예민함",
+          "지각·결석",
+          "카페인 의존 증가",
+          "건강 문제",
+          "특별한 영향 없음",
+        ],
+      ),
+      question(
+        7,
+        "대학생이 충분한 수면 시간을 확보하려면 가장 필요한 변화가 무엇이라고 생각하나요?",
+        "선택지로 담기 어려운 수면 시간에 대한 의견과 개선 아이디어를 수집해요.",
+        "text",
+        undefined,
+        false,
+      ),
+    ],
+  };
+}
+
 function generalBlueprint(subject: string): SurveyBlueprint {
   const topic = topicLabel(subject);
   const templateQuestions = [
@@ -2694,7 +2797,9 @@ export function analyzeSurveyPrompt(rawPrompt: string): SurveyBlueprint {
   const subject = semantics.evaluationTarget;
   let blueprint: SurveyBlueprint;
 
-  if (consumptionHabitCue.test(semantics.explicitTopic ?? "")) {
+  if (sleepDurationCue.test(semantics.explicitTopic ?? "")) {
+    blueprint = sleepDurationBlueprint(subject);
+  } else if (consumptionHabitCue.test(semantics.explicitTopic ?? "")) {
     blueprint = consumptionHabitsBlueprint(subject);
   } else if (/(?:빈도|횟수)$/.test(semantics.explicitTopic ?? "")) {
     blueprint = frequencyBlueprint(subject);
@@ -2740,6 +2845,13 @@ export function analyzeSurveyPrompt(rawPrompt: string): SurveyBlueprint {
 export function isLiteralFrequencySurveyRequest(rawPrompt: string) {
   const semantics = parseSurveySemantics(rawPrompt);
   return /(?:빈도|횟수)$/.test(semantics.explicitTopic ?? "");
+}
+
+export function isSleepDurationSurveyRequest(rawPrompt: string) {
+  const semantics = parseSurveySemantics(rawPrompt);
+  return sleepDurationCue.test(
+    semantics.explicitTopic ?? semantics.evaluationTarget,
+  );
 }
 
 export function hasActionableSurveyDirection(rawPrompt: string) {

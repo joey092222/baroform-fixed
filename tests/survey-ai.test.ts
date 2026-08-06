@@ -16,6 +16,7 @@ import {
   analyzeSurveyPrompt,
   hasActionableSurveyDirection,
   isLiteralFrequencySurveyRequest,
+  isSleepDurationSurveyRequest,
   isSimpleProportionSurveyRequest,
   parseSurveySemantics,
 } from "../app/survey-intent";
@@ -125,6 +126,35 @@ test("카공 빈도는 빈도라는 단어가 아니라 실제 카공 행동 주
   assert.doesNotMatch(
     corpus,
     /카공 빈도는 어느 정도인가요|그 경험이 드는|드물게 있음|거의 항상 있음/,
+  );
+});
+
+test("대학생 수면 시간 의견은 실제 수면 시간과 충분함을 묻는다", () => {
+  const prompt = "대학생 수면 시간 의견을 조사하라";
+  const semantics = parseSurveySemantics(prompt);
+  const draft = analyzeSurveyPrompt(prompt);
+  const corpus = draft.aiQuestions
+    .flatMap((item) => [item.title, ...(item.options ?? [])])
+    .join(" ");
+
+  assert.equal(isSleepDurationSurveyRequest(prompt), true);
+  assert.equal(semantics.respondentGroup, "대학생");
+  assert.equal(semantics.evaluationTarget, "수면 시간");
+  assert.equal(semantics.goalLabel, "수면 시간과 인식 파악");
+  assert.equal(draft.title, "대학생 수면 시간 조사");
+  assert.equal(draft.aiQuestions.length, 7);
+  assert.equal(
+    draft.aiQuestions[0]?.title,
+    "평일에 하루 평균 몇 시간 정도 자나요?",
+  );
+  assert.match(corpus, /주말이나 공휴일/);
+  assert.match(corpus, /충분하다고 느끼나요/);
+  assert.match(corpus, /가장 적절하다고 생각하는 하루 수면 시간/);
+  assert.match(corpus, /부족해지는 주된 이유/);
+  assert.match(corpus, /일상에 미치는 영향/);
+  assert.doesNotMatch(
+    corpus,
+    /수면 시간.*얼마나 관련이 있나요|전반적으로 어떻게 평가하시나요|중요하게 생각하는 요소/,
   );
 });
 
@@ -256,6 +286,63 @@ test("설문 생성 API는 명확한 카공 빈도를 AI 호출 없이 행동 �
       "주 3~4회",
       "주 5회 이상",
     ]);
+    assert.equal(upstreamCalled, false);
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
+
+test("설문 생성 API는 수면 시간 의견을 AI 호출 없이 생활시간 문항으로 반환한다", async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  const previousFetch = globalThis.fetch;
+  let upstreamCalled = false;
+  process.env.OPENAI_API_KEY = "test-key";
+  globalThis.fetch = async () => {
+    upstreamCalled = true;
+    throw new Error("명확한 수면 시간 조사에서 외부 AI를 호출하면 안 됩니다");
+  };
+
+  try {
+    const response = await createSurveyDraft(
+      new Request("http://localhost/api/survey-draft", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          "user-agent": "baroform-direct-sleep-duration-test",
+        },
+        body: JSON.stringify({
+          prompt: "대학생 수면 시간 의견을 조사하라",
+          targetGrade: "전학년",
+          questionCount: 7,
+          references: { images: [], files: [], links: [] },
+        }),
+      }),
+    );
+    const body = (await response.json()) as {
+      status: string;
+      clarification?: unknown;
+      blueprint: {
+        title: string;
+        aiQuestions: Array<{ title: string; options?: string[] }>;
+      };
+    };
+
+    assert.equal(response.status, 200);
+    assert.equal(
+      response.headers.get("x-baroform-ai-fallback"),
+      "direct-sleep-duration",
+    );
+    assert.equal(body.status, "ready");
+    assert.equal(body.clarification, undefined);
+    assert.equal(body.blueprint.title, "대학생 수면 시간 조사");
+    assert.equal(body.blueprint.aiQuestions.length, 7);
+    assert.equal(
+      body.blueprint.aiQuestions[0]?.title,
+      "평일에 하루 평균 몇 시간 정도 자나요?",
+    );
     assert.equal(upstreamCalled, false);
   } finally {
     globalThis.fetch = previousFetch;
