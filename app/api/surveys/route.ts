@@ -276,8 +276,8 @@ export async function POST(request: Request) {
     );
     if (publication.requiresLogin) {
       return Response.json(
-        { error: "학교 게시판에 올리려면 먼저 로그인해주세요." },
-        { status: 401 },
+        { error: "설문을 배포하려면 먼저 로그인해주세요." },
+        { status: 401, headers: noStoreHeaders },
       );
     }
     if (sessionUser && ownerName.length < 2) ownerName = sessionUser.name;

@@ -14964,43 +14964,64 @@ button {
   font-weight: 720;
 }
 
-.header-reward-note {
-  min-height: 34px;
-  padding: 0 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  border-radius: 999px;
-  background: #fff6df;
-  color: #8b621f;
-  font-size: 11px;
-  font-weight: 790;
-  white-space: nowrap;
-}
-
-.header-reward-note:hover {
-  background: #ffefca;
-  color: #6e4910;
-}
-
 .site-header .nav-cta {
-  height: 35px;
-  padding: 0 12px;
-  gap: 6px;
-  border: 1px solid #cdd6e6;
-  border-radius: 10px;
-  background: rgba(238, 242, 250, 0.72);
-  color: #2d4268;
+  min-width: 250px;
+  height: 46px;
+  padding: 0 15px 0 8px;
+  gap: 10px;
+  border: 1px solid #29446f;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 88% 0%, rgba(149, 174, 255, 0.32), transparent 42%),
+    linear-gradient(128deg, #172c50 0%, #304b80 100%);
+  color: #ffffff;
   font-size: 11px;
   font-weight: 790;
-  box-shadow: none;
+  box-shadow: 0 10px 24px rgba(29, 48, 87, 0.18);
 }
 
 .site-header .nav-cta:hover {
-  border-color: #aebbd3;
-  background: #e7ecf6;
-  color: #1d3155;
-  transform: translateY(-1px);
+  border-color: #3a5b94;
+  background:
+    radial-gradient(circle at 88% 0%, rgba(164, 186, 255, 0.4), transparent 44%),
+    linear-gradient(128deg, #1c345d 0%, #3a5992 100%);
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px rgba(29, 48, 87, 0.24);
+}
+
+.nav-cta-icon {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.nav-cta-copy {
+  min-width: 0;
+  display: grid;
+  flex: 1;
+  gap: 1px;
+  text-align: left;
+}
+
+.nav-cta-copy strong {
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: -0.02em;
+}
+
+.nav-cta-copy small {
+  color: #c5d1ed;
+  font-size: 8px;
+  font-weight: 650;
+}
+
+.nav-cta-mobile-label {
+  display: none;
 }
 
 .response-first-home {
@@ -15310,12 +15331,11 @@ button.home-reward-state:hover {
   }
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1180px) {
   .site-header .main-nav {
     display: none;
   }
 
-  .header-reward-note,
   .member-school {
     display: none;
   }
@@ -15344,7 +15364,31 @@ button.home-reward-state:hover {
   }
 
   .site-header .nav-cta {
-    padding: 0 10px;
+    min-width: 126px;
+    height: 40px;
+    padding: 0 10px 0 7px;
+    gap: 7px;
+    border-radius: 11px;
+  }
+
+  .nav-cta-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+  }
+
+  .nav-cta-copy small,
+  .nav-cta-desktop-label,
+  .site-header .nav-cta > svg:last-child {
+    display: none;
+  }
+
+  .nav-cta-mobile-label {
+    display: inline;
+  }
+
+  .nav-cta-copy strong {
+    font-size: 10.5px;
   }
 
   .response-first-home {
@@ -15385,4 +15429,52 @@ button.home-reward-state:hover {
   .home-organizer-panel {
     padding: 21px;
   }
+}
+
+/* Logged-in survey publishing with Instagram handoff */
+.publish-action-stack {
+  width: 100%;
+  margin-top: 17px;
+  display: grid;
+  gap: 9px;
+}
+
+.publish-action-stack .modal-confirm {
+  margin-top: 0;
+}
+
+.publish-action-stack .instagram-confirm {
+  background: linear-gradient(120deg, #6548b7 0%, #b84683 52%, #d57738 100%);
+  box-shadow: 0 10px 24px rgba(143, 59, 112, 0.18);
+}
+
+.publish-action-stack .instagram-confirm:hover:not(:disabled) {
+  background: linear-gradient(120deg, #593da8 0%, #a83c77 52%, #c86a2d 100%);
+  transform: translateY(-1px);
+}
+
+.publish-link-only {
+  width: 100%;
+  height: 43px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #dce2eb;
+  border-radius: 11px;
+  background: #ffffff;
+  color: #526077;
+  font-size: 10.5px;
+  font-weight: 780;
+}
+
+.publish-link-only:hover:not(:disabled) {
+  border-color: #bfc9da;
+  background: #f7f9fc;
+  color: #293b5c;
+}
+
+.publish-link-only:disabled {
+  cursor: wait;
+  opacity: 0.58;
 }

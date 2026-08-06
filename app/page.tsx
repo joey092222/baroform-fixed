@@ -601,12 +601,7 @@ function Header({
                 {cashBalance.toLocaleString("ko-KR")}C
               </button>
             </>
-          ) : (
-            <button className="header-reward-note" type="button" onClick={onAuth}>
-              <Coins size={14} />
-              로그인하면 참여 캐시 적립
-            </button>
-          )}
+          ) : null}
           <button
             className={`auth-button ${view === "mypage" ? "active" : ""}`}
             type="button"
@@ -621,8 +616,15 @@ function Header({
             type="button"
             onClick={() => onNavigate("create")}
           >
-            <WandSparkles size={15} />
-            제작
+            <span className="nav-cta-icon"><WandSparkles size={17} /></span>
+            <span className="nav-cta-copy">
+              <strong>
+                <span className="nav-cta-desktop-label">AI로 설문 자동 제작하기</span>
+                <span className="nav-cta-mobile-label">AI 설문 제작</span>
+              </strong>
+              <small>한 문장으로 바로 시작</small>
+            </span>
+            <ArrowRight size={17} />
           </button>
         </div>
       </div>
@@ -3612,6 +3614,7 @@ function PublishModal({
     ownerName: string,
     listingRequested: boolean,
     category: SurveyCategory,
+    shareToInstagram: boolean,
   ) => void;
   onLogin: () => void;
   user: AuthUser | null;
@@ -3639,8 +3642,8 @@ function PublishModal({
         </span>
         <h2>완성한 설문을 배포할까요?</h2>
         <p>
-          링크가 있는 누구나 로그인 없이 참여할 수 있고, 결과는 바로폼에서
-          실시간으로 확인할 수 있어요.
+          로그인한 계정에 설문과 결과가 안전하게 저장돼요. 응답자는 계정 없이
+          참여할 수 있어요.
         </p>
         <div className="publish-summary">
           <span>설문 제목</span>
@@ -3713,8 +3716,8 @@ function PublishModal({
         <div className="publish-instagram-callout">
           <span><InstagramGlyph size={19} /></span>
           <div>
-            <strong>인스타그램 배포 카드도 함께 만들 수 있어요</strong>
-            <small>배포 완료 후 4:5 홍보 이미지와 참여 캡션을 바로 공유해요.</small>
+            <strong>Instagram 앱으로 설문 카드 바로 보내기</strong>
+            <small>모바일 공유창에 4:5 홍보 이미지와 참여 문구를 함께 전달해요.</small>
           </div>
           <CheckCircle2 size={16} />
         </div>
@@ -3723,32 +3726,94 @@ function PublishModal({
             {error}
           </p>
         )}
-        <button
-          type="button"
-          className="modal-confirm"
-          onClick={() => {
-            if (listingRequested && !user) {
-              onLogin();
-              return;
-            }
-            onConfirm(ownerName.trim() || user?.name || "", listingRequested, category);
-          }}
-          disabled={saving}
-        >
-          {saving
-            ? "공개 링크 만드는 중…"
-            : listingRequested
-              ? "링크 만들고 게시판에 올리기"
-              : "공개 링크 만들기"}
-          {!saving && <ArrowRight size={17} />}
-        </button>
+        <div className="publish-action-stack">
+          <button
+            type="button"
+            className="modal-confirm instagram-confirm"
+            onClick={() => {
+              if (!user) {
+                onLogin();
+                return;
+              }
+              onConfirm(ownerName.trim() || user.name, listingRequested, category, true);
+            }}
+            disabled={saving}
+          >
+            <InstagramGlyph size={18} />
+            {saving ? "설문 배포 중…" : "배포하고 Instagram 앱 열기"}
+            {!saving && <ArrowRight size={17} />}
+          </button>
+          <button
+            type="button"
+            className="publish-link-only"
+            onClick={() => {
+              if (!user) {
+                onLogin();
+                return;
+              }
+              onConfirm(ownerName.trim() || user.name, listingRequested, category, false);
+            }}
+            disabled={saving}
+          >
+            <Link2 size={16} />
+            링크로만 배포하기
+          </button>
+        </div>
         <span className="modal-note">
           <CheckCircle2 size={14} />
-          응답자는 바로폼 계정 없이 참여할 수 있어요
+          설문 배포는 로그인 필수 · 응답 참여는 로그인 선택
         </span>
       </div>
     </div>
   );
+}
+
+async function shareSurveyCardToInstagramApp({
+  title,
+  surveyUrl,
+}: SurveyShareCardInput) {
+  try {
+    const blob = await createInstagramSurveyCard({ title, surveyUrl });
+    const safeTitle = (title || "바로폼-설문")
+      .replace(/[\\/:*?"<>|]/g, "")
+      .trim()
+      .slice(0, 45);
+    const file = new File([blob], `${safeTitle || "바로폼-설문"}-참여.png`, {
+      type: "image/png",
+    });
+    const caption = [
+      title,
+      "로그인 없이 바로 참여할 수 있어요.",
+      `설문 참여하기 ${surveyUrl}`,
+      "#바로폼 #대학생설문 #설문조사",
+    ].join("\n");
+    const canShareFile =
+      typeof navigator.share === "function" &&
+      (typeof navigator.canShare !== "function" || navigator.canShare({ files: [file] }));
+
+    if (canShareFile) {
+      try {
+        await navigator.clipboard.writeText(caption);
+      } catch {
+        // Some mobile browsers hand the caption to the share target directly.
+      }
+      await navigator.share({ files: [file], title, text: caption });
+      return "Instagram 공유창에 설문 카드를 전달하고 참여 문구를 복사했어요.";
+    }
+
+    downloadResultShareFile(file);
+    try {
+      await navigator.clipboard.writeText(caption);
+      return "설문 카드 저장과 Instagram용 문구 복사를 완료했어요.";
+    } catch {
+      return "Instagram용 설문 카드를 저장했어요.";
+    }
+  } catch (shareError) {
+    if (shareError instanceof DOMException && shareError.name === "AbortError") {
+      return "설문 배포는 완료됐고 Instagram 공유는 취소했어요.";
+    }
+    return "설문은 배포됐지만 Instagram 카드를 열지 못했어요. 아래 버튼에서 다시 시도해주세요.";
+  }
 }
 
 function PublishedView({
@@ -3759,6 +3824,7 @@ function PublishedView({
   onAnalytics,
   onHome,
   onBoard,
+  initialInstagramStatus,
 }: {
   title: string;
   slug: string;
@@ -3767,10 +3833,11 @@ function PublishedView({
   onAnalytics: () => void;
   onHome: () => void;
   onBoard: () => void;
+  initialInstagramStatus: string;
 }) {
   const [copied, setCopied] = useState(false);
   const [instagramSharing, setInstagramSharing] = useState(false);
-  const [instagramStatus, setInstagramStatus] = useState("");
+  const [instagramStatus, setInstagramStatus] = useState(initialInstagramStatus);
   const shareUrl =
     typeof window === "undefined"
       ? `?survey=${slug}`
@@ -3790,47 +3857,9 @@ function PublishedView({
     if (instagramSharing) return;
     setInstagramSharing(true);
     setInstagramStatus("");
-    try {
-      const blob = await createInstagramSurveyCard({ title, surveyUrl: shareUrl });
-      const safeTitle = (title || "바로폼-설문")
-        .replace(/[\\/:*?"<>|]/g, "")
-        .trim()
-        .slice(0, 45);
-      const file = new File([blob], `${safeTitle || "바로폼-설문"}-참여.png`, {
-        type: "image/png",
-      });
-      const caption = [
-        title,
-        "로그인 없이 바로 참여할 수 있어요.",
-        `설문 참여하기 ${shareUrl}`,
-        "#바로폼 #대학생설문 #설문조사",
-      ].join("\n");
-      const canShareFile =
-        typeof navigator.share === "function" &&
-        (typeof navigator.canShare !== "function" || navigator.canShare({ files: [file] }));
-
-      if (canShareFile) {
-        setInstagramStatus("공유 앱 목록에서 Instagram을 선택해주세요.");
-        await navigator.share({ files: [file], title, text: caption });
-        setInstagramStatus("인스타그램용 설문 카드를 공유했어요.");
-      } else {
-        downloadResultShareFile(file);
-        try {
-          await navigator.clipboard.writeText(caption);
-          setInstagramStatus("홍보 카드 저장과 참여 캡션 복사를 완료했어요.");
-        } catch {
-          setInstagramStatus("인스타그램용 홍보 카드를 저장했어요.");
-        }
-      }
-    } catch (shareError) {
-      if (shareError instanceof DOMException && shareError.name === "AbortError") {
-        setInstagramStatus("공유를 취소했어요.");
-      } else {
-        setInstagramStatus("홍보 카드를 만들지 못했어요. 다시 시도해주세요.");
-      }
-    } finally {
-      setInstagramSharing(false);
-    }
+    const status = await shareSurveyCardToInstagramApp({ title, surveyUrl: shareUrl });
+    setInstagramStatus(status);
+    setInstagramSharing(false);
   };
 
   return (
@@ -5821,9 +5850,11 @@ export default function Home() {
   const [wallet, setWallet] = useState<WalletData>({ balance: 0, transactions: [] });
   const analysisRequestRef = useRef(0);
   const [publishOpen, setPublishOpen] = useState(false);
+  const [publishAfterAuth, setPublishAfterAuth] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState("");
   const [publishedSlug, setPublishedSlug] = useState("");
+  const [publishedInstagramStatus, setPublishedInstagramStatus] = useState("");
   const [manageToken, setManageToken] = useState("");
   const [publishedListingRequested, setPublishedListingRequested] =
     useState(false);
@@ -6270,7 +6301,14 @@ export default function Home() {
     ownerName: string,
     listingRequested: boolean,
     category: SurveyCategory,
+    shareToInstagram: boolean,
   ) => {
+    if (!user || !authToken) {
+      setPublishAfterAuth(true);
+      setPublishOpen(false);
+      setAuthOpen(true);
+      return;
+    }
     setPublishing(true);
     setPublishError("");
     try {
@@ -6350,6 +6388,15 @@ export default function Home() {
         void refreshPublicSurveys();
       }
       if (authToken) void refreshMySurveys(authToken);
+      setPublishedInstagramStatus("");
+      if (shareToInstagram) {
+        const surveyUrl = `${window.location.origin}/?survey=${result.survey.slug}`;
+        const shareStatus = await shareSurveyCardToInstagramApp({
+          title: result.survey.title,
+          surveyUrl,
+        });
+        setPublishedInstagramStatus(shareStatus);
+      }
       setPublishOpen(false);
       navigate("published");
     } catch (saveError) {
@@ -6507,7 +6554,15 @@ export default function Home() {
           questions={questions}
           setQuestions={setQuestions}
           onBack={() => navigate("create")}
-          onPublish={() => setPublishOpen(true)}
+          onPublish={() => {
+            setPublishedInstagramStatus("");
+            if (!user || !authToken) {
+              setPublishAfterAuth(true);
+              setAuthOpen(true);
+              return;
+            }
+            setPublishOpen(true);
+          }}
           targetGrade={targetGrade}
           onAiRevise={reviseSurveyWithAi}
         />
@@ -6521,6 +6576,7 @@ export default function Home() {
           onAnalytics={() => navigate("analytics")}
           onHome={() => navigate("home")}
           onBoard={() => navigate("board")}
+          initialInstagramStatus={publishedInstagramStatus}
         />
       )}
       {view === "survey" && activeSurvey && (
@@ -6555,13 +6611,21 @@ export default function Home() {
       )}
       {authOpen && (
         <AuthModal
-          onClose={() => setAuthOpen(false)}
+          onClose={() => {
+            setAuthOpen(false);
+            setPublishAfterAuth(false);
+          }}
           onSuccess={(token, signedInUser) => {
             window.localStorage.setItem(authTokenStorageKey, token);
             setAuthToken(token);
             setUser(signedInUser);
             setAuthOpen(false);
-            if (!publishOpen && view !== "survey" && view !== "community") navigate("mypage");
+            if (publishAfterAuth) {
+              setPublishAfterAuth(false);
+              setPublishOpen(true);
+            } else if (!publishOpen && view !== "survey" && view !== "community") {
+              navigate("mypage");
+            }
             setToast(`${schoolLabel(signedInUser.schoolId)} 계정으로 로그인했어요.`);
             window.setTimeout(() => setToast(""), 2200);
           }}

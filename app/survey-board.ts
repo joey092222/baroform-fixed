@@ -41,7 +41,7 @@ export function surveyPublicationState(
   hasAuthenticatedOwner: boolean,
 ) {
   return {
-    requiresLogin: listingRequested && !hasAuthenticatedOwner,
+    requiresLogin: !hasAuthenticatedOwner,
     listingRequested,
     isListed: listingRequested && hasAuthenticatedOwner,
   };

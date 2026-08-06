@@ -15,7 +15,7 @@ test("연세대학교 가입자와 학교 게시판 분류를 식별한다", () 
   assert.equal(schoolLabel("yonsei"), "연세대학교 신촌캠퍼스");
 });
 
-test("학교 게시 요청은 로그인된 작성자일 때만 게시 상태가 된다", () => {
+test("링크 배포와 학교 게시는 모두 로그인된 작성자만 가능하다", () => {
   assert.deepEqual(surveyPublicationState(true, true), {
     requiresLogin: false,
     listingRequested: true,
@@ -27,6 +27,11 @@ test("학교 게시 요청은 로그인된 작성자일 때만 게시 상태가 
     isListed: false,
   });
   assert.deepEqual(surveyPublicationState(false, false), {
+    requiresLogin: true,
+    listingRequested: false,
+    isListed: false,
+  });
+  assert.deepEqual(surveyPublicationState(false, true), {
     requiresLogin: false,
     listingRequested: false,
     isListed: false,
