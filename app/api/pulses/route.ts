@@ -36,7 +36,7 @@ export async function GET(request: Request) {
         gt(campusPulses.expiresAt, new Date().toISOString()),
       ))
       .orderBy(desc(campusPulses.createdAt))
-      .limit(6);
+      .limit(30);
     const ids = pulseRows.map((pulse) => pulse.id);
     const voteRows = ids.length > 0
       ? await db.select().from(campusPulseVotes).where(inArray(campusPulseVotes.pulseId, ids))

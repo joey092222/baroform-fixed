@@ -249,9 +249,9 @@ export default function CommunityView({
     <main className="community-page">
       <section className="community-hero">
         <div>
-          <span className="eyebrow">BAROFORM CAMPUS</span>
-          <h1>대학생 커뮤니티</h1>
-          <p>설문 참여자를 찾고, 학교생활과 팀 프로젝트 이야기를 나눠보세요.</p>
+          <span className="eyebrow">CAMPUS COMMUNITY</span>
+          <h1>캠퍼스에서 나누는 이야기</h1>
+          <p>학교생활의 질문과 정보, 소소한 이야기를 게시판에서 편하게 나눠보세요.</p>
         </div>
         <button type="button" className="community-write-button" onClick={openComposer}>
           <PenLine size={18} />

@@ -79,11 +79,17 @@ import {
   communityCategoryLabel,
   type CommunityCategory,
 } from "./community";
+import {
+  campusPulseTimeLeft,
+  rankCampusPulses,
+  type CampusPulse,
+} from "./campus-pulse";
 
 type View =
   | "landing"
   | "home"
   | "board"
+  | "pulses"
   | "community"
   | "mypage"
   | "create"
@@ -137,17 +143,6 @@ type StoredResponse = {
     status: "usable" | "review" | "exclude";
     reasons: string[];
   };
-};
-
-type CampusPulse = {
-  id: string;
-  question: string;
-  options: string[];
-  createdAt: string;
-  expiresAt: string;
-  totalVotes: number;
-  myVote: number | null;
-  overall: number[];
 };
 
 type ClarificationState = {
@@ -530,13 +525,6 @@ function Header({
   onProfile: () => void;
   cashBalance: number;
 }) {
-  const jumpToHomeSection = (sectionId: string) => {
-    if (view !== "home") onNavigate("home");
-    window.setTimeout(() => {
-      document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, view === "home" ? 0 : 80);
-  };
-
   return (
     <header className="site-header">
       <div className="header-inner">
@@ -567,8 +555,13 @@ function Header({
           >
             전체 설문
           </button>
-          <button type="button" onClick={() => jumpToHomeSection("campus-pulse")}>
-            오늘의 투표
+          <button
+            type="button"
+            className={view === "pulses" ? "active" : ""}
+            aria-current={view === "pulses" ? "page" : undefined}
+            onClick={() => onNavigate("pulses")}
+          >
+            캠퍼스의 생각
           </button>
           <button
             type="button"
@@ -731,6 +724,14 @@ function WorkspaceSidebar({
           >
             <School size={17} />
             설문 찾기
+          </button>
+          <button
+            type="button"
+            className={view === "pulses" ? "active" : ""}
+            onClick={() => go("pulses")}
+          >
+            <BarChart3 size={17} />
+            캠퍼스의 생각
           </button>
           <button
             type="button"
@@ -1516,6 +1517,9 @@ function CampusPulseSection({
   onAuth,
   onReload,
   onCreate,
+  onOpenBoard,
+  title = "오늘 캠퍼스의 생각",
+  showBoardLink = true,
 }: {
   pulse?: CampusPulse;
   loading: boolean;
@@ -1524,6 +1528,9 @@ function CampusPulseSection({
   onAuth: () => void;
   onReload: () => void;
   onCreate: () => void;
+  onOpenBoard: () => void;
+  title?: string;
+  showBoardLink?: boolean;
 }) {
   const [voting, setVoting] = useState(false);
   const [error, setError] = useState("");
@@ -1554,8 +1561,11 @@ function CampusPulseSection({
   return (
     <section className="campus-pulse-section" id="campus-pulse" aria-labelledby="campus-pulse-title">
       <div className="campus-section-heading pulse-heading">
-        <div><span>CAMPUS PULSE</span><h2 id="campus-pulse-title">오늘 캠퍼스의 생각</h2></div>
-        <button type="button" onClick={user ? onCreate : onAuth}><Plus size={16} /> 새 투표 열기</button>
+        <div><span>CAMPUS PULSE</span><h2 id="campus-pulse-title">{title}</h2></div>
+        <div className="pulse-heading-actions">
+          {showBoardLink && <button type="button" onClick={onOpenBoard}>투표 게시판 <ArrowRight size={16} /></button>}
+          <button type="button" className="primary" onClick={user ? onCreate : onAuth}><Plus size={16} /> 새 투표 열기</button>
+        </div>
       </div>
       {loading ? <span className="home-content-skeleton pulse-skeleton" /> : pulse ? (
         <div className="campus-pulse-card">
@@ -1573,7 +1583,7 @@ function CampusPulseSection({
             {error && <span className="feature-modal-error" role="alert">{error}</span>}
           </div>
           <div className="pulse-result-panel">
-            <div className="pulse-result-head"><span>즉시 결과</span><strong>{pulse.totalVotes.toLocaleString("ko-KR")}명 참여</strong></div>
+            <div className="pulse-result-head"><strong>{pulse.totalVotes.toLocaleString("ko-KR")}명 참여</strong></div>
             <div className="pulse-result-bars">{pulse.options.map((option, index) => { const percentage = resultTotal > 0 ? Math.round(((resultCounts[index] ?? 0) / resultTotal) * 100) : 0; return <div key={option}><span><strong>{option}</strong><em>{percentage}% · {resultCounts[index] ?? 0}명</em></span><i><b style={{ width: `${percentage}%` }} /></i></div>; })}</div>
             <small>학교 인증 계정의 투표만 집계해요. 학년·학과 같은 추가 정보는 받지 않아요.</small>
           </div>
@@ -1582,6 +1592,147 @@ function CampusPulseSection({
         <button type="button" className="pulse-empty" onClick={user ? onCreate : onAuth}><BarChart3 size={24} /><span><strong>아직 진행 중인 캠퍼스 투표가 없어요.</strong><small>첫 질문을 열고 10초 만에 학교의 생각을 확인해보세요.</small></span><ArrowRight size={18} /></button>
       )}
     </section>
+  );
+}
+
+function CampusPulseBoardView({
+  user,
+  authToken,
+  onAuth,
+}: {
+  user: AuthUser | null;
+  authToken: string;
+  onAuth: () => void;
+}) {
+  const [pulses, setPulses] = useState<CampusPulse[]>([]);
+  const [selectedPulseId, setSelectedPulseId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
+
+  const loadPulses = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch("/api/pulses?school=yonsei", {
+        cache: "no-store",
+        headers: authToken ? { authorization: `Bearer ${authToken}` } : {},
+      });
+      const result = (await response.json()) as { pulses?: CampusPulse[] };
+      if (!response.ok) throw new Error();
+      setPulses(result.pulses ?? []);
+    } catch {
+      setPulses([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [authToken]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/pulses?school=yonsei", {
+      cache: "no-store",
+      headers: authToken ? { authorization: `Bearer ${authToken}` } : {},
+    })
+      .then(async (response) => {
+        const result = (await response.json()) as { pulses?: CampusPulse[] };
+        if (!response.ok) throw new Error();
+        return result.pulses ?? [];
+      })
+      .then((nextPulses) => {
+        if (!cancelled) setPulses(nextPulses);
+      })
+      .catch(() => {
+        if (!cancelled) setPulses([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authToken]);
+
+  const rankedPulses = useMemo(() => rankCampusPulses(pulses), [pulses]);
+  const selectedPulse =
+    rankedPulses.find((pulse) => pulse.id === selectedPulseId) ?? rankedPulses[0];
+  const openCreate = () => {
+    if (!user) {
+      onAuth();
+      return;
+    }
+    setCreateOpen(true);
+  };
+
+  return (
+    <>
+      <main className="pulse-board-page">
+        <section className="pulse-board-hero">
+          <div>
+            <span>CAMPUS PULSE BOARD</span>
+            <h1>캠퍼스의 생각</h1>
+            <p>짧게 묻고 바로 답하는 캠퍼스 투표 게시판이에요. 참여가 가장 많은 질문부터 확인해 보세요.</p>
+          </div>
+          <button type="button" onClick={openCreate}><Plus size={17} /> 새 투표 만들기</button>
+        </section>
+
+        <section className="pulse-board-layout" aria-label="캠퍼스 투표 게시판">
+          <div className="pulse-board-list-panel">
+            <div className="pulse-board-list-head">
+              <div><strong>진행 중인 투표</strong><small>참여 많은 순</small></div>
+              <span>{rankedPulses.length}개</span>
+            </div>
+            <div className="pulse-board-list">
+              {loading ? (
+                [0, 1, 2, 3].map((item) => <span className="pulse-board-row-skeleton" key={item} />)
+              ) : rankedPulses.length > 0 ? (
+                rankedPulses.map((pulse, index) => (
+                  <button
+                    type="button"
+                    className={selectedPulse?.id === pulse.id ? "active" : ""}
+                    key={pulse.id}
+                    onClick={() => setSelectedPulseId(pulse.id)}
+                  >
+                    <span className="pulse-board-row-top">
+                      <em>{index === 0 ? "참여 1위" : `투표 ${index + 1}`}</em>
+                      <small>{campusPulseTimeLeft(pulse.expiresAt)}</small>
+                    </span>
+                    <strong>{pulse.question}</strong>
+                    <span className="pulse-board-row-meta"><UsersRound size={14} /> {pulse.totalVotes.toLocaleString("ko-KR")}명 참여 · 선택지 {pulse.options.length}개</span>
+                  </button>
+                ))
+              ) : (
+                <button type="button" className="pulse-board-list-empty" onClick={openCreate}>
+                  <BarChart3 size={22} />
+                  <span><strong>진행 중인 투표가 없어요.</strong><small>첫 질문을 게시해 보세요.</small></span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="pulse-board-detail">
+            <CampusPulseSection
+              pulse={selectedPulse}
+              loading={loading}
+              user={user}
+              authToken={authToken}
+              onAuth={onAuth}
+              onReload={() => void loadPulses()}
+              onCreate={openCreate}
+              onOpenBoard={() => undefined}
+              title="선택한 캠퍼스의 생각"
+              showBoardLink={false}
+            />
+          </div>
+        </section>
+      </main>
+      {createOpen && (
+        <PulseCreateModal
+          authToken={authToken}
+          onClose={() => setCreateOpen(false)}
+          onSaved={() => void loadPulses()}
+        />
+      )}
+      <Footer />
+    </>
   );
 }
 
@@ -1599,6 +1750,7 @@ function ProductHomeView({
   onOpenSurvey,
   onOpenOwnedSurvey,
   onOpenCommunity,
+  onOpenPulseBoard,
 }: {
   surveys: PublicSurvey[];
   ownedSurveys: OwnedSurvey[];
@@ -1613,6 +1765,7 @@ function ProductHomeView({
   onOpenSurvey: (survey: PublicSurvey) => void;
   onOpenOwnedSurvey: (survey: OwnedSurvey) => void;
   onOpenCommunity: () => void;
+  onOpenPulseBoard: () => void;
 }) {
   const [communityPosts, setCommunityPosts] = useState<HomeCommunityPost[]>([]);
   const [loadingCommunity, setLoadingCommunity] = useState(true);
@@ -1673,7 +1826,7 @@ function ProductHomeView({
           posts?: HomeCommunityPost[];
         };
         if (!cancelled && response.ok) {
-          setCommunityPosts((result.posts ?? []).slice(0, 4));
+          setCommunityPosts((result.posts ?? []).slice(0, 6));
         }
       } catch {
         if (!cancelled) setCommunityPosts([]);
@@ -1709,6 +1862,7 @@ function ProductHomeView({
     (total, survey) => total + (survey.responseCount ?? 0),
     0,
   );
+  const featuredPulse = useMemo(() => rankCampusPulses(pulses)[0], [pulses]);
 
   return (
     <>
@@ -1853,13 +2007,14 @@ function ProductHomeView({
         )}
 
         <CampusPulseSection
-          pulse={pulses[0]}
+          pulse={featuredPulse}
           loading={loadingPulses}
           user={user}
           authToken={authToken}
           onAuth={onAuth}
           onReload={() => void loadPulses()}
           onCreate={() => setPulseCreateOpen(true)}
+          onOpenBoard={onOpenPulseBoard}
         />
 
         {ownedSurveys.length > 0 && (
@@ -6443,6 +6598,7 @@ export default function Home() {
   const workspaceSidebarVisible =
     view === "home" ||
     view === "board" ||
+    view === "pulses" ||
     view === "community" ||
     view === "mypage";
 
@@ -6469,7 +6625,7 @@ export default function Home() {
           onClose={() => setWorkspaceSidebarOpen(false)}
         />
       )}
-      {(view === "home" || view === "board" || view === "community" || view === "mypage") && (
+      {(view === "home" || view === "board" || view === "pulses" || view === "community" || view === "mypage") && (
         <Header
           view={view}
           onNavigate={navigate}
@@ -6495,6 +6651,7 @@ export default function Home() {
           onOpenSurvey={openSurvey}
           onOpenOwnedSurvey={openOwnedAnalytics}
           onOpenCommunity={() => navigate("community")}
+          onOpenPulseBoard={() => navigate("pulses")}
         />
       )}
       {view === "board" && (
@@ -6503,6 +6660,13 @@ export default function Home() {
           loadingSurveys={loadingSurveys}
           onOpenSurvey={openSurvey}
           onCreate={() => navigate("create")}
+        />
+      )}
+      {view === "pulses" && (
+        <CampusPulseBoardView
+          user={user}
+          authToken={authToken}
+          onAuth={() => setAuthOpen(true)}
         />
       )}
       {view === "community" && (
