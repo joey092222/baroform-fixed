@@ -1216,26 +1216,6 @@ function LandingView({
 
   return (
     <>
-      <header className="landing-header">
-        <div className="landing-header-inner">
-          <button className="landing-brand" type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-            <BrandMark />
-            <strong>바로폼</strong>
-          </button>
-          <nav className="landing-nav" aria-label="랜딩 페이지 메뉴">
-            <button type="button" onClick={() => document.getElementById("landing-surveys")?.scrollIntoView({ behavior: "smooth" })}>
-              설문 둘러보기
-            </button>
-            <button type="button" onClick={() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })}>
-              이용 방법
-            </button>
-          </nav>
-          <button className="landing-header-cta" type="button" onClick={onEnterSite}>
-            바로 시작하기
-            <ArrowRight size={16} />
-          </button>
-        </div>
-      </header>
       <main className="landing-page">
         <section className="landing-hero" aria-labelledby="landing-title">
           <div className="landing-hero-glow landing-hero-glow-left" />
@@ -1257,7 +1237,7 @@ function LandingView({
           </div>
         </section>
 
-        <section className="landing-survey-showcase" id="landing-surveys" aria-labelledby="survey-showcase-title">
+        <section className="landing-survey-showcase" aria-labelledby="survey-showcase-title">
           <div className="landing-container landing-showcase-heading">
             <div className="landing-section-heading">
               <span className="landing-eyebrow">{hasLiveSurveys ? "지금 우리 학교" : "설문 예시"}</span>
