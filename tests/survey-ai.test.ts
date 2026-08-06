@@ -12,7 +12,11 @@ import {
   buildSurveyRevisionRequest,
   parseSurveyRevisionResponse,
 } from "../app/survey-revision";
-import { analyzeSurveyPrompt } from "../app/survey-intent";
+import {
+  analyzeSurveyPrompt,
+  isSimpleProportionSurveyRequest,
+  parseSurveySemantics,
+} from "../app/survey-intent";
 import { applyTargetGradeToQuestions } from "../app/survey-grade";
 import {
   maxReferenceFileBytes,
@@ -42,6 +46,107 @@ function question(
 function requestInputText(input: unknown) {
   return typeof input === "string" ? input : JSON.stringify(input);
 }
+
+test("단순 비율 요청은 해당 여부 한 문항으로 그대로 설계한다", () => {
+  const prompt = "대학생들 중 자취를 하는 학생의 비율을 조사해달라";
+  const semantics = parseSurveySemantics(prompt);
+  const draft = analyzeSurveyPrompt(prompt);
+
+  assert.equal(isSimpleProportionSurveyRequest(prompt), true);
+  assert.equal(semantics.respondentGroup, "대학생");
+  assert.equal(semantics.evaluationTarget, "자취 여부");
+  assert.equal(semantics.goalLabel, "해당 학생 비율 파악");
+  assert.equal(draft.title, "대학생 자취 비율 조사");
+  assert.equal(draft.aiQuestions.length, 1);
+  assert.equal(draft.aiQuestions[0]?.title, "현재 자취를 하고 있나요?");
+  assert.deepEqual(draft.aiQuestions[0]?.options, ["예", "아니요"]);
+  assert.doesNotMatch(
+    JSON.stringify(draft.aiQuestions),
+    /관련|평가|만족|개선|이유|학년|학과/,
+  );
+});
+
+test("비율 외 조사 목적이 함께 있으면 단순 비율 전용 경로로 축약하지 않는다", () => {
+  assert.equal(
+    isSimpleProportionSurveyRequest(
+      "대학생 중 자취하는 학생의 비율과 자취 이유를 조사해달라",
+    ),
+    false,
+  );
+});
+
+test("설문 생성 API는 단순 비율 요청을 AI 호출 없이 최소 문항으로 반환한다", async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  const previousFetch = globalThis.fetch;
+  let upstreamCalled = false;
+  process.env.OPENAI_API_KEY = "test-key";
+  globalThis.fetch = async () => {
+    upstreamCalled = true;
+    throw new Error("단순 비율 조사에서 외부 AI를 호출하면 안 됩니다.");
+  };
+
+  const create = (targetGrade: "전학년" | "2학년") =>
+    createSurveyDraft(
+      new Request("http://localhost/api/survey-draft", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          "user-agent": `baroform-proportion-${targetGrade === "전학년" ? "all" : "grade2"}`,
+        },
+        body: JSON.stringify({
+          prompt: "대학생들 중 자취를 하는 학생의 비율을 조사해달라",
+          targetGrade,
+          questionCount: 7,
+          references: { images: [], files: [], links: [] },
+        }),
+      }),
+    );
+
+  try {
+    const allGradesResponse = await create("전학년");
+    const allGrades = (await allGradesResponse.json()) as {
+      status: string;
+      blueprint: {
+        respondentGroup: string;
+        aiQuestions: Array<{ title: string; options?: string[] }>;
+      };
+    };
+    assert.equal(allGradesResponse.status, 200);
+    assert.equal(
+      allGradesResponse.headers.get("x-baroform-ai-fallback"),
+      "direct-proportion",
+    );
+    assert.equal(allGrades.status, "ready");
+    assert.equal(allGrades.blueprint.respondentGroup, "연세대학교 재학생");
+    assert.deepEqual(allGrades.blueprint.aiQuestions, [
+      {
+        id: 1,
+        title: "현재 자취를 하고 있나요?",
+        reason: "‘예’ 응답 수를 전체 유효 응답 수로 나눠 해당 학생의 비율을 계산해요.",
+        type: "single",
+        options: ["예", "아니요"],
+        required: true,
+      },
+    ]);
+
+    const secondGradeResponse = await create("2학년");
+    const secondGrade = (await secondGradeResponse.json()) as {
+      blueprint: { aiQuestions: Array<{ title: string }> };
+    };
+    assert.equal(secondGrade.blueprint.aiQuestions.length, 2);
+    assert.match(secondGrade.blueprint.aiQuestions[0]?.title ?? "", /2학년/);
+    assert.equal(
+      secondGrade.blueprint.aiQuestions[1]?.title,
+      "현재 자취를 하고 있나요?",
+    );
+    assert.equal(upstreamCalled, false);
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
 
 const fixtureQuestionRoles = [
   "eligibility",

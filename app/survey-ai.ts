@@ -157,7 +157,7 @@ function createSurveyDraftSchema(
   questionCount: number,
   expectsReferences = false,
 ) {
-  const count = Math.min(30, Math.max(3, Math.round(questionCount)));
+  const count = Math.min(30, Math.max(1, Math.round(questionCount)));
   return {
   type: "object",
   properties: {
@@ -343,7 +343,8 @@ export const surveyAiInstructions = `
 6. 완성 후 각 질문과 선택지가 조사 대상의 실제 유형 및 목적에 맞는지 다시 검수한다.
 
 [가장 중요한 의미 규칙]
-0. 문자 그대로 우선한다. 사용자가 '빈도', '횟수', '여부', '만족도', '선호', '의향', '정도'처럼 측정할 내용을 명시했다면 그것이 조사 목적이다. 원인·장벽·인구통계·다른 평가 목적을 확인 질문으로 되묻지 말고 바로 설계한다.
+0. 문자 그대로 우선한다. 사용자가 '빈도', '횟수', '여부', '비율', '비중', '퍼센트', '만족도', '선호', '의향', '정도'처럼 측정할 내용을 명시했다면 그것이 조사 목적이다. 원인·장벽·인구통계·다른 평가 목적을 확인 질문으로 되묻지 말고 바로 설계한다.
+0-1. 'A 중 B의 비율/비중/퍼센트'만 요청한 단순 비율 조사는 모집단 A 전체에게 B 해당 여부를 '예/아니요' 한 문항으로 묻는다. 비율은 '예' 응답 수를 전체 유효 응답 수로 나눠 계산한다. '비율' 자체를 경험·평가 대상으로 삼지 말고, 사용자가 함께 요청하지 않은 이유·만족도·중요 요소·개선점·학년·학과 문항을 추가하지 않는다. 예: '대학생들 중 자취를 하는 학생의 비율을 조사해달라' → '현재 자취를 하고 있나요?' / ['예', '아니요'].
 1. 응답 대상은 실제로 답해야 하는 사람이고, 평가 대상은 그 사람이 평가할 환경·서비스·사건·행동·경험이다. 둘을 절대 섞지 않는다.
 2. 'X의/들의 만족도'에서 X가 사람 집단이면 X는 응답 대상이다. '경영학과 신입생들의 만족도'는 경영학과 신입생이 입학 후 경험한 학과생활의 만족도를 묻는다. '신입생들에게 얼마나 만족하나요?'처럼 사람 자체를 평가하게 만들지 않는다.
 3. 'X에 대한 만족도'의 X는 평가 대상이다. 'X 이용자/참여자/회원의 만족도'에서 그 사람들은 응답 대상이고 X 이용·참여·활동 경험이 평가 대상이다.
@@ -728,7 +729,7 @@ function assertSurveyDepth(
   ) {
     throw new Error("AI 문항 역할 설계가 올바르지 않습니다.");
   }
-  const minimumRoles = expected >= 7 ? 5 : expected >= 5 ? 3 : 2;
+  const minimumRoles = expected === 1 ? 1 : expected >= 7 ? 5 : expected >= 5 ? 3 : 2;
   if (new Set(roles).size < minimumRoles) {
     throw new Error("AI 설문 문항의 역할이 단조롭습니다.");
   }
@@ -985,7 +986,7 @@ export function parseSurveyDraftResponse(
     ) {
       const questionCount = Math.min(
         30,
-        Math.max(3, Math.round(requestedQuestionCount)),
+        Math.max(1, Math.round(requestedQuestionCount)),
       );
       const targetGrade = isTargetGrade(requestedTargetGrade)
         ? requestedTargetGrade
@@ -1119,7 +1120,7 @@ export function parseSurveyDraftResponse(
     : [];
   const questionCount = Math.min(
     30,
-    Math.max(3, Math.round(requestedQuestionCount)),
+    Math.max(1, Math.round(requestedQuestionCount)),
   );
   assertQuestionQuality(normalizedAiQuestions, questionCount);
   assertSurveyDepth(
@@ -1253,7 +1254,7 @@ export function buildSurveyAiRequest(
 ) {
   const requestedQuestionCount = Math.min(
     30,
-    Math.max(3, Math.round(options?.questionCount ?? 7)),
+    Math.max(1, Math.round(options?.questionCount ?? 7)),
   );
   const targetGrade = options?.targetGrade?.trim() || "전학년";
   const referenceImages = (options?.references?.images ?? []).slice(0, 10);
@@ -1315,7 +1316,7 @@ export function buildSurveyAiRequest(
     hasReferences
       ? "참고자료를 요약만 하지 말고, 자료의 고유한 사실·주장·변수·비교축을 분석한 뒤 최소 두 문항의 질문 또는 선택지에 구체적으로 연결하세요. designPlan에 자료 근거, 분석축, 각 문항의 역할을 먼저 정리한 다음 문항을 완성하세요."
       : "설문 목적에 맞는 분석축과 각 문항의 역할을 먼저 정한 다음 문항을 완성하세요.",
-    "사용자가 명시한 응답 대상과 측정 내용을 문자 그대로 우선하세요. 빈도·횟수·여부·만족도·선호·의향·정도가 적혀 있으면 기간, 척도, 학년, 학과, 원인 같은 부가 조건을 되묻지 말고 바로 설문을 만드세요. 문장이 짧다는 이유로 생성을 거절하지 마세요. 조사 대상이나 측정 내용 자체가 없어 문항을 정할 수 없을 때만 확인 질문 하나를 반환하세요.",
+    "사용자가 명시한 응답 대상과 측정 내용을 문자 그대로 우선하세요. 빈도·횟수·여부·비율·비중·퍼센트·만족도·선호·의향·정도가 적혀 있으면 기간, 척도, 학년, 학과, 원인 같은 부가 조건을 되묻지 말고 바로 설문을 만드세요. 특히 'A 중 B의 비율'만 요청했다면 A 전체에게 B 해당 여부를 예/아니요 한 문항으로 묻고 다른 문항을 보태지 마세요. 문장이 짧다는 이유로 생성을 거절하지 마세요. 조사 대상이나 측정 내용 자체가 없어 문항을 정할 수 없을 때만 확인 질문 하나를 반환하세요.",
     "기존 규칙 기반 해석과 사전 검증 자료는 참고용이며, 확인된 사실과 다르면 바로잡으세요.",
     `<fallback_context>${JSON.stringify(contextHint)}</fallback_context>`,
   ].join("\n");

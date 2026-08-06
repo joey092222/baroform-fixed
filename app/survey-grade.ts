@@ -44,6 +44,7 @@ export function respondentGroupForGrade(
   const audience = surveyAudienceLabel(targetGrade);
   const detail = (respondentGroup ?? "")
     .replace(leadingGradeAudience, "")
+    .replace(/^(?:대학생|학생|재학생)(?:들)?$/, "")
     .trim();
   return detail ? `${audience} 중 ${detail}`.slice(0, 80) : audience;
 }
@@ -82,7 +83,7 @@ function cleanQuestionTitle(title: string) {
 }
 
 function fitQuestionCount(questions: SurveyQuestion[], requestedCount: number) {
-  const count = Math.min(30, Math.max(3, Math.round(requestedCount)));
+  const count = Math.min(30, Math.max(1, Math.round(requestedCount)));
   const result = questions
     .filter((question) => question.title.trim())
     .map((question) => ({ ...question }));

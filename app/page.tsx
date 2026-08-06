@@ -2619,13 +2619,13 @@ function CreateView({
           <div className="setting-block count-setting">
             <div className="setting-heading">
               <span><BarChart3 size={16} /> 문항 수</span>
-              <small>3~30개</small>
+              <small>1~30개</small>
             </div>
             <div className="count-stepper">
               <button
                 type="button"
-                onClick={() => setQuestionCount(Math.max(3, questionCount - 1))}
-                disabled={questionCount <= 3}
+                onClick={() => setQuestionCount(Math.max(1, questionCount - 1))}
+                disabled={questionCount <= 1}
                 aria-label="문항 수 줄이기"
               >
                 <Minus size={17} />
@@ -2634,11 +2634,11 @@ function CreateView({
                 <input
                   type="number"
                   value={questionCount}
-                  min={3}
+                  min={1}
                   max={30}
                   onChange={(event) =>
                     setQuestionCount(
-                      Math.min(30, Math.max(3, Number(event.target.value) || 3)),
+                      Math.min(30, Math.max(1, Number(event.target.value) || 1)),
                     )
                   }
                   aria-label="생성할 문항 수"
@@ -6381,6 +6381,7 @@ export default function Home() {
       setSurveyTitle(result.blueprint.title);
       setDescription(result.blueprint.description);
       setQuestions(result.blueprint.aiQuestions);
+      setQuestionCount(result.blueprint.aiQuestions.length);
       if (prompt !== requestedPrompt) setPrompt(requestedPrompt);
       navigate("editor");
     } catch (analysisError) {

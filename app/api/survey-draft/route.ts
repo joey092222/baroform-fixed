@@ -1,6 +1,7 @@
 import {
   analyzeSurveyPrompt,
   hasActionableSurveyDirection,
+  isSimpleProportionSurveyRequest,
   resizeSurveyQuestions,
   type SurveyBlueprint,
 } from "../../survey-intent";
@@ -588,11 +589,18 @@ export async function POST(request: Request) {
     isTargetGrade(payload.targetGrade)
       ? payload.targetGrade
       : "전학년";
-  const questionCount =
+  const requestedQuestionCount =
     typeof payload.questionCount === "number" &&
     Number.isInteger(payload.questionCount)
-      ? Math.min(30, Math.max(3, payload.questionCount))
+      ? Math.min(30, Math.max(1, payload.questionCount))
       : 7;
+  const isDirectProportion =
+    !hasReferences && isSimpleProportionSurveyRequest(prompt);
+  const questionCount = isDirectProportion
+    ? targetGrade === "전학년"
+      ? 1
+      : 2
+    : requestedQuestionCount;
 
   const now = Date.now();
   pruneMemory(now);
@@ -601,6 +609,16 @@ export async function POST(request: Request) {
   const cached = responseCache.get(cacheKey);
   if (cached && cached.expiresAt > now) {
     return Response.json(cached.result, { headers: noStoreHeaders });
+  }
+
+  if (isDirectProportion) {
+    const directDraft = fastDraftFallback(
+      prompt,
+      targetGrade,
+      questionCount,
+    );
+    cacheResult(cacheKey, now, directDraft);
+    return fallbackResponse(directDraft, "direct-proportion");
   }
 
   if (!(await consumeRateLimit(request, now))) {

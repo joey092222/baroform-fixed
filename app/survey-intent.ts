@@ -30,7 +30,7 @@ export function resizeSurveyQuestions(
   questions: SurveyQuestion[],
   requestedCount: number,
 ) {
-  const count = Math.min(30, Math.max(3, Math.round(requestedCount)));
+  const count = Math.min(30, Math.max(1, Math.round(requestedCount)));
   if (questions.length >= count) {
     return questions.slice(0, count).map((question, index) => ({
       ...question,
@@ -145,7 +145,7 @@ function stripRequestWrapper(value: string) {
       "",
     )
     .replace(
-      /\s*(?:을|를)?\s*조사(?:해\s*줘|해줘|해주세요|해\s*주세요|하라|하고\s*싶(?:어|어요|습니다))$/g,
+      /\s*(?:을|를)?\s*조사(?:해\s*줘|해줘|해주세요|해\s*주세요|해\s*달라|해달라|하라|하고\s*싶(?:어|어요|습니다))$/g,
       "",
     )
     .replace(
@@ -162,6 +162,43 @@ function stripRequestWrapper(value: string) {
       .trim();
   }
   return prompt;
+}
+
+export type DirectProportionIntent = {
+  population: string;
+  qualifyingGroup: string;
+  conditionLabel: string;
+};
+
+export function parseDirectProportionRequest(
+  rawPrompt: string,
+): DirectProportionIntent | null {
+  const prompt = stripRequestWrapper(rawPrompt);
+  const match = prompt.match(
+    /^(.+?)\s*중\s+(.+?)(?:의)?\s*(?:비율|비중|퍼센트)$/,
+  );
+  if (!match) return null;
+
+  const population = match[1]
+    .replace(/(?:들)$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const qualifyingGroup = match[2]
+    .replace(/\s+/g, " ")
+    .trim();
+  const conditionLabel = qualifyingGroup
+    .replace(/\s*(?:학생|사람|응답자)(?:들)?$/g, "")
+    .replace(/\s*(?:(?:을|를)\s*)?하는$/g, "")
+    .replace(/\s*중인$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!population || !qualifyingGroup || !conditionLabel) return null;
+  return { population, qualifyingGroup, conditionLabel };
+}
+
+export function isSimpleProportionSurveyRequest(rawPrompt: string) {
+  return parseDirectProportionRequest(rawPrompt) !== null;
 }
 
 function detectIntent(prompt: string): SurveyIntentKind {
@@ -610,6 +647,23 @@ const goalLabels: Record<SurveyIntentKind, string> = {
 };
 
 export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
+  const directProportion = parseDirectProportionRequest(rawPrompt);
+  if (directProportion) {
+    const { population, qualifyingGroup, conditionLabel } = directProportion;
+    const explicitTopic = `${qualifyingGroup} 비율`;
+    return {
+      respondentGroup: population,
+      evaluationTarget: `${conditionLabel} 여부`,
+      explicitTopic,
+      kind: "general",
+      domain: inferDomain(population, explicitTopic, rawPrompt),
+      goalLabel: "해당 학생 비율 파악",
+      requestedAsOpinion: false,
+      topicWasInferred: false,
+      assumptions: [],
+    };
+  }
+
   const prompt = stripRequestWrapper(rawPrompt);
   const requestedAsOpinion = /(?:의견|생각)(?:\s*(?:수렴|파악))?(?:\s*(?:설문\s*)?조사)?\s*$/.test(
     prompt,
@@ -2155,6 +2209,61 @@ function frequencyBlueprint(subject: string): SurveyBlueprint {
   };
 }
 
+function directProportionQuestionTitle(intent: DirectProportionIntent) {
+  const qualifier = intent.qualifyingGroup
+    .replace(/\s*(?:학생|사람|응답자)(?:들)?$/g, "")
+    .trim();
+  const action = qualifier.match(/^(.+?)(?:(을|를)\s*)?하는$/);
+  if (action) {
+    return action[2]
+      ? `현재 ${action[1]}${action[2]} 하고 있나요?`
+      : `현재 ${action[1]}하고 있나요?`;
+  }
+  const inProgress = qualifier.match(/^(.+?)\s*중인$/);
+  if (inProgress) return `현재 ${inProgress[1]} 중인가요?`;
+  const residence = qualifier.match(/^(.+?)에\s*거주하는$/);
+  if (residence) return `현재 ${residence[1]}에 거주하고 있나요?`;
+  const possession = qualifier.match(/^(.+?)(이|가)\s*있는$/);
+  if (possession) return `현재 ${possession[1]}${possession[2]} 있나요?`;
+
+  const condition = intent.conditionLabel;
+  return `현재 ${condition}에 해당하나요?`;
+}
+
+function proportionBlueprint(intent: DirectProportionIntent): SurveyBlueprint {
+  const { population, qualifyingGroup, conditionLabel } = intent;
+  const ratioQuestion = question(
+    1,
+    directProportionQuestionTitle(intent),
+    "‘예’ 응답 수를 전체 유효 응답 수로 나눠 해당 학생의 비율을 계산해요.",
+    "single",
+    ["예", "아니요"],
+  );
+
+  return {
+    kind: "general",
+    intentLabel: "비율 조사",
+    subject: `${conditionLabel} 여부`,
+    title: `${population} ${conditionLabel} 비율 조사`,
+    description: `${population} 중 ${qualifyingGroup}의 비율을 한 문항으로 파악하는 익명 설문입니다.`,
+    templateTitle: `${conditionLabel} 비율`,
+    templateSummary: "해당 여부만 물어 전체 응답자 중 비율을 바로 계산해요.",
+    detectedSignals: [
+      `모집단 · ${population}`,
+      `해당 조건 · ${qualifyingGroup}`,
+      "목적 · 비율 계산",
+    ],
+    templateQuestions: [ratioQuestion],
+    aiQuestions: [ratioQuestion],
+    respondentGroup: population,
+    evaluationTarget: `${conditionLabel} 여부`,
+    goal: "해당 학생 비율 파악",
+    assumptions: [],
+    aiTitle: `${population} ${conditionLabel} 비율 맞춤 설문`,
+    domain: "general",
+  };
+}
+
 function generalBlueprint(subject: string): SurveyBlueprint {
   const topic = topicLabel(subject);
   const templateQuestions = [
@@ -2334,6 +2443,9 @@ function attachSemantics(
 }
 
 export function analyzeSurveyPrompt(rawPrompt: string): SurveyBlueprint {
+  const directProportion = parseDirectProportionRequest(rawPrompt);
+  if (directProportion) return proportionBlueprint(directProportion);
+
   const normalized = stripRequestWrapper(rawPrompt);
   const semantics = parseSurveySemantics(normalized);
   const subject = semantics.evaluationTarget;
@@ -2391,7 +2503,7 @@ export function hasActionableSurveyDirection(rawPrompt: string) {
     return false;
   }
 
-  return /(만족|불만|문제|개선|평가|선호|수요|인지|의향|경험|이용|사용|가입|참여|적응|학교생활|대학생활|등하교|통학|구매|불편|장벽|행태|빈도|횟수|얼마나|정도|시간|기간|비율|여부|선택|순위|생각|느낌)/.test(
+  return /(만족|불만|문제|개선|평가|선호|수요|인지|의향|경험|이용|사용|가입|참여|적응|학교생활|대학생활|등하교|통학|구매|불편|장벽|행태|빈도|횟수|얼마나|정도|시간|기간|비율|비중|퍼센트|여부|선택|순위|생각|느낌)/.test(
     normalized,
   );
 }
