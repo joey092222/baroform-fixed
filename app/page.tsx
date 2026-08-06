@@ -1209,70 +1209,105 @@ function LandingView({
   ];
   const hasLiveSurveys = surveys.length > 0;
   const marqueeSurveys = hasLiveSurveys ? surveys.slice(0, 12) : fallbackSurveys;
-  const surveyRows = [
-    marqueeSurveys.filter((_, index) => index % 2 === 0),
-    marqueeSurveys.filter((_, index) => index % 2 === 1),
-  ].filter((row) => row.length > 0);
 
   return (
     <>
       <main className="landing-page">
+        <header className="landing-topbar">
+          <div className="landing-topbar-inner">
+            <button type="button" className="landing-wordmark" onClick={onEnterSite}>
+              <BrandMark compact />
+              <strong>바로폼</strong>
+            </button>
+            <nav aria-label="랜딩 페이지 메뉴">
+              <a href="#how-it-works">작동 방식</a>
+              <a href="#survey-showcase">열린 설문</a>
+              <button type="button" className="landing-nav-login" onClick={onEnterSite}>로그인</button>
+              <button type="button" className="landing-nav-cta" onClick={onEnterSite}>무료로 시작하기</button>
+            </nav>
+          </div>
+        </header>
+
         <section className="landing-hero" aria-labelledby="landing-title">
-          <div className="landing-hero-glow landing-hero-glow-left" />
-          <div className="landing-hero-glow landing-hero-glow-right" />
           <div className="landing-hero-content">
-            <span className="landing-kicker">대학생 설문, 더 쉽고 빠르게</span>
-            <h1 id="landing-title">BAROFORM</h1>
-            <p>설문 제작부터 응답 모집까지 한곳에서.</p>
+            <span className="landing-kicker"><i /> 대학생의 질문이 모이는 곳</span>
+            <h1 id="landing-title">질문은 빠르게.<br /><em>응답은 제대로.</em></h1>
+            <p>한 문장으로 설문을 만들고, 학교 안에서 필요한 응답을 모으세요. 결과 정리까지 바로폼이 이어서 해드립니다.</p>
             <div className="landing-hero-actions">
               <button
                 type="button"
                 className="landing-primary"
                 onClick={onEnterSite}
               >
-                사이트로 이동
+                첫 설문 시작하기
                 <ArrowRight size={18} />
               </button>
+              <a href="#survey-showcase" className="landing-secondary">열린 설문 둘러보기</a>
+            </div>
+            <div className="landing-hero-facts" aria-label="바로폼 핵심 특징">
+              <span><Check size={15} /> 로그인 없이 응답</span>
+              <span><Check size={15} /> AI 설문 초안</span>
+              <span><Check size={15} /> 학교 단위 모집</span>
+            </div>
+          </div>
+
+          <div className="landing-product-stage" aria-label="바로폼 설문 제작 화면 예시">
+            <div className="landing-paper landing-paper-back" aria-hidden />
+            <div className="landing-paper landing-paper-mid" aria-hidden />
+            <div className="landing-builder-demo">
+              <div className="landing-demo-head">
+                <span><BrandMark compact /><strong>BAROFORM</strong></span>
+                <em>AI SURVEY MAKER</em>
+              </div>
+              <div className="landing-demo-body">
+                <small>어떤 설문을 만들까요?</small>
+                <h2>주제를 한 문장으로 알려주세요.</h2>
+                <div className="landing-demo-composer">
+                  <p>연세대 학생들의 통학 시간과 만족도를 조사하고 싶어요</p>
+                  <div>
+                    <span><ImagePlus size={14} /> 자료 첨부</span>
+                    <button type="button" tabIndex={-1}>AI로 설문 만들기 <ArrowRight size={14} /></button>
+                  </div>
+                </div>
+                <div className="landing-demo-options">
+                  <span><small>응답 대상</small><strong>전학년</strong></span>
+                  <span><small>문항 수</small><strong>7개</strong></span>
+                  <span><small>예상 시간</small><strong>약 3분</strong></span>
+                </div>
+              </div>
+            </div>
+            <div className="landing-stage-note landing-stage-note-left" aria-hidden>
+              <Sparkles size={17} /><span><strong>초안 완성</strong><small>문항 흐름까지 자동 설계</small></span>
+            </div>
+            <div className="landing-stage-note landing-stage-note-right" aria-hidden>
+              <UsersRound size={17} /><span><strong>응답 모집</strong><small>우리 학교에 바로 게시</small></span>
             </div>
           </div>
         </section>
 
-        <section className="landing-survey-showcase" aria-labelledby="survey-showcase-title">
+        <section className="landing-survey-showcase" id="survey-showcase" aria-labelledby="survey-showcase-title">
           <div className="landing-container landing-showcase-heading">
             <div className="landing-section-heading">
-              <span className="landing-eyebrow">{hasLiveSurveys ? "지금 우리 학교" : "설문 예시"}</span>
+              <span className="landing-eyebrow">{hasLiveSurveys ? "LIVE ON CAMPUS" : "SURVEY EXAMPLES"}</span>
               <h2 id="survey-showcase-title">
-                {loadingSurveys ? "설문을 불러오는 중" : hasLiveSurveys ? "지금 열려 있는 설문" : "이런 설문을 만들 수 있어요"}
+                {loadingSurveys ? "설문을 불러오는 중" : hasLiveSurveys ? "지금 캠퍼스가 답하고 있어요" : "이런 질문부터 시작할 수 있어요"}
               </h2>
             </div>
             <button type="button" className="landing-board-link" onClick={onEnterSite}>
-              사이트로 이동 <ArrowRight size={16} />
+              전체 설문 보기 <ArrowRight size={16} />
             </button>
           </div>
-          <div className="landing-survey-marquee" aria-label={hasLiveSurveys ? "현재 참여 가능한 설문" : "설문 예시"}>
-            {surveyRows.map((row, rowIndex) => (
-              <div className="survey-marquee-row" key={`survey-row-${rowIndex}`}>
-                <div className={`survey-marquee-track${rowIndex === 1 ? " is-reverse" : ""}`}>
-                  {[0, 1].map((copyIndex) => (
-                    <div
-                      className="survey-marquee-group"
-                      key={`survey-group-${rowIndex}-${copyIndex}`}
-                      aria-hidden={copyIndex === 1}
-                    >
-                      {row.map((survey) => (
-                        <article className="landing-survey-card" key={`${copyIndex}-${survey.title}`}>
-                          <div className="survey-card-topline">
-                            <span>{categoryLabel(survey.category)}</span>
-                            <strong>+{survey.rewardCash}C</strong>
-                          </div>
-                          <h3>{survey.title}</h3>
-                          <p><Clock3 size={13} />약 {survey.durationMinutes}분</p>
-                        </article>
-                      ))}
-                    </div>
-                  ))}
+          <div className="landing-survey-grid" aria-label={hasLiveSurveys ? "현재 참여 가능한 설문" : "설문 예시"}>
+            {marqueeSurveys.slice(0, 6).map((survey, index) => (
+              <article className={`landing-survey-card landing-survey-card-${(index % 3) + 1}`} key={survey.slug}>
+                <div className="survey-card-topline">
+                  <span>{categoryLabel(survey.category)}</span>
+                  <strong>+{survey.rewardCash}C</strong>
                 </div>
-              </div>
+                <h3>{survey.title}</h3>
+                <p><Clock3 size={13} />약 {survey.durationMinutes}분</p>
+                <footer><span>{survey.responseCount ?? 0}명 응답</span><ArrowRight size={15} /></footer>
+              </article>
             ))}
           </div>
         </section>
@@ -1288,16 +1323,19 @@ function LandingView({
                 <span>01</span>
                 <div className="landing-step-icon"><Sparkles size={22} /></div>
                 <h3>AI로 만들기</h3>
+                <p>조사하고 싶은 내용을 적으면 목적에 맞는 문항과 흐름을 설계해요.</p>
               </article>
               <article>
                 <span>02</span>
                 <div className="landing-step-icon"><UsersRound size={22} /></div>
                 <h3>응답 모집하기</h3>
+                <p>학교 게시판과 공유 링크를 이용해 필요한 응답자를 빠르게 만나요.</p>
               </article>
               <article>
                 <span>03</span>
                 <div className="landing-step-icon"><BarChart3 size={22} /></div>
                 <h3>결과 확인하기</h3>
+                <p>응답 현황과 핵심 결과를 확인하고 엑셀·워드로 바로 내보내요.</p>
               </article>
             </div>
           </div>
@@ -1305,12 +1343,12 @@ function LandingView({
 
         <section className="landing-final-cta">
           <div>
-            <span>만들기와 모집, 한곳에서</span>
-            <h2>다음 설문도 바로폼에서.</h2>
+            <span>YOUR NEXT SURVEY</span>
+            <h2>다음 질문은 바로폼에서 시작하세요.</h2>
           </div>
           <div className="landing-final-actions">
             <button type="button" onClick={onEnterSite}>
-              사이트로 이동 <ArrowRight size={19} />
+              무료로 시작하기 <ArrowRight size={19} />
             </button>
           </div>
         </section>
