@@ -1217,27 +1217,130 @@ function LandingView({
   return (
     <>
       <main className="landing-page">
+        <nav className="landing-nav" aria-label="랜딩 페이지 메뉴">
+          <button type="button" className="brand" onClick={onEnterSite} aria-label="바로폼 홈으로 이동">
+            <BrandMark />
+            <strong>바로폼</strong>
+          </button>
+          <div>
+            <a href="#product">제품</a>
+            <a href="#how-it-works">이용 방법</a>
+            <a href="#campus-surveys">학교 설문</a>
+          </div>
+          <button type="button" className="landing-nav-cta" onClick={onEnterSite}>
+            무료로 시작하기 <ArrowRight size={16} />
+          </button>
+        </nav>
+
         <section className="landing-hero" aria-labelledby="landing-title">
           <div className="landing-hero-glow landing-hero-glow-left" />
           <div className="landing-hero-glow landing-hero-glow-right" />
           <div className="landing-hero-content">
-            <span className="landing-kicker">대학생 설문, 더 쉽고 빠르게</span>
-            <h1 id="landing-title">BAROFORM</h1>
-            <p>설문 제작부터 응답 모집까지 한곳에서.</p>
+            <span className="landing-kicker">대학생의 질문이 실제 응답이 되는 곳</span>
+            <h1 id="landing-title">캠퍼스의 질문과 답을 한곳에서.</h1>
+            <p>한 문장으로 설문을 만들고, 우리 학교에서 응답을 모으고, 결과까지 바로 읽어보세요.</p>
             <div className="landing-hero-actions">
               <button
                 type="button"
                 className="landing-primary"
                 onClick={onEnterSite}
               >
-                사이트로 이동
+                첫 설문 만들기
                 <ArrowRight size={18} />
               </button>
+            </div>
+            <div className="landing-product-frame" id="product" aria-label="바로폼 제품 화면 예시">
+              <div className="landing-product-bar">
+                <span><BrandMark compact /><strong>바로폼</strong></span>
+                <div><i /><i /><i /></div>
+              </div>
+              <div className="landing-product-layout">
+                <aside>
+                  <span>설문 구성</span>
+                  {["설문 소개", "이용 빈도", "선택 이유", "개선 의견"].map((item, index) => (
+                    <i key={item} className={index === 1 ? "active" : ""}>{String(index).padStart(2, "0")} {item}</i>
+                  ))}
+                </aside>
+                <article>
+                  <small>BAROFORM</small>
+                  <h2>대학생 카페 공부 경험 조사</h2>
+                  <p>카페에서 공부하는 빈도와 선택 이유를 알아보는 설문입니다.</p>
+                  <div className="landing-question-mockup">
+                    <span>01</span>
+                    <strong>평소 카페에서 얼마나 자주 공부하나요?</strong>
+                    {["거의 하지 않음", "월 1~2회", "주 1~2회", "주 3회 이상"].map((option) => <i key={option}>{option}</i>)}
+                  </div>
+                </article>
+                <aside className="landing-ai-panel">
+                  <strong><Sparkles size={15} /> AI로 바로 수정</strong>
+                  <p>질문을 더 짧게 정리하고 선택지 간격을 맞춰줘</p>
+                  <button type="button" tabIndex={-1}>AI로 반영하기</button>
+                </aside>
+              </div>
             </div>
           </div>
         </section>
 
-        <section className="landing-survey-showcase" aria-labelledby="survey-showcase-title">
+        <section className="landing-proof-strip" aria-label="바로폼 핵심 흐름">
+          <span>AI 설문 설계</span><i />
+          <span>학교 응답 모집</span><i />
+          <span>실시간 결과 분석</span><i />
+          <span>결과 카드 공유</span>
+        </section>
+
+        <section className="landing-story" id="how-it-works" aria-labelledby="landing-story-title">
+          <div className="landing-container landing-story-heading">
+            <span className="landing-eyebrow">설문을 만드는 새로운 방식</span>
+            <h2 id="landing-story-title">질문은 짧게.<br />설계는 정확하게.</h2>
+            <p>무엇을 조사할지 한 문장으로 알려주세요. 바로폼이 사용자의 의도를 읽고 측정 가능한 질문으로 구성합니다.</p>
+          </div>
+          <div className="landing-container landing-feature-stack">
+            <article className="landing-feature-row">
+              <div>
+                <span>01 · CREATE</span>
+                <h3>한 문장이 설문 초안이 됩니다.</h3>
+                <p>참고 링크, 문서, 이미지를 함께 넣으면 맥락까지 반영합니다. 불필요한 되묻기는 줄이고 요청한 핵심을 바로 측정합니다.</p>
+              </div>
+              <div className="landing-feature-visual create-visual">
+                <span>대학생들의 SNS 이용 시간을 조사하고 싶어요</span>
+                <div><Link2 size={16} /> 참고 링크</div>
+                <button type="button" tabIndex={-1}><Sparkles size={16} /> AI로 설문 만들기</button>
+              </div>
+            </article>
+            <article className="landing-feature-row reverse">
+              <div>
+                <span>02 · DISTRIBUTE</span>
+                <h3>만든 즉시, 필요한 응답자에게.</h3>
+                <p>학교 게시판, 공유 링크, Instagram용 카드까지 한 번에 준비합니다. 응답자는 로그인 없이 바로 참여할 수 있습니다.</p>
+              </div>
+              <div className="landing-feature-visual publish-visual">
+                <div className="landing-share-card">
+                  <small>YONSEI CAMPUS SURVEY</small>
+                  <strong>학교 도서관<br />이용 경험 조사</strong>
+                  <span>약 3분 · 50C</span>
+                </div>
+                <div className="landing-share-actions">
+                  <span><Share2 size={16} /> 링크 배포</span>
+                  <span><InstagramGlyph size={16} /> Instagram</span>
+                </div>
+              </div>
+            </article>
+            <article className="landing-feature-row">
+              <div>
+                <span>03 · ANALYZE</span>
+                <h3>응답 수보다 먼저, 응답의 품질을 봅니다.</h3>
+                <p>실시간 분포, 주요 인사이트, 품질 주의 응답을 한 화면에서 확인하고 CSV·Excel·Word로 내보낼 수 있습니다.</p>
+              </div>
+              <div className="landing-feature-visual analytics-visual">
+                <div><span>분석 가능 응답</span><strong>94</strong><small>/ 전체 100</small></div>
+                <div className="landing-bars"><i style={{ width: "82%" }} /><i style={{ width: "58%" }} /><i style={{ width: "36%" }} /></div>
+                <p><Sparkles size={16} /> 응답자의 62%가 저녁 시간대 이용을 선호해요.</p>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section className="landing-survey-showcase" id="campus-surveys" aria-labelledby="survey-showcase-title">
           <div className="landing-container landing-showcase-heading">
             <div className="landing-section-heading">
               <span className="landing-eyebrow">{hasLiveSurveys ? "지금 우리 학교" : "설문 예시"}</span>
@@ -1246,7 +1349,7 @@ function LandingView({
               </h2>
             </div>
             <button type="button" className="landing-board-link" onClick={onEnterSite}>
-              사이트로 이동 <ArrowRight size={16} />
+              전체 설문 보기 <ArrowRight size={16} />
             </button>
           </div>
           <div className="landing-survey-marquee" aria-label={hasLiveSurveys ? "현재 참여 가능한 설문" : "설문 예시"}>
@@ -1277,27 +1380,30 @@ function LandingView({
           </div>
         </section>
 
-        <section className="landing-section landing-process" id="how-it-works">
+        <section className="landing-section landing-process">
           <div className="landing-container">
             <div className="landing-section-heading">
-              <span className="landing-eyebrow">바로폼 한 바퀴</span>
-              <h2>만들기부터 결과까지, 세 단계면 돼요</h2>
+              <span className="landing-eyebrow">왜 바로폼인가</span>
+              <h2>설문 도구와 응답자 네트워크를 분리하지 않았습니다.</h2>
             </div>
             <div className="landing-step-grid">
               <article>
                 <span>01</span>
                 <div className="landing-step-icon"><Sparkles size={22} /></div>
-                <h3>AI로 만들기</h3>
+                <h3>의도를 읽는 AI</h3>
+                <p>주제의 의미를 그대로 해석해 바로 측정할 질문을 만듭니다.</p>
               </article>
               <article>
                 <span>02</span>
                 <div className="landing-step-icon"><UsersRound size={22} /></div>
-                <h3>응답 모집하기</h3>
+                <h3>캠퍼스 응답망</h3>
+                <p>새 설문과 외부 설문 모두 학교 구성원에게 빠르게 알립니다.</p>
               </article>
               <article>
                 <span>03</span>
                 <div className="landing-step-icon"><BarChart3 size={22} /></div>
-                <h3>결과 확인하기</h3>
+                <h3>읽히는 결과</h3>
+                <p>실시간 분석과 공유 카드로 조사 결과를 다시 확산시킵니다.</p>
               </article>
             </div>
           </div>
@@ -1305,12 +1411,12 @@ function LandingView({
 
         <section className="landing-final-cta">
           <div>
-            <span>만들기와 모집, 한곳에서</span>
-            <h2>다음 설문도 바로폼에서.</h2>
+            <span>질문 하나에서 시작하세요</span>
+            <h2>다음 캠퍼스의 답을 바로 만나보세요.</h2>
           </div>
           <div className="landing-final-actions">
             <button type="button" onClick={onEnterSite}>
-              사이트로 이동 <ArrowRight size={19} />
+              무료로 시작하기 <ArrowRight size={19} />
             </button>
           </div>
         </section>
@@ -1779,7 +1885,7 @@ function ProductHomeView({
   cashBalance: number;
   onAuth: () => void;
   onRefreshSurveys: () => void;
-  onCreate: () => void;
+  onCreate: (prompt?: string) => void;
   onOpenBoard: () => void;
   onOpenSurvey: (survey: PublicSurvey) => void;
   onOpenOwnedSurvey: (survey: OwnedSurvey) => void;
@@ -1788,6 +1894,7 @@ function ProductHomeView({
 }) {
   const [communityPosts, setCommunityPosts] = useState<HomeCommunityPost[]>([]);
   const [loadingCommunity, setLoadingCommunity] = useState(true);
+  const [quickPrompt, setQuickPrompt] = useState("");
   const [surveySearch, setSurveySearch] = useState("");
   const [surveyFilter, setSurveyFilter] = useState<"all" | SurveyCategory>("all");
   const [externalSurveyOpen, setExternalSurveyOpen] = useState(false);
@@ -1915,6 +2022,32 @@ function ProductHomeView({
               <ArrowRight size={18} />
             </button>
           )}
+        </section>
+
+        <section className="home-ai-launch" aria-labelledby="home-ai-title">
+          <div>
+            <span>AI SURVEY STUDIO</span>
+            <h2 id="home-ai-title">조사할 내용을 한 문장으로 적어보세요.</h2>
+            <p>바로폼이 측정할 항목과 선택지를 설계하고 편집 가능한 초안으로 이어갑니다.</p>
+          </div>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              onCreate(quickPrompt.trim() || undefined);
+            }}
+          >
+            <textarea
+              value={quickPrompt}
+              onChange={(event) => setQuickPrompt(event.target.value)}
+              placeholder="예) 대학생들의 카페 공부 빈도를 조사해줘"
+              rows={3}
+              maxLength={300}
+            />
+            <div>
+              <span><Sparkles size={15} /> 조사 의도를 읽고 문항을 구성해요</span>
+              <button type="submit">설문 초안 만들기 <ArrowRight size={16} /></button>
+            </div>
+          </form>
         </section>
 
         <section className="home-survey-discovery" aria-label="설문 찾기">
@@ -2107,7 +2240,7 @@ function ProductHomeView({
             <p>응답자용 설문 목록과 분리된 제작·모집 도구를 이용해 보세요.</p>
           </div>
           <div className="home-organizer-actions">
-            <button type="button" onClick={onCreate}>
+            <button type="button" onClick={() => onCreate()}>
               <span><WandSparkles size={19} /></span>
               <div><strong>AI 설문 제작</strong><small>질문 설계부터 배포까지</small></div>
               <ArrowRight size={17} />
@@ -6698,7 +6831,10 @@ export default function Home() {
           cashBalance={wallet.balance}
           onAuth={() => setAuthOpen(true)}
           onRefreshSurveys={() => void refreshPublicSurveys()}
-          onCreate={() => navigate("create")}
+          onCreate={(quickPrompt) => {
+            if (quickPrompt) updatePrompt(quickPrompt);
+            navigate("create");
+          }}
           onOpenBoard={() => navigate("board")}
           onOpenSurvey={openSurvey}
           onOpenOwnedSurvey={openOwnedAnalytics}
