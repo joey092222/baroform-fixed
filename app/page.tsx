@@ -1242,7 +1242,7 @@ function LandingView({
           <div className="landing-hero-glow landing-hero-glow-right" />
           <div className="landing-hero-content">
             <span className="landing-kicker">대학생의 질문이 실제 응답이 되는 곳</span>
-            <h1 id="landing-title">캠퍼스의 질문과 답을 한곳에서.</h1>
+            <h1 id="landing-title">학생들의 질문과 답을 한곳에서.</h1>
             <p>한 문장으로 설문을 만들고, 우리 학교에서 응답을 모으고, 결과까지 바로 읽어보세요.</p>
             <div className="landing-hero-actions">
               <button
@@ -1389,7 +1389,7 @@ function LandingView({
           <div className="landing-container">
             <div className="landing-section-heading">
               <span className="landing-eyebrow">왜 바로폼인가</span>
-              <h2>설문 도구와 응답자 네트워크를 분리하지 않았습니다.</h2>
+              <h2>설문 제작부터 응답 수집까지 한곳에서.</h2>
             </div>
             <div className="landing-step-grid">
               <article>
@@ -1417,7 +1417,7 @@ function LandingView({
         <section className="landing-final-cta">
           <div>
             <span>질문 하나에서 시작하세요</span>
-            <h2>다음 캠퍼스의 답을 바로 만나보세요.</h2>
+            <h2>학생들의 질문과 답을 바로 만나보세요.</h2>
           </div>
           <div className="landing-final-actions">
             <button type="button" onClick={onEnterSite}>
