@@ -1767,15 +1767,31 @@
 
 .respondent-progress-wrap {
   display: flex;
+  width: min(calc(100% - 48px), 980px);
+  min-height: 46px;
+  margin: 12px auto 0;
+  padding: 9px 14px;
   align-items: center;
   gap: 10px;
+  border: 1px solid var(--bf-border);
+  border-radius: 10px;
+  background: var(--bf-surface);
   color: var(--bf-muted);
   font-size: 11px;
 }
 
+.respondent-progress-wrap > div:first-child {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
 .respondent-progress-track {
-  width: 120px;
+  width: auto;
   margin: 0;
+  flex: 1 1 auto;
 }
 
 .respondent-shell {
@@ -1795,10 +1811,10 @@
   max-width: 820px;
   margin: 14px 0;
   color: var(--bf-navy-strong);
-  font-size: clamp(44px, 6vw, 66px);
+  font-size: clamp(38px, 4.4vw, 52px);
   font-weight: 720;
   letter-spacing: -.06em;
-  line-height: 1.05;
+  line-height: 1.12;
 }
 
 .respond-description {
@@ -2463,6 +2479,12 @@
   .respondent-shell {
     margin-top: 22px;
     padding: 30px 20px 48px;
+  }
+
+  .respondent-progress-wrap {
+    width: calc(100% - 32px);
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .respond-scale {

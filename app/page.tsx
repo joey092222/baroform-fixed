@@ -4482,7 +4482,12 @@ function SurveyView({
               <p className="respond-description">{question.description}</p>
             )}
             {question.type === "scale" && (
-              <div className="respond-scale">
+              <div
+                className="respond-scale"
+                style={{
+                  gridTemplateColumns: `repeat(${(question.scaleMax ?? 5) - (question.scaleMin ?? 1) + 1}, minmax(48px, 1fr))`,
+                }}
+              >
                 {Array.from(
                   {
                     length:
