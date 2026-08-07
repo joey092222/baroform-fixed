@@ -123,7 +123,7 @@
   position: relative;
   z-index: 1;
   display: flex;
-  width: min(100%, 1120px);
+  width: min(100%, 1280px);
   min-height: 780px;
   margin: 0 auto;
   padding-top: 190px;
@@ -143,15 +143,15 @@
 }
 
 .landing-hero h1 {
-  max-width: 1050px;
+  max-width: none;
   margin: 28px 0 20px;
   color: var(--bf-navy-strong);
   font-family: var(--bf-latin);
-  font-size: clamp(62px, 6.5vw, 92px);
+  font-size: clamp(58px, 5.25vw, 76px);
   font-weight: 790;
   letter-spacing: -.078em;
   line-height: .98;
-  text-wrap: balance;
+  white-space: nowrap;
   word-break: keep-all;
 }
 
@@ -711,6 +711,12 @@
   background: var(--bf-bg);
 }
 
+.landing-process .landing-section-heading h2 {
+  max-width: none;
+  font-size: clamp(34px, 3.15vw, 45px);
+  white-space: nowrap;
+}
+
 .landing-step-grid {
   display: grid;
   margin-top: 64px;
@@ -774,12 +780,13 @@
 }
 
 .landing-final-cta h2 {
-  max-width: 700px;
+  max-width: none;
   margin: 14px 0 0;
-  font-size: clamp(50px, 6vw, 82px);
+  font-size: clamp(38px, 3.5vw, 50px);
   font-weight: 710;
   letter-spacing: -.065em;
   line-height: .98;
+  white-space: nowrap;
 }
 
 .landing-final-actions button {
@@ -1184,6 +1191,13 @@
   margin-top: 24px;
 }
 
+.survey-card-compact-meta {
+  width: 100%;
+  margin-top: auto;
+  padding-top: 24px;
+  justify-content: space-between;
+}
+
 .home-survey-meta span,
 .home-survey-campus,
 .my-survey-meta span {
@@ -1353,23 +1367,31 @@
 .home-community-list {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 
 .home-community-list > button {
   min-height: 174px;
-  padding: 22px 0;
-  border-bottom: 1px solid var(--bf-border);
-  background: transparent;
+  padding: 22px;
+  border: 1px solid var(--bf-border);
+  border-radius: 12px;
+  background: var(--bf-surface);
   text-align: left;
+  transition: border-color .18s ease, background-color .18s ease;
 }
 
 .home-community-list > button:nth-child(odd) {
-  padding-right: 30px;
+  padding-right: 22px;
   border-right: 1px solid var(--bf-border);
 }
 
 .home-community-list > button:nth-child(even) {
-  padding-left: 30px;
+  padding-left: 22px;
+}
+
+.home-community-list > button:hover {
+  border-color: var(--bf-border-dark);
+  background: #fffefa;
 }
 
 .home-community-post-head,
@@ -1717,6 +1739,17 @@
 
 .pulse-board-list > button.active {
   background: var(--bf-navy-soft);
+}
+
+.pulse-board-list-empty > span {
+  display: grid;
+  gap: 5px;
+}
+
+.pulse-board-list-empty strong,
+.pulse-board-list-empty small {
+  display: block;
+  line-height: 1.45;
 }
 
 .pulse-board-row-top,
@@ -2178,6 +2211,12 @@
 
   .landing-hero h1 {
     font-size: clamp(52px, 16vw, 76px);
+    white-space: normal;
+  }
+
+  .landing-process .landing-section-heading h2,
+  .landing-final-cta h2 {
+    white-space: normal;
   }
 
   .landing-product-frame {
