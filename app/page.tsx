@@ -1417,7 +1417,7 @@ function LandingView({
         <section className="landing-final-cta">
           <div>
             <span>질문 하나에서 시작하세요</span>
-            <h2>학생들의 질문과 답을 바로 만나보세요.</h2>
+            <h2>학생들의 의견을 바로 만나보세요.</h2>
           </div>
           <div className="landing-final-actions">
             <button type="button" onClick={onEnterSite}>
