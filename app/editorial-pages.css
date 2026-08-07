@@ -670,9 +670,11 @@
 }
 
 .landing-survey-card {
+  display: flex;
   width: 310px;
   min-height: 190px;
   padding: 24px;
+  flex-direction: column;
   border: 1px solid var(--bf-border);
   border-radius: var(--bf-radius);
   background: var(--bf-bg);
@@ -692,7 +694,7 @@
 }
 
 .landing-survey-card h3 {
-  margin: 36px 0 20px;
+  margin: 34px 0 0;
   color: var(--bf-navy-strong);
   font-size: 21px;
   line-height: 1.35;
@@ -702,7 +704,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 0;
+  margin: auto 0 0;
+  padding-top: 26px;
   color: var(--bf-muted);
   font-size: 13px;
 }
