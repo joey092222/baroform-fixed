@@ -2236,7 +2236,7 @@ function ProductHomeView({
         <section className="home-organizer-panel" aria-labelledby="home-organizer-title">
           <div>
             <span>FOR ORGANIZERS</span>
-            <h2 id="home-organizer-title">설문을 운영하고 있나요?</h2>
+            <h2 id="home-organizer-title">이미 제작한 설문이 있나요?</h2>
             <p>응답자용 설문 목록과 분리된 제작·모집 도구를 이용해 보세요.</p>
           </div>
           <div className="home-organizer-actions">
@@ -4181,20 +4181,23 @@ function PublishedView({
           아래 링크를 보내면 누구나 로그인 없이 바로 응답할 수 있어요.
         </p>
         <div className="share-box">
-          <span>{shareUrl}</span>
-          <button type="button" className="copy-share-button" onClick={copyLink}>
-            {copied ? <Check size={18} /> : <Copy size={18} />}
-            {copied ? "복사됨" : "링크 복사"}
-          </button>
-          <button
-            type="button"
-            className="instagram-publish-button"
-            onClick={() => void shareSurveyToInstagram()}
-            disabled={instagramSharing}
-          >
-            <InstagramGlyph size={18} />
-            {instagramSharing ? "카드 만드는 중…" : "인스타로 배포"}
-          </button>
+          <span className="share-box-label">설문 참여 링크</span>
+          <div className="published-share-row">
+            <span className="published-share-url">{shareUrl}</span>
+            <button type="button" className="copy-share-button" onClick={copyLink}>
+              {copied ? <Check size={18} /> : <Copy size={18} />}
+              {copied ? "복사됨" : "링크 복사"}
+            </button>
+            <button
+              type="button"
+              className="instagram-publish-button"
+              onClick={() => void shareSurveyToInstagram()}
+              disabled={instagramSharing}
+            >
+              <InstagramGlyph size={18} />
+              {instagramSharing ? "카드 만드는 중…" : "인스타로 배포"}
+            </button>
+          </div>
         </div>
         {instagramStatus && <span className="published-share-status" role="status">{instagramStatus}</span>}
         <div className="share-banner">
@@ -6084,6 +6087,7 @@ function GenerationOverlay({
     "핵심 기준을 찾고 있어요",
     "질문을 자연스럽게 다듬고 있어요",
   ];
+  const generationSteps = ["요청 분석", "자료 검토", "문항 구성"];
 
   return (
     <div className="generation-overlay" role="status" aria-live="polite">
@@ -6107,10 +6111,17 @@ function GenerationOverlay({
               : "마무리 중"}
           </output>
         </div>
-        <div className="research-loading-steps" aria-hidden="true">
-          <span className={phase === 0 ? "active" : ""}>요청 분석</span>
-          <span className={phase === 1 ? "active" : ""}>자료 검토</span>
-          <span className={phase === 2 ? "active" : ""}>문항 구성</span>
+        <div className="research-loading-steps" aria-label="설문 생성 단계">
+          {generationSteps.map((label, index) => {
+            const state = index < phase ? "completed" : index === phase ? "active" : "pending";
+            return (
+              <span className={state} key={label} aria-current={state === "active" ? "step" : undefined}>
+                <i>{state === "completed" ? <Check size={13} /> : index + 1}</i>
+                <b>{label}</b>
+                <small>{state === "completed" ? "완료" : state === "active" ? "진행 중" : "대기"}</small>
+              </span>
+            );
+          })}
         </div>
         <div
           className="loading-line"
