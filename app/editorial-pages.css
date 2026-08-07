@@ -765,9 +765,9 @@
 .landing-final-cta {
   display: flex;
   width: min(calc(100% - 48px), var(--bf-page));
-  min-height: 430px;
+  min-height: 330px;
   margin: 0 auto var(--bf-section);
-  padding: clamp(46px, 7vw, 90px);
+  padding: clamp(42px, 5vw, 64px);
   align-items: flex-end;
   justify-content: space-between;
   gap: 30px;
@@ -1199,6 +1199,29 @@
   margin-top: auto;
   padding-top: 24px;
   justify-content: space-between;
+}
+
+.survey-card-compact-details {
+  display: flex;
+  margin-top: 18px;
+  align-items: center;
+  gap: 8px;
+  color: var(--bf-muted);
+  font-size: 11px;
+}
+
+.survey-card-compact-details span + span::before {
+  margin-right: 8px;
+  color: var(--bf-border-dark);
+  content: "·";
+}
+
+.survey-card-compact-campus {
+  display: block;
+  margin-top: 7px;
+  color: var(--bf-muted);
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .home-survey-meta span,
@@ -2342,7 +2365,7 @@
   }
 
   .landing-final-cta {
-    min-height: 420px;
+    min-height: 330px;
     padding: 36px 28px;
     flex-direction: column;
     align-items: flex-start;

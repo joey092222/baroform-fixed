@@ -882,6 +882,11 @@ function CampusSurveyCard({
         </span>
       </div>
       <h3>{survey.title}</h3>
+      <div className="survey-card-compact-details">
+        <span>{survey.questionCount}문항</span>
+        <span>응답 {(survey.responseCount ?? 0).toLocaleString("ko-KR")}개</span>
+      </div>
+      <span className="survey-card-compact-campus">{schoolLabel(survey.schoolId)}</span>
       <div className="survey-card-compact-meta">
         <span><Clock3 size={15} />약 {survey.durationMinutes}분</span>
         <ArrowRight size={16} />
