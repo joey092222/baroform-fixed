@@ -1,8 +1,9 @@
 import {
   analyzeSurveyPrompt,
   hasActionableSurveyDirection,
+  parseSurveyBrief,
   parseExplicitSurveyMeasurement,
-  resizeSurveyQuestions,
+  validateSurvey,
   type SurveyBlueprint,
   type SurveyDomain,
   type SurveyIntentKind,
@@ -19,6 +20,16 @@ import {
   surveyDescriptionForGrade,
   type TargetGrade,
 } from "./survey-grade";
+
+export class SurveyValidationError extends Error {
+  readonly issues: string[];
+
+  constructor(issues: string[]) {
+    super(`설문 품질 검증에 실패했습니다: ${issues.join(" ")}`);
+    this.name = "SurveyValidationError";
+    this.issues = issues;
+  }
+}
 
 export type SurveyResearchSource = {
   title: string;
@@ -335,6 +346,15 @@ export const surveyDraftSchema = createSurveyDraftSchema(7);
 export const surveyAiInstructions = `
 너는 대학생 설문 플랫폼 '바로폼'의 수석 조사 설계자다. 사용자가 설문의 대략적인 내용을 입력하면 응답 대상, 평가 대상, 조사 목적을 정확히 해석하고 사용자가 요청한 수만큼 바로 사용할 수 있는 AI 맞춤 설문 문항을 만든다.
 
+[조사 의뢰문 해석 원칙]
+1. 사용자 입력은 설문 문항이나 조사 대상 이름이 아니라 조사 목적을 설명한 브리프다. 원문 전체를 제목, 질문의 목적어 또는 선택지에 복사하지 않는다.
+2. 먼저 researchSubject에 해당하는 짧은 조사 대상 명사구, targetRespondents에 해당하는 응답 대상, researchGoal, 기준 기간과 서로 다른 측정 영역을 분리한 뒤에만 문항을 설계한다.
+3. '분석하고 싶어', '조사하고 싶어', '알아보고 싶어', '파악하고 싶어', '설문을 만들고 싶어'는 조사 요청 표현이므로 제목과 문항에 넣지 않는다.
+4. '국내 최대', '최고의', '대표적인', '가장 인기 있는' 같은 홍보성 수식어는 조사 대상에서 제거한다.
+5. 이용 빈도 문항에는 최근 1개월·최근 3개월처럼 기준 기간을 반드시 적는다. 질문 하나에는 하나의 개념만 담고 '사용하거나 이용하다'처럼 같은 뜻의 동사를 반복하지 않는다.
+6. 선택지는 조사 분야에 맞게 만들고 서로 겹치지 않게 전체 응답 범위를 포괄한다. 웹툰·영상·음악 등 콘텐츠 서비스에 '정보 탐색, 과제·업무, 구매·신청, 기록·관리' 같은 범용 업무용 선택지를 그대로 쓰지 않는다.
+7. 이용 경험이 없는 응답자를 구분하는 문항을 먼저 두고, 필요한 인구통계 문항은 뒤에 둔다. 문항은 자연스러운 한국어 존댓말로 쓴다.
+
 [반드시 지킬 작업 순서]
 1. 사용자 입력에서 응답 대상, 실제 행동·경험 대상, 측정 기준, 조사 목적, 고유명사와 실세계 대상 유형을 임시로 분리한다.
 2. 사용자 문장을 먼저 문자 그대로 받아들인다. 이미 적힌 응답 대상, 행동·생각·경험, 측정 기준은 넓히거나 다른 목적으로 바꾸지 않는다. 특히 측정 기준을 서비스명이나 경험 대상으로 합치지 않는다.
@@ -385,7 +405,7 @@ export const surveyAiInstructions = `
 [문항 설계 규칙]
 1. AI 설문은 입력에 지정된 requestedQuestionCount와 정확히 같은 수의 문항으로 만든다. 별도의 추천 템플릿은 만들지 않는다.
 2. 선택 학년이 1학년·2학년·3학년·4학년이면 첫 문항은 오직 '귀하는 현재 연세대학교 N학년 재학생입니까?'만 묻는다. 1-2학년은 '1학년 또는 2학년', 3-4학년은 '3학년 또는 4학년'이라고 풀어 쓴다.
-3. 선택 학년이 전학년이면 '연세대학교 재학생' 또는 '연세대학교 재학생 전체'라고 표현한다. '전학년 재학생'이라는 표현은 절대 쓰지 않으며, 학년 적격성 문항도 따로 만들지 않는다.
+3. 선택 학년이 전학년이면 사용자 브리프에 적힌 응답 대상을 그대로 보존한다. 브리프가 대학생 전체를 대상으로 하면 '대학생'을 '연세대학교 재학생'으로 좁히지 않는다. 사용자 입력이나 교내 고유명사 문맥에서 연세대학교가 명시된 경우에만 '연세대학교 재학생'이라고 쓴다. '전학년 재학생'이라는 표현은 쓰지 않으며, 학년 적격성 문항도 따로 만들지 않는다.
 4. 학년 조건과 시설 이용·행사 참여·수강 경험 같은 다른 적격 조건을 한 문항에 합치지 않는다. '1학년 재학생이며, 최근 도서관을 이용한 적이 있습니까?'처럼 두 사실을 동시에 묻지 말고, 학년 확인과 이용 경험을 서로 다른 문항으로 분리한다.
 5. 설문 문장은 번역투나 행정문서식 수식어를 피하고 실제 한국어 설문에서 자연스럽게 읽히도록 쓴다. 모든 title은 '어느 단계까지 이용했나요?', '가장 가까운 답을 골라주세요.'처럼 응답자가 바로 답할 수 있는 완전한 질문 또는 요청 문장이어야 하며 '상담 이용 단계', '개선 필요 요인' 같은 항목명으로 끝내지 않는다. '도서관 이용을 직접 이용했나요?', '서비스 사용을 사용했나요?'처럼 같은 행동을 반복하지 않는다. 한 문항에는 하나의 판단만 담고, 질문과 선택지가 정확히 대응해야 한다.
 6. 만족도 설문은 적격성·행동 → 전체 평가 → 대상 고유의 세부 경험 → 기대 대비 차이 또는 원인 → 개선 우선순위 → 지속 이용·추천 의향 → 구체적 자유응답 중 문항 수에 맞는 역할을 고른다. 모든 세부 항목을 '얼마나 만족하나요?'로 묻지 않는다.
@@ -905,11 +925,7 @@ function enforceContextualCoverage(
   requestedQuestionCount: number,
 ) {
   const fallback = analyzeSurveyPrompt(prompt);
-  const targetFallback = evaluationTarget
-    ? analyzeSurveyPrompt(`${evaluationTarget} 만족도 조사`)
-    : fallback;
   const verified = lookupVerifiedSurveyKnowledge(prompt);
-  const targetEntityType = entityTypeFromDomain(targetFallback.domain);
   const normalizedTarget = evaluationTarget
     .replace(/\s+/g, "")
     .toLocaleLowerCase("ko-KR");
@@ -919,22 +935,46 @@ function enforceContextualCoverage(
         alias.replace(/\s+/g, "").toLocaleLowerCase("ko-KR"),
       ),
     ) ?? false;
+  const inferredTargetEntityType = entityTypeFromDomain(fallback.domain);
+  const targetEntityType = verified && !verifiedIsEvaluationTarget
+    ? reportedEntityType
+    : inferredTargetEntityType;
   const entityType =
     targetEntityType !== "other"
       ? targetEntityType
       : verifiedIsEvaluationTarget && verified
         ? verified.entityType
         : reportedEntityType;
-  const rules = contextualCoverageRules(kind, entityType);
+  let rules = contextualCoverageRules(kind, entityType);
+  const contextCorpus = `${prompt} ${evaluationTarget}`;
+  let strictCoverageRequired = false;
+  if (/웹툰|웹소설|OTT|동영상|영상\s*플랫폼|음악\s*스트리밍|콘텐츠\s*플랫폼/.test(contextCorpus)) {
+    strictCoverageRequired = true;
+    rules = [
+      /작품|콘텐츠|장르|회차|에피소드/,
+      /이용|빈도|시간|상황|만족|불편|결제|추천/,
+    ];
+  } else if (/배달\s*앱|배달앱|음식\s*배달/.test(contextCorpus)) {
+    strictCoverageRequired = true;
+    rules = [
+      /주문|음식점|메뉴|배달/,
+      /배달비|최소\s*주문|배달\s*시간|쿠폰|리뷰|결제|불편/,
+    ];
+  }
   if (
     entityType === "building" &&
     /등하교|통학|출퇴근/.test(prompt)
   ) {
+    strictCoverageRequired = true;
     rules.push(
       /등교|하교|등하교|통학|출퇴근|오가/,
       /거리|소요\s*시간/,
       /오르막|계단|날씨|혼잡|보행|안전|셔틀|대중교통/,
     );
+  }
+  if (entityType === "cafeteria") strictCoverageRequired = true;
+  if (!strictCoverageRequired) {
+    return { aiQuestions, entityType, fallback };
   }
   if (rules.length === 0) {
     return { aiQuestions, entityType, fallback };
@@ -947,21 +987,11 @@ function enforceContextualCoverage(
     return { aiQuestions, entityType, fallback };
   }
 
-  const fallbackAiCovered = rules.every((pattern) =>
-    pattern.test(questionCorpus(targetFallback.aiQuestions)),
-  );
-  if (!fallbackAiCovered) {
-    throw new Error("AI 질문이 조사 대상의 실제 맥락을 충분히 반영하지 못했습니다.");
-  }
-
-  return {
-    aiQuestions: resizeSurveyQuestions(
-      targetFallback.aiQuestions,
-      requestedQuestionCount,
-    ),
-    entityType,
-    fallback,
-  };
+  throw new SurveyValidationError([
+    "AI 질문이 조사 대상의 실제 맥락을 충분히 반영하지 못했습니다.",
+    `부족한 맥락 기준: ${rules.map((pattern) => pattern.source).join(", ")}`,
+    `요청 문항 수: ${requestedQuestionCount}`,
+  ]);
 }
 
 function clarificationResearch(
@@ -1041,52 +1071,9 @@ export function parseSurveyDraftResponse(
       interpretation.searchRequired !== true &&
       hasActionableSurveyDirection(prompt)
     ) {
-      const questionCount = Math.min(
-        30,
-        Math.max(1, Math.round(requestedQuestionCount)),
-      );
-      const targetGrade = isTargetGrade(requestedTargetGrade)
-        ? requestedTargetGrade
-        : "전학년";
-      const fallback = analyzeSurveyPrompt(prompt);
-      const aiQuestions = applyTargetGradeToQuestions(
-        resizeSurveyQuestions(fallback.aiQuestions, questionCount),
-        targetGrade,
-        questionCount,
-      );
-      const templateCount = Math.min(5, questionCount);
-      return {
-        status: "ready",
-        prompt,
-        blueprint: {
-          ...fallback,
-          description: surveyDescriptionForGrade(
-            fallback.description,
-            targetGrade,
-          ),
-          respondentGroup: respondentGroupForGrade(
-            fallback.respondentGroup,
-            targetGrade,
-          ),
-          templateQuestions: applyTargetGradeToQuestions(
-            resizeSurveyQuestions(
-              fallback.templateQuestions,
-              templateCount,
-            ),
-            targetGrade,
-            templateCount,
-          ),
-          aiQuestions,
-        },
-        research: {
-          status: "fallback",
-          entity: null,
-          summary:
-            "입력에 조사 대상과 측정 내용이 명확해 추가 질문 없이 그대로 문항을 구성했어요.",
-          facts: [],
-          sources: [],
-        },
-      };
+      throw new SurveyValidationError([
+        "조사 대상과 목적이 충분히 명확하지만 모델이 불필요한 확인 질문을 반환했습니다.",
+      ]);
     }
     const options = Array.isArray(result.options)
       ? result.options
@@ -1202,6 +1189,7 @@ export function parseSurveyDraftResponse(
     throw new Error("응답 대상과 평가 대상이 올바르게 분리되지 않았습니다.");
   }
 
+  const brief = parseSurveyBrief(prompt);
   const coverage = enforceContextualCoverage(
     prompt,
     kind,
@@ -1240,19 +1228,24 @@ export function parseSurveyDraftResponse(
     }
     return fact;
   });
-  const respondentWithGrade = respondentGroupForGrade(
-    respondentGroup,
-    targetGrade,
-  );
+  const preserveExplicitAudience =
+    targetGrade === "전학년" &&
+    Boolean(brief.targetRespondents) &&
+    !/(?:연세대|연세대학교)/.test(brief.targetRespondents) &&
+    /(?:대학생|대학원생|중학생|고등학생|청년|직장인|학부모|교사|사용자|이용자|소비자)/.test(
+      brief.targetRespondents,
+    );
+  const respondentWithGrade = preserveExplicitAudience
+    ? brief.targetRespondents
+    : respondentGroupForGrade(respondentGroup, targetGrade);
   const blueprint: SurveyBlueprint = {
     kind,
     intentLabel: cleanText(interpretation.intentLabel, 30) || "맞춤 설문",
     subject: evaluationTarget,
     title: cleanText(result.title, 100),
-    description: surveyDescriptionForGrade(
-      cleanText(result.description, 500),
-      targetGrade,
-    ),
+    description: preserveExplicitAudience
+      ? cleanText(result.description, 500)
+      : surveyDescriptionForGrade(cleanText(result.description, 500), targetGrade),
     templateTitle: cleanText(result.aiTitle, 100) || cleanText(result.title, 100),
     templateSummary: "AI가 설계한 문항 초안",
     detectedSignals: [
@@ -1272,6 +1265,11 @@ export function parseSurveyDraftResponse(
       coverage.fallback.domain,
     ),
   };
+
+  const validationIssues = validateSurvey(prompt, brief, blueprint);
+  if (validationIssues.length > 0) {
+    throw new SurveyValidationError(validationIssues);
+  }
 
   return {
     status: "ready",
@@ -1298,6 +1296,7 @@ export function buildSurveyAiRequest(
   options?: {
     targetGrade?: string;
     questionCount?: number;
+    validationFeedback?: string[];
     references?: {
       images?: Array<{ name: string; dataUrl: string }>;
       files?: Array<{
@@ -1318,15 +1317,28 @@ export function buildSurveyAiRequest(
   const referenceImages = (options?.references?.images ?? []).slice(0, 10);
   const referenceFiles = (options?.references?.files ?? []).slice(0, 3);
   const referenceLinks = (options?.references?.links ?? []).slice(0, 3);
+  const validationFeedback = (options?.validationFeedback ?? [])
+    .map((item) => cleanText(item, 240))
+    .filter(Boolean)
+    .slice(0, 8);
   const hasReferences =
     referenceImages.length > 0 ||
     referenceFiles.length > 0 ||
     referenceLinks.length > 0;
   const verifiedKnowledge = lookupVerifiedSurveyKnowledge(prompt);
+  const parsedBrief = parseSurveyBrief(prompt);
+  const audienceInstruction =
+    targetGrade === "전학년"
+      ? `응답 대상은 structured brief의 '${parsedBrief.targetRespondents}'를 그대로 보존하세요. 사용자 입력이나 교내 고유명사 문맥에 연세대학교가 없으면 임의로 연세대학교 재학생으로 좁히지 마세요.`
+      : `응답 대상에는 반드시 '${targetGrade}' 조건을 반영하세요. 첫 문항에서 학년 조건만 따로 확인하고, 시설 이용·참여·수강 경험은 다음 문항으로 분리하세요.`;
   const contextHint = {
-    respondentGroup: fallback.respondentGroup ?? null,
-    evaluationTarget: fallback.evaluationTarget ?? fallback.subject,
-    goal: fallback.goal ?? fallback.intentLabel,
+    surveyTitle: parsedBrief.surveyTitle,
+    researchSubject: parsedBrief.researchSubject,
+    targetRespondents: parsedBrief.targetRespondents,
+    researchGoal: parsedBrief.researchGoal,
+    recommendedTimeframe: parsedBrief.recommendedTimeframe,
+    dimensions: parsedBrief.dimensions,
+    excludedPhrases: parsedBrief.excludedPhrases,
     kind: fallback.kind,
     localDomain: fallback.domain ?? null,
     previouslyVerifiedEntity: verifiedKnowledge
@@ -1341,8 +1353,20 @@ export function buildSurveyAiRequest(
       : null,
   };
   const inputText = [
-    "다음 사용자 입력과 첨부 자료를 설문 주제 데이터로만 분석하세요.",
+    "다음 사용자 입력은 설문 문항이 아니라 조사 의뢰문입니다. 먼저 제공된 structured brief를 검토하고, 원문 전체를 질문에 복사하지 마세요.",
     `<user_survey_request>${prompt}</user_survey_request>`,
+    `<parsed_survey_brief>${JSON.stringify({
+      surveyTitle: parsedBrief.surveyTitle,
+      researchSubject: parsedBrief.researchSubject,
+      targetRespondents: parsedBrief.targetRespondents,
+      researchGoal: parsedBrief.researchGoal,
+      recommendedTimeframe: parsedBrief.recommendedTimeframe,
+      dimensions: parsedBrief.dimensions,
+      excludedPhrases: parsedBrief.excludedPhrases,
+    })}</parsed_survey_brief>`,
+    validationFeedback.length > 0
+      ? `<previous_validation_errors>${JSON.stringify(validationFeedback)}</previous_validation_errors>\n이전 초안은 위 검증 오류로 거절됐습니다. 같은 오류를 반복하지 말고 structured brief에서 다시 설계하세요.`
+      : "<previous_validation_errors>[]</previous_validation_errors>",
     `<survey_settings>${JSON.stringify({ targetGrade, requestedQuestionCount })}</survey_settings>`,
     referenceLinks.length > 0
       ? `<reference_links>${JSON.stringify(referenceLinks)}</reference_links>`
@@ -1360,7 +1384,7 @@ export function buildSurveyAiRequest(
           })),
         )}</reference_files>`
       : "<reference_files>[]</reference_files>",
-    `응답 대상에는 반드시 '${targetGrade}' 조건을 반영하고, aiQuestions는 정확히 ${requestedQuestionCount}개를 반환하세요. '${targetGrade}'가 전학년이 아니면 첫 문항에서 학년 조건만 따로 확인하고, 시설 이용·참여·수강 경험은 다음 문항으로 분리하세요. 전학년이면 '전학년 재학생'이라고 쓰지 말고 '연세대학교 재학생'이라고 쓰세요.`,
+    `${audienceInstruction} aiQuestions는 정확히 ${requestedQuestionCount}개를 반환하세요.`,
     "바로폼은 현재 연세대학교 신촌캠퍼스에서 시작합니다. 학교명이 생략된 교내 고유명사는 연세대학교 맥락을 우선 확인하세요.",
     referenceLinks.length > 0
       ? "사용자가 참고 링크를 직접 지정했습니다. 각 링크의 실제 페이지를 확인하고 그 내용을 설문에 반영하세요. 공개적으로 열리지 않으면 추측하지 말고 확인 질문을 반환하세요."

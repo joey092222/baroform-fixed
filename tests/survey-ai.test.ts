@@ -113,7 +113,10 @@ test("카공 빈도는 빈도라는 단어가 아니라 실제 카공 행동 주
 
   assert.equal(isLiteralFrequencySurveyRequest(prompt), true);
   assert.equal(draft.title, "대학생 카공 빈도 조사");
-  assert.equal(draft.aiQuestions[0]?.title, "카공을 얼마나 자주 하나요?");
+  assert.equal(
+    draft.aiQuestions[0]?.title,
+    "최근 1개월 동안 카공을 얼마나 자주 하나요?",
+  );
   assert.deepEqual(draft.aiQuestions[0]?.options, [
     "전혀 하지 않음",
     "월 1회 미만",
@@ -275,7 +278,7 @@ test("설문 생성 API는 단순 비율 요청을 AI 호출 없이 최소 문�
       "direct-proportion",
     );
     assert.equal(allGrades.status, "ready");
-    assert.equal(allGrades.blueprint.respondentGroup, "연세대학교 재학생");
+    assert.equal(allGrades.blueprint.respondentGroup, "대학생");
     assert.deepEqual(allGrades.blueprint.aiQuestions, [
       {
         id: 1,
@@ -350,7 +353,7 @@ test("설문 생성 API는 명확한 카공 빈도를 AI 호출 없이 행동 �
     assert.equal(body.blueprint.aiQuestions.length, 7);
     assert.equal(
       body.blueprint.aiQuestions[0]?.title,
-      "카공을 얼마나 자주 하나요?",
+      "최근 1개월 동안 카공을 얼마나 자주 하나요?",
     );
     assert.deepEqual(body.blueprint.aiQuestions[0]?.options, [
       "전혀 하지 않음",
@@ -1470,7 +1473,7 @@ test("대상과 측정 내용이 명확한 빈도 조사는 추가 질문 없이
     );
     assert.equal(
       body.blueprint?.aiQuestions?.[0]?.title,
-      "학교에서 집 가고 싶다는 생각이 얼마나 자주 드나요?",
+      "최근 1개월 동안 학교에서 집 가고 싶다는 생각이 얼마나 자주 드나요?",
     );
     assert.doesNotMatch(
       body.blueprint?.aiQuestions?.map((item) => item.title).join(" ") ?? "",
@@ -1525,7 +1528,7 @@ test("API 키가 없어도 학생 소비 습관은 목적을 되묻지 않고 �
   }
 });
 
-test("AI가 명확한 빈도 조사에 재질문해도 설문 초안으로 전환한다", () => {
+test("AI가 명확한 빈도 조사에 재질문하면 재생성 대상으로 거부한다", () => {
   const prompt =
     "연세대 학생들이 학교에서 집 가고 싶다는 생각을 하는 빈도 조사";
   const questions = Array.from({ length: 7 }, (_, index) =>
@@ -1551,23 +1554,13 @@ test("AI가 명확한 빈도 조사에 재질문해도 설문 초안으로 전�
     };
   });
 
-  const parsed = parseSurveyDraftResponse(payload, prompt);
-
-  assert.equal(parsed.status, "ready");
-  if (parsed.status === "ready") {
-    assert.match(
-      parsed.blueprint.respondentGroup ?? "",
-      /연세대(?:학교)?\s*(?:재)?학생/,
-    );
-    assert.equal(
-      parsed.blueprint.aiQuestions[0]?.title,
-      "학교에서 집 가고 싶다는 생각이 얼마나 자주 드나요?",
-    );
-    assert.match(parsed.research.summary, /추가 질문 없이/);
-  }
+  assert.throws(
+    () => parseSurveyDraftResponse(payload, prompt),
+    /불필요한 확인 질문/,
+  );
 });
 
-test("AI가 소비 습관 조사 목적을 되물어도 구체적인 초안으로 전환한다", () => {
+test("AI가 소비 습관 조사 목적을 되물으면 재생성 대상으로 거부한다", () => {
   const prompt = "학생들의 소비 습관을 조사하라";
   const questions = Array.from({ length: 7 }, (_, index) =>
     question(index + 1, `소비 습관 질문 ${index + 1}`),
@@ -1592,18 +1585,10 @@ test("AI가 소비 습관 조사 목적을 되물어도 구체적인 초안으�
     };
   });
 
-  const parsed = parseSurveyDraftResponse(payload, prompt);
-
-  assert.equal(parsed.status, "ready");
-  if (parsed.status === "ready") {
-    const corpus = parsed.blueprint.aiQuestions
-      .flatMap((item) => [item.title, ...(item.options ?? [])])
-      .join(" ");
-    assert.equal(parsed.blueprint.title, "학생 소비 습관 조사");
-    assert.match(corpus, /생활비/);
-    assert.match(corpus, /구매할 때 중요하게 보는 기준/);
-    assert.match(parsed.research.summary, /추가 질문 없이/);
-  }
+  assert.throws(
+    () => parseSurveyDraftResponse(payload, prompt),
+    /불필요한 확인 질문/,
+  );
 });
 
 test("검색이 필요하지만 출처를 확인하지 못하면 오류 대신 확인 질문을 반환한다", () => {
@@ -1684,7 +1669,7 @@ test("AI 연결이 없어도 방향이 명확한 입력은 문맥 기반 초안�
   }
 });
 
-test("AI 결과 형식이 일시적으로 깨져도 구체적인 설문은 중단하지 않는다", async () => {
+test("AI 결과 형식과 재생성이 모두 실패하면 명확한 오류를 반환한다", async () => {
   const previousKey = process.env.OPENAI_API_KEY;
   const previousFetch = globalThis.fetch;
   process.env.OPENAI_API_KEY = "test-key";
@@ -1705,11 +1690,11 @@ test("AI 결과 형식이 일시적으로 깨져도 구체적인 설문은 중�
         }),
       }),
     );
-    const body = (await response.json()) as { status?: string };
+    const body = (await response.json()) as { code?: string };
 
-    assert.equal(response.status, 200);
-    assert.equal(body.status, "ready");
-    assert.equal(response.headers.get("x-baroform-ai-mode"), "verified-fallback");
+    assert.equal(response.status, 422);
+    assert.equal(body.code, "SURVEY_REGENERATION_FAILED");
+    assert.equal(response.headers.get("x-baroform-ai-mode"), null);
   } finally {
     globalThis.fetch = previousFetch;
     if (previousKey) process.env.OPENAI_API_KEY = previousKey;
