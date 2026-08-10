@@ -52,6 +52,20 @@ for (const item of cases) {
   });
 }
 
+test("조사 목적은 한국어 조사를 맞추고 응답자 접두어를 중복하지 않는다", () => {
+  const webtoonBrief = parseSurveyBrief(cases[0].input);
+  const teamworkBrief = parseSurveyBrief(cases[2].input);
+
+  assert.match(webtoonBrief.researchGoal, /서비스 만족도를 파악한다/);
+  assert.doesNotMatch(webtoonBrief.researchGoal, /만족도을/);
+  assert.match(
+    teamworkBrief.researchGoal,
+    /^팀플 경험이 있는 대학생의 팀플 협업 경험 관련/,
+  );
+  assert.doesNotMatch(teamworkBrief.researchGoal, /대학생의 대학생의/);
+  assert.match(teamworkBrief.researchGoal, /소통 방식과 참여도를 파악한다/);
+});
+
 test("콘텐츠 설문에는 범용 업무용 선택지가 섞이지 않는다", () => {
   const brief = parseSurveyBrief(cases[0].input);
   const survey = generateSurvey(brief);
