@@ -409,7 +409,7 @@ export const surveyAiInstructions = `
 4. 학년 조건과 시설 이용·행사 참여·수강 경험 같은 다른 적격 조건을 한 문항에 합치지 않는다. '1학년 재학생이며, 최근 도서관을 이용한 적이 있습니까?'처럼 두 사실을 동시에 묻지 말고, 학년 확인과 이용 경험을 서로 다른 문항으로 분리한다.
 5. 설문 문장은 번역투나 행정문서식 수식어를 피하고 실제 한국어 설문에서 자연스럽게 읽히도록 쓴다. 모든 title은 '어느 단계까지 이용했나요?', '가장 가까운 답을 골라주세요.'처럼 응답자가 바로 답할 수 있는 완전한 질문 또는 요청 문장이어야 하며 '상담 이용 단계', '개선 필요 요인' 같은 항목명으로 끝내지 않는다. '도서관 이용을 직접 이용했나요?', '서비스 사용을 사용했나요?'처럼 같은 행동을 반복하지 않는다. 한 문항에는 하나의 판단만 담고, 질문과 선택지가 정확히 대응해야 한다.
 6. 만족도 설문은 적격성·행동 → 전체 평가 → 대상 고유의 세부 경험 → 기대 대비 차이 또는 원인 → 개선 우선순위 → 지속 이용·추천 의향 → 구체적 자유응답 중 문항 수에 맞는 역할을 고른다. 모든 세부 항목을 '얼마나 만족하나요?'로 묻지 않는다.
-7. 6문항 이상이면 scale, single/multiple, text를 모두 포함하고, 7문항 이상이면 최소 5개의 서로 다른 questionRoles를 사용한다. 같은 문항 유형을 네 번 이상 연속 배치하지 않으며 scale은 전체의 60%를 넘기지 않는다.
+7. 6~7문항이면 객관식(single/multiple)을 포함해 목적에 맞는 문항 유형을 최소 2가지 사용하고, 8문항 이상이면 scale, single/multiple, text를 모두 포함한다. 7문항 이상이면 최소 5개의 서로 다른 questionRoles를 사용한다. 같은 문항 유형을 네 번 이상 연속 배치하지 않으며 scale은 전체의 60%를 넘기지 않는다. 자유응답이 분석 목적에 꼭 필요하지 않은 7문항 설문에 text를 억지로 추가하지 않는다.
 8. 건물은 이동·동선·실내환경·혼잡·접근성·안전, 식당은 맛·메뉴·가격 대비 가치·양·대기·위생·좌석, 동아리는 활동·운영·관계·시간·비용, 수업은 내용·진행·평가·학습지원, 축제는 프로그램·정보·동선·대기·혼잡·안전처럼 대상별 질문과 선택지를 쓴다. 첨부자료가 있으면 이 기본 목록보다 자료에서 확인한 고유 차원을 우선한다.
 9. 질문은 분석에 쓰일 구체적인 정보를 물어야 한다. '전반적인 의견은?', '중요하게 생각하는 요소는?' 같은 대상 없는 범용 문구나 번호만 바꾼 반복 문항을 쓰지 않는다. 자유응답은 막연한 소감보다 구체적 상황, 가장 큰 이유, 바꿔야 할 한 가지를 묻는다.
 10. 개인정보나 인구통계는 조사 목적에 꼭 필요할 때만 묻는다. type은 scale, single, multiple, text만 사용하며 single/multiple은 options가 2개 이상, scale/text는 options가 빈 배열이다. 현재 바로폼은 분기나 매트릭스를 지원하지 않는다.
@@ -846,11 +846,18 @@ function assertSurveyDepth(
 
   const types = questions.map((question) => question.type);
   const typeSet = new Set(types);
-  if (expected >= 6) {
+  if (expected >= 8) {
     const hasChoice = types.some(
       (type) => type === "single" || type === "multiple",
     );
     if (!typeSet.has("scale") || !typeSet.has("text") || !hasChoice) {
+      throw new Error("AI 설문 문항 유형이 단조롭습니다.");
+    }
+  } else if (expected >= 6) {
+    const hasChoice = types.some(
+      (type) => type === "single" || type === "multiple",
+    );
+    if (typeSet.size < 2 || !hasChoice) {
       throw new Error("AI 설문 문항 유형이 단조롭습니다.");
     }
   } else if (expected >= 4 && typeSet.size < 2) {
