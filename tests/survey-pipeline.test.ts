@@ -102,4 +102,3 @@ test("검증기는 이중 질문과 겹치는 객관식 범위를 거부한다",
   assert.ok(issues.some((issue) => issue.includes("두 개 이상의 개념")));
   assert.ok(issues.some((issue) => issue.includes("선택지 범위")));
 });
-
