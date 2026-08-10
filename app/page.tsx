@@ -1,6 +1,5 @@
 "use client";
 
-import NextImage from "next/image";
 import {
   ArrowLeft,
   ArrowRight,
@@ -1256,30 +1255,6 @@ function LandingView({
                 <ArrowRight size={18} />
               </button>
             </div>
-            <div className="landing-hero-scene" aria-label="학생들이 설문을 만들고 응답을 확인하는 모습">
-              <div className="landing-scene-photo">
-                <NextImage
-                  src="/visuals/campus-research-team.png"
-                  alt="캠퍼스 라운지에서 설문을 함께 검토하는 대학생들"
-                  fill
-                  priority
-                  sizes="(max-width: 760px) 92vw, (max-width: 1100px) 50vw, 620px"
-                />
-              </div>
-              <div className="landing-scene-paper landing-scene-question" aria-hidden="true">
-                <span>QUESTION 01</span>
-                <strong>카페에서 공부할 때<br />가장 중요한 것은?</strong>
-                <i><b /> 조용한 분위기</i>
-                <i><b /> 좌석과 콘센트</i>
-              </div>
-              <div className="landing-scene-paper landing-scene-response" aria-hidden="true">
-                <span>LIVE RESPONSES</span>
-                <strong>128</strong>
-                <div><i /><i /><i /><i /><i /></div>
-              </div>
-              <div className="landing-scene-token token-mint" aria-hidden="true">+50C</div>
-              <div className="landing-scene-token token-lavender" aria-hidden="true"><Sparkles size={16} /></div>
-            </div>
             <div className="landing-product-frame" id="product" aria-label="바로폼 제품 화면 예시">
               <div className="landing-product-bar">
                 <span><BrandMark compact /><strong>바로폼</strong></span>
@@ -1345,14 +1320,6 @@ function LandingView({
                 <p>학교 게시판, 공유 링크, Instagram용 카드까지 한 번에 준비합니다. 응답자는 로그인 없이 바로 참여할 수 있습니다.</p>
               </div>
               <div className="landing-feature-visual publish-visual">
-                <div className="landing-story-photo">
-                  <NextImage
-                    src="/visuals/student-survey-cafe.png"
-                    alt="캠퍼스 카페에서 노트북으로 설문에 답하는 대학생"
-                    fill
-                    sizes="(max-width: 760px) 86vw, 430px"
-                  />
-                </div>
                 <div className="landing-share-card">
                   <small>YONSEI CAMPUS SURVEY</small>
                   <strong>학교 도서관<br />이용 경험 조사</strong>
@@ -2038,19 +2005,6 @@ function ProductHomeView({
             <h1 id="campus-home-title">지금 참여할 설문</h1>
             <p>우리 학교의 질문에 답하고, 참여 캐시를 모아보세요.</p>
           </div>
-          <div className="home-orbit-scene" aria-hidden="true">
-            <div className="home-orbit-paper">
-              <span>오늘의 질문</span>
-              <strong>도서관에서 가장<br />집중되는 시간은?</strong>
-              <i>오전</i><i>오후</i><i>저녁</i>
-            </div>
-            <div className="home-orbit-result">
-              <span>응답</span>
-              <strong>74%</strong>
-              <i />
-            </div>
-            <div className="home-orbit-coin">+30C</div>
-          </div>
           <div className="home-participation-stats" aria-label="바로폼 설문 현황">
             <span><strong>{surveys.length}</strong><small>참여 가능</small></span>
             <span><strong>{totalResponses.toLocaleString("ko-KR")}</strong><small>누적 응답</small></span>
@@ -2655,7 +2609,11 @@ function MyPageView({
             </button>
           </div>
 
-          {deleteError && <p className="my-survey-error" role="alert">{deleteError}</p>}
+          {deleteError && (
+            <p className="my-survey-error" role="alert">
+              {deleteError}
+            </p>
+          )}
 
           {loading ? (
             <div className="board-loading mypage-loading" aria-live="polite">

@@ -1,32 +1,24 @@
 :root {
-  --bf-bg: #f4f6fb;
-  --bf-surface: #f9faff;
+  --bf-bg: #f6f3eb;
+  --bf-surface: #fcfbf7;
   --bf-surface-strong: #ffffff;
-  --bf-navy: #0a2142;
-  --bf-navy-strong: #06152d;
-  --bf-navy-soft: #e8eef9;
-  --bf-text: #10182b;
-  --bf-muted: #687186;
-  --bf-border: #dce2ed;
-  --bf-border-dark: #bcc6d8;
-  --bf-positive: #19795d;
-  --bf-warning: #9a661f;
+  --bf-navy: #0b1f3a;
+  --bf-navy-strong: #071426;
+  --bf-navy-soft: #e9eef5;
+  --bf-text: #111318;
+  --bf-muted: #626873;
+  --bf-border: #d8d5cc;
+  --bf-border-dark: #b8b5ad;
+  --bf-positive: #1e6d52;
+  --bf-warning: #9b6218;
   --bf-danger: #a23b35;
-  --bf-blue: #2d69ff;
-  --bf-cobalt: #2d69ff;
-  --bf-sky: #bfe2ff;
-  --bf-mint: #bff3dc;
-  --bf-lavender: #ded6ff;
-  --bf-peach: #ffd9c7;
-  --bf-butter: #fff1ac;
-  --bf-radius-sm: 12px;
-  --bf-radius: 20px;
-  --bf-radius-lg: 30px;
-  --bf-page: 1320px;
+  --bf-blue: #2762d2;
+  --bf-radius-sm: 10px;
+  --bf-radius: 16px;
+  --bf-radius-lg: 22px;
+  --bf-page: 1280px;
   --bf-editor-page: 1580px;
   --bf-section: clamp(92px, 10vw, 150px);
-  --bf-shadow-soft: 0 24px 70px rgba(6, 21, 45, .1);
-  --bf-shadow-float: 0 34px 90px rgba(6, 21, 45, .18);
   --bf-font: "Pretendard Variable", Pretendard, "Noto Sans KR Variable", "Noto Sans KR", Arial, sans-serif;
   --bf-latin: Inter, "Noto Sans KR Variable", Arial, sans-serif;
   --bf-ease: cubic-bezier(.2, .75, .3, 1);
@@ -100,12 +92,12 @@ a {
 }
 
 ::selection {
-  background: var(--bf-sky);
+  background: #cdd9eb;
   color: var(--bf-navy-strong);
 }
 
 :focus-visible {
-  outline: 3px solid rgba(45, 105, 255, .28);
+  outline: 3px solid rgba(39, 98, 210, .3);
   outline-offset: 3px;
 }
 
@@ -167,9 +159,8 @@ a {
   height: 32px;
   flex: 0 0 auto;
   place-items: center;
-  border-radius: 11px;
-  background: linear-gradient(145deg, var(--bf-cobalt), #173a8a);
-  box-shadow: 0 9px 22px rgba(45, 105, 255, .22);
+  border-radius: 9px;
+  background: var(--bf-navy);
 }
 
 .brand-mark.compact {
@@ -199,9 +190,8 @@ a {
   position: sticky;
   z-index: 60;
   top: 0;
-  border-bottom: 1px solid rgba(188, 198, 216, .72);
-  background: rgba(248, 250, 255, .88);
-  backdrop-filter: blur(20px) saturate(145%);
+  border-bottom: 1px solid var(--bf-border);
+  background: rgba(246, 243, 235, .96);
 }
 
 .header-inner {
@@ -237,7 +227,7 @@ a {
 .main-nav button:hover,
 .main-nav button.active {
   color: var(--bf-navy-strong);
-  background: rgba(255, 255, 255, .86);
+  background: var(--bf-surface);
 }
 
 .main-nav button.active::after {
@@ -246,7 +236,7 @@ a {
   bottom: 5px;
   left: 12px;
   height: 2px;
-  background: var(--bf-cobalt);
+  background: var(--bf-navy);
   content: "";
 }
 
