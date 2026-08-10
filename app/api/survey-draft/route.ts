@@ -5,12 +5,15 @@ import {
   isLiteralFrequencySurveyRequest,
   isSleepDurationSurveyRequest,
   isSimpleProportionSurveyRequest,
+  parseSurveyBrief,
   resizeSurveyQuestions,
+  validateSurvey,
   type SurveyBlueprint,
 } from "../../survey-intent";
 import {
   buildSurveyAiRequest,
   parseSurveyDraftResponse,
+  SurveyValidationError,
   type SurveyDraftResult,
 } from "../../survey-ai";
 import {
@@ -35,6 +38,8 @@ export const maxDuration = 60;
 type CacheEntry = {
   expiresAt: number;
   result: SurveyDraftResult;
+  mode: "model" | "verified-fallback";
+  reason?: string;
 };
 
 type RateEntry = {
@@ -67,6 +72,17 @@ function apiError(message: string, code: string, status: number) {
 }
 
 function fallbackResponse(result: SurveyDraftResult, reason: string) {
+  if (result.status === "ready") {
+    const brief = parseSurveyBrief(result.prompt);
+    const issues = validateSurvey(result.prompt, brief, result.blueprint);
+    if (issues.length > 0) {
+      return apiError(
+        `안전한 설문 초안을 만들지 못했어요. ${issues.join(" ")}`,
+        "SURVEY_GENERATION_FAILED",
+        422,
+      );
+    }
+  }
   return Response.json(result, {
     headers: {
       ...noStoreHeaders,
@@ -94,6 +110,13 @@ function applyDraftSettings(
   targetGrade: TargetGrade,
   questionCount: number,
 ): SurveyBlueprint {
+  const preserveExplicitAudience =
+    targetGrade === "전학년" &&
+    Boolean(blueprint.respondentGroup) &&
+    !/(?:연세대|연세대학교)/.test(blueprint.respondentGroup ?? "") &&
+    /(?:대학생|대학원생|중학생|고등학생|청년|직장인|학부모|교사|사용자|이용자|소비자)/.test(
+      blueprint.respondentGroup ?? "",
+    );
   const templateCount = Math.min(5, questionCount);
   const aiQuestions = applyTargetGradeToQuestions(
     resizeSurveyQuestions(blueprint.aiQuestions, questionCount),
@@ -102,14 +125,12 @@ function applyDraftSettings(
   );
   return {
     ...blueprint,
-    description: surveyDescriptionForGrade(
-      blueprint.description,
-      targetGrade,
-    ),
-    respondentGroup: respondentGroupForGrade(
-      blueprint.respondentGroup,
-      targetGrade,
-    ),
+    description: preserveExplicitAudience
+      ? blueprint.description
+      : surveyDescriptionForGrade(blueprint.description, targetGrade),
+    respondentGroup: preserveExplicitAudience
+      ? blueprint.respondentGroup
+      : respondentGroupForGrade(blueprint.respondentGroup, targetGrade),
     detectedSignals: [
       ...(blueprint.detectedSignals ?? []).filter(
         (signal) => !signal.startsWith("응답 학년 ·"),
@@ -295,10 +316,18 @@ function resilientDraftFallback(
     : clarificationFallback(prompt, targetGrade, questionCount);
 }
 
-function cacheResult(key: string, now: number, result: SurveyDraftResult) {
+function cacheResult(
+  key: string,
+  now: number,
+  result: SurveyDraftResult,
+  mode: CacheEntry["mode"] = "verified-fallback",
+  reason?: string,
+) {
   responseCache.set(key, {
     expiresAt: now + cacheLifetimeMs,
     result,
+    mode,
+    reason,
   });
 }
 
@@ -620,7 +649,14 @@ export async function POST(request: Request) {
   const cacheKey = `${prompt.toLocaleLowerCase("ko-KR")}|${targetGrade}|${questionCount}|${referenceKey}`;
   const cached = responseCache.get(cacheKey);
   if (cached && cached.expiresAt > now) {
-    return Response.json(cached.result, { headers: noStoreHeaders });
+    return Response.json(cached.result, {
+      headers: {
+        ...noStoreHeaders,
+        "x-baroform-ai-mode": cached.mode,
+        "x-baroform-ai-cache": "hit",
+        ...(cached.reason ? { "x-baroform-ai-fallback": cached.reason } : {}),
+      },
+    });
   }
 
   if (
@@ -634,16 +670,17 @@ export async function POST(request: Request) {
       targetGrade,
       questionCount,
     );
-    cacheResult(cacheKey, now, directDraft);
+    const directReason = isDirectProportion
+      ? "direct-proportion"
+      : isDirectFrequency
+        ? "direct-frequency"
+        : isDirectSleepDuration
+          ? "direct-sleep-duration"
+          : "direct-duration";
+    cacheResult(cacheKey, now, directDraft, "verified-fallback", directReason);
     return fallbackResponse(
       directDraft,
-      isDirectProportion
-        ? "direct-proportion"
-        : isDirectFrequency
-          ? "direct-frequency"
-          : isDirectSleepDuration
-            ? "direct-sleep-duration"
-            : "direct-duration",
+      directReason,
     );
   }
 
@@ -670,7 +707,13 @@ export async function POST(request: Request) {
       questionCount,
     );
     if (verifiedFallback) {
-      cacheResult(cacheKey, now, verifiedFallback);
+      cacheResult(
+        cacheKey,
+        now,
+        verifiedFallback,
+        "verified-fallback",
+        "api-key-missing",
+      );
       return fallbackResponse(verifiedFallback, "api-key-missing");
     }
     const resilientFallback = resilientDraftFallback(
@@ -678,7 +721,13 @@ export async function POST(request: Request) {
       targetGrade,
       questionCount,
     );
-    cacheResult(cacheKey, now, resilientFallback);
+    cacheResult(
+      cacheKey,
+      now,
+      resilientFallback,
+      "verified-fallback",
+      "api-key-missing",
+    );
     return fallbackResponse(resilientFallback, "api-key-missing");
   }
 
@@ -691,25 +740,29 @@ export async function POST(request: Request) {
   const controller = new AbortController();
   const timeout = setTimeout(
     () => controller.abort(),
-    hasReferences ? 50_000 : 32_000,
+    hasReferences ? 55_000 : 52_000,
   );
 
   try {
-    const upstream = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${apiKey}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(
-        buildSurveyAiRequest(prompt, fallback, model, {
-          targetGrade,
-          questionCount,
-          references,
-        }),
-      ),
-      signal: controller.signal,
-    });
+    const requestModel = (validationFeedback: string[] = []) =>
+      fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${apiKey}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(
+          buildSurveyAiRequest(prompt, fallback, model, {
+            targetGrade,
+            questionCount,
+            references,
+            validationFeedback,
+          }),
+        ),
+        signal: controller.signal,
+      });
+
+    const upstream = await requestModel();
 
     if (!upstream.ok) {
       if (hasReferences) {
@@ -727,7 +780,13 @@ export async function POST(request: Request) {
         questionCount,
       );
       if (verifiedFallback) {
-        cacheResult(cacheKey, now, verifiedFallback);
+        cacheResult(
+          cacheKey,
+          now,
+          verifiedFallback,
+          "verified-fallback",
+          `upstream-${upstream.status}`,
+        );
         return fallbackResponse(
           verifiedFallback,
           `upstream-${upstream.status}`,
@@ -746,7 +805,13 @@ export async function POST(request: Request) {
           targetGrade,
           questionCount,
         );
-        cacheResult(cacheKey, now, resilientFallback);
+        cacheResult(
+          cacheKey,
+          now,
+          resilientFallback,
+          "verified-fallback",
+          "upstream-429",
+        );
         return fallbackResponse(resilientFallback, "upstream-429");
       }
       const resilientFallback = resilientDraftFallback(
@@ -754,7 +819,13 @@ export async function POST(request: Request) {
         targetGrade,
         questionCount,
       );
-      cacheResult(cacheKey, now, resilientFallback);
+      cacheResult(
+        cacheKey,
+        now,
+        resilientFallback,
+        "verified-fallback",
+        `upstream-${upstream.status}`,
+      );
       return fallbackResponse(
         resilientFallback,
         `upstream-${upstream.status}`,
@@ -762,15 +833,71 @@ export async function POST(request: Request) {
     }
 
     const rawResult = (await upstream.json()) as unknown;
-    const result = parseSurveyDraftResponse(
-      rawResult,
-      prompt,
-      questionCount,
-      targetGrade,
-      hasReferences,
-    );
-    cacheResult(cacheKey, now, result);
-    return Response.json(result, { headers: noStoreHeaders });
+    let result: SurveyDraftResult;
+    let generationAttempt = "initial";
+    try {
+      result = parseSurveyDraftResponse(
+        rawResult,
+        prompt,
+        questionCount,
+        targetGrade,
+        hasReferences,
+      );
+    } catch (firstError) {
+      const validationFeedback = firstError instanceof SurveyValidationError
+        ? firstError.issues
+        : [firstError instanceof Error ? firstError.message : "AI 설문 결과 검증 실패"];
+      let retryUpstream: Response;
+      try {
+        retryUpstream = await requestModel(validationFeedback);
+      } catch (retryRequestError) {
+        const detail =
+          retryRequestError instanceof Error &&
+          retryRequestError.name === "AbortError"
+            ? "재생성 요청 시간이 초과되었습니다."
+            : "재생성 모델에 연결하지 못했습니다.";
+        return apiError(
+          `설문 초안을 검증한 뒤 다시 생성했지만 완성하지 못했어요. ${detail}`,
+          "SURVEY_REGENERATION_FAILED",
+          503,
+        );
+      }
+      if (!retryUpstream.ok) {
+        return apiError(
+          "설문 초안을 검증한 뒤 다시 생성했지만 완성하지 못했어요. 잠시 후 다시 시도해주세요.",
+          "SURVEY_REGENERATION_FAILED",
+          retryUpstream.status === 429 ? 429 : 422,
+        );
+      }
+      const retryRawResult = (await retryUpstream.json()) as unknown;
+      try {
+        result = parseSurveyDraftResponse(
+          retryRawResult,
+          prompt,
+          questionCount,
+          targetGrade,
+          hasReferences,
+        );
+        generationAttempt = "regenerated";
+      } catch (retryError) {
+        const detail = retryError instanceof Error
+          ? retryError.message
+          : "재생성 결과 검증 실패";
+        return apiError(
+          `설문 초안 품질 검증을 통과하지 못했어요. ${detail}`,
+          "SURVEY_REGENERATION_FAILED",
+          422,
+        );
+      }
+    }
+    cacheResult(cacheKey, now, result, "model");
+    return Response.json(result, {
+      headers: {
+        ...noStoreHeaders,
+        "x-baroform-ai-mode": "model",
+        "x-baroform-ai-attempt": generationAttempt,
+      },
+    });
   } catch (error) {
     if (hasReferences) {
       return apiError(
@@ -787,8 +914,15 @@ export async function POST(request: Request) {
       questionCount,
     );
     if (verifiedFallback) {
-      cacheResult(cacheKey, now, verifiedFallback);
-      return fallbackResponse(verifiedFallback, invalidResultReason(error));
+      const fallbackReason = invalidResultReason(error);
+      cacheResult(
+        cacheKey,
+        now,
+        verifiedFallback,
+        "verified-fallback",
+        fallbackReason,
+      );
+      return fallbackResponse(verifiedFallback, fallbackReason);
     }
     if (error instanceof Error && error.name === "AbortError") {
       const quickFallback = fastDraftFallback(
@@ -796,19 +930,31 @@ export async function POST(request: Request) {
         targetGrade,
         questionCount,
       );
-      cacheResult(cacheKey, now, quickFallback);
-      return Response.json(quickFallback, {
-        headers: { ...noStoreHeaders, "x-baroform-ai-status": "timeout-fallback" },
-      });
+      cacheResult(
+        cacheKey,
+        now,
+        quickFallback,
+        "verified-fallback",
+        "timeout",
+      );
+      return fallbackResponse(quickFallback, "timeout");
     }
     const resilientFallback = resilientDraftFallback(
       prompt,
       targetGrade,
       questionCount,
     );
-    cacheResult(cacheKey, now, resilientFallback);
-    return fallbackResponse(resilientFallback, invalidResultReason(error));
+    const fallbackReason = invalidResultReason(error);
+    cacheResult(
+      cacheKey,
+      now,
+      resilientFallback,
+      "verified-fallback",
+      fallbackReason,
+    );
+    return fallbackResponse(resilientFallback, fallbackReason);
   } finally {
     clearTimeout(timeout);
   }
 }
+
