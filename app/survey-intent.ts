@@ -3654,18 +3654,32 @@ type SurveyOptionInterval = {
   maximumInclusive: boolean;
 };
 
+function normalizedIntervalMeasure(value: number, unit: string) {
+  if (unit === "시간") return { value: value * 60, unit: "duration-minutes" };
+  if (unit === "분") return { value, unit: "duration-minutes" };
+  if (unit === "만원") return { value: value * 10_000, unit: "currency-won" };
+  if (unit === "원") return { value, unit: "currency-won" };
+  return { value, unit: unit || "count" };
+}
+
 function surveyOptionInterval(option: string): SurveyOptionInterval | null {
   const normalized = option.replace(/,/g, "").replace(/\s+/g, " ").trim();
   const context = normalized.match(/^(최근\s+\S+|하루|일주일|주|월|학기)/)?.[0] ?? "";
   const bounded = normalized.match(
-    /(\d+(?:\.\d+)?)\s*(회|분|시간|원|만원|개|명)?\s*이상\s*(\d+(?:\.\d+)?)\s*(회|분|시간|원|만원|개|명)\s*미만/,
+    /(\d+(?:\.\d+)?)\s*(회|분|시간|원|만원|개|명)?\s*이상\s*(?:[~～-]\s*)?(\d+(?:\.\d+)?)\s*(회|분|시간|원|만원|개|명)\s*미만/,
   );
   if (bounded) {
+    const minimum = normalizedIntervalMeasure(
+      Number(bounded[1]),
+      bounded[2] || bounded[4] || "count",
+    );
+    const maximum = normalizedIntervalMeasure(Number(bounded[3]), bounded[4] || bounded[2] || "count");
+    if (minimum.unit !== maximum.unit) return null;
     return {
       context,
-      unit: bounded[4] || bounded[2] || "count",
-      minimum: Number(bounded[1]),
-      maximum: Number(bounded[3]),
+      unit: minimum.unit,
+      minimum: minimum.value,
+      maximum: maximum.value,
       minimumInclusive: true,
       maximumInclusive: false,
     };
@@ -3674,11 +3688,17 @@ function surveyOptionInterval(option: string): SurveyOptionInterval | null {
     /(\d+(?:\.\d+)?)\s*(회|분|시간|원|만원|개|명)?\s*[~～-]\s*(\d+(?:\.\d+)?)\s*(회|분|시간|원|만원|개|명)/,
   );
   if (range) {
+    const minimum = normalizedIntervalMeasure(
+      Number(range[1]),
+      range[2] || range[4] || "count",
+    );
+    const maximum = normalizedIntervalMeasure(Number(range[3]), range[4] || range[2] || "count");
+    if (minimum.unit !== maximum.unit) return null;
     return {
       context,
-      unit: range[4] || range[2] || "count",
-      minimum: Number(range[1]),
-      maximum: Number(range[3]),
+      unit: minimum.unit,
+      minimum: minimum.value,
+      maximum: maximum.value,
       minimumInclusive: true,
       maximumInclusive: true,
     };
@@ -3687,11 +3707,12 @@ function surveyOptionInterval(option: string): SurveyOptionInterval | null {
     /(\d+(?:\.\d+)?)\s*(회|분|시간|원|만원|개|명)\s*미만/,
   );
   if (upper) {
+    const maximum = normalizedIntervalMeasure(Number(upper[1]), upper[2]);
     return {
       context,
-      unit: upper[2],
+      unit: maximum.unit,
       minimum: Number.NEGATIVE_INFINITY,
-      maximum: Number(upper[1]),
+      maximum: maximum.value,
       minimumInclusive: false,
       maximumInclusive: false,
     };
@@ -3700,10 +3721,11 @@ function surveyOptionInterval(option: string): SurveyOptionInterval | null {
     /(\d+(?:\.\d+)?)\s*(회|분|시간|원|만원|개|명)\s*이상/,
   );
   if (lower) {
+    const minimum = normalizedIntervalMeasure(Number(lower[1]), lower[2]);
     return {
       context,
-      unit: lower[2],
-      minimum: Number(lower[1]),
+      unit: minimum.unit,
+      minimum: minimum.value,
       maximum: Number.POSITIVE_INFINITY,
       minimumInclusive: true,
       maximumInclusive: false,
