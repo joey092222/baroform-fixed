@@ -1091,9 +1091,17 @@ export function parseSurveyBrief(rawBrief: string): SurveyBrief {
     split.content,
     semantics,
   );
-  const researchGoal = `${labelWithParticle(targetRespondents, "의", "의")} ${researchSubject} 관련 ${dimensions
-    .slice(0, 4)
-    .join(", ")}을 파악한다.`;
+  const subjectAudiencePrefix = researchSubject.match(/^(.{1,30}?)의\\s+(.+)$/);
+  const goalSubject =
+    subjectAudiencePrefix && targetRespondents.includes(subjectAudiencePrefix[1])
+      ? subjectAudiencePrefix[2]
+      : researchSubject;
+  const goalDimensions = labelWithParticle(
+    dimensions.slice(0, 4).join(", "),
+    "을",
+    "를",
+  );
+  const researchGoal = `${labelWithParticle(targetRespondents, "의", "의")} ${goalSubject} 관련 ${goalDimensions} 파악한다.`;
   const isUsageStudy =
     semantics.kind === "usage" || /이용\s*(?:현황|경험|빈도)|사용\s*(?:현황|경험|빈도)/.test(split.content);
   const surveyTitle = /팀플|팀\s*프로젝트|조별\s*과제/.test(normalizedBrief)
