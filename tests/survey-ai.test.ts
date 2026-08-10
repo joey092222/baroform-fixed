@@ -858,6 +858,38 @@ test("같은 척도와 역할을 반복한 단조로운 AI 설문은 거부한�
   );
 });
 
+test("7문항은 자유응답 없이도 목적에 맞는 객관식과 척도형 조합을 허용한다", () => {
+  const prompt =
+    "현재 국내 최대 웹툰 플랫폼인 네이버 웹툰의 대학생들의 이용 현황과 경험을 분석하고 싶어";
+  const questions = [
+    question(1, "현재 대학교 또는 대학원에 재학하거나 휴학 중이신가요?", "single", ["재학 중", "휴학 중", "해당하지 않음"]),
+    question(2, "최근 3개월 이내 네이버 웹툰을 이용한 적이 있나요?", "single", ["예", "아니요"]),
+    question(3, "최근 1개월 동안 네이버 웹툰을 얼마나 자주 이용했나요?", "single", ["월 1회 미만", "월 1~3회", "주 1~2회", "주 3회 이상"]),
+    question(4, "네이버 웹툰을 주로 어떤 상황에서 이용하나요?", "multiple", ["통학할 때", "쉬는 시간", "잠들기 전", "기타"]),
+    question(5, "네이버 웹툰에서 주로 감상하는 콘텐츠 장르를 골라주세요.", "multiple", ["로맨스", "판타지", "액션", "드라마", "기타"]),
+    question(6, "네이버 웹툰의 전반적인 이용 경험에 얼마나 만족하시나요?", "scale"),
+    question(7, "앞으로도 네이버 웹툰을 계속 이용할 의향이 어느 정도인가요?", "scale"),
+  ];
+
+  const parsed = parseSurveyDraftResponse(
+    readyPayload({
+      prompt,
+      evaluationTarget: "네이버 웹툰",
+      respondentGroup: "대학생",
+      entityType: "service",
+      templateQuestions: questions.slice(0, 5),
+      aiQuestions: questions,
+      sourceUrls: ["https://comic.naver.com"],
+    }),
+    prompt,
+  );
+
+  assert.equal(parsed.status, "ready");
+  if (parsed.status === "ready") {
+    assert.equal(parsed.blueprint.aiQuestions.some((item) => item.type === "text"), false);
+  }
+});
+
 test("항목명처럼 끝난 AI 문항을 응답 가능한 질문 문장으로 다듬는다", () => {
   const prompt = "학생지원센터 상담 예약 경험 조사";
   const questions = [
