@@ -117,6 +117,39 @@ test("검증기는 이중 질문과 겹치는 객관식 범위를 거부한다",
   assert.ok(issues.some((issue) => issue.includes("선택지 범위")));
 });
 
+test("검증기는 맞닿은 시간 구간을 겹침으로 오판하지 않는다", () => {
+  const input = cases[0].input;
+  const brief = parseSurveyBrief(input);
+  const survey = generateSurvey(brief);
+  const durationQuestion = survey.aiQuestions.find((item) =>
+    /한 번.*이용|이용 시간|오래/.test(item.title),
+  );
+  assert.ok(durationQuestion);
+
+  const candidate = {
+    ...survey,
+    aiQuestions: survey.aiQuestions.map((item) =>
+      item.id === durationQuestion.id
+        ? {
+            ...item,
+            options: [
+              "10분 미만",
+              "10분 이상~30분 미만",
+              "30분 이상~1시간 미만",
+              "1시간 이상~2시간 미만",
+              "2시간 이상",
+            ],
+          }
+        : item,
+    ),
+  };
+
+  assert.equal(
+    validateSurvey(input, brief, candidate).some((issue) => issue.includes("선택지 범위")),
+    false,
+  );
+});
+
 test("검증기는 지속 이용과 추천 의향을 합친 문항을 거부한다", () => {
   const input = cases[0].input;
   const brief = parseSurveyBrief(input);
