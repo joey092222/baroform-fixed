@@ -102,3 +102,23 @@ test("검증기는 이중 질문과 겹치는 객관식 범위를 거부한다",
   assert.ok(issues.some((issue) => issue.includes("두 개 이상의 개념")));
   assert.ok(issues.some((issue) => issue.includes("선택지 범위")));
 });
+
+test("검증기는 지속 이용과 추천 의향을 합친 문항을 거부한다", () => {
+  const input = cases[0].input;
+  const brief = parseSurveyBrief(input);
+  const survey = generateSurvey(brief);
+  const invalid = {
+    ...survey,
+    aiQuestions: survey.aiQuestions.map((item, index) =>
+      index === survey.aiQuestions.length - 1
+        ? {
+            ...item,
+            title: "앞으로도 계속 이용하거나 주변에 추천할 의향이 있나요?",
+          }
+        : item,
+    ),
+  };
+
+  const issues = validateSurvey(input, brief, invalid);
+  assert.ok(issues.some((issue) => issue.includes("두 개 이상의 개념")));
+});
