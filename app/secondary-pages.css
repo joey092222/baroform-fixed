@@ -34,6 +34,19 @@
   line-height: 1;
 }
 
+@media (min-width: 1081px) {
+  .collab-hero > div {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .collab-hero h1 {
+    max-width: none;
+    font-size: clamp(48px, 4.8vw, 64px);
+    white-space: nowrap;
+  }
+}
+
 .community-hero p,
 .collab-hero p,
 .collab-review-hero p,
@@ -1486,5 +1499,222 @@
 
   .collab-login-card {
     padding: 32px 22px;
+  }
+}
+
+/* Community and collaboration refinement ---------------------------------- */
+
+.community-page,
+.collab-page,
+.collab-review-page,
+.collab-login-page {
+  background:
+    radial-gradient(circle at 92% 7%, rgba(191,226,255,.3), transparent 24%),
+    var(--bf-bg);
+}
+
+.community-hero,
+.collab-hero,
+.collab-review-hero {
+  padding-top: clamp(72px, 8vw, 118px);
+  padding-bottom: clamp(56px, 6vw, 86px);
+  border-bottom: 1px solid var(--bf-border-dark);
+}
+
+.community-hero h1,
+.collab-hero h1,
+.collab-review-hero h1,
+.collab-login-card h1 {
+  font-size: clamp(52px, 6vw, 78px);
+  font-weight: 820;
+  letter-spacing: -.075em;
+  line-height: 1;
+}
+
+.community-write-button,
+.collab-primary,
+.review-action,
+.community-composer-footer button {
+  border-radius: 999px;
+  background: var(--bf-cobalt);
+  box-shadow: 0 12px 28px rgba(45,105,255,.2);
+}
+
+.community-toolbar {
+  margin-top: 30px;
+  padding-block: 18px;
+  border-block: 1px solid var(--bf-border);
+  background: transparent;
+}
+
+.community-search {
+  border-radius: 999px;
+  background: rgba(255,255,255,.9);
+}
+
+.community-layout {
+  gap: clamp(36px, 6vw, 86px);
+}
+
+.community-post-list {
+  gap: 0;
+}
+
+.community-post-card {
+  padding: 32px 2px 28px;
+  border: 0;
+  border-bottom: 1px solid var(--bf-border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.community-post-card:first-child {
+  border-top: 1px solid var(--bf-border);
+}
+
+.community-post-card:hover,
+.community-post-card.expanded {
+  background: rgba(255,255,255,.52);
+  transform: none;
+}
+
+.community-post-card h2,
+.community-post-card h3 {
+  color: var(--bf-navy-strong);
+  font-size: clamp(22px, 2.2vw, 30px);
+  letter-spacing: -.04em;
+}
+
+.community-comments {
+  border-radius: 18px;
+  background: rgba(255,255,255,.76);
+}
+
+.community-side {
+  gap: 0;
+}
+
+.community-school-card,
+.community-cash-card,
+.community-guide-card,
+.community-survey-cta {
+  padding: 24px 0;
+  border: 0;
+  border-bottom: 1px solid var(--bf-border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.community-school-card:first-child {
+  border-top: 1px solid var(--bf-border);
+}
+
+.community-cash-icon { background: var(--bf-butter); color: var(--bf-navy-strong); }
+
+.community-survey-cta {
+  margin-top: 18px;
+  padding: 28px;
+  border: 0;
+  border-radius: 24px 24px 64px 24px;
+  background: var(--bf-navy-strong);
+  color: #fff;
+  box-shadow: var(--bf-shadow-soft);
+}
+
+.community-composer {
+  border-radius: 28px;
+  background: rgba(255,255,255,.94);
+  box-shadow: var(--bf-shadow-soft);
+}
+
+.collab-shell {
+  overflow: hidden;
+  border: 1px solid rgba(188,198,216,.76);
+  border-radius: 30px;
+  background: rgba(255,255,255,.78);
+  box-shadow: var(--bf-shadow-soft);
+}
+
+.collab-rail {
+  background: rgba(241,245,252,.88);
+}
+
+.collab-workspace-list button,
+.collab-switcher > button {
+  border-radius: 14px;
+}
+
+.collab-workspace-list button.active,
+.collab-workspace-list button:hover {
+  background: #e7eeff;
+  color: var(--bf-cobalt);
+}
+
+.collab-board {
+  background:
+    radial-gradient(circle at 92% 3%, rgba(222,214,255,.25), transparent 20%),
+    rgba(255,255,255,.78);
+}
+
+.collab-project-list {
+  gap: 0;
+}
+
+.collab-project {
+  border: 0;
+  border-bottom: 1px solid var(--bf-border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.collab-project:first-child {
+  border-top: 1px solid var(--bf-border);
+}
+
+.collab-project:hover {
+  background: rgba(234,240,255,.46);
+}
+
+.collab-progress span {
+  background: linear-gradient(90deg, var(--bf-cobalt), #7ea8ff);
+}
+
+.collab-help-card,
+.collab-survey-reuse,
+.collab-invite-note,
+.collab-progress-guide,
+.collab-review-state,
+.collab-review-projects,
+.collab-review-history,
+.collab-login-card {
+  border-color: var(--bf-border);
+  border-radius: 24px;
+  background: rgba(255,255,255,.88);
+  box-shadow: 0 16px 46px rgba(6,21,45,.055);
+}
+
+@media (min-width: 1081px) {
+  .collab-hero h1 {
+    font-size: clamp(48px, 4.8vw, 64px);
+  }
+}
+
+@media (max-width: 760px) {
+  .community-hero h1,
+  .collab-hero h1,
+  .collab-review-hero h1,
+  .collab-login-card h1 {
+    font-size: clamp(46px, 13vw, 62px);
+  }
+
+  .community-post-card {
+    padding: 24px 0 20px;
+  }
+
+  .collab-shell {
+    border-radius: 22px;
   }
 }

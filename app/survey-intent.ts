@@ -1091,7 +1091,7 @@ export function parseSurveyBrief(rawBrief: string): SurveyBrief {
     split.content,
     semantics,
   );
-  const subjectAudiencePrefix = researchSubject.match(/^(.{1,30}?)의\\s+(.+)$/);
+  const subjectAudiencePrefix = researchSubject.match(/^(.{1,30}?)의\s+(.+)$/);
   const goalSubject =
     subjectAudiencePrefix && targetRespondents.includes(subjectAudiencePrefix[1])
       ? subjectAudiencePrefix[2]

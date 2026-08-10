@@ -1,5 +1,6 @@
 "use client";
 
+import NextImage from "next/image";
 import {
   ArrowLeft,
   ArrowRight,
@@ -85,6 +86,7 @@ import {
   type CampusPulse,
 } from "./campus-pulse";
 import { WorkspaceReviewView, WorkspaceView } from "./workspace-view";
+import { shouldSubmitPromptOnEnter } from "./prompt-keyboard";
 
 type View =
   | "landing"
@@ -1254,6 +1256,30 @@ function LandingView({
                 <ArrowRight size={18} />
               </button>
             </div>
+            <div className="landing-hero-scene" aria-label="학생들이 설문을 만들고 응답을 확인하는 모습">
+              <div className="landing-scene-photo">
+                <NextImage
+                  src="/visuals/campus-research-team.png"
+                  alt="캠퍼스 라운지에서 설문을 함께 검토하는 대학생들"
+                  fill
+                  priority
+                  sizes="(max-width: 760px) 92vw, (max-width: 1100px) 50vw, 620px"
+                />
+              </div>
+              <div className="landing-scene-paper landing-scene-question" aria-hidden="true">
+                <span>QUESTION 01</span>
+                <strong>카페에서 공부할 때<br />가장 중요한 것은?</strong>
+                <i><b /> 조용한 분위기</i>
+                <i><b /> 좌석과 콘센트</i>
+              </div>
+              <div className="landing-scene-paper landing-scene-response" aria-hidden="true">
+                <span>LIVE RESPONSES</span>
+                <strong>128</strong>
+                <div><i /><i /><i /><i /><i /></div>
+              </div>
+              <div className="landing-scene-token token-mint" aria-hidden="true">+50C</div>
+              <div className="landing-scene-token token-lavender" aria-hidden="true"><Sparkles size={16} /></div>
+            </div>
             <div className="landing-product-frame" id="product" aria-label="바로폼 제품 화면 예시">
               <div className="landing-product-bar">
                 <span><BrandMark compact /><strong>바로폼</strong></span>
@@ -1319,6 +1345,14 @@ function LandingView({
                 <p>학교 게시판, 공유 링크, Instagram용 카드까지 한 번에 준비합니다. 응답자는 로그인 없이 바로 참여할 수 있습니다.</p>
               </div>
               <div className="landing-feature-visual publish-visual">
+                <div className="landing-story-photo">
+                  <NextImage
+                    src="/visuals/student-survey-cafe.png"
+                    alt="캠퍼스 카페에서 노트북으로 설문에 답하는 대학생"
+                    fill
+                    sizes="(max-width: 760px) 86vw, 430px"
+                  />
+                </div>
                 <div className="landing-share-card">
                   <small>YONSEI CAMPUS SURVEY</small>
                   <strong>학교 도서관<br />이용 경험 조사</strong>
@@ -2004,6 +2038,19 @@ function ProductHomeView({
             <h1 id="campus-home-title">지금 참여할 설문</h1>
             <p>우리 학교의 질문에 답하고, 참여 캐시를 모아보세요.</p>
           </div>
+          <div className="home-orbit-scene" aria-hidden="true">
+            <div className="home-orbit-paper">
+              <span>오늘의 질문</span>
+              <strong>도서관에서 가장<br />집중되는 시간은?</strong>
+              <i>오전</i><i>오후</i><i>저녁</i>
+            </div>
+            <div className="home-orbit-result">
+              <span>응답</span>
+              <strong>74%</strong>
+              <i />
+            </div>
+            <div className="home-orbit-coin">+30C</div>
+          </div>
           <div className="home-participation-stats" aria-label="바로폼 설문 현황">
             <span><strong>{surveys.length}</strong><small>참여 가능</small></span>
             <span><strong>{totalResponses.toLocaleString("ko-KR")}</strong><small>누적 응답</small></span>
@@ -2044,6 +2091,19 @@ function ProductHomeView({
             <textarea
               value={quickPrompt}
               onChange={(event) => setQuickPrompt(event.target.value)}
+              onKeyDown={(event) => {
+                if (
+                  !shouldSubmitPromptOnEnter({
+                    key: event.key,
+                    shiftKey: event.shiftKey,
+                    isComposing: event.nativeEvent.isComposing,
+                  })
+                ) {
+                  return;
+                }
+                event.preventDefault();
+                event.currentTarget.form?.requestSubmit();
+              }}
               placeholder="예) 대학생들의 카페 공부 빈도를 조사해줘"
               rows={3}
               maxLength={300}
@@ -2447,6 +2507,7 @@ function MyPageView({
   onOpenSurvey,
   onOpenAnalytics,
   onOpenBoard,
+  onDeleteSurvey,
   onLogout,
   wallet,
 }: {
@@ -2458,10 +2519,13 @@ function MyPageView({
   onOpenSurvey: (survey: OwnedSurvey) => void;
   onOpenAnalytics: (survey: OwnedSurvey) => void;
   onOpenBoard: () => void;
+  onDeleteSurvey: (survey: OwnedSurvey) => Promise<void>;
   onLogout: () => void;
   wallet: WalletData;
 }) {
   const [copiedSlug, setCopiedSlug] = useState("");
+  const [deletingSlug, setDeletingSlug] = useState("");
+  const [deleteError, setDeleteError] = useState("");
   const totalResponses = surveys.reduce(
     (total, survey) => total + survey.responseCount,
     0,
@@ -2477,6 +2541,27 @@ function MyPageView({
       window.setTimeout(() => setCopiedSlug(""), 1600);
     } catch {
       setCopiedSlug("");
+    }
+  };
+
+  const deleteSurvey = async (survey: OwnedSurvey) => {
+    const confirmed = window.confirm(
+      `‘${survey.title}’ 설문을 삭제할까요?\n저장된 응답과 결과도 함께 삭제되며 되돌릴 수 없어요.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingSlug(survey.slug);
+    setDeleteError("");
+    try {
+      await onDeleteSurvey(survey);
+    } catch (deleteFailure) {
+      setDeleteError(
+        deleteFailure instanceof Error
+          ? deleteFailure.message
+          : "설문을 삭제하지 못했어요.",
+      );
+    } finally {
+      setDeletingSlug("");
     }
   };
 
@@ -2570,6 +2655,8 @@ function MyPageView({
             </button>
           </div>
 
+          {deleteError && <p className="my-survey-error" role="alert">{deleteError}</p>}
+
           {loading ? (
             <div className="board-loading mypage-loading" aria-live="polite">
               <span />
@@ -2643,6 +2730,15 @@ function MyPageView({
                     >
                       <BarChart3 size={16} />
                       결과 보기
+                    </button>
+                    <button
+                      type="button"
+                      className="danger"
+                      disabled={deletingSlug === survey.slug}
+                      onClick={() => void deleteSurvey(survey)}
+                    >
+                      <Trash2 size={16} />
+                      {deletingSlug === survey.slug ? "삭제 중…" : "삭제"}
                     </button>
                   </div>
                 </article>
@@ -6764,6 +6860,55 @@ export default function Home() {
     navigate("analytics");
   };
 
+  const deleteOwnedSurvey = async (survey: OwnedSurvey) => {
+    if (!authToken) {
+      setAuthOpen(true);
+      throw new Error("설문을 삭제하려면 로그인해주세요.");
+    }
+
+    const response = await fetch(`/api/surveys/${encodeURIComponent(survey.slug)}`, {
+      method: "DELETE",
+      headers: { authorization: `Bearer ${authToken}` },
+    });
+    const result = (await response.json()) as {
+      deletedSlug?: string;
+      error?: string;
+    };
+
+    if (!response.ok || result.deletedSlug !== survey.slug) {
+      if (response.status === 401) {
+        setUser(null);
+        setAuthToken("");
+        window.localStorage.removeItem(authTokenStorageKey);
+        setAuthOpen(true);
+      }
+      throw new Error(result.error || "설문을 삭제하지 못했어요.");
+    }
+
+    setMySurveys((current) => current.filter((item) => item.slug !== survey.slug));
+    setPublicSurveys((current) => current.filter((item) => item.slug !== survey.slug));
+    if (activeSurvey?.slug === survey.slug) setActiveSurvey(null);
+    if (publishedSlug === survey.slug) {
+      setPublishedSlug("");
+      setManageToken("");
+    }
+
+    try {
+      const managedSurvey = JSON.parse(
+        window.localStorage.getItem(managedSurveyStorageKey) ?? "null",
+      ) as ManagedSurveySnapshot | null;
+      if (managedSurvey?.slug === survey.slug) {
+        window.localStorage.removeItem(managedSurveyStorageKey);
+      }
+    } catch {
+      window.localStorage.removeItem(managedSurveyStorageKey);
+    }
+
+    setToast("설문과 저장된 응답을 삭제했어요.");
+    window.setTimeout(() => setToast(""), 2200);
+    void refreshPublicSurveys();
+  };
+
   const duplicateWorkspaceSurvey = (slug: string) => {
     const source = mySurveys.find((survey) => survey.slug === slug);
     if (!source || !source.questions?.length) {
@@ -6924,6 +7069,7 @@ export default function Home() {
           onOpenSurvey={openSurvey}
           onOpenAnalytics={openOwnedAnalytics}
           onOpenBoard={() => navigate("board")}
+          onDeleteSurvey={deleteOwnedSurvey}
           onLogout={logout}
           wallet={wallet}
         />
