@@ -2819,6 +2819,60 @@ for (const apiCase of [
   });
 }
 
+test("Vercel 종료 전에 OpenAI 요청을 중단하고 구조화된 504 JSON을 반환한다", async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  const previousTimeout = process.env.BAROFORM_AI_TIMEOUT_MS;
+  const previousFetch = globalThis.fetch;
+  process.env.OPENAI_API_KEY = "test-key";
+  process.env.BAROFORM_AI_TIMEOUT_MS = "250";
+  globalThis.fetch = async (_input, init) =>
+    await new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener(
+        "abort",
+        () => reject(new DOMException("Request aborted", "AbortError")),
+        { once: true },
+      );
+    });
+
+  try {
+    const response = await createSurveyDraft(
+      new Request("http://localhost/api/survey-draft", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          "user-agent": "baroform-timeout-json-test",
+        },
+        body: JSON.stringify({
+          prompt: "대학생 학교생활 시간 사용 조사 timeout",
+          surveyMode: "standard",
+          targetGrade: "전학년",
+          questionCount: 7,
+          references: { images: [], files: [], links: [] },
+        }),
+      }),
+    );
+    const body = (await response.json()) as {
+      ok?: boolean;
+      code?: string;
+      error?: string;
+      requestId?: string;
+    };
+
+    assert.equal(response.status, 504);
+    assert.equal(body.ok, false);
+    assert.equal(body.code, "SURVEY_GENERATION_TIMEOUT");
+    assert.match(body.error ?? "", /응답 시간이 초과/);
+    assert.equal(typeof body.requestId, "string");
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+    else delete process.env.OPENAI_API_KEY;
+    if (previousTimeout) process.env.BAROFORM_AI_TIMEOUT_MS = previousTimeout;
+    else delete process.env.BAROFORM_AI_TIMEOUT_MS;
+  }
+});
+
 test("대우관 등하교 의견은 의견 자체가 아니라 이동 경험으로 해석한다", () => {
   const draft = analyzeSurveyPrompt("대우관 등하교에 대한 의견 조사");
 

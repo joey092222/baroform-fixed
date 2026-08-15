@@ -43,7 +43,7 @@ import { z } from "zod";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 300;
+export const maxDuration = 90;
 
 type CacheEntry = {
   expiresAt: number;
@@ -402,6 +402,16 @@ function cacheResult(
 
 function normalizePrompt(value: string) {
   return value.replace(/\r\n?/g, "\n").trim();
+}
+
+function surveyGenerationTimeoutMs() {
+  const configured = Number.parseInt(
+    process.env.BAROFORM_AI_TIMEOUT_MS ?? "",
+    10,
+  );
+  return Number.isFinite(configured)
+    ? Math.min(75_000, Math.max(250, configured))
+    : 75_000;
 }
 
 type SurveyReferences = {
@@ -870,7 +880,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
   }
 
   const controller = new AbortController();
-  const timeoutMs = hasReferences ? 285_000 : 280_000;
+  const timeoutMs = surveyGenerationTimeoutMs();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const openai = new OpenAI({
     apiKey,
@@ -894,6 +904,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     } catch (error) {
       const isTimeout =
         error instanceof OpenAI.APIConnectionTimeoutError ||
+        error instanceof OpenAI.APIUserAbortError ||
         (error instanceof Error && error.name === "AbortError");
       const isInvalidStructuredOutput =
         error instanceof SyntaxError ||
@@ -1056,6 +1067,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
 
     if (
       error instanceof OpenAI.APIConnectionTimeoutError ||
+      error instanceof OpenAI.APIUserAbortError ||
       (error instanceof Error && error.name === "AbortError")
     ) {
       return apiError(
