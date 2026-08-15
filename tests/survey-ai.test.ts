@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { POST as createSurveyDraft } from "../app/api/survey-draft/route";
+import {
+  GET as pollSurveyDraft,
+  POST as createSurveyDraft,
+  surveyGenerationRuntime,
+} from "../app/api/survey-draft/route";
 import { POST as startReferenceUpload } from "../app/api/reference-files/route";
 import { POST as uploadReferencePart } from "../app/api/reference-files/[uploadId]/parts/route";
 import { POST as completeReferenceUpload } from "../app/api/reference-files/[uploadId]/complete/route";
@@ -767,7 +771,7 @@ function editReadyPayload(
   content.text = JSON.stringify(payload.output_parsed);
 }
 
-test("설문 생성 API는 선택한 연구 모드를 OpenAI 단일 요청에 전달한다", async () => {
+test("설문 생성 API는 연구 모드를 단일 background 요청으로 전달한다", async () => {
   const previousKey = process.env.OPENAI_API_KEY;
   const previousFetch = globalThis.fetch;
   const prompt = "대학생의 브랜드 신뢰가 구매 의도에 미치는 영향 연구";
@@ -821,6 +825,8 @@ test("설문 생성 API는 선택한 연구 모드를 OpenAI 단일 요청에 �
       tools?: Array<{ type?: string; search_context_size?: string }>;
       tool_choice?: string;
       text?: { format?: { type?: string } };
+      background?: boolean;
+      store?: boolean;
     } | null;
     assert.ok(sentRequest);
     assert.equal(sentRequest.reasoning?.effort, "high");
@@ -828,6 +834,99 @@ test("설문 생성 API는 선택한 연구 모드를 OpenAI 단일 요청에 �
     assert.equal(sentRequest.tools?.[0]?.search_context_size, "medium");
     assert.equal(sentRequest.tool_choice, "required");
     assert.equal(sentRequest.text?.format?.type, "json_schema");
+    assert.equal(sentRequest.background, true);
+    assert.equal(sentRequest.store, true);
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
+
+test("research background polling은 새 생성 없이 같은 responseId를 조회한다", async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  const previousFetch = globalThis.fetch;
+  const prompt = "대학생 학업 몰입과 심리적 안녕의 관계를 분석하는 연구 설문";
+  const responseId = "resp_baroform_background_test_1234";
+  const questions = Array.from({ length: 7 }, (_, index) =>
+    question(index + 1, `학업 몰입 연구 질문 ${index + 1}`),
+  );
+  let fetchCalls = 0;
+  let metadata: Record<string, string> = {};
+  process.env.OPENAI_API_KEY = "test-key";
+  globalThis.fetch = async (_input, init) => {
+    fetchCalls += 1;
+    if (fetchCalls === 1) {
+      const body = JSON.parse(String(init?.body)) as {
+        metadata?: Record<string, string>;
+      };
+      metadata = body.metadata ?? {};
+      return Response.json({
+        id: responseId,
+        object: "response",
+        status: "queued",
+        output: [],
+        metadata,
+      });
+    }
+    return Response.json({
+      ...readyOpenAiPayload({
+        prompt,
+        evaluationTarget: "학업 몰입과 심리적 안녕",
+        respondentGroup: "대학생",
+        entityType: "student-life",
+        templateQuestions: questions.slice(0, 5),
+        aiQuestions: questions,
+        sourceUrls: ["https://example.com/research-source"],
+      }),
+      id: responseId,
+      metadata,
+    });
+  };
+
+  try {
+    const startResponse = await createSurveyDraft(
+      new Request("http://localhost/api/survey-draft", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          "user-agent": "baroform-background-poll-test",
+        },
+        body: JSON.stringify({
+          prompt,
+          surveyMode: "research",
+          targetGrade: "전학년",
+          questionCount: 7,
+          references: { images: [], files: [], links: [] },
+        }),
+      }),
+    );
+    const started = (await startResponse.json()) as {
+      status: string;
+      responseId: string;
+      jobToken: string;
+    };
+    assert.equal(startResponse.status, 202);
+    assert.equal(started.status, "queued");
+    assert.equal(started.responseId, responseId);
+
+    const pollUrl = new URL("http://localhost/api/survey-draft");
+    pollUrl.searchParams.set("responseId", started.responseId);
+    pollUrl.searchParams.set("jobToken", started.jobToken);
+    const completedResponse = await pollSurveyDraft(
+      new Request(pollUrl, {
+        headers: {
+          origin: "http://localhost",
+          "user-agent": "baroform-background-poll-test",
+        },
+      }),
+    );
+    const completed = (await completedResponse.json()) as { status?: string };
+
+    assert.equal(completedResponse.status, 200);
+    assert.equal(completed.status, "ready");
+    assert.equal(fetchCalls, 2);
   } finally {
     globalThis.fetch = previousFetch;
     if (previousKey) process.env.OPENAI_API_KEY = previousKey;
@@ -1339,7 +1438,7 @@ for (const surveyCase of [
   });
 }
 
-test("OpenAI 요청은 모든 설문에서 검색과 내부 품질 검사를 강제한다", () => {
+test("고유명사가 있는 OpenAI 요청은 검색과 내부 품질 검사를 강제한다", () => {
   const prompt = "대우관 만족도 조사";
   const request = buildSurveyAiRequest(
     prompt,
@@ -1351,16 +1450,16 @@ test("OpenAI 요청은 모든 설문에서 검색과 내부 품질 검사를 강
   assert.equal(request.tool_choice, "required");
   assert.equal(request.reasoning.effort, "medium");
   assert.equal(request.store, false);
-  assert.equal(request.tools[0]?.type, "web_search");
-  assert.equal(request.tools[0]?.search_context_size, "low");
-  assert.equal(request.tools[0]?.user_location.country, "KR");
+  assert.equal(request.tools?.[0]?.type, "web_search");
+  assert.equal(request.tools?.[0]?.search_context_size, "low");
+  assert.equal(request.tools?.[0]?.user_location.country, "KR");
   assert.equal(request.text.format.type, "json_schema");
   assert.equal(request.text.format.strict, true);
   assert.match(requestInputText(request.input), /로그인 프로필 문맥: 별도 정보 없음/);
   assert.doesNotMatch(requestInputText(request.input), /현재 운영 학교는 연세대학교/);
   assert.match(request.instructions, /입력이 불완전하면 검색 결과와 입력 문맥/);
   assert.match(requestInputText(request.input), /\d{4}-\d{2}-\d{2}/);
-  assert.match(request.instructions, /모든 설문 요청에서 최소 한 번 이상 웹 검색/);
+  assert.match(request.instructions, /외부 사실 확인이 필요한 설문에서만 웹 검색/);
   assert.match(request.instructions, /최소 다음 응답자 경로를 내부적으로 시뮬레이션/);
   assert.match(request.instructions, /사용자에게 추가 질문을 하지 않는다/);
   assert.match(request.instructions, /ready_with_caution/);
@@ -1382,13 +1481,29 @@ test("정밀·연구 설문은 높은 추론과 중간 검색 문맥을 한 요�
 
   assert.equal(request.reasoning.effort, "high");
   assert.equal(request.max_output_tokens, 48_000);
-  assert.equal(request.tools[0]?.type, "web_search");
-  assert.equal(request.tools[0]?.search_context_size, "medium");
+  assert.equal(request.tools?.[0]?.type, "web_search");
+  assert.equal(request.tools?.[0]?.search_context_size, "medium");
   assert.equal(request.tool_choice, "required");
   assert.equal(request.text.format.type, "json_schema");
   assert.match(request.instructions, /설문 제작 모드: 정밀·연구 설문/);
   assert.match(request.instructions, /한국어 설문 카피에디터/);
   assert.match(requestInputText(request.input), /\[설문 제작 방식\]\n정밀·연구 설문/);
+});
+
+test("일반적인 대학생활 설문은 standard 모드에서 검색 도구를 생략한다", () => {
+  const prompt =
+    "대학생의 전반적 대학생활에 관해 조사하고, 이를 바탕으로 보다 나은 대학생활을 만들기 위한 교육환경 조성 및 심리상담 지원 프로그램을 마련하기 위한 설문 조사";
+  const request = buildSurveyAiRequest(
+    prompt,
+    analyzeSurveyPrompt(prompt),
+    "gpt-5.6",
+    { surveyMode: "standard" },
+  );
+
+  assert.equal(request.tools, undefined);
+  assert.equal(request.tool_choice, undefined);
+  assert.equal(request.include, undefined);
+  assert.match(requestInputText(request.input), /외부 검색 없이 설문을 생성/);
 });
 
 test("첨부 사진과 링크를 실제 멀티모달 참고 자료로 전달한다", () => {
@@ -1459,7 +1574,7 @@ test("첨부 문서와 표를 실제 input_file 참고 자료로 전달한다", 
   assert.match(serialized, /멀티모달 입력/);
   assert.equal(serialized.includes(pdfData), true);
   assert.equal(serialized.includes(sheetData), true);
-  assert.equal(request.tool_choice, "required");
+  assert.equal(request.tool_choice, undefined);
 });
 
 test("일반 모드는 참고자료가 있어도 선택한 생성 설정을 유지한다", () => {
@@ -2819,58 +2934,18 @@ for (const apiCase of [
   });
 }
 
-test("Vercel 종료 전에 OpenAI 요청을 중단하고 구조화된 504 JSON을 반환한다", async () => {
-  const previousKey = process.env.OPENAI_API_KEY;
-  const previousTimeout = process.env.BAROFORM_AI_TIMEOUT_MS;
-  const previousFetch = globalThis.fetch;
-  process.env.OPENAI_API_KEY = "test-key";
-  process.env.BAROFORM_AI_TIMEOUT_MS = "250";
-  globalThis.fetch = async (_input, init) =>
-    await new Promise<Response>((_resolve, reject) => {
-      init?.signal?.addEventListener(
-        "abort",
-        () => reject(new DOMException("Request aborted", "AbortError")),
-        { once: true },
-      );
-    });
-
-  try {
-    const response = await createSurveyDraft(
-      new Request("http://localhost/api/survey-draft", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          origin: "http://localhost",
-          "user-agent": "baroform-timeout-json-test",
-        },
-        body: JSON.stringify({
-          prompt: "대학생 학교생활 시간 사용 조사 timeout",
-          surveyMode: "standard",
-          targetGrade: "전학년",
-          questionCount: 7,
-          references: { images: [], files: [], links: [] },
-        }),
-      }),
-    );
-    const body = (await response.json()) as {
-      ok?: boolean;
-      code?: string;
-      error?: string;
-      requestId?: string;
-    };
-
-    assert.equal(response.status, 504);
-    assert.equal(body.ok, false);
-    assert.equal(body.code, "SURVEY_GENERATION_TIMEOUT");
-    assert.match(body.error ?? "", /응답 시간이 초과/);
-    assert.equal(typeof body.requestId, "string");
-  } finally {
-    globalThis.fetch = previousFetch;
-    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
-    else delete process.env.OPENAI_API_KEY;
-    if (previousTimeout) process.env.BAROFORM_AI_TIMEOUT_MS = previousTimeout;
-    else delete process.env.BAROFORM_AI_TIMEOUT_MS;
-  }
+test("Vercel 한도보다 먼저 구조화된 오류를 반환하도록 런타임 한도를 둔다", () => {
+  assert.deepEqual(surveyGenerationRuntime, {
+    maxDurationSeconds: 300,
+    openAiTimeoutMs: 280_000,
+    functionDeadlineMs: 290_000,
+    backgroundPollTimeoutMs: 30_000,
+    maxRetries: 0,
+  });
+  assert.ok(
+    surveyGenerationRuntime.openAiTimeoutMs <=
+      surveyGenerationRuntime.maxDurationSeconds * 1_000 - 20_000,
+  );
 });
 
 test("대우관 등하교 의견은 의견 자체가 아니라 이동 경험으로 해석한다", () => {

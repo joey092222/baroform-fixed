@@ -5830,6 +5830,78 @@ function RealAnalyticsView({
   );
 }
 
+type SurveyGenerationReadyResult = {
+  status: "ready" | "ready_with_caution";
+  prompt: string;
+  blueprint: SurveyBlueprint;
+  research: SurveyResearch;
+};
+
+type SurveyGenerationClarificationResult = {
+  status: "needs_clarification";
+  prompt: string;
+  clarification: SurveyClarification;
+  research: SurveyResearch;
+};
+
+type SurveyGenerationBackgroundResult = {
+  status: "queued" | "in_progress";
+  responseId: string;
+  jobToken?: string;
+};
+
+type SurveyGenerationResult =
+  | SurveyGenerationReadyResult
+  | SurveyGenerationClarificationResult
+  | SurveyGenerationBackgroundResult
+  | { status?: never; error?: string; code?: string };
+
+function waitForBackgroundPoll(signal: AbortSignal, delayMs = 2_000) {
+  return new Promise<void>((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new DOMException("Aborted", "AbortError"));
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      signal.removeEventListener("abort", abort);
+      resolve();
+    }, delayMs);
+    const abort = () => {
+      window.clearTimeout(timer);
+      reject(new DOMException("Aborted", "AbortError"));
+    };
+    signal.addEventListener("abort", abort, { once: true });
+  });
+}
+
+function surveyGenerationErrorMessage(error: unknown) {
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return "설문 생성을 취소했어요.";
+  }
+  if (error instanceof JsonResponseError) {
+    switch (error.code) {
+      case "SURVEY_GENERATION_CANCELLED":
+        return "설문 생성을 취소했어요.";
+      case "SURVEY_GENERATION_OPENAI_TIMEOUT":
+        return "설문 생성 서비스의 응답이 지연되고 있어요. 잠시 후 다시 시도해 주세요.";
+      case "SURVEY_GENERATION_DEADLINE":
+        return "서버 안전 한도에 가까워져 생성을 마쳤어요. 다시 시도해 주세요.";
+      case "SURVEY_GENERATION_BACKGROUND_FAILED":
+        return "정밀·연구 설문 생성에 실패했어요. 다시 시도해 주세요.";
+      case "SURVEY_GENERATION_CONNECTION_ERROR":
+      case "SERVER_RESPONSE_EMPTY":
+        return "네트워크 연결이 불안정해요. 연결을 확인한 뒤 다시 시도해 주세요.";
+      case "SURVEY_GENERATION_INCOMPLETE":
+      case "SURVEY_GENERATION_OUTPUT_MISSING":
+      case "SURVEY_GENERATION_OUTPUT_INVALID":
+        return "완전한 설문 응답을 받지 못해 적용하지 않았어요. 다시 시도해 주세요.";
+      default:
+        return "설문을 만드는 중 문제가 발생했어요. 잠시 후 다시 시도해 주세요.";
+    }
+  }
+  return "설문을 만드는 중 문제가 발생했어요. 잠시 후 다시 시도해 주세요.";
+}
+
 function Footer() {
   return (
     <footer className="site-footer">
@@ -5845,45 +5917,52 @@ function Footer() {
   );
 }
 
-function GenerationOverlay({ surveyMode }: { surveyMode: SurveyMode }) {
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+function GenerationOverlay({
+  surveyMode,
+  onCancel,
+}: {
+  surveyMode: SurveyMode;
+  onCancel: () => void;
+}) {
+  const [messageIndex, setMessageIndex] = useState(0);
 
   useEffect(() => {
-    const startedAt = Date.now();
     const timer = window.setInterval(() => {
-      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
-    }, 1000);
+      setMessageIndex((current) =>
+        Math.min(
+          current + 1,
+          surveyModeLoadingMessages[surveyMode].length - 1,
+        ),
+      );
+    }, 8_000);
 
     return () => window.clearInterval(timer);
-  }, []);
+  }, [surveyMode]);
 
-  const phase = Math.min(4, Math.floor(elapsedSeconds / 4));
   const phaseTitles = surveyModeLoadingMessages[surveyMode];
 
   return (
-    <div className="generation-overlay" role="status" aria-live="polite">
+    <div
+      className="generation-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="survey-generation-status"
+    >
       <div className="generation-card research-loading-card">
         <span className="generation-orbit">
           <Search size={24} />
         </span>
-        <strong>{phaseTitles[phase]}</strong>
+        <strong id="survey-generation-status" aria-live="polite">
+          {phaseTitles[messageIndex]}
+        </strong>
         <p>
           {surveyMode === "research"
-            ? "관련 자료와 측정 구조를 함께 확인해 정교한 연구 설문 초안을 만들고 있어요."
-            : "공개 자료와 입력한 내용을 함께 확인해 바로 편집할 수 있는 설문을 만들고 있어요."}
+            ? "연결을 오래 유지하지 않고 백그라운드에서 한 번만 생성한 뒤 완료 상태를 확인해요."
+            : "입력한 내용을 바탕으로 바로 편집할 수 있는 설문을 만들고 있어요."}
         </p>
-        <div className="research-loading-steps" aria-label="설문 생성 단계">
-          {phaseTitles.map((label, index) => {
-            const state = index < phase ? "completed" : index === phase ? "active" : "pending";
-            return (
-              <span className={state} key={label} aria-current={state === "active" ? "step" : undefined}>
-                <i>{state === "completed" ? <Check size={13} /> : index + 1}</i>
-                <b>{label}</b>
-                <small>{state === "completed" ? "완료" : state === "active" ? "진행 중" : "대기"}</small>
-              </span>
-            );
-          })}
-        </div>
+        <button type="button" className="generation-cancel" onClick={onCancel}>
+          생성 취소
+        </button>
       </div>
     </div>
   );
@@ -5920,6 +5999,11 @@ export default function Home() {
   const [wallet, setWallet] = useState<WalletData>({ balance: 0, transactions: [] });
   const analysisRequestRef = useRef(0);
   const analysisInFlightRef = useRef(false);
+  const analysisAbortRef = useRef<AbortController | null>(null);
+  const backgroundJobRef = useRef<{
+    responseId: string;
+    jobToken: string;
+  } | null>(null);
   const [publishOpen, setPublishOpen] = useState(false);
   const [publishAfterAuth, setPublishAfterAuth] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -5932,6 +6016,13 @@ export default function Home() {
   const [toast, setToast] = useState("");
   const [workspaceSidebarOpen, setWorkspaceSidebarOpen] = useState(false);
   const [workspaceReviewToken, setWorkspaceReviewToken] = useState("");
+
+  useEffect(() => {
+    return () => {
+      analysisAbortRef.current?.abort();
+      analysisAbortRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     if (!workspaceSidebarOpen) return;
@@ -6258,6 +6349,9 @@ export default function Home() {
     const requestId = analysisRequestRef.current + 1;
     analysisRequestRef.current = requestId;
     analysisInFlightRef.current = true;
+    const controller = new AbortController();
+    analysisAbortRef.current = controller;
+    backgroundJobRef.current = null;
     setIsAnalyzing(true);
     setClarification(null);
 
@@ -6265,6 +6359,7 @@ export default function Home() {
       const response = await fetch("/api/survey-draft", {
         method: "POST",
         headers: { "content-type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           prompt: requestedPrompt,
           surveyMode,
@@ -6277,21 +6372,40 @@ export default function Home() {
           },
         }),
       });
-      const result = await readJsonResponse<
-        | {
-            status: "ready" | "ready_with_caution";
-            prompt: string;
-            blueprint: SurveyBlueprint;
-            research: SurveyResearch;
-          }
-        | {
-            status: "needs_clarification";
-            prompt: string;
-            clarification: SurveyClarification;
-            research: SurveyResearch;
-          }
-        | { error?: string; code?: string }
-      >(response, "AI 초안을 만들지 못했어요. 잠시 후 다시 시도해주세요.");
+      let result = await readJsonResponse<SurveyGenerationResult>(
+        response,
+        "AI 초안을 만들지 못했어요. 잠시 후 다시 시도해주세요.",
+      );
+
+      if (
+        (result.status === "queued" || result.status === "in_progress") &&
+        result.jobToken
+      ) {
+        const backgroundJob = {
+          responseId: result.responseId,
+          jobToken: result.jobToken,
+        };
+        backgroundJobRef.current = {
+          responseId: backgroundJob.responseId,
+          jobToken: backgroundJob.jobToken,
+        };
+        while (result.status === "queued" || result.status === "in_progress") {
+          await waitForBackgroundPoll(controller.signal);
+          const statusUrl = new URL("/api/survey-draft", window.location.origin);
+          statusUrl.searchParams.set("responseId", backgroundJob.responseId);
+          statusUrl.searchParams.set("jobToken", backgroundJob.jobToken);
+          const statusResponse = await fetch(statusUrl, {
+            method: "GET",
+            signal: controller.signal,
+            cache: "no-store",
+          });
+          result = await readJsonResponse<SurveyGenerationResult>(
+            statusResponse,
+            "정밀·연구 설문 상태를 확인하지 못했어요.",
+          );
+        }
+        backgroundJobRef.current = null;
+      }
 
       if (analysisRequestRef.current !== requestId) return;
       if (!("status" in result)) {
@@ -6311,6 +6425,13 @@ export default function Home() {
         return;
       }
 
+      if (result.status !== "ready" && result.status !== "ready_with_caution") {
+        throw new JsonResponseError(
+          "완전한 설문 응답을 받지 못했어요.",
+          { code: "SURVEY_GENERATION_INCOMPLETE", status: 502 },
+        );
+      }
+
       setSurveyTitle(result.blueprint.title);
       setDescription(result.blueprint.description);
       setQuestions(result.blueprint.aiQuestions);
@@ -6326,15 +6447,38 @@ export default function Home() {
           requestId: analysisError.requestId,
         });
       }
-      setToast(
-        analysisError instanceof Error
-          ? analysisError.message
-          : "정보조사를 완료하지 못했어요. 잠시 후 다시 시도해주세요.",
-      );
+      setToast(surveyGenerationErrorMessage(analysisError));
       window.setTimeout(() => setToast(""), 5200);
     } finally {
       analysisInFlightRef.current = false;
+      if (analysisAbortRef.current === controller) {
+        analysisAbortRef.current = null;
+      }
+      backgroundJobRef.current = null;
       if (analysisRequestRef.current === requestId) setIsAnalyzing(false);
+    }
+  };
+
+  const cancelSurveyGeneration = () => {
+    if (!analysisInFlightRef.current) return;
+    const backgroundJob = backgroundJobRef.current;
+    analysisRequestRef.current += 1;
+    analysisInFlightRef.current = false;
+    backgroundJobRef.current = null;
+    analysisAbortRef.current?.abort();
+    analysisAbortRef.current = null;
+    setIsAnalyzing(false);
+    setToast("설문 생성을 취소했어요.");
+    window.setTimeout(() => setToast(""), 2400);
+
+    if (backgroundJob) {
+      const statusUrl = new URL("/api/survey-draft", window.location.origin);
+      statusUrl.searchParams.set("responseId", backgroundJob.responseId);
+      statusUrl.searchParams.set("jobToken", backgroundJob.jobToken);
+      void fetch(statusUrl, {
+        method: "DELETE",
+        keepalive: true,
+      }).catch(() => undefined);
     }
   };
 
@@ -6835,7 +6979,10 @@ export default function Home() {
         />
       )}
       {isAnalyzing && (
-        <GenerationOverlay surveyMode={surveyMode} />
+        <GenerationOverlay
+          surveyMode={surveyMode}
+          onCancel={cancelSurveyGeneration}
+        />
       )}
       {clarification && !isAnalyzing && (
         <ClarificationModal

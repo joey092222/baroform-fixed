@@ -6,7 +6,9 @@ import type { SurveyQuestion } from "@/app/survey-intent";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
+
+const revisionTimeoutMs = 280_000;
 
 const noStoreHeaders = {
   "cache-control": "no-store, max-age=0",
@@ -69,7 +71,7 @@ export async function POST(request: Request) {
     }
     const model = process.env.OPENAI_SURVEY_MODEL?.trim() || "gpt-5.6-terra";
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 32_000);
+    const timeout = setTimeout(() => controller.abort(), revisionTimeoutMs);
     try {
       const upstream = await fetch("https://api.openai.com/v1/responses", {
         method: "POST",
@@ -87,7 +89,7 @@ export async function POST(request: Request) {
             targetGrade,
           }),
         ),
-        signal: controller.signal,
+        signal: AbortSignal.any([request.signal, controller.signal]),
       });
       if (!upstream.ok) {
         return Response.json(

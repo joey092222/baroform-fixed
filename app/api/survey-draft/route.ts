@@ -39,11 +39,27 @@ import {
   type SurveyMode,
 } from "@/app/survey-mode";
 import OpenAI from "openai";
+import { parseResponse } from "openai/lib/ResponsesParser";
+import type { Response as OpenAIResponse } from "openai/resources/responses/responses";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
+
+const openAiTimeoutMs = 280_000;
+const functionDeadlineMs = 290_000;
+const backgroundPollTimeoutMs = 30_000;
+const openAiMaxRetries = 0;
+
+export const surveyGenerationRuntime = {
+  maxDurationSeconds: maxDuration,
+  openAiTimeoutMs,
+  functionDeadlineMs,
+  backgroundPollTimeoutMs,
+  maxRetries: openAiMaxRetries,
+} as const;
 
 type CacheEntry = {
   expiresAt: number;
@@ -117,6 +133,25 @@ function apiSuccess<T extends SurveyDraftResult>(
   return Response.json(
     { ...result, ok: true, requestId },
     {
+      headers: {
+        ...noStoreHeaders,
+        ...headers,
+        "x-baroform-request-id": requestId,
+      },
+    },
+  );
+}
+
+function apiPayload<T extends Record<string, unknown>>(
+  payload: T,
+  status: number,
+  headers: Record<string, string>,
+  requestId: string,
+) {
+  return Response.json(
+    { ...payload, ok: true, requestId },
+    {
+      status,
       headers: {
         ...noStoreHeaders,
         ...headers,
@@ -404,14 +439,46 @@ function normalizePrompt(value: string) {
   return value.replace(/\r\n?/g, "\n").trim();
 }
 
-function surveyGenerationTimeoutMs() {
-  const configured = Number.parseInt(
-    process.env.BAROFORM_AI_TIMEOUT_MS ?? "",
-    10,
+function createOpenAiClient(apiKey: string, timeout = openAiTimeoutMs) {
+  return new OpenAI({
+    apiKey,
+    maxRetries: openAiMaxRetries,
+    timeout,
+  });
+}
+
+function backgroundJobToken(responseId: string, apiKey: string) {
+  return createHmac("sha256", apiKey)
+    .update(`baroform-survey:${responseId}`)
+    .digest("base64url");
+}
+
+function validBackgroundJobToken(
+  responseId: string,
+  token: string,
+  apiKey: string,
+) {
+  const expected = backgroundJobToken(responseId, apiKey);
+  const receivedBytes = Buffer.from(token);
+  const expectedBytes = Buffer.from(expected);
+  return (
+    receivedBytes.length === expectedBytes.length &&
+    timingSafeEqual(receivedBytes, expectedBytes)
   );
-  return Number.isFinite(configured)
-    ? Math.min(45_000, Math.max(250, configured))
-    : 45_000;
+}
+
+function combineRequestAndDeadlineSignals(request: Request) {
+  const deadlineController = new AbortController();
+  let deadlineReached = false;
+  const timer = setTimeout(() => {
+    deadlineReached = true;
+    deadlineController.abort();
+  }, functionDeadlineMs);
+  return {
+    signal: AbortSignal.any([request.signal, deadlineController.signal]),
+    deadlineReached: () => deadlineReached,
+    dispose: () => clearTimeout(timer),
+  };
 }
 
 type SurveyReferences = {
@@ -879,28 +946,68 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     // 로그인 저장소가 연결되지 않아도 사용자 원문만으로 설문을 생성한다.
   }
 
-  const controller = new AbortController();
-  const timeoutMs = surveyGenerationTimeoutMs();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  const openai = new OpenAI({
-    apiKey,
-    maxRetries: 0,
-    timeout: timeoutMs,
+  const lifecycle = combineRequestAndDeadlineSignals(request);
+  const openai = createOpenAiClient(apiKey);
+  const modelRequest = buildSurveyAiRequest(prompt, fallback, model, {
+    surveyMode,
+    targetGrade,
+    questionCount,
+    references,
+    organizationLocationContext,
   });
 
   try {
     let rawResult: Awaited<ReturnType<typeof openai.responses.parse>>;
     try {
       rawResult = await openai.responses.parse(
-        buildSurveyAiRequest(prompt, fallback, model, {
-          surveyMode,
-          targetGrade,
-          questionCount,
-          references,
-          organizationLocationContext,
-        }),
-        { signal: controller.signal },
+        surveyMode === "research"
+          ? {
+              ...modelRequest,
+              background: true,
+              store: true,
+              metadata: {
+                baro_prompt: prompt,
+                baro_target_grade: targetGrade,
+                baro_question_count: String(questionCount),
+                baro_has_references: String(hasReferences),
+                baro_reference_key: referenceKey,
+                baro_organization_context:
+                  organizationLocationContext ?? "",
+              },
+            }
+          : modelRequest,
+        { signal: lifecycle.signal },
       );
+
+      if (
+        surveyMode === "research" &&
+        (rawResult.status === "queued" || rawResult.status === "in_progress")
+      ) {
+        return apiPayload(
+          {
+            status: rawResult.status,
+            responseId: rawResult.id,
+            jobToken: backgroundJobToken(rawResult.id, apiKey),
+          },
+          202,
+          {
+            "x-baroform-ai-mode": "background",
+            "x-baroform-survey-mode": surveyMode,
+          },
+          requestId,
+        );
+      }
+      if (surveyMode === "research" && rawResult.status !== "completed") {
+        return apiError(
+          "정밀·연구 설문 생성이 완료되지 않았어요. 다시 시도해 주세요.",
+          rawResult.status === "incomplete"
+            ? "SURVEY_GENERATION_INCOMPLETE"
+            : "SURVEY_GENERATION_BACKGROUND_FAILED",
+          502,
+          {},
+          requestId,
+        );
+      }
     } catch (error) {
       const isTimeout =
         error instanceof OpenAI.APIConnectionTimeoutError ||
@@ -1065,15 +1172,34 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       );
     }
 
+    if (lifecycle.deadlineReached()) {
+      return apiError(
+        "설문 생성 시간이 서버의 안전 한도에 가까워져 작업을 마쳤어요. 다시 시도해 주세요.",
+        "SURVEY_GENERATION_DEADLINE",
+        504,
+        {},
+        requestId,
+      );
+    }
+
+    if (error instanceof OpenAI.APIConnectionTimeoutError) {
+      return apiError(
+        "설문 생성 서비스의 응답이 지연되고 있어요. 잠시 후 다시 시도해 주세요.",
+        "SURVEY_GENERATION_OPENAI_TIMEOUT",
+        504,
+        {},
+        requestId,
+      );
+    }
+
     if (
-      error instanceof OpenAI.APIConnectionTimeoutError ||
       error instanceof OpenAI.APIUserAbortError ||
       (error instanceof Error && error.name === "AbortError")
     ) {
       return apiError(
-        "설문 생성 서비스의 응답 시간이 초과됐어요. 잠시 후 다시 시도해주세요.",
-        "SURVEY_GENERATION_TIMEOUT",
-        504,
+        "사용자가 설문 생성을 취소했어요.",
+        "SURVEY_GENERATION_CANCELLED",
+        499,
         {},
         requestId,
       );
@@ -1107,8 +1233,287 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       requestId,
     );
   } finally {
-    clearTimeout(timeout);
+    lifecycle.dispose();
   }
+}
+
+function backgroundMetadata(response: OpenAIResponse) {
+  const metadata = response.metadata ?? {};
+  const prompt = normalizePrompt(metadata.baro_prompt ?? "");
+  const targetGrade = isTargetGrade(metadata.baro_target_grade)
+    ? metadata.baro_target_grade
+    : null;
+  const parsedCount = Number.parseInt(metadata.baro_question_count ?? "", 10);
+  if (
+    !prompt ||
+    !targetGrade ||
+    !Number.isInteger(parsedCount) ||
+    parsedCount < 1 ||
+    parsedCount > 30
+  ) {
+    return null;
+  }
+  return {
+    prompt,
+    targetGrade,
+    questionCount: parsedCount,
+    hasReferences: metadata.baro_has_references === "true",
+    referenceKey: metadata.baro_reference_key || "none",
+    organizationLocationContext:
+      metadata.baro_organization_context?.trim() || null,
+  };
+}
+
+function backgroundJobParams(request: Request) {
+  const params = new URL(request.url).searchParams;
+  const responseId = params.get("responseId")?.trim() ?? "";
+  const jobToken = params.get("jobToken")?.trim() ?? "";
+  if (!/^resp_[A-Za-z0-9_-]{8,200}$/.test(responseId) || !jobToken) {
+    return null;
+  }
+  return { responseId, jobToken };
+}
+
+async function handleBackgroundStatus(request: Request, requestId: string) {
+  if (!sameOrigin(request)) {
+    return apiError(
+      "현재 사이트에서 다시 시도해 주세요.",
+      "INVALID_ORIGIN",
+      403,
+      {},
+      requestId,
+    );
+  }
+  const job = backgroundJobParams(request);
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!job || !apiKey || !validBackgroundJobToken(job.responseId, job.jobToken, apiKey)) {
+    return apiError(
+      "정밀·연구 설문 작업 정보를 확인하지 못했어요.",
+      "INVALID_BACKGROUND_JOB",
+      400,
+      {},
+      requestId,
+    );
+  }
+
+  try {
+    const openai = createOpenAiClient(apiKey, backgroundPollTimeoutMs);
+    const response = await openai.responses.retrieve(job.responseId, {}, {
+      signal: request.signal,
+    });
+    if (response.status === "queued" || response.status === "in_progress") {
+      return apiPayload(
+        { status: response.status, responseId: response.id },
+        202,
+        {
+          "x-baroform-ai-mode": "background",
+          "x-baroform-survey-mode": "research",
+        },
+        requestId,
+      );
+    }
+    if (response.status === "cancelled") {
+      return apiError(
+        "사용자가 정밀·연구 설문 생성을 취소했어요.",
+        "SURVEY_GENERATION_CANCELLED",
+        499,
+        {},
+        requestId,
+      );
+    }
+    if (response.status === "incomplete") {
+      return apiError(
+        "정밀·연구 설문의 응답이 완전하지 않아 적용하지 않았어요.",
+        "SURVEY_GENERATION_INCOMPLETE",
+        502,
+        {},
+        requestId,
+      );
+    }
+    if (response.status !== "completed") {
+      return apiError(
+        "정밀·연구 설문 생성에 실패했어요. 다시 시도해 주세요.",
+        "SURVEY_GENERATION_BACKGROUND_FAILED",
+        502,
+        {},
+        requestId,
+      );
+    }
+
+    const context = backgroundMetadata(response);
+    if (!context) {
+      return apiError(
+        "정밀·연구 설문의 작업 정보를 복원하지 못했어요.",
+        "SURVEY_GENERATION_BACKGROUND_FAILED",
+        502,
+        {},
+        requestId,
+      );
+    }
+    const model = process.env.OPENAI_SURVEY_MODEL?.trim() || "gpt-5.6";
+    const fallback = applyDraftSettings(
+      analyzeSurveyPrompt(context.prompt),
+      context.targetGrade,
+      context.questionCount,
+    );
+    const parseParams = buildSurveyAiRequest(context.prompt, fallback, model, {
+      surveyMode: "research",
+      targetGrade: context.targetGrade,
+      questionCount: context.questionCount,
+      organizationLocationContext: context.organizationLocationContext,
+    });
+    const parsedResponse = parseResponse(response, parseParams);
+    let result = parseSurveyDraftResponse(
+      parsedResponse,
+      context.prompt,
+      context.questionCount,
+      context.targetGrade,
+      context.hasReferences,
+    );
+
+    const isDirectProportion =
+      !context.hasReferences && isSimpleProportionSurveyRequest(context.prompt);
+    const isDirectFrequency =
+      !context.hasReferences && isLiteralFrequencySurveyRequest(context.prompt);
+    const isDirectSleepDuration =
+      !context.hasReferences && isSleepDurationSurveyRequest(context.prompt);
+    const isDirectDuration =
+      !context.hasReferences && isExplicitDurationSurveyRequest(context.prompt);
+    if (
+      result.status !== "needs_clarification" &&
+      (isDirectProportion ||
+        isDirectFrequency ||
+        isDirectSleepDuration ||
+        isDirectDuration)
+    ) {
+      const deterministic = fastDraftFallback(
+        context.prompt,
+        context.targetGrade,
+        context.questionCount,
+      );
+      result = {
+        ...deterministic,
+        status: result.status,
+        research: result.research,
+        surveyPlan: result.surveyPlan,
+        qualityCheck: result.qualityCheck,
+        completionMessage: result.completionMessage,
+      };
+    }
+
+    const cacheKey = `research|${context.prompt.toLocaleLowerCase("ko-KR")}|${context.targetGrade}|${context.questionCount}|${context.referenceKey}`;
+    cacheResult(cacheKey, Date.now(), result, "model");
+    return apiSuccess(
+      result,
+      {
+        "x-baroform-ai-mode": "background",
+        "x-baroform-ai-attempt": "single-background-response",
+        "x-baroform-survey-mode": "research",
+      },
+      requestId,
+    );
+  } catch (error) {
+    console.error("survey-background-status-failed", {
+      requestId,
+      responseId: job.responseId,
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
+    if (error instanceof OpenAI.APIConnectionTimeoutError) {
+      return apiError(
+        "정밀·연구 설문 상태 확인이 지연되고 있어요. 잠시 후 다시 확인해 주세요.",
+        "SURVEY_GENERATION_OPENAI_TIMEOUT",
+        504,
+        {},
+        requestId,
+      );
+    }
+    if (error instanceof OpenAI.APIConnectionError) {
+      return apiError(
+        "설문 생성 서비스와 연결하지 못했어요. 잠시 후 다시 시도해 주세요.",
+        "SURVEY_GENERATION_CONNECTION_ERROR",
+        502,
+        {},
+        requestId,
+      );
+    }
+    if (
+      error instanceof SyntaxError ||
+      error instanceof SurveyGenerationResponseError ||
+      error instanceof SurveyValidationError
+    ) {
+      return apiError(
+        "정밀·연구 설문의 응답이 완전하지 않아 적용하지 않았어요.",
+        "SURVEY_GENERATION_INCOMPLETE",
+        502,
+        {},
+        requestId,
+      );
+    }
+    return apiError(
+      "정밀·연구 설문 생성에 실패했어요. 다시 시도해 주세요.",
+      "SURVEY_GENERATION_BACKGROUND_FAILED",
+      502,
+      {},
+      requestId,
+    );
+  }
+}
+
+async function cancelBackgroundJob(request: Request, requestId: string) {
+  if (!sameOrigin(request)) {
+    return apiError(
+      "현재 사이트에서 다시 시도해 주세요.",
+      "INVALID_ORIGIN",
+      403,
+      {},
+      requestId,
+    );
+  }
+  const job = backgroundJobParams(request);
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!job || !apiKey || !validBackgroundJobToken(job.responseId, job.jobToken, apiKey)) {
+    return apiError(
+      "정밀·연구 설문 작업 정보를 확인하지 못했어요.",
+      "INVALID_BACKGROUND_JOB",
+      400,
+      {},
+      requestId,
+    );
+  }
+  try {
+    const openai = createOpenAiClient(apiKey, backgroundPollTimeoutMs);
+    await openai.responses.cancel(job.responseId, { signal: request.signal });
+    return apiPayload(
+      { status: "cancelled", responseId: job.responseId },
+      200,
+      { "x-baroform-ai-mode": "background" },
+      requestId,
+    );
+  } catch (error) {
+    if (error instanceof OpenAI.APIError && error.status === 409) {
+      return apiPayload(
+        { status: "completed", responseId: job.responseId },
+        200,
+        { "x-baroform-ai-mode": "background" },
+        requestId,
+      );
+    }
+    return apiError(
+      "정밀·연구 설문 취소 요청을 처리하지 못했어요.",
+      "SURVEY_GENERATION_BACKGROUND_FAILED",
+      502,
+      {},
+      requestId,
+    );
+  }
+}
+
+export async function GET(request: Request) {
+  return handleBackgroundStatus(request, crypto.randomUUID());
+}
+
+export async function DELETE(request: Request) {
+  return cancelBackgroundJob(request, crypto.randomUUID());
 }
 
 export async function POST(request: Request) {
