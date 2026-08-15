@@ -71,10 +71,15 @@ const noStoreHeaders = {
   "x-content-type-options": "nosniff",
 };
 
-function apiError(message: string, code: string, status: number) {
+function apiError(
+  message: string,
+  code: string,
+  status: number,
+  headers: Record<string, string> = {},
+) {
   return Response.json(
     { error: message, code },
-    { status, headers: noStoreHeaders },
+    { status, headers: { ...noStoreHeaders, ...headers } },
   );
 }
 
@@ -87,6 +92,10 @@ function fallbackResponse(result: SurveyDraftResult, reason: string) {
         `안전한 설문 초안을 만들지 못했어요. ${issues.join(" ")}`,
         "SURVEY_GENERATION_FAILED",
         422,
+        {
+          "x-baroform-ai-mode": "verified-fallback",
+          "x-baroform-ai-fallback": reason,
+        },
       );
     }
   }
