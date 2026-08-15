@@ -1511,7 +1511,7 @@ export function buildSurveyAiRequest(
     tool_choice: "required" as const,
     include: ["web_search_call.action.sources" as const],
     store: false,
-    max_output_tokens: 30_000,
+    max_output_tokens: 20_000,
     instructions: surveyAiInstructions,
     input,
     text: {

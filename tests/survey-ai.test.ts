@@ -921,7 +921,7 @@ for (const surveyCase of [
     assert.match(input, new RegExp(`\\[희망 문항 수\\]\\n${surveyCase.count}`));
     assert.equal(request.tool_choice, "required");
     assert.equal(request.reasoning.effort, "high");
-    assert.equal(request.max_output_tokens, 30_000);
+    assert.equal(request.max_output_tokens, 20_000);
     assert.doesNotMatch(JSON.stringify(request.text.format.schema), /"format":"uri"/);
     assert.equal(questionSchema.minItems, surveyCase.count);
     assert.equal(questionSchema.maxItems, surveyCase.count);

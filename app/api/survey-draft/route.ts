@@ -35,7 +35,7 @@ import OpenAI from "openai";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 type CacheEntry = {
   expiresAt: number;
@@ -657,7 +657,7 @@ export async function POST(request: Request) {
   }
 
   const controller = new AbortController();
-  const timeoutMs = hasReferences ? 115_000 : 110_000;
+  const timeoutMs = hasReferences ? 285_000 : 280_000;
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const openai = new OpenAI({
     apiKey,
