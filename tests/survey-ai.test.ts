@@ -235,14 +235,14 @@ test("명시된 측정 기준은 실제 대상과 분리해 공통 의미 구조
   );
 });
 
-test("설문 생성 API는 단순 비율 요청을 AI 호출 없이 최소 문항으로 반환한다", async () => {
+test("설문 생성 API는 단순 비율 요청도 검색을 시도하고 실패 시 최소 문항으로 완성한다", async () => {
   const previousKey = process.env.OPENAI_API_KEY;
   const previousFetch = globalThis.fetch;
   let upstreamCalled = false;
   process.env.OPENAI_API_KEY = "test-key";
   globalThis.fetch = async () => {
     upstreamCalled = true;
-    throw new Error("단순 비율 조사에서 외부 AI를 호출하면 안 됩니다.");
+    throw new Error("테스트 검색 연결 실패");
   };
 
   const create = (targetGrade: "전학년" | "2학년") =>
@@ -275,7 +275,7 @@ test("설문 생성 API는 단순 비율 요청을 AI 호출 없이 최소 문�
     assert.equal(allGradesResponse.status, 200);
     assert.equal(
       allGradesResponse.headers.get("x-baroform-ai-fallback"),
-      "direct-proportion",
+      "invalid-result",
     );
     assert.equal(allGrades.status, "ready");
     assert.equal(allGrades.blueprint.respondentGroup, "대학생");
@@ -300,7 +300,7 @@ test("설문 생성 API는 단순 비율 요청을 AI 호출 없이 최소 문�
       secondGrade.blueprint.aiQuestions[1]?.title,
       "현재 자취를 하고 있나요?",
     );
-    assert.equal(upstreamCalled, false);
+    assert.equal(upstreamCalled, true);
   } finally {
     globalThis.fetch = previousFetch;
     if (previousKey) process.env.OPENAI_API_KEY = previousKey;
@@ -308,14 +308,14 @@ test("설문 생성 API는 단순 비율 요청을 AI 호출 없이 최소 문�
   }
 });
 
-test("설문 생성 API는 명확한 카공 빈도를 AI 호출 없이 행동 문항으로 반환한다", async () => {
+test("설문 생성 API는 카공 빈도도 검색을 시도하고 실패 시 행동 문항으로 완성한다", async () => {
   const previousKey = process.env.OPENAI_API_KEY;
   const previousFetch = globalThis.fetch;
   let upstreamCalled = false;
   process.env.OPENAI_API_KEY = "test-key";
   globalThis.fetch = async () => {
     upstreamCalled = true;
-    throw new Error("명확한 행동 빈도 조사에서 외부 AI를 호출하면 안 됩니다.");
+    throw new Error("테스트 검색 연결 실패");
   };
 
   try {
@@ -346,7 +346,7 @@ test("설문 생성 API는 명확한 카공 빈도를 AI 호출 없이 행동 �
     assert.equal(response.status, 200);
     assert.equal(
       response.headers.get("x-baroform-ai-fallback"),
-      "direct-frequency",
+      "invalid-result",
     );
     assert.equal(body.status, "ready");
     assert.equal(body.clarification, undefined);
@@ -363,7 +363,7 @@ test("설문 생성 API는 명확한 카공 빈도를 AI 호출 없이 행동 �
       "주 3~4회",
       "주 5회 이상",
     ]);
-    assert.equal(upstreamCalled, false);
+    assert.equal(upstreamCalled, true);
   } finally {
     globalThis.fetch = previousFetch;
     if (previousKey) process.env.OPENAI_API_KEY = previousKey;
@@ -371,14 +371,14 @@ test("설문 생성 API는 명확한 카공 빈도를 AI 호출 없이 행동 �
   }
 });
 
-test("설문 생성 API는 수면 시간 의견을 AI 호출 없이 생활시간 문항으로 반환한다", async () => {
+test("설문 생성 API는 수면 시간도 검색을 시도하고 실패 시 생활시간 문항으로 완성한다", async () => {
   const previousKey = process.env.OPENAI_API_KEY;
   const previousFetch = globalThis.fetch;
   let upstreamCalled = false;
   process.env.OPENAI_API_KEY = "test-key";
   globalThis.fetch = async () => {
     upstreamCalled = true;
-    throw new Error("명확한 수면 시간 조사에서 외부 AI를 호출하면 안 됩니다");
+    throw new Error("테스트 검색 연결 실패");
   };
 
   try {
@@ -410,7 +410,7 @@ test("설문 생성 API는 수면 시간 의견을 AI 호출 없이 생활시간
     assert.equal(response.status, 200);
     assert.equal(
       response.headers.get("x-baroform-ai-fallback"),
-      "direct-sleep-duration",
+      "invalid-result",
     );
     assert.equal(body.status, "ready");
     assert.equal(body.clarification, undefined);
@@ -420,7 +420,7 @@ test("설문 생성 API는 수면 시간 의견을 AI 호출 없이 생활시간
       body.blueprint.aiQuestions[0]?.title,
       "평일에 하루 평균 몇 시간 정도 자나요?",
     );
-    assert.equal(upstreamCalled, false);
+    assert.equal(upstreamCalled, true);
   } finally {
     globalThis.fetch = previousFetch;
     if (previousKey) process.env.OPENAI_API_KEY = previousKey;
@@ -428,14 +428,14 @@ test("설문 생성 API는 수면 시간 의견을 AI 호출 없이 생활시간
   }
 });
 
-test("설문 생성 API는 명확한 SNS 이용 시간을 AI 호출 없이 시간 문항으로 반환한다", async () => {
+test("설문 생성 API는 SNS 이용 시간도 검색을 시도하고 실패 시 시간 문항으로 완성한다", async () => {
   const previousKey = process.env.OPENAI_API_KEY;
   const previousFetch = globalThis.fetch;
   let upstreamCalled = false;
   process.env.OPENAI_API_KEY = "test-key";
   globalThis.fetch = async () => {
     upstreamCalled = true;
-    throw new Error("명확한 이용 시간 조사에서 외부 AI를 호출하면 안 됩니다");
+    throw new Error("테스트 검색 연결 실패");
   };
 
   try {
@@ -470,7 +470,7 @@ test("설문 생성 API는 명확한 SNS 이용 시간을 AI 호출 없이 시�
     assert.equal(response.status, 200);
     assert.equal(
       response.headers.get("x-baroform-ai-fallback"),
-      "direct-duration",
+      "invalid-result",
     );
     assert.equal(body.status, "ready");
     assert.equal(body.clarification, undefined);
@@ -492,7 +492,7 @@ test("설문 생성 API는 명확한 SNS 이용 시간을 AI 호출 없이 시�
       body.blueprint.aiQuestions[0]?.title,
       "평일 하루 평균 SNS 이용 시간은 얼마나 되나요?",
     );
-    assert.equal(upstreamCalled, false);
+    assert.equal(upstreamCalled, true);
   } finally {
     globalThis.fetch = previousFetch;
     if (previousKey) process.env.OPENAI_API_KEY = previousKey;
@@ -596,6 +596,8 @@ function readyPayload({
       templateSummary: "핵심 경험과 개선점을 확인합니다.",
       aiTitle: `${evaluationTarget} AI 맞춤 설문`,
       researchSummary: "공개 자료를 확인해 조사 차원을 구성했습니다.",
+      researchClassification: "verified",
+      researchLimitations: [],
       verifiedFacts: [
         {
           fact: "설문 설계에 반영할 수 있는 확인된 사실입니다.",
@@ -625,6 +627,15 @@ function readyPayload({
         questionsCoverDistinctDimensions: true,
         questionTypesPurposefullyVaried: true,
         noGenericPlaceholderWording: true,
+        allSpecificClaimsGrounded: true,
+        oneConceptPerQuestion: true,
+        neutralWording: true,
+        responseOptionsAreMece: true,
+        referencePeriodsAddedWhereNeeded: true,
+        branchPathsValid: true,
+        questionCountValid: true,
+        mobileReadable: true,
+        respondentPathSimulationPassed: true,
       },
     },
   };
@@ -672,7 +683,7 @@ function editReadyPayload(
   content.text = JSON.stringify(decoded);
 }
 
-test("OpenAI 요청은 필요한 경우에만 빠른 웹 검색을 사용한다", () => {
+test("OpenAI 요청은 모든 설문에서 검색과 내부 품질 검사를 강제한다", () => {
   const prompt = "대우관 만족도 조사";
   const request = buildSurveyAiRequest(
     prompt,
@@ -681,7 +692,7 @@ test("OpenAI 요청은 필요한 경우에만 빠른 웹 검색을 사용한다"
   );
 
   assert.equal(request.model, "gpt-5.6");
-  assert.equal(request.tool_choice, "auto");
+  assert.equal(request.tool_choice, "required");
   assert.equal(request.reasoning.effort, "medium");
   assert.equal(request.store, false);
   assert.equal(request.tools[0]?.type, "web_search");
@@ -693,8 +704,13 @@ test("OpenAI 요청은 필요한 경우에만 빠른 웹 검색을 사용한다"
   assert.match(requestInputText(request.input), /연세대학교 신촌캠퍼스/);
   assert.match(
     requestInputText(request.input),
-    /문장이 짧다는 이유로 생성을 거절하지 마세요/,
+    /문장이 짧거나 일부 조건이 없다는 이유로 생성을 거절하거나 확인 질문을 반환하지 말고/,
   );
+  assert.match(requestInputText(request.input), /<current_date>\d{4}-\d{2}-\d{2}<\/current_date>/);
+  assert.match(requestInputText(request.input), /web_search를 반드시 최소 한 번/);
+  assert.match(requestInputText(request.input), /응답자 5명의 응답 경로/);
+  assert.match(request.instructions, /needs_clarification을 반환하지 않는다/);
+  assert.match(request.instructions, /researchClassification=unresolved/);
   assert.equal(JSON.stringify(request).includes("OPENAI_API_KEY"), false);
 });
 
@@ -766,7 +782,7 @@ test("첨부 문서와 표를 실제 input_file 참고 자료로 전달한다", 
   assert.match(serialized, /각 파일의 실제 본문과 표를 읽고/);
   assert.equal(serialized.includes(pdfData), true);
   assert.equal(serialized.includes(sheetData), true);
-  assert.equal(request.tool_choice, "auto");
+  assert.equal(request.tool_choice, "required");
 });
 
 test("참고자료가 있으면 깊이 있는 분석 계약과 높은 추론 수준을 사용한다", () => {
@@ -792,7 +808,7 @@ test("참고자료가 있으면 깊이 있는 분석 계약과 높은 추론 수
 
   assert.equal(request.reasoning.effort, "high");
   assert.equal(
-    request.text.format.schema.properties.result.anyOf[0].properties.designPlan
+    request.text.format.schema.properties.result.properties.designPlan
       .properties.referenceGrounding.minItems,
     1,
   );
@@ -1265,8 +1281,8 @@ test("사용자가 고른 학년과 문항 수를 AI 생성 계약에 반영한�
 
   assert.match(requestInputText(request.input), /3-4학년/);
   assert.match(requestInputText(request.input), /정확히 12개/);
-  assert.equal(request.text.format.schema.properties.result.anyOf[0].properties.aiQuestions.minItems, 12);
-  assert.equal(request.text.format.schema.properties.result.anyOf[0].properties.aiQuestions.maxItems, 12);
+  assert.equal(request.text.format.schema.properties.result.properties.aiQuestions.minItems, 12);
+  assert.equal(request.text.format.schema.properties.result.properties.aiQuestions.maxItems, 12);
 });
 
 test("학년 적격성과 시설 이용 경험을 서로 다른 문항으로 분리한다", () => {
@@ -1448,7 +1464,7 @@ test("응답자 설명 속 맛나샘이 학교생활 평가 대상을 덮어쓰�
   }
 });
 
-test("API 키가 없을 때 목적 없는 고유명사는 확인 질문을 반환한다", async () => {
+test("API 키가 없고 목적이 짧은 고유명사도 합리적 가정으로 완성한다", async () => {
   const previousKey = process.env.OPENAI_API_KEY;
   delete process.env.OPENAI_API_KEY;
   try {
@@ -1462,9 +1478,15 @@ test("API 키가 없을 때 목적 없는 고유명사는 확인 질문을 반�
         body: JSON.stringify({ prompt: "맛나샘" }),
       }),
     );
-    const body = (await response.json()) as { status?: string };
+    const body = (await response.json()) as {
+      status?: string;
+      clarification?: unknown;
+      blueprint?: { aiQuestions?: unknown[] };
+    };
     assert.equal(response.status, 200);
-    assert.equal(body.status, "needs_clarification");
+    assert.equal(body.status, "ready");
+    assert.equal(body.clarification, undefined);
+    assert.ok((body.blueprint?.aiQuestions?.length ?? 0) > 0);
   } finally {
     if (previousKey) process.env.OPENAI_API_KEY = previousKey;
   }
@@ -1623,7 +1645,7 @@ test("AI가 소비 습관 조사 목적을 되물으면 재생성 대상으로 �
   );
 });
 
-test("검색이 필요하지만 출처를 확인하지 못하면 오류 대신 확인 질문을 반환한다", () => {
+test("검색 출처를 확인하지 못해도 주의 상태의 완성 설문을 반환한다", () => {
   const prompt = "프로메테우스 만족도 조사";
   const questions = Array.from({ length: 7 }, (_, index) =>
     question(index + 1, `프로메테우스 경험 질문 ${index + 1}`),
@@ -1641,11 +1663,12 @@ test("검색이 필요하지만 출처를 확인하지 못하면 오류 대신 �
 
   const parsed = parseSurveyDraftResponse(payload, prompt);
 
-  assert.equal(parsed.status, "needs_clarification");
-  if (parsed.status === "needs_clarification") {
-    assert.match(parsed.clarification.question, /프로메테우스/);
-    assert.equal(parsed.clarification.options.length, 3);
-    assert.doesNotMatch(parsed.clarification.options.join(" "), /직접 설명|기타/);
+  assert.equal(parsed.status, "ready");
+  if (parsed.status === "ready") {
+    assert.equal(parsed.research.status, "fallback");
+    assert.equal(parsed.research.classification, "unresolved");
+    assert.equal(parsed.research.sources.length, 0);
+    assert.match(parsed.research.limitations?.join(" ") ?? "", /검색을 완료하지 못해/);
   }
 });
 
@@ -1701,7 +1724,7 @@ test("AI 연결이 없어도 방향이 명확한 입력은 문맥 기반 초안�
   }
 });
 
-test("AI 결과 형식과 재생성이 모두 실패하면 명확한 오류를 반환한다", async () => {
+test("AI 결과 형식과 재생성이 모두 실패해도 주의 상태의 완성 설문을 반환한다", async () => {
   const previousKey = process.env.OPENAI_API_KEY;
   const previousFetch = globalThis.fetch;
   process.env.OPENAI_API_KEY = "test-key";
@@ -1722,11 +1745,16 @@ test("AI 결과 형식과 재생성이 모두 실패하면 명확한 오류를 �
         }),
       }),
     );
-    const body = (await response.json()) as { code?: string };
+    const body = (await response.json()) as {
+      status?: string;
+      research?: { classification?: string; limitations?: string[] };
+    };
 
-    assert.equal(response.status, 422);
-    assert.equal(body.code, "SURVEY_REGENERATION_FAILED");
-    assert.equal(response.headers.get("x-baroform-ai-mode"), null);
+    assert.equal(response.status, 200);
+    assert.equal(body.status, "ready");
+    assert.equal(body.research?.classification, "unresolved");
+    assert.ok((body.research?.limitations?.length ?? 0) > 0);
+    assert.equal(response.headers.get("x-baroform-ai-mode"), "verified-fallback");
   } finally {
     globalThis.fetch = previousFetch;
     if (previousKey) process.env.OPENAI_API_KEY = previousKey;

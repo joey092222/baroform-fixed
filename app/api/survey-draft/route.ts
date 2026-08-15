@@ -1,6 +1,5 @@
 import {
   analyzeSurveyPrompt,
-  hasActionableSurveyDirection,
   isExplicitDurationSurveyRequest,
   isLiteralFrequencySurveyRequest,
   isSleepDurationSurveyRequest,
@@ -173,33 +172,13 @@ function verifiedResearchFallback(
     entity: knowledge.canonicalName,
     summary: knowledge.summary,
     facts: knowledge.stableFacts,
+    classification: "verified" as const,
+    limitations: [] as string[],
     sources: knowledge.sources.map((source) => ({
       ...source,
       domain: new URL(source.url).hostname.replace(/^www\./, ""),
     })),
   };
-  const hasExplicitIntent =
-    /(만족|불만|문제|개선|평가|선호|수요|인지|의향|경험|이용\s*(?:현황|행태|빈도)|가입\s*(?:여부|의향)|참여\s*(?:여부|경험)|조사|설문)/.test(
-      prompt,
-    );
-  if (!hasExplicitIntent) {
-    return {
-      status: "needs_clarification",
-      prompt,
-      clarification: {
-        question: `‘${knowledge.canonicalName}’에서 무엇을 알아보고 싶나요?`,
-        reason:
-          "대상의 정체는 확인했지만 조사 목적에 따라 질문 구성이 크게 달라져요.",
-        options: [
-          "이용 만족도와 개선점",
-          "이용 경험과 불편 사항",
-          "직접 설명할게요",
-        ],
-      },
-      research,
-    };
-  }
-
   return {
     status: "ready",
     prompt,
@@ -229,79 +208,10 @@ function fastDraftFallback(
         "자료 확인이 지연되어 입력 문맥을 기준으로 먼저 문항을 설계했어요. 편집 화면에서 바로 다듬을 수 있어요.",
       facts: [],
       sources: [],
-    },
-  };
-}
-
-function clarificationOptions(blueprint: SurveyBlueprint) {
-  switch (blueprint.domain) {
-    case "club":
-      return [
-        "가입 의향과 망설이는 이유",
-        "활동 만족도와 개선점",
-        "인지도와 관심 정도",
-      ];
-    case "event":
-      return [
-        "참여 만족도와 개선점",
-        "참여 의향과 불참 이유",
-        "프로그램 선호와 수요",
-      ];
-    case "course":
-      return [
-        "수업 만족도와 개선점",
-        "학습 경험과 어려움",
-        "과제·평가 방식에 대한 의견",
-      ];
-    case "cafeteria":
-    case "building":
-    case "library":
-    case "dormitory":
-    case "service":
-    case "facility":
-      return [
-        "이용 만족도와 개선점",
-        "이용 중 불편 사항",
-        "이용 경험과 빈도",
-      ];
-    default:
-      return [
-        "만족도와 개선점",
-        "수요와 참여 의향",
-        "경험과 불편 사항",
-      ];
-  }
-}
-
-function clarificationFallback(
-  prompt: string,
-  targetGrade: TargetGrade,
-  questionCount: number,
-): SurveyDraftResult {
-  const blueprint = applyDraftSettings(
-    analyzeSurveyPrompt(prompt),
-    targetGrade,
-    questionCount,
-  );
-  const target = (blueprint.evaluationTarget ?? blueprint.subject).trim();
-  return {
-    status: "needs_clarification",
-    prompt,
-    clarification: {
-      question: target
-        ? `‘${target}’에 대해 무엇을 알아보고 싶나요?`
-        : "이 설문으로 무엇을 알아보고 싶나요?",
-      reason:
-        "문장이 짧아서가 아니라, 선택에 따라 문항 구성이 크게 달라지는 한 가지만 확인할게요.",
-      options: clarificationOptions(blueprint),
-    },
-    research: {
-      status: "fallback",
-      entity: target || null,
-      summary:
-        "입력 문맥에서 대상은 파악했고, 조사 목적만 확인하면 바로 문항을 설계할 수 있어요.",
-      facts: [],
-      sources: [],
+      classification: "unresolved",
+      limitations: [
+        "공개 자료 검색을 완료하지 못해 사용자 입력과 일반적인 조사 설계 원칙만 반영했습니다.",
+      ],
     },
   };
 }
@@ -311,9 +221,7 @@ function resilientDraftFallback(
   targetGrade: TargetGrade,
   questionCount: number,
 ) {
-  return hasActionableSurveyDirection(prompt)
-    ? fastDraftFallback(prompt, targetGrade, questionCount)
-    : clarificationFallback(prompt, targetGrade, questionCount);
+  return fastDraftFallback(prompt, targetGrade, questionCount);
 }
 
 function cacheResult(
@@ -659,31 +567,6 @@ export async function POST(request: Request) {
     });
   }
 
-  if (
-    isDirectProportion ||
-    isDirectFrequency ||
-    isDirectSleepDuration ||
-    isDirectDuration
-  ) {
-    const directDraft = fastDraftFallback(
-      prompt,
-      targetGrade,
-      questionCount,
-    );
-    const directReason = isDirectProportion
-      ? "direct-proportion"
-      : isDirectFrequency
-        ? "direct-frequency"
-        : isDirectSleepDuration
-          ? "direct-sleep-duration"
-          : "direct-duration";
-    cacheResult(cacheKey, now, directDraft, "verified-fallback", directReason);
-    return fallbackResponse(
-      directDraft,
-      directReason,
-    );
-  }
-
   if (!(await consumeRateLimit(request, now))) {
     return apiError(
       "짧은 시간에 AI 초안을 많이 만들었어요. 잠시 후 다시 시도해주세요.",
@@ -765,15 +648,6 @@ export async function POST(request: Request) {
     const upstream = await requestModel();
 
     if (!upstream.ok) {
-      if (hasReferences) {
-        return apiError(
-          upstream.status === 429
-            ? "첨부 자료 분석 요청이 많아요. 잠시 후 다시 시도해주세요."
-            : "첨부한 사진·파일·링크를 분석하지 못했어요. 잠시 후 다시 시도해주세요.",
-          "REFERENCE_AI_UNAVAILABLE",
-          upstream.status === 429 ? 429 : 503,
-        );
-      }
       const verifiedFallback = verifiedResearchFallback(
         prompt,
         targetGrade,
@@ -790,13 +664,6 @@ export async function POST(request: Request) {
         return fallbackResponse(
           verifiedFallback,
           `upstream-${upstream.status}`,
-        );
-      }
-      if (upstream.status === 401 || upstream.status === 403) {
-        return apiError(
-          "AI 검색 연결을 확인하는 중이에요. 잠시 후 다시 시도해주세요.",
-          "AI_AUTH_ERROR",
-          503,
         );
       }
       if (upstream.status === 429) {
@@ -851,23 +718,40 @@ export async function POST(request: Request) {
       try {
         retryUpstream = await requestModel(validationFeedback);
       } catch (retryRequestError) {
-        const detail =
+        const resilientFallback = resilientDraftFallback(
+          prompt,
+          targetGrade,
+          questionCount,
+        );
+        const fallbackReason =
           retryRequestError instanceof Error &&
           retryRequestError.name === "AbortError"
-            ? "재생성 요청 시간이 초과되었습니다."
-            : "재생성 모델에 연결하지 못했습니다.";
-        return apiError(
-          `설문 초안을 검증한 뒤 다시 생성했지만 완성하지 못했어요. ${detail}`,
-          "SURVEY_REGENERATION_FAILED",
-          503,
+            ? "regeneration-timeout"
+            : "regeneration-unavailable";
+        cacheResult(
+          cacheKey,
+          now,
+          resilientFallback,
+          "verified-fallback",
+          fallbackReason,
         );
+        return fallbackResponse(resilientFallback, fallbackReason);
       }
       if (!retryUpstream.ok) {
-        return apiError(
-          "설문 초안을 검증한 뒤 다시 생성했지만 완성하지 못했어요. 잠시 후 다시 시도해주세요.",
-          "SURVEY_REGENERATION_FAILED",
-          retryUpstream.status === 429 ? 429 : 422,
+        const resilientFallback = resilientDraftFallback(
+          prompt,
+          targetGrade,
+          questionCount,
         );
+        const fallbackReason = `regeneration-upstream-${retryUpstream.status}`;
+        cacheResult(
+          cacheKey,
+          now,
+          resilientFallback,
+          "verified-fallback",
+          fallbackReason,
+        );
+        return fallbackResponse(resilientFallback, fallbackReason);
       }
       const retryRawResult = (await retryUpstream.json()) as unknown;
       try {
@@ -880,15 +764,33 @@ export async function POST(request: Request) {
         );
         generationAttempt = "regenerated";
       } catch (retryError) {
-        const detail = retryError instanceof Error
-          ? retryError.message
-          : "재생성 결과 검증 실패";
-        return apiError(
-          `설문 초안 품질 검증을 통과하지 못했어요. ${detail}`,
-          "SURVEY_REGENERATION_FAILED",
-          422,
+        const resilientFallback = resilientDraftFallback(
+          prompt,
+          targetGrade,
+          questionCount,
         );
+        const fallbackReason = invalidResultReason(retryError);
+        cacheResult(
+          cacheKey,
+          now,
+          resilientFallback,
+          "verified-fallback",
+          fallbackReason,
+        );
+        return fallbackResponse(resilientFallback, fallbackReason);
       }
+    }
+    if (
+      result.status === "ready" &&
+      (isDirectProportion ||
+        isDirectFrequency ||
+        isDirectSleepDuration ||
+        isDirectDuration)
+    ) {
+      result = {
+        ...fastDraftFallback(prompt, targetGrade, questionCount),
+        research: result.research,
+      };
     }
     cacheResult(cacheKey, now, result, "model");
     return Response.json(result, {
@@ -899,15 +801,6 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    if (hasReferences) {
-      return apiError(
-        error instanceof Error && error.name === "AbortError"
-          ? "첨부 자료 분석이 조금 오래 걸리고 있어요. 잠시 후 다시 시도해주세요."
-          : "첨부 자료를 정확히 읽지 못했어요. 사진·파일·공개 링크를 확인해주세요.",
-        "REFERENCE_ANALYSIS_FAILED",
-        503,
-      );
-    }
     const verifiedFallback = verifiedResearchFallback(
       prompt,
       targetGrade,
