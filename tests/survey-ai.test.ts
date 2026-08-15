@@ -1431,6 +1431,97 @@ test("검색 신뢰도가 미확정이면 설문은 유지하고 검증 사실�
   assert.deepEqual(result.research.facts, []);
 });
 
+test("research background 완료 결과가 의미 검수에서 거부되면 같은 작업에서 복구한다", async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  const previousFetch = globalThis.fetch;
+  const prompt = "대학생 연구 설문 background 출력 복구 확인";
+  const responseId = "resp_baroform_background_fallback_1234";
+  const questions = Array.from({ length: 7 }, (_, index) =>
+    question(index + 1, `대학생 연구 질문 ${index + 1}`),
+  );
+  let fetchCalls = 0;
+  let metadata: Record<string, string> = {};
+  process.env.OPENAI_API_KEY = "test-key";
+  globalThis.fetch = async (_input, init) => {
+    fetchCalls += 1;
+    if (fetchCalls === 1) {
+      const body = JSON.parse(String(init?.body)) as {
+        metadata?: Record<string, string>;
+      };
+      metadata = body.metadata ?? {};
+      return Response.json({
+        id: responseId,
+        object: "response",
+        status: "queued",
+        output: [],
+        metadata,
+      });
+    }
+    return Response.json({
+      ...readyOpenAiPayload({
+        prompt,
+        evaluationTarget: "대학생",
+        respondentGroup: "대학생",
+        entityType: "student-life",
+        templateQuestions: questions.slice(0, 5),
+        aiQuestions: questions,
+        sourceUrls: ["https://example.com/research-source"],
+      }),
+      id: responseId,
+      metadata,
+    });
+  };
+
+  try {
+    const startResponse = await createSurveyDraft(
+      new Request("http://localhost/api/survey-draft", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          "user-agent": "baroform-background-fallback-test",
+        },
+        body: JSON.stringify({
+          prompt,
+          surveyMode: "research",
+          targetGrade: "전학년",
+          questionCount: 7,
+          references: { images: [], files: [], links: [] },
+        }),
+      }),
+    );
+    const started = (await startResponse.json()) as {
+      responseId: string;
+      jobToken: string;
+    };
+    const pollUrl = new URL("http://localhost/api/survey-draft");
+    pollUrl.searchParams.set("responseId", started.responseId);
+    pollUrl.searchParams.set("jobToken", started.jobToken);
+    const completedResponse = await pollSurveyDraft(
+      new Request(pollUrl, {
+        headers: {
+          origin: "http://localhost",
+          "user-agent": "baroform-background-fallback-test",
+        },
+      }),
+    );
+    const completed = (await completedResponse.json()) as { status?: string };
+
+    assert.equal(startResponse.status, 202);
+    assert.equal(completedResponse.status, 200);
+    assert.equal(completed.status, "ready_with_caution");
+    assert.equal(fetchCalls, 2);
+    assert.equal(
+      completedResponse.headers.get("x-baroform-ai-fallback"),
+      "model-output-rejected",
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
+
 test("구조화 결과의 중복 문항 ID를 서버 검증에서 거부한다", () => {
   const payload = structuredReadyPayload();
   payload.output_parsed.survey.questions[1]!.id = "Q1";

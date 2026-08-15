@@ -1401,14 +1401,58 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
       questionCount: context.questionCount,
       organizationLocationContext: context.organizationLocationContext,
     });
-    const parsedResponse = parseResponse(response, parseParams);
-    let result = parseSurveyDraftResponse(
-      parsedResponse,
-      context.prompt,
-      context.questionCount,
-      context.targetGrade,
-      context.hasReferences,
-    );
+    const backgroundCacheKey = `research|${context.prompt.toLocaleLowerCase("ko-KR")}|${context.targetGrade}|${context.questionCount}|${context.referenceKey}`;
+    let result: SurveyDraftResult;
+    try {
+      const parsedResponse = parseResponse(response, parseParams);
+      result = parseSurveyDraftResponse(
+        parsedResponse,
+        context.prompt,
+        context.questionCount,
+        context.targetGrade,
+        context.hasReferences,
+      );
+    } catch (error) {
+      if (
+        error instanceof SyntaxError ||
+        error instanceof SurveyGenerationResponseError ||
+        (error instanceof Error && error.name === "ZodError")
+      ) {
+        throw error;
+      }
+      if (!(error instanceof Error)) throw error;
+
+      console.warn("survey-background-output-fallback", {
+        requestId,
+        responseId: response.id,
+        name: error.name,
+      });
+      const verifiedFallback = verifiedResearchFallback(
+        context.prompt,
+        context.targetGrade,
+        context.questionCount,
+      );
+      const resilientFallback =
+        verifiedFallback ??
+        resilientDraftFallback(
+          context.prompt,
+          context.targetGrade,
+          context.questionCount,
+        );
+      cacheResult(
+        backgroundCacheKey,
+        Date.now(),
+        resilientFallback,
+        "verified-fallback",
+        "model-output-rejected",
+      );
+      return fallbackResponse(
+        resilientFallback,
+        "model-output-rejected",
+        "research",
+        requestId,
+      );
+    }
 
     const isDirectProportion =
       !context.hasReferences && isSimpleProportionSurveyRequest(context.prompt);
@@ -1440,8 +1484,7 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
       };
     }
 
-    const cacheKey = `research|${context.prompt.toLocaleLowerCase("ko-KR")}|${context.targetGrade}|${context.questionCount}|${context.referenceKey}`;
-    cacheResult(cacheKey, Date.now(), result, "model");
+    cacheResult(backgroundCacheKey, Date.now(), result, "model");
     return apiSuccess(
       result,
       {
