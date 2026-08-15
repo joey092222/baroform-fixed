@@ -12,6 +12,7 @@ import {
 import {
   buildSurveyAiRequest,
   parseSurveyDraftResponse,
+  SurveyGenerationResponseError,
   SurveyValidationError,
   type SurveyDraftResult,
 } from "../../survey-ai";
@@ -20,6 +21,7 @@ import {
   isTargetGrade,
   respondentGroupForGrade,
   surveyDescriptionForGrade,
+  targetGradeValues,
   type TargetGrade,
 } from "../../survey-grade";
 import { lookupVerifiedSurveyKnowledge } from "../../survey-knowledge";
@@ -37,6 +39,7 @@ import {
   type SurveyMode,
 } from "@/app/survey-mode";
 import OpenAI from "openai";
+import { z } from "zod";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -76,15 +79,50 @@ const noStoreHeaders = {
   "x-content-type-options": "nosniff",
 };
 
+const surveyDraftRequestSchema = z
+  .object({
+    prompt: z.string().optional(),
+    surveyMode: z.unknown().optional(),
+    targetGrade: z.enum(targetGradeValues).optional(),
+    questionCount: z.number().int().min(1).max(30).optional(),
+    references: z.unknown().optional(),
+  })
+  .strict();
+
 function apiError(
   message: string,
   code: string,
   status: number,
   headers: Record<string, string> = {},
+  requestId = crypto.randomUUID(),
 ) {
   return Response.json(
-    { error: message, code },
-    { status, headers: { ...noStoreHeaders, ...headers } },
+    { ok: false, error: message, code, requestId },
+    {
+      status,
+      headers: {
+        ...noStoreHeaders,
+        ...headers,
+        "x-baroform-request-id": requestId,
+      },
+    },
+  );
+}
+
+function apiSuccess<T extends SurveyDraftResult>(
+  result: T,
+  headers: Record<string, string>,
+  requestId: string,
+) {
+  return Response.json(
+    { ...result, ok: true, requestId },
+    {
+      headers: {
+        ...noStoreHeaders,
+        ...headers,
+        "x-baroform-request-id": requestId,
+      },
+    },
   );
 }
 
@@ -92,10 +130,19 @@ function fallbackResponse(
   result: SurveyDraftResult,
   reason: string,
   surveyMode: SurveyMode,
+  requestId: string,
 ) {
   if (result.status !== "needs_clarification") {
-    const brief = parseSurveyBrief(result.prompt);
-    const issues = validateSurvey(result.prompt, brief, result.blueprint);
+    let issues: string[] = [];
+    try {
+      const brief = parseSurveyBrief(result.prompt);
+      issues = validateSurvey(result.prompt, brief, result.blueprint);
+    } catch (error) {
+      console.warn("survey-fallback-validation-skipped", {
+        requestId,
+        name: error instanceof Error ? error.name : "UnknownError",
+      });
+    }
     if (issues.length > 0) {
       return apiError(
         `안전한 설문 초안을 만들지 못했어요. ${issues.join(" ")}`,
@@ -105,17 +152,19 @@ function fallbackResponse(
           "x-baroform-ai-mode": "verified-fallback",
           "x-baroform-ai-fallback": reason,
         },
+        requestId,
       );
     }
   }
-  return Response.json(result, {
-    headers: {
-      ...noStoreHeaders,
+  return apiSuccess(
+    result,
+    {
       "x-baroform-ai-mode": "verified-fallback",
       "x-baroform-ai-fallback": reason,
       "x-baroform-survey-mode": surveyMode,
     },
-  });
+    requestId,
+  );
 }
 
 function generatedQuestionCount(result: SurveyDraftResult) {
@@ -144,6 +193,44 @@ function responseRequestId(response: unknown) {
   return typeof value === "string" && value ? value : null;
 }
 
+function responseDiagnostics(response: unknown) {
+  if (!response || typeof response !== "object") {
+    return {
+      status: null,
+      incompleteReason: null,
+      hasOutputParsed: false,
+      outputTypes: [] as string[],
+    };
+  }
+  const payload = response as {
+    status?: unknown;
+    incomplete_details?: unknown;
+    output_parsed?: unknown;
+    output?: unknown;
+  };
+  const incompleteReason =
+    payload.incomplete_details && typeof payload.incomplete_details === "object"
+      ? (payload.incomplete_details as { reason?: unknown }).reason
+      : null;
+  const outputTypes = Array.isArray(payload.output)
+    ? payload.output
+        .map((item) =>
+          item && typeof item === "object"
+            ? (item as { type?: unknown }).type
+            : null,
+        )
+        .filter((value): value is string => typeof value === "string")
+    : [];
+  return {
+    status: typeof payload.status === "string" ? payload.status : null,
+    incompleteReason:
+      typeof incompleteReason === "string" ? incompleteReason : null,
+    hasOutputParsed:
+      payload.output_parsed !== null && payload.output_parsed !== undefined,
+    outputTypes,
+  };
+}
+
 function logGenerationMetric({
   surveyMode,
   startedAt,
@@ -170,28 +257,6 @@ function logGenerationMetric({
     openAiRequestId: requestId ?? null,
     outcome,
   });
-}
-
-function invalidResultReason(error: unknown) {
-  if (!(error instanceof Error)) return "invalid-result";
-  if (error instanceof OpenAI.APIError) {
-    return `responses-api-${error.status ?? "error"}`;
-  }
-  if (error.name === "ZodError") return "structured-output-validation";
-  if (error.name === "AbortError") return "timeout";
-  if (/incomplete|끝까지 완료|출력 한도|max_output_tokens/i.test(error.message)) {
-    return "incomplete-response";
-  }
-  if (/refusal|처리하지 않았/.test(error.message)) return "refusal";
-  if (/필수 정보조사|정보조사가 끝까지/.test(error.message)) {
-    return "research-incomplete";
-  }
-  if (/출처|URL/.test(error.message)) return "source-validation";
-  if (/조사 방식 표현|이용 대상으로|문맥|평가 대상/.test(error.message)) {
-    return "semantic-validation";
-  }
-  if (/형식|JSON|비어|상태/.test(error.message)) return "response-format";
-  return "invalid-result";
 }
 
 function applyDraftSettings(
@@ -336,7 +401,7 @@ function cacheResult(
 }
 
 function normalizePrompt(value: string) {
-  return value.replace(/\s+/g, " ").trim();
+  return value.replace(/\r\n?/g, "\n").trim();
 }
 
 type SurveyReferences = {
@@ -570,35 +635,53 @@ function sameOrigin(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function createSurveyDraftResponse(request: Request, requestId: string) {
   const generationStartedAt = Date.now();
   if (!sameOrigin(request)) {
-    return apiError("이 사이트에서 다시 시도해주세요.", "INVALID_ORIGIN", 403);
+    return apiError(
+      "이 사이트에서 다시 시도해주세요.",
+      "INVALID_ORIGIN",
+      403,
+      {},
+      requestId,
+    );
   }
 
   const contentLength = Number(request.headers.get("content-length") ?? "0");
   if (Number.isFinite(contentLength) && contentLength > 3_600_000) {
-    return apiError("요청 내용이 너무 길어요.", "REQUEST_TOO_LARGE", 413);
+    return apiError(
+      "요청 내용이 너무 길어요.",
+      "REQUEST_TOO_LARGE",
+      413,
+      {},
+      requestId,
+    );
   }
 
-  let payload: {
-    prompt?: unknown;
-    surveyMode?: unknown;
-    targetGrade?: unknown;
-    questionCount?: unknown;
-    references?: unknown;
-  };
+  let rawPayload: unknown;
   try {
-    payload = (await request.json()) as {
-      prompt?: unknown;
-      surveyMode?: unknown;
-      targetGrade?: unknown;
-      questionCount?: unknown;
-      references?: unknown;
-    };
+    rawPayload = await request.json();
   } catch {
-    return apiError("설문 내용을 읽지 못했어요.", "INVALID_JSON", 400);
+    return apiError(
+      "설문 내용을 읽지 못했어요.",
+      "INVALID_JSON",
+      400,
+      {},
+      requestId,
+    );
   }
+
+  const parsedPayload = surveyDraftRequestSchema.safeParse(rawPayload);
+  if (!parsedPayload.success) {
+    return apiError(
+      "설문 생성 요청 형식을 확인해주세요.",
+      "INVALID_REQUEST",
+      400,
+      {},
+      requestId,
+    );
+  }
+  const payload = parsedPayload.data;
 
   const surveyMode = parseRequestedSurveyMode(payload.surveyMode);
   if (!surveyMode) {
@@ -606,6 +689,8 @@ export async function POST(request: Request) {
       "설문 제작 방식을 다시 선택해주세요.",
       "INVALID_SURVEY_MODE",
       400,
+      {},
+      requestId,
     );
   }
 
@@ -617,6 +702,8 @@ export async function POST(request: Request) {
       "첨부한 사진·파일·링크를 확인해주세요.",
       "INVALID_REFERENCES",
       400,
+      {},
+      requestId,
     );
   }
   const hasReferences =
@@ -628,6 +715,8 @@ export async function POST(request: Request) {
       "설문 내용은 2자 이상 300자 이하로 적거나 참고 자료를 추가해주세요.",
       "INVALID_PROMPT",
       400,
+      {},
+      requestId,
     );
   }
   const prompt =
@@ -673,15 +762,16 @@ export async function POST(request: Request) {
       searchUsed: cached.result.research.status === "searched",
       outcome: "cache",
     });
-    return Response.json(cached.result, {
-      headers: {
-        ...noStoreHeaders,
+    return apiSuccess(
+      cached.result,
+      {
         "x-baroform-ai-mode": cached.mode,
         "x-baroform-ai-cache": "hit",
         "x-baroform-survey-mode": surveyMode,
         ...(cached.reason ? { "x-baroform-ai-fallback": cached.reason } : {}),
       },
-    });
+      requestId,
+    );
   }
 
   if (!(await consumeRateLimit(request, now))) {
@@ -689,6 +779,8 @@ export async function POST(request: Request) {
       "짧은 시간에 AI 초안을 많이 만들었어요. 잠시 후 다시 시도해주세요.",
       "RATE_LIMITED",
       429,
+      {},
+      requestId,
     );
   }
 
@@ -699,6 +791,8 @@ export async function POST(request: Request) {
         "첨부 자료 분석 연결을 확인하는 중이에요. 잠시 후 다시 시도해주세요.",
         "REFERENCE_AI_UNAVAILABLE",
         503,
+        {},
+        requestId,
       );
     }
     const verifiedFallback = verifiedResearchFallback(
@@ -718,6 +812,7 @@ export async function POST(request: Request) {
         verifiedFallback,
         "api-key-missing",
         surveyMode,
+        requestId,
       );
       logGenerationMetric({
         surveyMode,
@@ -745,6 +840,7 @@ export async function POST(request: Request) {
       resilientFallback,
       "api-key-missing",
       surveyMode,
+      requestId,
     );
     logGenerationMetric({
       surveyMode,
@@ -783,16 +879,73 @@ export async function POST(request: Request) {
   });
 
   try {
-    const rawResult = await openai.responses.parse(
-      buildSurveyAiRequest(prompt, fallback, model, {
-        surveyMode,
+    let rawResult: Awaited<ReturnType<typeof openai.responses.parse>>;
+    try {
+      rawResult = await openai.responses.parse(
+        buildSurveyAiRequest(prompt, fallback, model, {
+          surveyMode,
+          targetGrade,
+          questionCount,
+          references,
+          organizationLocationContext,
+        }),
+        { signal: controller.signal },
+      );
+    } catch (error) {
+      const isTimeout =
+        error instanceof OpenAI.APIConnectionTimeoutError ||
+        (error instanceof Error && error.name === "AbortError");
+      const isInvalidStructuredOutput =
+        error instanceof SyntaxError ||
+        (error instanceof Error && error.name === "ZodError");
+      const isHttpFailure =
+        error instanceof OpenAI.APIError &&
+        !(error instanceof OpenAI.APIConnectionError);
+
+      if (isTimeout || isInvalidStructuredOutput || isHttpFailure) {
+        throw error;
+      }
+
+      console.warn("survey-generation-transport-fallback", {
+        requestId,
+        name: error instanceof Error ? error.name : "UnknownError",
+      });
+      const verifiedFallback = verifiedResearchFallback(
+        prompt,
         targetGrade,
         questionCount,
-        references,
-        organizationLocationContext,
-      }),
-      { signal: controller.signal },
-    );
+      );
+      const resilientFallback =
+        verifiedFallback ??
+        resilientDraftFallback(prompt, targetGrade, questionCount);
+      cacheResult(
+        cacheKey,
+        now,
+        resilientFallback,
+        "verified-fallback",
+        "responses-api-error",
+      );
+      const fallbackApiResponse = fallbackResponse(
+        resilientFallback,
+        "responses-api-error",
+        surveyMode,
+        requestId,
+      );
+      logGenerationMetric({
+        surveyMode,
+        startedAt: generationStartedAt,
+        success: fallbackApiResponse.ok,
+        questionCount: generatedQuestionCount(resilientFallback),
+        searchUsed: false,
+        outcome: "verified-fallback",
+      });
+      return fallbackApiResponse;
+    }
+    console.info("survey-generation-upstream", {
+      requestId,
+      openAiRequestId: responseRequestId(rawResult),
+      ...responseDiagnostics(rawResult),
+    });
     let result = parseSurveyDraftResponse(
       rawResult as unknown,
       prompt,
@@ -833,14 +986,15 @@ export async function POST(request: Request) {
       requestId: responseRequestId(rawResult),
       outcome: "model",
     });
-    return Response.json(result, {
-      headers: {
-        ...noStoreHeaders,
+    return apiSuccess(
+      result,
+      {
         "x-baroform-ai-mode": "model",
         "x-baroform-ai-attempt": "single-response",
         "x-baroform-survey-mode": surveyMode,
       },
-    });
+      requestId,
+    );
   } catch (error) {
     if (error instanceof SurveyValidationError) {
       logGenerationMetric({
@@ -855,83 +1009,111 @@ export async function POST(request: Request) {
         `생성된 설문 구조를 안전하게 적용하지 못했어요. ${error.issues.join(" ")}`,
         "SURVEY_VALIDATION_FAILED",
         422,
+        {},
+        requestId,
       );
     }
 
-    const requestId =
+    const openAiRequestId =
       error instanceof OpenAI.APIError ? error.requestID : undefined;
     console.error("survey-generation-failed", {
+      requestId,
+      openAiRequestId,
       name: error instanceof Error ? error.name : "UnknownError",
       status: error instanceof OpenAI.APIError ? error.status : undefined,
-      requestId,
+      code:
+        error instanceof SurveyGenerationResponseError ? error.code : undefined,
+      incompleteReason:
+        error instanceof SurveyGenerationResponseError
+          ? error.incompleteReason
+          : undefined,
     });
 
-    const verifiedFallback = verifiedResearchFallback(
-      prompt,
-      targetGrade,
-      questionCount,
-    );
-    if (verifiedFallback) {
-      const fallbackReason =
-        error instanceof Error && error.name === "AbortError"
-          ? "timeout"
-          : "responses-api-unavailable";
-      cacheResult(
-        cacheKey,
-        now,
-        verifiedFallback,
-        "verified-fallback",
-        fallbackReason,
-      );
-      const response = fallbackResponse(
-        verifiedFallback,
-        fallbackReason,
-        surveyMode,
-      );
-      logGenerationMetric({
-        surveyMode,
-        startedAt: generationStartedAt,
-        success: response.ok,
-        questionCount: generatedQuestionCount(verifiedFallback),
-        searchUsed: false,
+    if (error instanceof SurveyGenerationResponseError) {
+      return apiError(
+        error.message,
+        error.code,
+        error.statusCode,
+        error.incompleteReason
+          ? { "x-baroform-incomplete-reason": error.incompleteReason }
+          : {},
         requestId,
-        outcome: "verified-fallback",
-      });
-      return response;
+      );
     }
 
-    const resilientFallback = resilientDraftFallback(
-      prompt,
-      targetGrade,
-      questionCount,
-    );
-    const fallbackReason =
-      error instanceof Error && error.name === "AbortError"
-        ? "timeout"
-        : invalidResultReason(error);
-    cacheResult(
-      cacheKey,
-      now,
-      resilientFallback,
-      "verified-fallback",
-      fallbackReason,
-    );
-    const response = fallbackResponse(
-      resilientFallback,
-      fallbackReason,
-      surveyMode,
-    );
-    logGenerationMetric({
-      surveyMode,
-      startedAt: generationStartedAt,
-      success: response.ok,
-      questionCount: generatedQuestionCount(resilientFallback),
-      searchUsed: false,
+    if (
+      error instanceof SyntaxError ||
+      (error instanceof Error && error.name === "ZodError")
+    ) {
+      return apiError(
+        "생성된 설문 구조를 확인하지 못했어요. 다시 시도해주세요.",
+        "SURVEY_GENERATION_OUTPUT_INVALID",
+        502,
+        {},
+        requestId,
+      );
+    }
+
+    if (
+      error instanceof OpenAI.APIConnectionTimeoutError ||
+      (error instanceof Error && error.name === "AbortError")
+    ) {
+      return apiError(
+        "설문 생성 서비스의 응답 시간이 초과됐어요. 잠시 후 다시 시도해주세요.",
+        "SURVEY_GENERATION_TIMEOUT",
+        504,
+        {},
+        requestId,
+      );
+    }
+
+    if (error instanceof OpenAI.APIConnectionError) {
+      return apiError(
+        "설문 생성 서비스와 연결하지 못했어요. 잠시 후 다시 시도해주세요.",
+        "SURVEY_GENERATION_CONNECTION_ERROR",
+        502,
+        {},
+        requestId,
+      );
+    }
+
+    if (error instanceof OpenAI.APIError) {
+      return apiError(
+        "설문 생성 서비스에 일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요.",
+        "SURVEY_GENERATION_UPSTREAM_ERROR",
+        502,
+        {},
+        requestId,
+      );
+    }
+
+    return apiError(
+      "설문 생성 중 일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요.",
+      "SURVEY_GENERATION_FAILED",
+      500,
+      {},
       requestId,
-      outcome: "verified-fallback",
-    });
-    return response;
+    );
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+export async function POST(request: Request) {
+  const requestId = crypto.randomUUID();
+  try {
+    return await createSurveyDraftResponse(request, requestId);
+  } catch (error) {
+    console.error("survey-generation-unhandled", {
+      requestId,
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
+    return apiError(
+      "설문 생성 중 일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요.",
+      "SURVEY_GENERATION_INTERNAL_ERROR",
+      500,
+      {},
+      requestId,
+    );
   }
 }

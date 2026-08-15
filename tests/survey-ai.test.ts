@@ -7,6 +7,7 @@ import { POST as completeReferenceUpload } from "../app/api/reference-files/[upl
 import {
   buildSurveyAiRequest,
   parseSurveyDraftResponse,
+  SurveyGenerationResponseError,
 } from "../app/survey-ai";
 import { formatQuestionReason } from "../app/question-reason";
 import {
@@ -726,6 +727,8 @@ function readyPayload({
 
   return {
     status: "completed",
+    incomplete_details: null,
+    output_parsed: result,
     output: [
       {
         type: "web_search_call",
@@ -755,16 +758,13 @@ function editReadyPayload(
   payload: ReturnType<typeof readyPayload>,
   edit: (result: Record<string, unknown>) => void,
 ) {
+  edit(payload.output_parsed.result);
   const message = payload.output.find((item) => item.type === "message") as
     | { content?: Array<{ text?: string }> }
     | undefined;
   const content = message?.content?.[0];
   assert.ok(content?.text);
-  const decoded = JSON.parse(content.text) as {
-    result: Record<string, unknown>;
-  };
-  edit(decoded.result);
-  content.text = JSON.stringify(decoded);
+  content.text = JSON.stringify(payload.output_parsed);
 }
 
 test("설문 생성 API는 선택한 연구 모드를 OpenAI 단일 요청에 전달한다", async () => {
@@ -781,7 +781,7 @@ test("설문 생성 API는 선택한 연구 모드를 OpenAI 단일 요청에 �
     fetchCalls += 1;
     upstreamRequest = JSON.parse(String(init?.body)) as Record<string, unknown>;
     return Response.json(
-      readyPayload({
+      readyOpenAiPayload({
         prompt,
         evaluationTarget: "브랜드 신뢰와 구매 의도",
         respondentGroup: "대학생",
@@ -925,6 +925,139 @@ function structuredQuestion(
   };
 }
 
+function readyOpenAiPayload(
+  options: Parameters<typeof readyPayload>[0],
+) {
+  const legacy = readyPayload(options).output_parsed.result;
+  const questions = legacy.aiQuestions.map((item, index) => {
+    const role = (
+      ["screening", "behavior", "experience", "evaluation", "barrier", "open"] as const
+    )[Math.min(index, 5)];
+    const type =
+      item.type === "single"
+        ? "single_choice"
+        : item.type === "multiple"
+          ? "multiple_choice"
+          : item.type === "scale"
+            ? "scale"
+            : "long_text";
+    const structured = structuredQuestion(
+      index + 1,
+      role,
+      type,
+      item.title,
+      item.options ?? [],
+    );
+    structured.required = item.required;
+    structured.analysis.purpose = item.reason;
+    if (options.sourceUrls.length > 0 && index < 2) {
+      structured.grounding.uses_external_fact = true;
+      structured.grounding.source_ids = ["SRC1"];
+    }
+    return structured;
+  });
+  const sources = options.sourceUrls.map((url, index) => ({
+    id: `SRC${index + 1}`,
+    title: `출처 ${index + 1}`,
+    url,
+    source_type: "official" as const,
+    used_for: "조사 대상의 맥락 확인",
+  }));
+  const parsed = createSurveyGenerationSchema(questions.length).parse({
+    status: "ready",
+    research: {
+      search_status: "verified",
+      entities: [
+        {
+          input_name: options.evaluationTarget,
+          resolved_name: options.evaluationTarget,
+          resolved_as: options.evaluationTarget,
+          affiliation_or_location: null,
+          confidence: "verified",
+          verified_facts: sources.length
+            ? [
+                {
+                  fact: `${options.evaluationTarget}을 조사 대상으로 확인함.`,
+                  source_ids: [sources[0]!.id],
+                },
+              ]
+            : [],
+        },
+      ],
+      sources,
+      limitations: [],
+    },
+    survey_plan: {
+      survey_type: "이용 경험 조사",
+      target: options.respondentGroup,
+      eligibility: options.respondentGroup,
+      primary_objective: `${options.evaluationTarget}에 대한 경험과 평가를 파악함.`,
+      sub_objectives: ["이용 행동 파악", "경험 평가", "개선점 파악"],
+      constructs: questions.map((item) => ({
+        name: item.analysis.construct,
+        reason: item.analysis.purpose,
+      })),
+      requested_question_count: questions.length,
+      count_rule: "max_path",
+      total_question_nodes: questions.length,
+      min_path_questions: questions.length,
+      max_path_questions: questions.length,
+      estimated_minutes: Math.max(1, Math.ceil(questions.length / 2)),
+    },
+    survey: {
+      title: legacy.title,
+      intro: legacy.description,
+      sections: [
+        { id: "S1", title: options.evaluationTarget, description: null },
+      ],
+      questions,
+      completion_message: "응답해주셔서 감사합니다.",
+    },
+    quality_check: {
+      all_named_entities_searched: true,
+      all_specific_claims_grounded: true,
+      all_questions_have_analysis_purpose: true,
+      double_barreled_questions_removed: true,
+      leading_questions_removed: true,
+      duplicate_questions_removed: true,
+      response_options_checked: true,
+      all_logic_paths_valid: true,
+      question_count_valid: true,
+      mobile_readability_checked: true,
+      respondent_path_simulation_passed: true,
+      warnings: [],
+    },
+  });
+
+  return {
+    status: "completed",
+    incomplete_details: null,
+    output: [
+      {
+        type: "web_search_call",
+        status: "completed",
+        action: {
+          sources: options.sourceUrls.map((url, index) => ({
+            title: `출처 ${index + 1}`,
+            url,
+          })),
+        },
+      },
+      {
+        type: "message",
+        status: "completed",
+        content: [
+          {
+            type: "output_text",
+            text: JSON.stringify(parsed),
+            annotations: [],
+          },
+        ],
+      },
+    ],
+  };
+}
+
 function structuredReadyPayload() {
   const sourceUrl = "https://comic.naver.com";
   const questions = [
@@ -1013,6 +1146,7 @@ function structuredReadyPayload() {
   const parsed = createSurveyGenerationSchema(7).parse(generation);
   return {
     status: "completed",
+    incomplete_details: null,
     output_parsed: parsed,
     output: [
       {
@@ -1021,6 +1155,17 @@ function structuredReadyPayload() {
         action: {
           sources: [{ title: "네이버웹툰", url: sourceUrl }],
         },
+      },
+      {
+        type: "message",
+        status: "completed",
+        content: [
+          {
+            type: "output_text",
+            text: JSON.stringify(parsed),
+            annotations: [],
+          },
+        ],
       },
     ],
   };
@@ -1187,7 +1332,7 @@ for (const surveyCase of [
     assert.match(input, new RegExp(`\\[희망 문항 수\\]\\n${surveyCase.count}`));
     assert.equal(request.tool_choice, "required");
     assert.equal(request.reasoning.effort, "medium");
-    assert.equal(request.max_output_tokens, 20_000);
+    assert.equal(request.max_output_tokens, 24_000);
     assert.doesNotMatch(JSON.stringify(request.text.format.schema), /"format":"uri"/);
     assert.equal(questionSchema.minItems, surveyCase.count);
     assert.equal(questionSchema.maxItems, surveyCase.count);
@@ -1236,6 +1381,7 @@ test("정밀·연구 설문은 높은 추론과 중간 검색 문맥을 한 요�
   );
 
   assert.equal(request.reasoning.effort, "high");
+  assert.equal(request.max_output_tokens, 48_000);
   assert.equal(request.tools[0]?.type, "web_search");
   assert.equal(request.tools[0]?.search_context_size, "medium");
   assert.equal(request.tool_choice, "required");
@@ -1560,7 +1706,7 @@ test("큰 참고 파일은 조각 업로드 후 설문 생성에 file_id로 연�
         question(index + 1, `학생 서비스 질문 ${index + 1}`),
       );
       return Response.json(
-        readyPayload({
+        readyOpenAiPayload({
           prompt,
           evaluationTarget: "학생 서비스",
           respondentGroup: "연세대학교 재학생",
@@ -1691,7 +1837,7 @@ test("설문 생성 API가 첨부 파일 본문을 OpenAI 요청에 보존한다
   globalThis.fetch = async (_input, init) => {
     upstreamRequest = JSON.parse(String(init?.body)) as Record<string, unknown>;
     return Response.json(
-      readyPayload({
+      readyOpenAiPayload({
         prompt,
         evaluationTarget: "신규 서비스",
         respondentGroup: "연세대학교 재학생",
@@ -1763,7 +1909,7 @@ test("설문 생성 API가 사용자가 지정한 공개 링크를 AI 조사 요
   globalThis.fetch = async (_input, init) => {
     upstreamRequest = JSON.parse(String(init?.body)) as Record<string, unknown>;
     return Response.json(
-      readyPayload({
+      readyOpenAiPayload({
         prompt,
         evaluationTarget: "한경관 식당",
         respondentGroup: "한경관 식당 이용자",
@@ -2263,7 +2409,7 @@ test("AI 연결이 없어도 방향이 명확한 입력은 문맥 기반 초안�
   }
 });
 
-test("단일 AI 결과 형식이 실패해도 두 번째 호출 없이 주의 상태의 초안을 반환한다", async () => {
+test("단일 AI 결과에 최종 메시지가 없으면 두 번째 호출 없이 JSON 오류를 반환한다", async () => {
   const previousKey = process.env.OPENAI_API_KEY;
   const previousFetch = globalThis.fetch;
   let fetchCalls = 0;
@@ -2288,22 +2434,390 @@ test("단일 AI 결과 형식이 실패해도 두 번째 호출 없이 주의 �
       }),
     );
     const body = (await response.json()) as {
-      status?: string;
-      research?: { classification?: string; limitations?: string[] };
+      ok?: boolean;
+      code?: string;
+      error?: string;
+      requestId?: string;
     };
 
-    assert.equal(response.status, 200);
-    assert.equal(body.status, "ready_with_caution");
-    assert.equal(body.research?.classification, "unresolved");
-    assert.ok((body.research?.limitations?.length ?? 0) > 0);
+    assert.equal(response.status, 502);
+    assert.equal(body.ok, false);
+    assert.equal(body.code, "SURVEY_GENERATION_MESSAGE_MISSING");
+    assert.match(body.error ?? "", /결과 메시지/);
+    assert.equal(typeof body.requestId, "string");
     assert.equal(fetchCalls, 1);
-    assert.equal(response.headers.get("x-baroform-ai-mode"), "verified-fallback");
+    assert.equal(
+      response.headers.get("content-type")?.startsWith("application/json"),
+      true,
+    );
   } finally {
     globalThis.fetch = previousFetch;
     if (previousKey) process.env.OPENAI_API_KEY = previousKey;
     else delete process.env.OPENAI_API_KEY;
   }
 });
+
+test("긴 조사 의뢰문으로 로컬 폴백이 실행되어도 빈 500 응답을 반환하지 않는다", async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+  const prompt =
+    "대학생의 전반적 대학생활에 관해 조사하고, 이를 바탕으로 보다 나은 대학생활을 만들기 위한 교육환경 조성 및 심리상담 지원 프로그램을 마련하기 위한 설문 조사";
+
+  try {
+    const response = await createSurveyDraft(
+      new Request("http://localhost/api/survey-draft", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          "user-agent": "baroform-exact-regression-test",
+        },
+        body: JSON.stringify({
+          prompt,
+          surveyMode: "standard",
+          targetGrade: "전학년",
+          questionCount: 7,
+          references: { images: [], files: [], links: [] },
+        }),
+      }),
+    );
+    const raw = await response.text();
+    const body = JSON.parse(raw) as {
+      ok?: boolean;
+      status?: string;
+      requestId?: string;
+    };
+
+    assert.equal(response.status, 200);
+    assert.equal(body.ok, true);
+    assert.match(body.status ?? "", /^ready/);
+    assert.equal(typeof body.requestId, "string");
+    assert.notEqual(raw.trim(), "");
+  } finally {
+    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
+
+test("잘못된 JSON 요청도 요청 ID가 포함된 JSON 오류로 응답한다", async () => {
+  const response = await createSurveyDraft(
+    new Request("http://localhost/api/survey-draft", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "http://localhost",
+      },
+      body: '{"prompt":"대학생 수면 시간 조사"',
+    }),
+  );
+  const body = (await response.json()) as {
+    ok?: boolean;
+    code?: string;
+    error?: string;
+    requestId?: string;
+  };
+
+  assert.equal(response.status, 400);
+  assert.equal(body.ok, false);
+  assert.equal(body.code, "INVALID_JSON");
+  assert.match(body.error ?? "", /읽지 못했어요/);
+  assert.equal(body.requestId, response.headers.get("x-baroform-request-id"));
+});
+
+for (const surveyMode of ["standard", "research"] as const) {
+  test(`${surveyMode} 모드는 줄바꿈·따옴표·이모지가 포함된 입력을 잃지 않는다`, async () => {
+    const previousKey = process.env.OPENAI_API_KEY;
+    const previousFetch = globalThis.fetch;
+    const prompt =
+      '대학생의 "카공" 이용 시간을 조사해줘.\n선택지에는 1시간 미만, 1~2시간을 포함해줘 ☕️';
+    const questions = [
+      question(1, "평일 하루 평균 카공 시간은 얼마나 되나요?", "single", [
+        "1시간 미만",
+        "1시간 이상 2시간 미만",
+        "2시간 이상 3시간 미만",
+        "3시간 이상",
+      ]),
+      question(2, "최근 1개월 동안 카공을 얼마나 자주 했나요?", "single", [
+        "전혀 하지 않음",
+        "월 1~3회",
+        "주 1~2회",
+        "주 3회 이상",
+      ]),
+      question(3, "카페에서 공부하는 주요 이유를 골라주세요.", "multiple", [
+        "집중이 잘돼서",
+        "이동이 편리해서",
+        "분위기가 좋아서",
+        "기타",
+      ]),
+      question(4, "카공 경험에 전반적으로 얼마나 만족하나요?", "scale"),
+      question(5, "카공할 때 겪는 어려움을 골라주세요.", "multiple", [
+        "음료 비용",
+        "좌석 부족",
+        "소음",
+        "특별히 없음",
+      ]),
+      question(6, "현재의 카공 시간은 학습에 충분한가요?", "single", [
+        "충분함",
+        "보통",
+        "부족함",
+      ]),
+      question(7, "더 나은 카공 환경을 위한 의견을 적어주세요.", "text"),
+    ];
+    let upstreamRequest: Record<string, unknown> | null = null;
+    process.env.OPENAI_API_KEY = "test-key";
+    globalThis.fetch = async (_input, init) => {
+      upstreamRequest = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return Response.json(
+        readyOpenAiPayload({
+          prompt,
+          evaluationTarget: "카공 이용 시간",
+          respondentGroup: "대학생",
+          entityType: "student-life",
+          templateQuestions: questions.slice(0, 5),
+          aiQuestions: questions,
+          sourceUrls: ["https://example.com/cagong"],
+        }),
+      );
+    };
+    try {
+      const response = await createSurveyDraft(
+        new Request("http://localhost/api/survey-draft", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            origin: "http://localhost",
+            "user-agent": `baroform-special-input-${surveyMode}`,
+          },
+          body: JSON.stringify({
+            prompt,
+            surveyMode,
+            targetGrade: "전학년",
+            questionCount: 7,
+            references: { images: [], files: [], links: [] },
+          }),
+        }),
+      );
+      const body = (await response.json()) as {
+        ok?: boolean;
+        status?: string;
+        error?: string;
+      };
+
+      assert.equal(response.status, 200, JSON.stringify(body));
+      assert.equal(body.ok, true);
+      assert.match(body.status ?? "", /^ready/);
+      const capturedRequest = upstreamRequest as Record<string, unknown> | null;
+      assert.ok(capturedRequest);
+      const sentInput = requestInputText(capturedRequest.input);
+      assert.ok(sentInput.includes(prompt));
+      assert.ok(sentInput.includes('"카공"'));
+      assert.ok(sentInput.includes("\n"));
+      assert.ok(sentInput.includes("☕️"));
+    } finally {
+      globalThis.fetch = previousFetch;
+      if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+      else delete process.env.OPENAI_API_KEY;
+    }
+  });
+}
+
+test("output_parsed가 없으면 output_text를 수동 JSON.parse하지 않는다", () => {
+  const payload = readyPayload({
+    prompt: "대학생 수면 시간 조사",
+    evaluationTarget: "수면 시간",
+    respondentGroup: "대학생",
+    entityType: "student-life",
+    templateQuestions: Array.from({ length: 5 }, (_, index) =>
+      question(index + 1, `수면 시간 질문 ${index + 1}`),
+    ),
+    aiQuestions: Array.from({ length: 7 }, (_, index) =>
+      question(index + 1, `수면 시간 질문 ${index + 1}`),
+    ),
+    sourceUrls: ["https://example.com/sleep"],
+  });
+  const withoutParsed = { ...payload, output_parsed: null };
+
+  assert.throws(
+    () => parseSurveyDraftResponse(withoutParsed, "대학생 수면 시간 조사"),
+    (error: unknown) => {
+      assert.ok(error instanceof SurveyGenerationResponseError);
+      assert.equal(error.code, "SURVEY_GENERATION_OUTPUT_MISSING");
+      return true;
+    },
+  );
+});
+
+for (const responseCase of [
+  {
+    name: "출력 한도 중단",
+    payload: {
+      status: "incomplete",
+      incomplete_details: { reason: "max_output_tokens" },
+      output_parsed: null,
+      output: [],
+    },
+    code: "SURVEY_GENERATION_INCOMPLETE",
+    status: 502,
+    reason: "max_output_tokens",
+  },
+  {
+    name: "안전 필터 중단",
+    payload: {
+      status: "incomplete",
+      incomplete_details: { reason: "content_filter" },
+      output_parsed: null,
+      output: [],
+    },
+    code: "SURVEY_GENERATION_FILTERED",
+    status: 422,
+    reason: "content_filter",
+  },
+  {
+    name: "모델 거부",
+    payload: {
+      status: "completed",
+      incomplete_details: null,
+      output_parsed: null,
+      output: [
+        {
+          type: "message",
+          status: "completed",
+          content: [{ type: "refusal", refusal: "request refused" }],
+        },
+      ],
+    },
+    code: "SURVEY_GENERATION_REFUSED",
+    status: 422,
+    reason: null,
+  },
+] as const) {
+  test(`${responseCase.name} 응답을 완성 설문으로 오해하지 않는다`, () => {
+    assert.throws(
+      () =>
+        parseSurveyDraftResponse(
+          responseCase.payload,
+          "대학생 수면 시간 조사",
+        ),
+      (error: unknown) => {
+        assert.ok(error instanceof SurveyGenerationResponseError);
+        assert.equal(error.code, responseCase.code);
+        assert.equal(error.statusCode, responseCase.status);
+        assert.equal(error.incompleteReason, responseCase.reason);
+        return true;
+      },
+    );
+  });
+}
+
+for (const apiCase of [
+  {
+    name: "출력 한도로 중단된",
+    payload: {
+      status: "incomplete",
+      incomplete_details: { reason: "max_output_tokens" },
+      output: [],
+    },
+    status: 502,
+    code: "SURVEY_GENERATION_INCOMPLETE",
+    reason: "max_output_tokens",
+  },
+  {
+    name: "모델이 거부한",
+    payload: {
+      status: "completed",
+      incomplete_details: null,
+      output: [
+        {
+          type: "message",
+          status: "completed",
+          content: [{ type: "refusal", refusal: "request refused" }],
+        },
+      ],
+    },
+    status: 422,
+    code: "SURVEY_GENERATION_REFUSED",
+    reason: null,
+  },
+  {
+    name: "JSON이 잘린",
+    payload: {
+      status: "completed",
+      incomplete_details: null,
+      output: [
+        {
+          type: "message",
+          status: "completed",
+          content: [
+            {
+              type: "output_text",
+              text: '{"status":"ready"',
+              annotations: [],
+            },
+          ],
+        },
+      ],
+    },
+    status: 502,
+    code: "SURVEY_GENERATION_OUTPUT_INVALID",
+    reason: null,
+  },
+] as const) {
+  test(`${apiCase.name} OpenAI 응답도 빈 본문 없이 정형 JSON 오류로 내려온다`, async () => {
+    const previousKey = process.env.OPENAI_API_KEY;
+    const previousFetch = globalThis.fetch;
+    process.env.OPENAI_API_KEY = "test-key";
+    globalThis.fetch = async () => Response.json(apiCase.payload);
+
+    try {
+      const response = await createSurveyDraft(
+        new Request("http://localhost/api/survey-draft", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            origin: "http://localhost",
+            "user-agent": `baroform-api-error-${apiCase.code}`,
+          },
+          body: JSON.stringify({
+            prompt: `대학생 학교생활 경험 조사 ${apiCase.code}`,
+            surveyMode: "standard",
+            targetGrade: "전학년",
+            questionCount: 7,
+            references: { images: [], files: [], links: [] },
+          }),
+        }),
+      );
+      const raw = await response.text();
+      const body = JSON.parse(raw) as {
+        ok?: boolean;
+        code?: string;
+        error?: string;
+        requestId?: string;
+      };
+
+      assert.equal(response.status, apiCase.status);
+      assert.equal(body.ok, false);
+      assert.equal(body.code, apiCase.code);
+      assert.equal(typeof body.error, "string");
+      assert.equal(typeof body.requestId, "string");
+      assert.equal(
+        response.headers.get("content-type")?.startsWith("application/json"),
+        true,
+      );
+      assert.equal(
+        response.headers.get("x-baroform-request-id"),
+        body.requestId,
+      );
+      assert.equal(
+        response.headers.get("x-baroform-incomplete-reason"),
+        apiCase.reason,
+      );
+    } finally {
+      globalThis.fetch = previousFetch;
+      if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+      else delete process.env.OPENAI_API_KEY;
+    }
+  });
+}
 
 test("대우관 등하교 의견은 의견 자체가 아니라 이동 경험으로 해석한다", () => {
   const draft = analyzeSurveyPrompt("대우관 등하교에 대한 의견 조사");

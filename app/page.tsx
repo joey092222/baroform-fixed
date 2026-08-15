@@ -71,6 +71,10 @@ import {
   downloadSurveyWord,
 } from "./survey-export";
 import {
+  JsonResponseError,
+  readJsonResponse,
+} from "./lib/http/json-response";
+import {
   deduplicateSurveyOptions,
   shortenSurveyQuestionTitle,
 } from "./survey-revision";
@@ -6220,6 +6224,7 @@ export default function Home() {
   const [authOpen, setAuthOpen] = useState(false);
   const [wallet, setWallet] = useState<WalletData>({ balance: 0, transactions: [] });
   const analysisRequestRef = useRef(0);
+  const analysisInFlightRef = useRef(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [publishAfterAuth, setPublishAfterAuth] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -6539,9 +6544,8 @@ export default function Home() {
   };
 
   const startCreate = async (promptOverride?: string) => {
-    const enteredPrompt = (promptOverride ?? prompt)
-      .replace(/\s+/g, " ")
-      .trim();
+    if (analysisInFlightRef.current) return;
+    const enteredPrompt = (promptOverride ?? prompt).trim();
     if (!enteredPrompt && !hasSurveyReferences(references)) {
       setToast("설문 내용을 적거나 참고할 사진·파일·링크를 추가해주세요.");
       window.setTimeout(() => setToast(""), 2200);
@@ -6558,6 +6562,7 @@ export default function Home() {
 
     const requestId = analysisRequestRef.current + 1;
     analysisRequestRef.current = requestId;
+    analysisInFlightRef.current = true;
     setIsAnalyzing(true);
     setClarification(null);
 
@@ -6577,7 +6582,7 @@ export default function Home() {
           },
         }),
       });
-      const result = (await response.json()) as
+      const result = await readJsonResponse<
         | {
             status: "ready" | "ready_with_caution";
             prompt: string;
@@ -6590,10 +6595,11 @@ export default function Home() {
             clarification: SurveyClarification;
             research: SurveyResearch;
           }
-        | { error?: string; code?: string };
+        | { error?: string; code?: string }
+      >(response, "AI 초안을 만들지 못했어요. 잠시 후 다시 시도해주세요.");
 
       if (analysisRequestRef.current !== requestId) return;
-      if (!response.ok || !("status" in result)) {
+      if (!("status" in result)) {
         throw new Error(
           "error" in result && result.error
             ? result.error
@@ -6618,6 +6624,13 @@ export default function Home() {
       navigate("editor");
     } catch (analysisError) {
       if (analysisRequestRef.current !== requestId) return;
+      if (analysisError instanceof JsonResponseError) {
+        console.error("survey-generation-client-error", {
+          status: analysisError.status,
+          code: analysisError.code,
+          requestId: analysisError.requestId,
+        });
+      }
       setToast(
         analysisError instanceof Error
           ? analysisError.message
@@ -6625,6 +6638,7 @@ export default function Home() {
       );
       window.setTimeout(() => setToast(""), 5200);
     } finally {
+      analysisInFlightRef.current = false;
       if (analysisRequestRef.current === requestId) setIsAnalyzing(false);
     }
   };

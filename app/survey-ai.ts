@@ -154,6 +154,32 @@ export function buildSurveyAiInstructions(
   ].join("\n\n");
 }
 
+export type SurveyGenerationResponseErrorCode =
+  | "SURVEY_GENERATION_INCOMPLETE"
+  | "SURVEY_GENERATION_FILTERED"
+  | "SURVEY_GENERATION_REFUSED"
+  | "SURVEY_GENERATION_MESSAGE_MISSING"
+  | "SURVEY_GENERATION_OUTPUT_MISSING"
+  | "SURVEY_GENERATION_UPSTREAM_FAILED";
+
+export class SurveyGenerationResponseError extends Error {
+  readonly code: SurveyGenerationResponseErrorCode;
+  readonly statusCode: number;
+  readonly incompleteReason: string | null;
+
+  constructor(
+    code: SurveyGenerationResponseErrorCode,
+    message: string,
+    options: { statusCode?: number; incompleteReason?: string | null } = {},
+  ) {
+    super(message);
+    this.name = "SurveyGenerationResponseError";
+    this.code = code;
+    this.statusCode = options.statusCode ?? 502;
+    this.incompleteReason = options.incompleteReason ?? null;
+  }
+}
+
 export const surveyAiInstructions = buildSurveyAiInstructions();
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -163,27 +189,6 @@ function cleanText(value: unknown, maximum: number) {
   return typeof value === "string"
     ? value.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, maximum)
     : "";
-}
-
-function outputText(payload: JsonRecord) {
-  if (typeof payload.output_text === "string") return payload.output_text;
-  const fragments: string[] = [];
-  const output = Array.isArray(payload.output) ? payload.output : [];
-  for (const item of output) {
-    if (!isRecord(item) || item.type !== "message" || !Array.isArray(item.content)) {
-      continue;
-    }
-    for (const content of item.content) {
-      if (!isRecord(content)) continue;
-      if (
-        (content.type === "output_text" || content.type === "text") &&
-        typeof content.text === "string"
-      ) {
-        fragments.push(content.text);
-      }
-    }
-  }
-  return fragments.join("\n");
 }
 
 function legacyQuestionType(type: SurveyGeneration["survey"]["questions"][number]["type"]): SurveyQuestion["type"] {
@@ -529,11 +534,9 @@ function structuredGenerationToLegacy(
 
 function assertCompletedResponse(payload: JsonRecord) {
   const responseStatus = cleanText(payload.status, 40);
-  if (responseStatus && responseStatus !== "completed") {
-    throw new Error("AI 응답이 끝까지 완료되지 않았습니다.");
-  }
-
   let completedSearch = false;
+  let hasFinalMessage = false;
+  let refusal = false;
   const output = Array.isArray(payload.output) ? payload.output : [];
   for (const item of output) {
     if (!isRecord(item)) continue;
@@ -545,12 +548,55 @@ function assertCompletedResponse(payload: JsonRecord) {
       completedSearch = true;
     }
     if (item.type !== "message" || !Array.isArray(item.content)) continue;
+    hasFinalMessage = true;
     for (const content of item.content) {
       if (isRecord(content) && content.type === "refusal") {
-        throw new Error("AI가 이 설문 요청을 처리하지 않았습니다.");
+        refusal = true;
       }
     }
   }
+
+  if (refusal) {
+    throw new SurveyGenerationResponseError(
+      "SURVEY_GENERATION_REFUSED",
+      "AI가 이 설문 요청을 처리하지 않았어요. 내용을 조정해 다시 시도해주세요.",
+      { statusCode: 422 },
+    );
+  }
+
+  if (responseStatus === "incomplete") {
+    const incompleteDetails = isRecord(payload.incomplete_details)
+      ? payload.incomplete_details
+      : {};
+    const reason = cleanText(incompleteDetails.reason, 80) || "unknown";
+    if (reason === "content_filter") {
+      throw new SurveyGenerationResponseError(
+        "SURVEY_GENERATION_FILTERED",
+        "설문 생성이 안전 필터에 의해 중단됐어요. 내용을 조정해 다시 시도해주세요.",
+        { statusCode: 422, incompleteReason: reason },
+      );
+    }
+    throw new SurveyGenerationResponseError(
+      "SURVEY_GENERATION_INCOMPLETE",
+      "설문 생성이 끝나기 전에 응답이 중단됐어요. 다시 시도해주세요.",
+      { incompleteReason: reason },
+    );
+  }
+
+  if (responseStatus !== "completed") {
+    throw new SurveyGenerationResponseError(
+      "SURVEY_GENERATION_UPSTREAM_FAILED",
+      "설문 생성 서비스의 응답 상태를 확인하지 못했어요. 잠시 후 다시 시도해주세요.",
+    );
+  }
+
+  if (!hasFinalMessage) {
+    throw new SurveyGenerationResponseError(
+      "SURVEY_GENERATION_MESSAGE_MISSING",
+      "설문 생성 결과 메시지를 확인하지 못했어요. 다시 시도해주세요.",
+    );
+  }
+
   return completedSearch;
 }
 
@@ -1120,13 +1166,10 @@ export function parseSurveyDraftResponse(
   );
   let decoded: unknown = rawPayload.output_parsed;
   if (decoded === undefined || decoded === null) {
-    const text = outputText(rawPayload);
-    if (!text) throw new Error("AI가 설문 초안을 반환하지 않았습니다.");
-    try {
-      decoded = JSON.parse(text);
-    } catch {
-      throw new Error("AI 설문 형식을 해석하지 못했습니다.");
-    }
+    throw new SurveyGenerationResponseError(
+      "SURVEY_GENERATION_OUTPUT_MISSING",
+      "생성된 설문 구조를 확인하지 못했어요. 다시 시도해주세요.",
+    );
   }
 
   let structuredGeneration: SurveyGeneration | null = null;
@@ -1412,6 +1455,10 @@ export function buildSurveyAiRequest(
     30,
     Math.max(1, Math.round(options?.questionCount ?? 7)),
   );
+  const maxOutputTokens =
+    surveyMode === "research"
+      ? 48_000
+      : Math.max(24_000, 16_000 + requestedQuestionCount * 600);
   const targetGrade = options?.targetGrade?.trim() || "전학년";
   const referenceImages = (options?.references?.images ?? []).slice(0, 10);
   const referenceFiles = (options?.references?.files ?? []).slice(0, 3);
@@ -1547,7 +1594,7 @@ export function buildSurveyAiRequest(
     tool_choice: "required" as const,
     include: ["web_search_call.action.sources" as const],
     store: false,
-    max_output_tokens: 20_000,
+    max_output_tokens: maxOutputTokens,
     instructions: buildSurveyAiInstructions(surveyMode),
     input,
     text: {
