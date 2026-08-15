@@ -255,6 +255,128 @@
   font-weight: 750;
 }
 
+.survey-mode-setting {
+  min-width: 0;
+  margin: 18px 0 0;
+  padding: 18px 20px 16px;
+  border: 1px solid var(--bf-border);
+  border-radius: var(--bf-radius);
+  background: var(--bf-surface);
+}
+
+.survey-mode-setting legend {
+  padding: 0 8px;
+  color: var(--bf-navy-strong);
+  font-size: 14px;
+  font-weight: 780;
+}
+
+.survey-mode-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.survey-mode-card {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 92px;
+  padding: 16px;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
+  gap: 11px;
+  border: 1px solid var(--bf-border);
+  border-radius: 10px;
+  background: var(--bf-bg);
+  cursor: pointer;
+  transition: border-color .16s ease, background-color .16s ease;
+}
+
+.survey-mode-card:hover {
+  border-color: var(--bf-border-dark);
+}
+
+.survey-mode-card.selected {
+  border-color: var(--bf-navy);
+  background: var(--bf-navy-soft);
+}
+
+.survey-mode-card:focus-within {
+  outline: 3px solid rgba(45, 105, 255, .2);
+  outline-offset: 2px;
+}
+
+.survey-mode-card input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.survey-mode-radio {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  place-items: center;
+  border: 1px solid var(--bf-border-dark);
+  border-radius: 50%;
+  background: var(--bf-surface);
+}
+
+.survey-mode-card.selected .survey-mode-radio {
+  border: 5px solid var(--bf-navy);
+}
+
+.survey-mode-copy,
+.survey-mode-copy > span {
+  display: flex;
+  min-width: 0;
+}
+
+.survey-mode-copy {
+  flex-direction: column;
+  gap: 7px;
+}
+
+.survey-mode-copy > span {
+  align-items: center;
+  gap: 8px;
+}
+
+.survey-mode-copy strong {
+  color: var(--bf-navy-strong);
+  font-size: 14px;
+  font-weight: 780;
+}
+
+.survey-mode-copy em {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--bf-navy);
+  color: #fff;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 780;
+}
+
+.survey-mode-copy small,
+.survey-mode-setting > p {
+  color: var(--bf-muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.survey-mode-setting > p {
+  margin: 12px 2px 0;
+}
+
+.survey-mode-setting:disabled {
+  opacity: .7;
+}
+
 .create-settings {
   display: grid;
   margin-top: 18px;
@@ -2527,6 +2649,14 @@
   }
 
   .create-settings {
+    grid-template-columns: 1fr;
+  }
+
+  .survey-mode-setting {
+    padding: 16px;
+  }
+
+  .survey-mode-options {
     grid-template-columns: 1fr;
   }
 

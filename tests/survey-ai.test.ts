@@ -31,6 +31,72 @@ import {
 } from "../app/reference-files";
 import { verifyReferenceFileToken } from "../app/reference-file-upload";
 import { createSurveyGenerationSchema } from "../app/lib/ai/survey-generation-schema";
+import { getSurveyModeGenerationConfig } from "../app/lib/ai/survey-mode-config";
+import {
+  parseRequestedSurveyMode,
+  recommendSurveyMode,
+  type SurveyMode,
+} from "../app/survey-mode";
+
+test("설문 제작 모드의 기본값과 API 설정 매핑이 정확하다", () => {
+  assert.equal(parseRequestedSurveyMode(undefined), "standard");
+  assert.equal(parseRequestedSurveyMode("standard"), "standard");
+  assert.equal(parseRequestedSurveyMode("research"), "research");
+  assert.equal(parseRequestedSurveyMode("fast"), null);
+  assert.deepEqual(getSurveyModeGenerationConfig("standard"), {
+    reasoningEffort: "medium",
+    searchContextSize: "low",
+    instructions: getSurveyModeGenerationConfig("standard").instructions,
+  });
+  assert.deepEqual(getSurveyModeGenerationConfig("research"), {
+    reasoningEffort: "high",
+    searchContextSize: "medium",
+    instructions: getSurveyModeGenerationConfig("research").instructions,
+  });
+});
+
+test("연구 목적과 학술 첨부만 정밀·연구 설문으로 추천한다", () => {
+  assert.equal(
+    recommendSurveyMode(
+      "대학생의 브랜드 선호가 구매 의도에 미치는 영향을 분석하는 논문 설문을 만들고 싶어. 독립변수와 종속변수를 구분해줘.",
+    ),
+    "research",
+  );
+  assert.equal(
+    recommendSurveyMode("학교 축제 만족도와 불편했던 점을 조사하는 설문을 만들어줘."),
+    "standard",
+  );
+  assert.equal(
+    recommendSurveyMode("이 자료를 참고해 설문을 만들어줘", {
+      files: [{ name: "졸업논문_연구모형.pdf", mimeType: "application/pdf" }],
+    }),
+    "research",
+  );
+
+  const explicitSelection: SurveyMode = "standard";
+  const recommendation = recommendSurveyMode("가설 검증을 위한 논문 설문");
+  assert.equal(recommendation, "research");
+  assert.equal(explicitSelection, "standard");
+});
+
+test("설문 생성 API는 잘못된 제작 모드를 거부한다", async () => {
+  const response = await createSurveyDraft(
+    new Request("http://localhost/api/survey-draft", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "http://localhost",
+      },
+      body: JSON.stringify({
+        prompt: "도서관 만족도 조사",
+        surveyMode: "fast",
+      }),
+    }),
+  );
+  const body = (await response.json()) as { code?: string };
+  assert.equal(response.status, 400);
+  assert.equal(body.code, "INVALID_SURVEY_MODE");
+});
 
 test("문항 사용 이유를 명사형 메모 문체로 통일한다", () => {
   assert.equal(
@@ -700,6 +766,100 @@ function editReadyPayload(
   content.text = JSON.stringify(decoded);
 }
 
+test("설문 생성 API는 선택한 연구 모드를 OpenAI 단일 요청에 전달한다", async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  const previousFetch = globalThis.fetch;
+  const prompt = "대학생의 브랜드 신뢰가 구매 의도에 미치는 영향 연구";
+  const questions = Array.from({ length: 7 }, (_, index) =>
+    question(index + 1, `브랜드 신뢰 연구 질문 ${index + 1}`),
+  );
+  let fetchCalls = 0;
+  let upstreamRequest: Record<string, unknown> | null = null;
+  process.env.OPENAI_API_KEY = "test-key";
+  globalThis.fetch = async (_input, init) => {
+    fetchCalls += 1;
+    upstreamRequest = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return Response.json(
+      readyPayload({
+        prompt,
+        evaluationTarget: "브랜드 신뢰와 구매 의도",
+        respondentGroup: "대학생",
+        entityType: "other",
+        templateQuestions: questions.slice(0, 5),
+        aiQuestions: questions,
+        sourceUrls: ["https://example.com/research-source"],
+      }),
+      { headers: { "x-request-id": "req_research_mode_test" } },
+    );
+  };
+
+  try {
+    const response = await createSurveyDraft(
+      new Request("http://localhost/api/survey-draft", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          "user-agent": "baroform-research-mode-test",
+        },
+        body: JSON.stringify({
+          prompt,
+          surveyMode: "research",
+          targetGrade: "전학년",
+          questionCount: 7,
+          references: { images: [], files: [], links: [] },
+        }),
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.equal(fetchCalls, 1);
+    assert.equal(response.headers.get("x-baroform-survey-mode"), "research");
+    const sentRequest = upstreamRequest as {
+      reasoning?: { effort?: string };
+      tools?: Array<{ type?: string; search_context_size?: string }>;
+      tool_choice?: string;
+      text?: { format?: { type?: string } };
+    } | null;
+    assert.ok(sentRequest);
+    assert.equal(sentRequest.reasoning?.effort, "high");
+    assert.equal(sentRequest.tools?.[0]?.type, "web_search");
+    assert.equal(sentRequest.tools?.[0]?.search_context_size, "medium");
+    assert.equal(sentRequest.tool_choice, "required");
+    assert.equal(sentRequest.text?.format?.type, "json_schema");
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
+
+test("surveyMode가 없는 기존 요청은 일반 설문으로 처리한다", async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+  try {
+    const response = await createSurveyDraft(
+      new Request("http://localhost/api/survey-draft", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          "user-agent": "baroform-default-mode-test",
+        },
+        body: JSON.stringify({
+          prompt: "교내 휴게 공간 이용 만족도 조사",
+          questionCount: 7,
+        }),
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("x-baroform-survey-mode"), "standard");
+  } finally {
+    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+  }
+});
+
 function structuredQuestion(
   id: number,
   role:
@@ -994,7 +1154,7 @@ for (const surveyCase of [
     assert.match(input, new RegExp(surveyCase.prompt));
     assert.match(input, new RegExp(`\\[희망 문항 수\\]\\n${surveyCase.count}`));
     assert.equal(request.tool_choice, "required");
-    assert.equal(request.reasoning.effort, "high");
+    assert.equal(request.reasoning.effort, "medium");
     assert.equal(request.max_output_tokens, 20_000);
     assert.doesNotMatch(JSON.stringify(request.text.format.schema), /"format":"uri"/);
     assert.equal(questionSchema.minItems, surveyCase.count);
@@ -1012,10 +1172,10 @@ test("OpenAI 요청은 모든 설문에서 검색과 내부 품질 검사를 강
 
   assert.equal(request.model, "gpt-5.6");
   assert.equal(request.tool_choice, "required");
-  assert.equal(request.reasoning.effort, "high");
+  assert.equal(request.reasoning.effort, "medium");
   assert.equal(request.store, false);
   assert.equal(request.tools[0]?.type, "web_search");
-  assert.equal(request.tools[0]?.search_context_size, "medium");
+  assert.equal(request.tools[0]?.search_context_size, "low");
   assert.equal(request.tools[0]?.user_location.country, "KR");
   assert.equal(request.text.format.type, "json_schema");
   assert.equal(request.text.format.strict, true);
@@ -1028,6 +1188,24 @@ test("OpenAI 요청은 모든 설문에서 검색과 내부 품질 검사를 강
   assert.match(request.instructions, /사용자에게 추가 질문을 하지 않는다/);
   assert.match(request.instructions, /ready_with_caution/);
   assert.equal(JSON.stringify(request).includes("OPENAI_API_KEY"), false);
+});
+
+test("정밀·연구 설문은 높은 추론과 중간 검색 문맥을 한 요청에 적용한다", () => {
+  const prompt = "대학생의 브랜드 선호가 구매 의도에 미치는 영향을 분석하는 논문 설문";
+  const request = buildSurveyAiRequest(
+    prompt,
+    analyzeSurveyPrompt(prompt),
+    "gpt-5.6",
+    { surveyMode: "research", questionCount: 12 },
+  );
+
+  assert.equal(request.reasoning.effort, "high");
+  assert.equal(request.tools[0]?.type, "web_search");
+  assert.equal(request.tools[0]?.search_context_size, "medium");
+  assert.equal(request.tool_choice, "required");
+  assert.equal(request.text.format.type, "json_schema");
+  assert.match(request.instructions, /설문 제작 모드: 정밀·연구 설문/);
+  assert.match(requestInputText(request.input), /\[설문 제작 방식\]\n정밀·연구 설문/);
 });
 
 test("첨부 사진과 링크를 실제 멀티모달 참고 자료로 전달한다", () => {
@@ -1101,7 +1279,7 @@ test("첨부 문서와 표를 실제 input_file 참고 자료로 전달한다", 
   assert.equal(request.tool_choice, "required");
 });
 
-test("참고자료가 있으면 깊이 있는 분석 계약과 높은 추론 수준을 사용한다", () => {
+test("일반 모드는 참고자료가 있어도 선택한 생성 설정을 유지한다", () => {
   const request = buildSurveyAiRequest(
     "첨부 자료를 토대로 학생 지원 서비스 수요를 조사해줘",
     analyzeSurveyPrompt("학생 지원 서비스 수요 조사"),
@@ -1122,7 +1300,7 @@ test("참고자료가 있으면 깊이 있는 분석 계약과 높은 추론 수
     },
   );
 
-  assert.equal(request.reasoning.effort, "high");
+  assert.equal(request.reasoning.effort, "medium");
   const schema = request.text.format.schema as {
     properties: {
       survey: { properties: { questions: { minItems: number; maxItems: number } } };

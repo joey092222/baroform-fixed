@@ -87,6 +87,13 @@ import {
 import { WorkspaceReviewView, WorkspaceView } from "./workspace-view";
 import { shouldSubmitPromptOnEnter } from "./prompt-keyboard";
 import { formatQuestionReason } from "./question-reason";
+import {
+  defaultSurveyMode,
+  recommendSurveyMode,
+  surveyModeLoadingMessages,
+  surveyModeOptions,
+  type SurveyMode,
+} from "./survey-mode";
 
 type View =
   | "landing"
@@ -2690,6 +2697,8 @@ function CreateView({
   setPrompt,
   references,
   setReferences,
+  surveyMode,
+  setSurveyMode,
   targetGrade,
   setTargetGrade,
   questionCount,
@@ -2702,6 +2711,8 @@ function CreateView({
   setPrompt: (value: string) => void;
   references: SurveyReferences;
   setReferences: (value: SurveyReferences) => void;
+  surveyMode: SurveyMode;
+  setSurveyMode: (value: SurveyMode) => void;
   targetGrade: TargetGrade;
   setTargetGrade: (value: TargetGrade) => void;
   questionCount: number;
@@ -2712,6 +2723,13 @@ function CreateView({
 }) {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const canGenerate = prompt.trim().length >= 2 || hasSurveyReferences(references);
+  const recommendedMode = useMemo(
+    () =>
+      recommendSurveyMode(prompt, {
+        files: references.files.map(({ name, mimeType }) => ({ name, mimeType })),
+      }),
+    [prompt, references.files],
+  );
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -2782,6 +2800,35 @@ function CreateView({
           </div>
         </div>
 
+        <fieldset className="survey-mode-setting" disabled={isAnalyzing}>
+          <legend>설문 제작 방식</legend>
+          <div className="survey-mode-options">
+            {surveyModeOptions.map((option) => (
+              <label
+                className={`survey-mode-card ${surveyMode === option.value ? "selected" : ""}`}
+                key={option.value}
+              >
+                <input
+                  type="radio"
+                  name="survey-mode"
+                  value={option.value}
+                  checked={surveyMode === option.value}
+                  onChange={() => setSurveyMode(option.value)}
+                />
+                <span className="survey-mode-radio" aria-hidden="true" />
+                <span className="survey-mode-copy">
+                  <span>
+                    <strong>{option.label}</strong>
+                    {recommendedMode === option.value && <em>추천</em>}
+                  </span>
+                  <small>{option.description}</small>
+                </span>
+              </label>
+            ))}
+          </div>
+          <p>두 방식 모두 관련 정보를 확인하고 문항 품질을 검토해요.</p>
+        </fieldset>
+
         <div className="create-settings" aria-label="설문 생성 설정">
           <div className="setting-block grade-setting">
             <div className="setting-heading">
@@ -2846,7 +2893,7 @@ function CreateView({
         <div className="create-summary">
           <CheckCircle2 size={15} />
           <span>
-            {targetGrade} 대상 · {questionCount}문항
+            {surveyMode === "research" ? "정밀·연구 설문" : "일반 설문"} · {targetGrade} 대상 · {questionCount}문항
             {hasSurveyReferences(references)
               ? ` · 참고자료 ${references.images.length + references.files.length + references.links.length}개`
               : ""}
@@ -6099,7 +6146,7 @@ function Footer() {
   );
 }
 
-function GenerationOverlay() {
+function GenerationOverlay({ surveyMode }: { surveyMode: SurveyMode }) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   useEffect(() => {
@@ -6112,13 +6159,7 @@ function GenerationOverlay() {
   }, []);
 
   const phase = Math.min(4, Math.floor(elapsedSeconds / 4));
-  const phaseTitles = [
-    "입력 내용을 분석하고 있어요",
-    "관련 정보를 확인하고 있어요",
-    "설문 구조를 설계하고 있어요",
-    "문항과 선택지를 검토하고 있어요",
-    "최종 설문을 완성하고 있어요",
-  ];
+  const phaseTitles = surveyModeLoadingMessages[surveyMode];
 
   return (
     <div className="generation-overlay" role="status" aria-live="polite">
@@ -6128,8 +6169,9 @@ function GenerationOverlay() {
         </span>
         <strong>{phaseTitles[phase]}</strong>
         <p>
-          공개 자료와 입력한 내용을 함께 확인해 바로 편집할 수 있는 설문을
-          만들고 있어요.
+          {surveyMode === "research"
+            ? "관련 자료와 측정 구조를 함께 확인해 정교한 연구 설문 초안을 만들고 있어요."
+            : "공개 자료와 입력한 내용을 함께 확인해 바로 편집할 수 있는 설문을 만들고 있어요."}
         </p>
         <div className="research-loading-steps" aria-label="설문 생성 단계">
           {phaseTitles.map((label, index) => {
@@ -6156,6 +6198,7 @@ export default function Home() {
     files: [],
     links: [],
   });
+  const [surveyMode, setSurveyMode] = useState<SurveyMode>(defaultSurveyMode);
   const [targetGrade, setTargetGrade] = useState<TargetGrade>("전학년");
   const [questionCount, setQuestionCount] = useState(7);
   const [surveyTitle, setSurveyTitle] = useState(defaultBlueprint.title);
@@ -6524,6 +6567,7 @@ export default function Home() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           prompt: requestedPrompt,
+          surveyMode,
           targetGrade,
           questionCount,
           references: {
@@ -6984,6 +7028,8 @@ export default function Home() {
           setPrompt={updatePrompt}
           references={references}
           setReferences={updateReferences}
+          surveyMode={surveyMode}
+          setSurveyMode={setSurveyMode}
           targetGrade={targetGrade}
           setTargetGrade={setTargetGrade}
           questionCount={questionCount}
@@ -7080,7 +7126,7 @@ export default function Home() {
         />
       )}
       {isAnalyzing && (
-        <GenerationOverlay />
+        <GenerationOverlay surveyMode={surveyMode} />
       )}
       {clarification && !isAnalyzing && (
         <ClarificationModal

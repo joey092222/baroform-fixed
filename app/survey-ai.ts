@@ -28,6 +28,13 @@ import {
   type SurveyGeneration,
 } from "./lib/ai/survey-generation-schema";
 import { SURVEY_SYSTEM_PROMPT } from "./lib/ai/survey-system-prompt";
+import {
+  getSurveyModeGenerationConfig,
+} from "./lib/ai/survey-mode-config";
+import {
+  defaultSurveyMode,
+  type SurveyMode,
+} from "./survey-mode";
 
 export class SurveyValidationError extends Error {
   readonly issues: string[];
@@ -133,7 +140,18 @@ const SURVEY_OUTPUT_COMPATIBILITY = `
 5. research.sources의 URL은 이번 web_search에서 실제로 확인한 URL만 사용한다.
 `.trim();
 
-export const surveyAiInstructions = `${SURVEY_SYSTEM_PROMPT}\n\n${SURVEY_OUTPUT_COMPATIBILITY}`;
+export function buildSurveyAiInstructions(
+  surveyMode: SurveyMode = defaultSurveyMode,
+) {
+  const modeConfig = getSurveyModeGenerationConfig(surveyMode);
+  return [
+    SURVEY_SYSTEM_PROMPT,
+    SURVEY_OUTPUT_COMPATIBILITY,
+    modeConfig.instructions,
+  ].join("\n\n");
+}
+
+export const surveyAiInstructions = buildSurveyAiInstructions();
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -1368,6 +1386,7 @@ export function buildSurveyAiRequest(
   fallback: SurveyBlueprint,
   model: string,
   options?: {
+    surveyMode?: SurveyMode;
     targetGrade?: string;
     questionCount?: number;
     organizationLocationContext?: string | null;
@@ -1383,6 +1402,8 @@ export function buildSurveyAiRequest(
     };
   },
 ) {
+  const surveyMode = options?.surveyMode ?? defaultSurveyMode;
+  const modeConfig = getSurveyModeGenerationConfig(surveyMode);
   const requestedQuestionCount = Math.min(
     30,
     Math.max(1, Math.round(options?.questionCount ?? 7)),
@@ -1433,6 +1454,9 @@ export function buildSurveyAiRequest(
     "",
     "[사용자가 입력한 원문]",
     prompt,
+    "",
+    "[설문 제작 방식]",
+    surveyMode === "research" ? "정밀·연구 설문" : "일반 설문",
     "",
     "[응답 대상]",
     audienceContext || "사용자 원문에서 추론",
@@ -1504,11 +1528,11 @@ export function buildSurveyAiRequest(
 
   return {
     model,
-    reasoning: { effort: "high" as const },
+    reasoning: { effort: modeConfig.reasoningEffort },
     tools: [
       {
         type: "web_search" as const,
-        search_context_size: "medium" as const,
+        search_context_size: modeConfig.searchContextSize,
         user_location: {
           type: "approximate" as const,
           country: "KR",
@@ -1520,7 +1544,7 @@ export function buildSurveyAiRequest(
     include: ["web_search_call.action.sources" as const],
     store: false,
     max_output_tokens: 20_000,
-    instructions: surveyAiInstructions,
+    instructions: buildSurveyAiInstructions(surveyMode),
     input,
     text: {
       format: zodTextFormat(

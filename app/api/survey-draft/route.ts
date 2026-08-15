@@ -32,6 +32,10 @@ import { consumePersistentAiRateLimit } from "@/db";
 import { getSessionUser } from "@/db/auth";
 import { schoolLabel } from "@/app/survey-board";
 import { formatQuestionReason } from "@/app/question-reason";
+import {
+  parseRequestedSurveyMode,
+  type SurveyMode,
+} from "@/app/survey-mode";
 import OpenAI from "openai";
 
 export const runtime = "nodejs";
@@ -84,7 +88,11 @@ function apiError(
   );
 }
 
-function fallbackResponse(result: SurveyDraftResult, reason: string) {
+function fallbackResponse(
+  result: SurveyDraftResult,
+  reason: string,
+  surveyMode: SurveyMode,
+) {
   if (result.status !== "needs_clarification") {
     const brief = parseSurveyBrief(result.prompt);
     const issues = validateSurvey(result.prompt, brief, result.blueprint);
@@ -105,7 +113,62 @@ function fallbackResponse(result: SurveyDraftResult, reason: string) {
       ...noStoreHeaders,
       "x-baroform-ai-mode": "verified-fallback",
       "x-baroform-ai-fallback": reason,
+      "x-baroform-survey-mode": surveyMode,
     },
+  });
+}
+
+function generatedQuestionCount(result: SurveyDraftResult) {
+  return result.status === "needs_clarification"
+    ? 0
+    : result.blueprint.aiQuestions.length;
+}
+
+function responseUsedWebSearch(response: unknown) {
+  if (!response || typeof response !== "object") return false;
+  const output = (response as { output?: unknown }).output;
+  return (
+    Array.isArray(output) &&
+    output.some(
+      (item) =>
+        item !== null &&
+        typeof item === "object" &&
+        (item as { type?: unknown }).type === "web_search_call",
+    )
+  );
+}
+
+function responseRequestId(response: unknown) {
+  if (!response || typeof response !== "object") return null;
+  const value = (response as { _request_id?: unknown })._request_id;
+  return typeof value === "string" && value ? value : null;
+}
+
+function logGenerationMetric({
+  surveyMode,
+  startedAt,
+  success,
+  questionCount,
+  searchUsed,
+  requestId,
+  outcome,
+}: {
+  surveyMode: SurveyMode;
+  startedAt: number;
+  success: boolean;
+  questionCount: number;
+  searchUsed: boolean;
+  requestId?: string | null;
+  outcome: "model" | "cache" | "verified-fallback" | "validation-error";
+}) {
+  console.info("survey-generation-metric", {
+    surveyMode,
+    durationMs: Math.max(0, Date.now() - startedAt),
+    success,
+    questionCount,
+    searchUsed,
+    openAiRequestId: requestId ?? null,
+    outcome,
   });
 }
 
@@ -508,6 +571,7 @@ function sameOrigin(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const generationStartedAt = Date.now();
   if (!sameOrigin(request)) {
     return apiError("이 사이트에서 다시 시도해주세요.", "INVALID_ORIGIN", 403);
   }
@@ -519,6 +583,7 @@ export async function POST(request: Request) {
 
   let payload: {
     prompt?: unknown;
+    surveyMode?: unknown;
     targetGrade?: unknown;
     questionCount?: unknown;
     references?: unknown;
@@ -526,12 +591,22 @@ export async function POST(request: Request) {
   try {
     payload = (await request.json()) as {
       prompt?: unknown;
+      surveyMode?: unknown;
       targetGrade?: unknown;
       questionCount?: unknown;
       references?: unknown;
     };
   } catch {
     return apiError("설문 내용을 읽지 못했어요.", "INVALID_JSON", 400);
+  }
+
+  const surveyMode = parseRequestedSurveyMode(payload.surveyMode);
+  if (!surveyMode) {
+    return apiError(
+      "설문 제작 방식을 다시 선택해주세요.",
+      "INVALID_SURVEY_MODE",
+      400,
+    );
   }
 
   const enteredPrompt =
@@ -587,14 +662,23 @@ export async function POST(request: Request) {
   const now = Date.now();
   pruneMemory(now);
   const referenceKey = await referenceFingerprint(references);
-  const cacheKey = `${prompt.toLocaleLowerCase("ko-KR")}|${targetGrade}|${questionCount}|${referenceKey}`;
+  const cacheKey = `${surveyMode}|${prompt.toLocaleLowerCase("ko-KR")}|${targetGrade}|${questionCount}|${referenceKey}`;
   const cached = responseCache.get(cacheKey);
   if (cached && cached.expiresAt > now) {
+    logGenerationMetric({
+      surveyMode,
+      startedAt: generationStartedAt,
+      success: true,
+      questionCount: generatedQuestionCount(cached.result),
+      searchUsed: cached.result.research.status === "searched",
+      outcome: "cache",
+    });
     return Response.json(cached.result, {
       headers: {
         ...noStoreHeaders,
         "x-baroform-ai-mode": cached.mode,
         "x-baroform-ai-cache": "hit",
+        "x-baroform-survey-mode": surveyMode,
         ...(cached.reason ? { "x-baroform-ai-fallback": cached.reason } : {}),
       },
     });
@@ -630,7 +714,20 @@ export async function POST(request: Request) {
         "verified-fallback",
         "api-key-missing",
       );
-      return fallbackResponse(verifiedFallback, "api-key-missing");
+      const response = fallbackResponse(
+        verifiedFallback,
+        "api-key-missing",
+        surveyMode,
+      );
+      logGenerationMetric({
+        surveyMode,
+        startedAt: generationStartedAt,
+        success: response.ok,
+        questionCount: generatedQuestionCount(verifiedFallback),
+        searchUsed: false,
+        outcome: "verified-fallback",
+      });
+      return response;
     }
     const resilientFallback = resilientDraftFallback(
       prompt,
@@ -644,7 +741,20 @@ export async function POST(request: Request) {
       "verified-fallback",
       "api-key-missing",
     );
-    return fallbackResponse(resilientFallback, "api-key-missing");
+    const response = fallbackResponse(
+      resilientFallback,
+      "api-key-missing",
+      surveyMode,
+    );
+    logGenerationMetric({
+      surveyMode,
+      startedAt: generationStartedAt,
+      success: response.ok,
+      questionCount: generatedQuestionCount(resilientFallback),
+      searchUsed: false,
+      outcome: "verified-fallback",
+    });
+    return response;
   }
 
   const model = process.env.OPENAI_SURVEY_MODEL?.trim() || "gpt-5.6";
@@ -675,6 +785,7 @@ export async function POST(request: Request) {
   try {
     const rawResult = await openai.responses.parse(
       buildSurveyAiRequest(prompt, fallback, model, {
+        surveyMode,
         targetGrade,
         questionCount,
         references,
@@ -713,15 +824,33 @@ export async function POST(request: Request) {
     }
 
     cacheResult(cacheKey, now, result, "model");
+    logGenerationMetric({
+      surveyMode,
+      startedAt: generationStartedAt,
+      success: true,
+      questionCount: generatedQuestionCount(result),
+      searchUsed: responseUsedWebSearch(rawResult),
+      requestId: responseRequestId(rawResult),
+      outcome: "model",
+    });
     return Response.json(result, {
       headers: {
         ...noStoreHeaders,
         "x-baroform-ai-mode": "model",
         "x-baroform-ai-attempt": "single-response",
+        "x-baroform-survey-mode": surveyMode,
       },
     });
   } catch (error) {
     if (error instanceof SurveyValidationError) {
+      logGenerationMetric({
+        surveyMode,
+        startedAt: generationStartedAt,
+        success: false,
+        questionCount: 0,
+        searchUsed: false,
+        outcome: "validation-error",
+      });
       return apiError(
         `생성된 설문 구조를 안전하게 적용하지 못했어요. ${error.issues.join(" ")}`,
         "SURVEY_VALIDATION_FAILED",
@@ -754,7 +883,21 @@ export async function POST(request: Request) {
         "verified-fallback",
         fallbackReason,
       );
-      return fallbackResponse(verifiedFallback, fallbackReason);
+      const response = fallbackResponse(
+        verifiedFallback,
+        fallbackReason,
+        surveyMode,
+      );
+      logGenerationMetric({
+        surveyMode,
+        startedAt: generationStartedAt,
+        success: response.ok,
+        questionCount: generatedQuestionCount(verifiedFallback),
+        searchUsed: false,
+        requestId,
+        outcome: "verified-fallback",
+      });
+      return response;
     }
 
     const resilientFallback = resilientDraftFallback(
@@ -773,7 +916,21 @@ export async function POST(request: Request) {
       "verified-fallback",
       fallbackReason,
     );
-    return fallbackResponse(resilientFallback, fallbackReason);
+    const response = fallbackResponse(
+      resilientFallback,
+      fallbackReason,
+      surveyMode,
+    );
+    logGenerationMetric({
+      surveyMode,
+      startedAt: generationStartedAt,
+      success: response.ok,
+      questionCount: generatedQuestionCount(resilientFallback),
+      searchUsed: false,
+      requestId,
+      outcome: "verified-fallback",
+    });
+    return response;
   } finally {
     clearTimeout(timeout);
   }
