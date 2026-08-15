@@ -34,6 +34,7 @@
   ],
   "exclude": [
     "node_modules",
+    ".next-*",
     ".vinext",
     "build",
     "drizzle",
@@ -42,6 +43,10 @@
     "worker",
     "app/chatgpt-auth.ts",
     "drizzle.config.ts",
+    ".pnpm-store",
+    "artifacts",
+    "ig-landing",
+    "ig-landing-vercel",
     "vite.config.ts",
     "worker-configuration.d.ts"
   ]
