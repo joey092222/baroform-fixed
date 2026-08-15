@@ -922,6 +922,7 @@ for (const surveyCase of [
     assert.equal(request.tool_choice, "required");
     assert.equal(request.reasoning.effort, "high");
     assert.equal(request.max_output_tokens, 30_000);
+    assert.doesNotMatch(JSON.stringify(request.text.format.schema), /"format":"uri"/);
     assert.equal(questionSchema.minItems, surveyCase.count);
     assert.equal(questionSchema.maxItems, surveyCase.count);
   });

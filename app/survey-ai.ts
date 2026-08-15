@@ -220,6 +220,14 @@ function generationIntegrityIssues(
   const issues: string[] = [];
   const sourceIds = new Set<string>();
   for (const source of generation.research.sources) {
+    try {
+      const sourceUrl = new URL(source.url);
+      if (sourceUrl.protocol !== "https:") {
+        issues.push(`출처 ${source.id}의 URL은 HTTPS 주소가 아닙니다.`);
+      }
+    } catch {
+      issues.push(`출처 ${source.id}의 URL 형식이 올바르지 않습니다.`);
+    }
     if (sourceIds.has(source.id)) {
       issues.push(`출처 ID ${source.id}가 중복되었습니다.`);
     }

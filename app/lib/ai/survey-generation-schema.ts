@@ -20,7 +20,9 @@ const nullableNumber = z.number().nullable();
 const researchSourceSchema = z.object({
   id: z.string().min(1).max(40),
   title: z.string().min(1).max(200),
-  url: z.string().url().max(600),
+  // Structured Outputs does not support the JSON Schema `uri` format.
+  // URL validity is enforced deterministically after parsing instead.
+  url: z.string().min(1).max(600),
   source_type: z.enum(["official", "public", "academic", "news", "secondary"]),
   used_for: z.string().min(1).max(240),
 });
