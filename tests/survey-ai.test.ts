@@ -922,9 +922,6 @@ test("검색 신뢰도가 미확정이면 설문은 유지하고 검증 사실�
   );
 
   assert.equal(result.status, "ready_with_caution");
-  if (result.status !== "ready" && result.status !== "ready_with_caution") {
-    assert.fail("완성된 설문 결과가 필요합니다.");
-  }
   assert.equal(result.research.classification, "unresolved");
   assert.deepEqual(result.research.facts, []);
 });
