@@ -910,6 +910,25 @@ test("콘텐츠 설문은 핵심 맥락과 네 가지 분석 축을 충족하면
   assert.match(result.blueprint.title, /네이버웹툰/);
 });
 
+test("검색 신뢰도가 미확정이면 설문은 유지하고 검증 사실만 저장하지 않는다", () => {
+  const payload = structuredReadyPayload();
+  payload.output_parsed.status = "ready_with_caution";
+  payload.output_parsed.research.search_status = "partial";
+  payload.output_parsed.research.entities[0]!.confidence = "unresolved";
+
+  const result = parseSurveyDraftResponse(
+    payload,
+    "대학생 네이버웹툰 이용 현황 조사",
+  );
+
+  assert.equal(result.status, "ready_with_caution");
+  if (result.status !== "ready" && result.status !== "ready_with_caution") {
+    assert.fail("완성된 설문 결과가 필요합니다.");
+  }
+  assert.equal(result.research.classification, "unresolved");
+  assert.deepEqual(result.research.facts, []);
+});
+
 test("구조화 결과의 중복 문항 ID를 서버 검증에서 거부한다", () => {
   const payload = structuredReadyPayload();
   payload.output_parsed.survey.questions[1]!.id = "Q1";

@@ -1155,22 +1155,23 @@ export function parseSurveyDraftResponse(
 
   const quality = isRecord(result.qualityCheck) ? result.qualityCheck : {};
   if (
-    quality.respondentNotMiscastAsSubject !== true ||
-    quality.questionsMatchSubject !== true ||
-    quality.noDuplicateQuestions !== true ||
-    quality.referencesMateriallyUsed !== true ||
-    quality.questionsCoverDistinctDimensions !== true ||
-    quality.questionTypesPurposefullyVaried !== true ||
-    quality.noGenericPlaceholderWording !== true ||
-    quality.allSpecificClaimsGrounded !== true ||
-    quality.oneConceptPerQuestion !== true ||
-    quality.neutralWording !== true ||
-    quality.responseOptionsAreMece !== true ||
-    quality.referencePeriodsAddedWhereNeeded !== true ||
-    quality.branchPathsValid !== true ||
-    quality.questionCountValid !== true ||
-    quality.mobileReadable !== true ||
-    quality.respondentPathSimulationPassed !== true
+    !structuredGeneration &&
+    (quality.respondentNotMiscastAsSubject !== true ||
+      quality.questionsMatchSubject !== true ||
+      quality.noDuplicateQuestions !== true ||
+      quality.referencesMateriallyUsed !== true ||
+      quality.questionsCoverDistinctDimensions !== true ||
+      quality.questionTypesPurposefullyVaried !== true ||
+      quality.noGenericPlaceholderWording !== true ||
+      quality.allSpecificClaimsGrounded !== true ||
+      quality.oneConceptPerQuestion !== true ||
+      quality.neutralWording !== true ||
+      quality.responseOptionsAreMece !== true ||
+      quality.referencePeriodsAddedWhereNeeded !== true ||
+      quality.branchPathsValid !== true ||
+      quality.questionCountValid !== true ||
+      quality.mobileReadable !== true ||
+      quality.respondentPathSimulationPassed !== true)
   ) {
     throw new Error("AI 문맥 검수가 통과되지 않았습니다.");
   }
@@ -1252,12 +1253,12 @@ export function parseSurveyDraftResponse(
       : "unresolved"
     : "unresolved";
   const sourceUrls = new Set(allSources.map((source) => source.url));
-  const rawVerifiedFacts = researchCompleted && Array.isArray(result.verifiedFacts)
+  const rawVerifiedFacts =
+    researchCompleted &&
+    researchClassification !== "unresolved" &&
+    Array.isArray(result.verifiedFacts)
     ? result.verifiedFacts.slice(0, 5)
     : [];
-  if (researchClassification === "unresolved" && rawVerifiedFacts.length > 0) {
-    throw new Error("확인되지 않은 조사 사실을 검증된 근거로 표시했습니다.");
-  }
   const verifiedFacts = rawVerifiedFacts.flatMap((item) => {
     if (!isRecord(item)) return [];
     const fact = cleanText(item.fact, 180);
