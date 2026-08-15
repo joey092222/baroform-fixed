@@ -432,7 +432,11 @@ function structuredGenerationToLegacy(
         kind: fallback.kind,
         intentLabel: generation.survey_plan.survey_type,
         respondentGroup: generation.survey_plan.target,
-        evaluationTarget: fallback.evaluationTarget ?? fallback.subject,
+        evaluationTarget:
+          firstEntity?.resolved_name ??
+          firstEntity?.input_name ??
+          fallback.evaluationTarget ??
+          fallback.subject,
         goal: generation.survey_plan.primary_objective,
         recognizedEntity:
           firstEntity?.resolved_name ?? firstEntity?.input_name ?? fallback.subject,
@@ -1499,7 +1503,7 @@ export function buildSurveyAiRequest(
     tool_choice: "required" as const,
     include: ["web_search_call.action.sources" as const],
     store: false,
-    max_output_tokens: 10_000,
+    max_output_tokens: 30_000,
     instructions: surveyAiInstructions,
     input,
     text: {

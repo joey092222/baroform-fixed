@@ -35,7 +35,7 @@ import OpenAI from "openai";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 type CacheEntry = {
   expiresAt: number;
@@ -101,6 +101,15 @@ function fallbackResponse(result: SurveyDraftResult, reason: string) {
 
 function invalidResultReason(error: unknown) {
   if (!(error instanceof Error)) return "invalid-result";
+  if (error instanceof OpenAI.APIError) {
+    return `responses-api-${error.status ?? "error"}`;
+  }
+  if (error.name === "ZodError") return "structured-output-validation";
+  if (error.name === "AbortError") return "timeout";
+  if (/incomplete|끝까지 완료|출력 한도|max_output_tokens/i.test(error.message)) {
+    return "incomplete-response";
+  }
+  if (/refusal|처리하지 않았/.test(error.message)) return "refusal";
   if (/필수 정보조사|정보조사가 끝까지/.test(error.message)) {
     return "research-incomplete";
   }
@@ -639,7 +648,7 @@ export async function POST(request: Request) {
   }
 
   const controller = new AbortController();
-  const timeoutMs = hasReferences ? 55_000 : 52_000;
+  const timeoutMs = hasReferences ? 115_000 : 110_000;
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const openai = new OpenAI({
     apiKey,

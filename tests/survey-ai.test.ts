@@ -276,7 +276,7 @@ test("설문 생성 API는 단순 비율 요청도 검색을 시도하고 실패
     assert.equal(allGradesResponse.status, 200);
     assert.equal(
       allGradesResponse.headers.get("x-baroform-ai-fallback"),
-      "invalid-result",
+      "responses-api-error",
     );
     assert.equal(allGrades.status, "ready_with_caution");
     assert.equal(allGrades.blueprint.respondentGroup, "대학생");
@@ -347,7 +347,7 @@ test("설문 생성 API는 카공 빈도도 검색을 시도하고 실패 시 �
     assert.equal(response.status, 200);
     assert.equal(
       response.headers.get("x-baroform-ai-fallback"),
-      "invalid-result",
+      "responses-api-error",
     );
     assert.equal(body.status, "ready_with_caution");
     assert.equal(body.clarification, undefined);
@@ -411,7 +411,7 @@ test("설문 생성 API는 수면 시간도 검색을 시도하고 실패 시 �
     assert.equal(response.status, 200);
     assert.equal(
       response.headers.get("x-baroform-ai-fallback"),
-      "invalid-result",
+      "responses-api-error",
     );
     assert.equal(body.status, "ready_with_caution");
     assert.equal(body.clarification, undefined);
@@ -471,7 +471,7 @@ test("설문 생성 API는 SNS 이용 시간도 검색을 시도하고 실패 �
     assert.equal(response.status, 200);
     assert.equal(
       response.headers.get("x-baroform-ai-fallback"),
-      "invalid-result",
+      "responses-api-error",
     );
     assert.equal(body.status, "ready_with_caution");
     assert.equal(body.clarification, undefined);
@@ -921,6 +921,7 @@ for (const surveyCase of [
     assert.match(input, new RegExp(`\\[희망 문항 수\\]\\n${surveyCase.count}`));
     assert.equal(request.tool_choice, "required");
     assert.equal(request.reasoning.effort, "high");
+    assert.equal(request.max_output_tokens, 30_000);
     assert.equal(questionSchema.minItems, surveyCase.count);
     assert.equal(questionSchema.maxItems, surveyCase.count);
   });
