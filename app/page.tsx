@@ -15,9 +15,7 @@ import {
   Clock3,
   Coins,
   Copy,
-  Download,
   Eye,
-  FileSpreadsheet,
   FileText,
   GripVertical,
   ImagePlus,
@@ -74,6 +72,7 @@ import {
   JsonResponseError,
   readJsonResponse,
 } from "./lib/http/json-response";
+import { ResultsDashboard } from "./results-dashboard";
 import {
   deduplicateSurveyOptions,
   shortenSurveyQuestionTitle,
@@ -5619,30 +5618,7 @@ function RealAnalyticsView({
     };
   }, [slug, manageToken]);
 
-  const reviewResponses = responses.filter((response) => response.quality?.status === "review");
-  const excludedResponses = responses.filter((response) => response.quality?.status === "exclude");
   const analysisResponses = responses.filter((response) => response.quality?.status !== "exclude");
-  const qualityReasons = [...new Set(
-    [...reviewResponses, ...excludedResponses].flatMap((response) => response.quality?.reasons ?? []),
-  )].slice(0, 4);
-
-  const averageSeconds =
-    analysisResponses.length > 0
-      ? Math.round(
-          analysisResponses.reduce(
-            (total, response) => total + response.completionSeconds,
-            0,
-          ) / analysisResponses.length,
-        )
-      : 0;
-  const lastResponse = responses[0]?.createdAt
-    ? new Date(responses[0].createdAt).toLocaleString("ko-KR", {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "아직 없음";
 
   const questionSummaries = questions
     .filter((question) => question.type !== "section")
@@ -5818,320 +5794,39 @@ function RealAnalyticsView({
   };
 
   return (
-    <main className="analytics-page">
-      <div className="analytics-topbar">
-        <button type="button" className="brand" onClick={onHome}>
-          <BrandMark />
-          <strong>바로폼</strong>
-        </button>
-        <div className="analytics-survey-select">
-          <span>{title || "분석할 설문을 선택해주세요"}</span>
-        </div>
-        <button
-          type="button"
-          className="share-results"
-          disabled={analysisResponses.length === 0}
-          onClick={() => {
-            setShareStatus("");
-            setShareOpen(true);
-          }}
-        >
-          <Share2 size={15} />
-          결과 공유
-        </button>
-      </div>
-      <div className="analytics-shell">
-        <div className="analytics-heading">
-          <div>
-            <span className="eyebrow">LIVE RESULTS</span>
-            <h1>{title ? `${title} 결과` : "아직 분석할 설문이 없어요."}</h1>
-            <p>
-              {title
-                ? "실제로 제출된 응답만 집계해 보여드려요."
-                : "설문을 만들고 배포하면 실제 응답 결과가 이곳에 나타나요."}
-            </p>
-          </div>
-          {title && (
-            <div className="analytics-heading-tools">
-              <span className="live-state">
-                <i />
-                실제 저장 데이터
-              </span>
-              {!loading && !error && (
-                <div className="result-export-actions" aria-label="결과 내보내기">
-                  <button
-                    type="button"
-                    disabled={responses.length === 0 || exporting !== null}
-                    onClick={() => void exportResults("excel")}
-                  >
-                    <FileSpreadsheet size={15} />
-                    {exporting === "excel" ? "Excel 준비 중…" : "Excel"}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={responses.length === 0 || exporting !== null}
-                    onClick={() => void exportResults("word")}
-                  >
-                    <FileText size={15} />
-                    {exporting === "word" ? "Word 준비 중…" : "Word"}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={responses.length === 0 || exporting !== null}
-                    onClick={() => void exportResults("csv")}
-                  >
-                    <Download size={15} />
-                    CSV
-                  </button>
-                </div>
-              )}
-              {exportError && (
-                <span className="result-export-error" role="alert">
-                  {exportError}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-
-        {!slug || !manageToken ? (
-          <div className="analytics-empty">
-            <span>
-              <BarChart3 size={28} />
-            </span>
-            <strong>관리 중인 설문이 없어요.</strong>
-            <p>먼저 설문을 만든 뒤 공개 링크를 생성해주세요.</p>
-            <button type="button" onClick={onHome}>
-              설문 만들러 가기
-              <ArrowRight size={15} />
-            </button>
-          </div>
-        ) : loading ? (
-          <div className="analytics-empty">
-            <span className="loading-symbol">
-              <BarChart3 size={28} />
-            </span>
-            <strong>실제 응답을 불러오고 있어요.</strong>
-          </div>
-        ) : error ? (
-          <div className="analytics-empty">
-            <span>
-              <CircleHelp size={28} />
-            </span>
-            <strong>결과를 불러오지 못했어요.</strong>
-            <p>{error}</p>
-          </div>
-        ) : (
-          <>
-            <div className="metric-grid real-metrics">
-              <div className="metric-card dark">
-                <span>저장된 전체 응답</span>
-                <strong>{responses.length}</strong>
-                <p>실제 제출 완료 기준</p>
-              </div>
-              <div className="metric-card">
-                <span>평균 응답 시간</span>
-                <strong className="time-metric">
-                  {averageSeconds > 0 ? `${averageSeconds}초` : "—"}
-                </strong>
-                <p>제출까지 걸린 시간</p>
-              </div>
-              <div className="metric-card">
-                <span>마지막 응답</span>
-                <strong className="time-metric">{lastResponse}</strong>
-                <p>실시간 저장 기준</p>
-              </div>
-            </div>
-
-            <section className="response-quality-panel" aria-labelledby="response-quality-title">
-              <div className="response-quality-copy">
-                <span><CheckCircle2 size={17} /> RESPONSE QUALITY</span>
-                <h2 id="response-quality-title">분석 전에 응답 품질부터 확인했어요.</h2>
-                <p>응답 속도, 같은 선택 반복, 주관식 반복·복사, 동일 기기 패턴을 자동 점검합니다. 원본은 삭제하지 않고 제외를 권장해요.</p>
-                {qualityReasons.length > 0 && <div>{qualityReasons.map((reason) => <em key={reason}>{reason}</em>)}</div>}
-              </div>
-              <div className="response-quality-stats">
-                <span><small>전체 응답</small><strong>{responses.length}</strong></span>
-                <span className="quality-usable"><small>분석 가능</small><strong>{analysisResponses.length}</strong></span>
-                <span className="quality-review"><small>검토 필요</small><strong>{reviewResponses.length}</strong></span>
-                <span className="quality-exclude"><small>제외 권장</small><strong>{excludedResponses.length}</strong></span>
-              </div>
-            </section>
-
-            {analysisResponses.length > 0 && (
-              <section className="result-share-feature">
-                <div className="result-share-feature-preview" aria-hidden="true">
-                  <span>BAROFORM RESULTS</span>
-                  <strong>{title || "우리 학교 설문 결과"}</strong>
-                  <div>
-                    <small>분석 가능 응답</small>
-                    <b>{analysisResponses.length.toLocaleString("ko-KR")}개</b>
-                  </div>
-                  <p>{shareQuestion}</p>
-                  <em>{shareResult}</em>
-                </div>
-                <div className="result-share-feature-copy">
-                  <span><InstagramGlyph size={17} /> INSTAGRAM 4:5</span>
-                  <h2>결과를 카드로 바로 공유하세요.</h2>
-                  <p>
-                    인스타그램 피드에 맞는 1080×1350 이미지와 캡션을
-                    자동으로 만들어요. 개별 응답 내용은 포함하지 않아요.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShareStatus("");
-                      setShareOpen(true);
-                    }}
-                  >
-                    <InstagramGlyph size={18} />
-                    인스타그램 공유 카드 만들기
-                    <ArrowRight size={17} />
-                  </button>
-                </div>
-              </section>
-            )}
-
-            {responses.length === 0 ? (
-              <div className="analytics-empty response-empty">
-                <span>
-                  <UsersRound size={28} />
-                </span>
-                <strong>아직 도착한 응답이 없어요.</strong>
-                <p>
-                  공개 링크를 공유하면 첫 응답부터 이 화면에 바로 집계돼요.
-                </p>
-              </div>
-            ) : (
-              <div className="real-results-grid">
-                <section className="question-results-live">
-                  <div className="card-title">
-                    <span>문항별 실제 결과</span>
-                    <h2>품질 확인을 통과한 {analysisResponses.length}개 응답을 반영했어요</h2>
-                  </div>
-                  <div className="live-summary-list">
-                    {questionSummaries.map((summary, index) => (
-                      <article key={summary.question.id}>
-                        <span>{String(index + 1).padStart(2, "0")}</span>
-                        <div>
-                          <strong>{summary.question.title}</strong>
-                          <i>
-                            <b
-                              style={{
-                                width: `${Math.min(100, summary.percentage)}%`,
-                              }}
-                            />
-                          </i>
-                        </div>
-                        <em>{summary.label}</em>
-                      </article>
-                    ))}
-                  </div>
-                </section>
-                <section className="recent-responses-live">
-                  <div className="card-title">
-                    <span>최근 응답</span>
-                    <h2>개별 제출 기록</h2>
-                  </div>
-                  <div>
-                    {responses.slice(0, 8).map((response, index) => (
-                      <article key={response.id}>
-                        <span>#{String(responses.length - index).padStart(3, "0")}</span>
-                        <strong>
-                          {new Date(response.createdAt).toLocaleString("ko-KR", {
-                            month: "numeric",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </strong>
-                        <small>{response.completionSeconds || 0}초</small>
-                        <em className={`quality-status ${response.quality?.status ?? "usable"}`}>
-                          {response.quality?.status === "exclude" ? "제외 권장" : response.quality?.status === "review" ? "검토" : "정상"}
-                        </em>
-                      </article>
-                    ))}
-                  </div>
-                </section>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-      {shareOpen && (
-        <div
-          className="modal-backdrop result-share-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="result-share-title"
-        >
-          <div className="result-share-modal">
-            <button
-              type="button"
-              className="result-share-close"
-              aria-label="결과 공유 닫기"
-              onClick={() => setShareOpen(false)}
-            >
-              <X size={20} />
-            </button>
-            <div className="result-share-preview">
-              <div className="result-share-preview-brand">
-                <span><BrandMark compact /> BAROFORM</span>
-                <em>RESULT CARD</em>
-              </div>
-              <h2>{title || "우리 학교 설문 결과"}</h2>
-              <span>품질 확인된 분석 가능 응답</span>
-              <strong>{analysisResponses.length.toLocaleString("ko-KR")}개</strong>
-              <div className="result-share-preview-insight">
-                <small>가장 눈에 띄는 결과</small>
-                <p>{shareQuestion}</p>
-                <b>{shareResult}</b>
-              </div>
-              <footer>
-                <span>분석 가능 응답 {analysisResponses.length.toLocaleString("ko-KR")}개 기준</span>
-                <strong>baroform-fixed.vercel.app{sharePath}</strong>
-                <small>
-                  전체 학생을 대표하지 않을 수 있으며 개별 응답 내용은
-                  포함하지 않았어요.
-                </small>
-              </footer>
-            </div>
-            <div className="result-share-controls">
-              <span className="eyebrow">SHARE RESULTS</span>
-              <h2 id="result-share-title">인스타그램용 카드가 준비됐어요.</h2>
-              <p>
-                모바일에서는 공유 앱 목록에서 Instagram을 선택하면 바로
-                이어집니다. 지원하지 않는 기기에서는 이미지와 캡션을
-                자동으로 저장해요.
-              </p>
-              <button
-                type="button"
-                className="instagram-share-button"
-                disabled={sharing}
-                onClick={() => void shareResultToInstagram()}
-              >
-                <InstagramGlyph size={19} />
-                {sharing ? "카드 만드는 중…" : "인스타그램에 공유"}
-              </button>
-              <button
-                type="button"
-                className="result-card-download"
-                disabled={sharing}
-                onClick={() => void downloadInstagramCard()}
-              >
-                <Download size={17} />
-                이미지 저장 + 캡션 복사
-              </button>
-              {shareStatus && (
-                <span className="result-share-status" role="status">
-                  {shareStatus}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </main>
+    <ResultsDashboard
+      title={title}
+      slug={slug}
+      responses={responses}
+      questions={questions}
+      state={
+        !slug || !manageToken
+          ? "missing"
+          : loading
+            ? "loading"
+            : error
+              ? "error"
+              : "ready"
+      }
+      error={error}
+      exporting={exporting}
+      exportError={exportError}
+      shareOpen={shareOpen}
+      sharing={sharing}
+      shareStatus={shareStatus}
+      shareQuestion={shareQuestion}
+      shareResult={shareResult}
+      sharePath={sharePath}
+      onHome={onHome}
+      onExport={(format) => void exportResults(format)}
+      onOpenShare={() => {
+        setShareStatus("");
+        setShareOpen(true);
+      }}
+      onCloseShare={() => setShareOpen(false)}
+      onShareToInstagram={() => void shareResultToInstagram()}
+      onDownloadShare={() => void downloadInstagramCard()}
+    />
   );
 }
 

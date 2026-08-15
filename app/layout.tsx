@@ -4,6 +4,7 @@ import "./design-tokens.css";
 import "./editorial-pages.css";
 import "./studio.css";
 import "./secondary-pages.css";
+import "./results-dashboard.css";
 
 export const metadata: Metadata = {
   title: "바로폼 | 우리 학교 설문 플랫폼",
