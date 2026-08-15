@@ -43,7 +43,7 @@ import { z } from "zod";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 90;
+export const maxDuration = 60;
 
 type CacheEntry = {
   expiresAt: number;
@@ -410,8 +410,8 @@ function surveyGenerationTimeoutMs() {
     10,
   );
   return Number.isFinite(configured)
-    ? Math.min(75_000, Math.max(250, configured))
-    : 75_000;
+    ? Math.min(45_000, Math.max(250, configured))
+    : 45_000;
 }
 
 type SurveyReferences = {
