@@ -4441,8 +4441,10 @@ function SurveyView({
             목적에 맞게 결과에 반영됩니다.
           </p>
           <div className="reward-result completion-info">
-            {rewardResult && rewardResult.amount > 0 ? <Coins size={21} /> : <CheckCircle2 size={20} />}
-            <span>
+            <span className="completion-info-icon" aria-hidden="true">
+              {rewardResult && rewardResult.amount > 0 ? <Coins size={20} /> : <CheckCircle2 size={19} />}
+            </span>
+            <span className="completion-info-copy">
               <small>{rewardResult && rewardResult.amount > 0 ? "캐시 적립 완료" : "제출 상태"}</small>
               <strong>
                 {rewardResult && rewardResult.amount > 0
@@ -4453,16 +4455,18 @@ function SurveyView({
               </strong>
             </span>
           </div>
-          {rewardResult?.requiresLogin && (
-            <button type="button" className="submission-login" onClick={onAuth}>
-              다음 설문부터 로그인하고 캐시 받기
-              <Coins size={16} />
+          <div className="submission-actions">
+            {rewardResult?.requiresLogin && (
+              <button type="button" className="submission-login" onClick={onAuth}>
+                다음 설문부터 로그인하고 캐시 받기
+                <Coins size={16} />
+              </button>
+            )}
+            <button type="button" className="submission-browse" onClick={onBack}>
+              <span>다른 학교 설문 보기</span>
+              <ArrowRight size={17} />
             </button>
-          )}
-          <button type="button" onClick={onBack}>
-            다른 학교 설문 보기
-            <ArrowRight size={16} />
-          </button>
+          </div>
         </div>
       </main>
     );

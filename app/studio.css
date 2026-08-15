@@ -1990,7 +1990,6 @@
   text-align: left;
 }
 
-.submission-login,
 .reward-result,
 .completion-info {
   display: flex;
@@ -1998,16 +1997,99 @@
   gap: 14px;
 }
 
-.submission-login button,
+.completion-info {
+  min-height: 86px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: var(--bf-surface);
+}
+
+.completion-info-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--bf-navy-soft);
+  color: var(--bf-navy);
+}
+
+.completion-info-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.completion-info-copy small {
+  color: var(--bf-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.completion-info-copy strong {
+  color: var(--bf-navy-strong);
+  font-size: 16px;
+  font-weight: 720;
+  letter-spacing: -.02em;
+}
+
+.submission-actions {
+  width: 100%;
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.submission-login,
+.submission-browse,
 .reward-login-button {
-  margin-left: auto;
-  min-height: 42px;
-  padding: 0 16px;
+  min-height: 48px;
+  padding: 0 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
   border-radius: 999px;
+  font-size: 13px;
+  font-weight: 750;
+  transition:
+    border-color .18s var(--bf-ease),
+    background .18s var(--bf-ease),
+    color .18s var(--bf-ease),
+    transform .18s var(--bf-ease);
+}
+
+.submission-login {
+  margin-top: 0;
+  border: 1px solid var(--bf-border);
+  background: transparent;
+  color: var(--bf-navy);
+}
+
+.submission-browse,
+.reward-login-button {
+  border: 1px solid var(--bf-navy);
   background: var(--bf-navy);
   color: #fff;
-  font-size: 12px;
-  font-weight: 750;
+}
+
+.submission-login:hover,
+.submission-browse:hover,
+.reward-login-button:hover {
+  transform: translateY(-1px);
+}
+
+.submission-login:hover {
+  border-color: var(--bf-navy);
+  background: var(--bf-navy-soft);
+}
+
+.submission-browse:hover,
+.reward-login-button:hover {
+  background: var(--bf-navy-strong);
 }
 
 /* Analytics */
@@ -2383,6 +2465,29 @@
   .submission-card,
   .analytics-shell {
     width: calc(100% - 32px);
+  }
+
+  .submission-card {
+    padding-top: 64px;
+    padding-bottom: 72px;
+  }
+
+  .completion-info {
+    padding: 16px;
+  }
+
+  .completion-info-copy strong {
+    font-size: 15px;
+  }
+
+  .submission-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .submission-login,
+  .submission-browse {
+    width: 100%;
   }
 
   .create-copy {
