@@ -29,6 +29,9 @@ import {
 } from "../../reference-files";
 import { verifyReferenceFileToken } from "../../reference-file-upload";
 import { consumePersistentAiRateLimit } from "@/db";
+import { getSessionUser } from "@/db/auth";
+import { schoolLabel } from "@/app/survey-board";
+import OpenAI from "openai";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,6 +43,11 @@ type CacheEntry = {
   mode: "model" | "verified-fallback";
   reason?: string;
 };
+
+type ReadySurveyDraftResult = Extract<
+  SurveyDraftResult,
+  { blueprint: SurveyBlueprint }
+>;
 
 type RateEntry = {
   count: number;
@@ -71,7 +79,7 @@ function apiError(message: string, code: string, status: number) {
 }
 
 function fallbackResponse(result: SurveyDraftResult, reason: string) {
-  if (result.status === "ready") {
+  if (result.status !== "needs_clarification") {
     const brief = parseSurveyBrief(result.prompt);
     const issues = validateSurvey(result.prompt, brief, result.blueprint);
     if (issues.length > 0) {
@@ -180,7 +188,7 @@ function verifiedResearchFallback(
     })),
   };
   return {
-    status: "ready",
+    status: "ready_with_caution",
     prompt,
     blueprint,
     research,
@@ -191,14 +199,14 @@ function fastDraftFallback(
   prompt: string,
   targetGrade: TargetGrade,
   questionCount: number,
-): SurveyDraftResult {
+): ReadySurveyDraftResult {
   const blueprint = applyDraftSettings(
     analyzeSurveyPrompt(prompt),
     targetGrade,
     questionCount,
   );
   return {
-    status: "ready",
+    status: "ready_with_caution",
     prompt,
     blueprint,
     research: {
@@ -614,200 +622,106 @@ export async function POST(request: Request) {
     return fallbackResponse(resilientFallback, "api-key-missing");
   }
 
-  const model = process.env.OPENAI_SURVEY_MODEL?.trim() || "gpt-5.6-terra";
+  const model = process.env.OPENAI_SURVEY_MODEL?.trim() || "gpt-5.6";
   const fallback = applyDraftSettings(
     analyzeSurveyPrompt(prompt),
     targetGrade,
     questionCount,
   );
+  let organizationLocationContext: string | null = null;
+  try {
+    const sessionUser = await getSessionUser(request);
+    if (sessionUser) {
+      organizationLocationContext = `로그인 프로필 학교: ${schoolLabel(sessionUser.schoolId)}`;
+    }
+  } catch {
+    // 로그인 저장소가 연결되지 않아도 사용자 원문만으로 설문을 생성한다.
+  }
+
   const controller = new AbortController();
-  const timeout = setTimeout(
-    () => controller.abort(),
-    hasReferences ? 55_000 : 52_000,
-  );
+  const timeoutMs = hasReferences ? 55_000 : 52_000;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const openai = new OpenAI({
+    apiKey,
+    maxRetries: 0,
+    timeout: timeoutMs,
+  });
 
   try {
-    const requestModel = (validationFeedback: string[] = []) =>
-      fetch("https://api.openai.com/v1/responses", {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${apiKey}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify(
-          buildSurveyAiRequest(prompt, fallback, model, {
-            targetGrade,
-            questionCount,
-            references,
-            validationFeedback,
-          }),
-        ),
-        signal: controller.signal,
-      });
-
-    const upstream = await requestModel();
-
-    if (!upstream.ok) {
-      const verifiedFallback = verifiedResearchFallback(
-        prompt,
+    const rawResult = await openai.responses.parse(
+      buildSurveyAiRequest(prompt, fallback, model, {
         targetGrade,
         questionCount,
-      );
-      if (verifiedFallback) {
-        cacheResult(
-          cacheKey,
-          now,
-          verifiedFallback,
-          "verified-fallback",
-          `upstream-${upstream.status}`,
-        );
-        return fallbackResponse(
-          verifiedFallback,
-          `upstream-${upstream.status}`,
-        );
-      }
-      if (upstream.status === 429) {
-        const resilientFallback = resilientDraftFallback(
-          prompt,
-          targetGrade,
-          questionCount,
-        );
-        cacheResult(
-          cacheKey,
-          now,
-          resilientFallback,
-          "verified-fallback",
-          "upstream-429",
-        );
-        return fallbackResponse(resilientFallback, "upstream-429");
-      }
-      const resilientFallback = resilientDraftFallback(
-        prompt,
-        targetGrade,
-        questionCount,
-      );
-      cacheResult(
-        cacheKey,
-        now,
-        resilientFallback,
-        "verified-fallback",
-        `upstream-${upstream.status}`,
-      );
-      return fallbackResponse(
-        resilientFallback,
-        `upstream-${upstream.status}`,
-      );
-    }
+        references,
+        organizationLocationContext,
+      }),
+      { signal: controller.signal },
+    );
+    let result = parseSurveyDraftResponse(
+      rawResult as unknown,
+      prompt,
+      questionCount,
+      targetGrade,
+      hasReferences,
+    );
 
-    const rawResult = (await upstream.json()) as unknown;
-    let result: SurveyDraftResult;
-    let generationAttempt = "initial";
-    try {
-      result = parseSurveyDraftResponse(
-        rawResult,
-        prompt,
-        questionCount,
-        targetGrade,
-        hasReferences,
-      );
-    } catch (firstError) {
-      const validationFeedback = firstError instanceof SurveyValidationError
-        ? firstError.issues
-        : [firstError instanceof Error ? firstError.message : "AI 설문 결과 검증 실패"];
-      let retryUpstream: Response;
-      try {
-        retryUpstream = await requestModel(validationFeedback);
-      } catch (retryRequestError) {
-        const resilientFallback = resilientDraftFallback(
-          prompt,
-          targetGrade,
-          questionCount,
-        );
-        const fallbackReason =
-          retryRequestError instanceof Error &&
-          retryRequestError.name === "AbortError"
-            ? "regeneration-timeout"
-            : "regeneration-unavailable";
-        cacheResult(
-          cacheKey,
-          now,
-          resilientFallback,
-          "verified-fallback",
-          fallbackReason,
-        );
-        return fallbackResponse(resilientFallback, fallbackReason);
-      }
-      if (!retryUpstream.ok) {
-        const resilientFallback = resilientDraftFallback(
-          prompt,
-          targetGrade,
-          questionCount,
-        );
-        const fallbackReason = `regeneration-upstream-${retryUpstream.status}`;
-        cacheResult(
-          cacheKey,
-          now,
-          resilientFallback,
-          "verified-fallback",
-          fallbackReason,
-        );
-        return fallbackResponse(resilientFallback, fallbackReason);
-      }
-      const retryRawResult = (await retryUpstream.json()) as unknown;
-      try {
-        result = parseSurveyDraftResponse(
-          retryRawResult,
-          prompt,
-          questionCount,
-          targetGrade,
-          hasReferences,
-        );
-        generationAttempt = "regenerated";
-      } catch (retryError) {
-        const resilientFallback = resilientDraftFallback(
-          prompt,
-          targetGrade,
-          questionCount,
-        );
-        const fallbackReason = invalidResultReason(retryError);
-        cacheResult(
-          cacheKey,
-          now,
-          resilientFallback,
-          "verified-fallback",
-          fallbackReason,
-        );
-        return fallbackResponse(resilientFallback, fallbackReason);
-      }
-    }
     if (
-      result.status === "ready" &&
+      result.status !== "needs_clarification" &&
       (isDirectProportion ||
         isDirectFrequency ||
         isDirectSleepDuration ||
         isDirectDuration)
     ) {
+      const deterministic = fastDraftFallback(
+        prompt,
+        targetGrade,
+        questionCount,
+      );
       result = {
-        ...fastDraftFallback(prompt, targetGrade, questionCount),
+        ...deterministic,
+        status: result.status,
         research: result.research,
+        surveyPlan: result.surveyPlan,
+        qualityCheck: result.qualityCheck,
+        completionMessage: result.completionMessage,
       };
     }
+
     cacheResult(cacheKey, now, result, "model");
     return Response.json(result, {
       headers: {
         ...noStoreHeaders,
         "x-baroform-ai-mode": "model",
-        "x-baroform-ai-attempt": generationAttempt,
+        "x-baroform-ai-attempt": "single-response",
       },
     });
   } catch (error) {
+    if (error instanceof SurveyValidationError) {
+      return apiError(
+        `생성된 설문 구조를 안전하게 적용하지 못했어요. ${error.issues.join(" ")}`,
+        "SURVEY_VALIDATION_FAILED",
+        422,
+      );
+    }
+
+    const requestId =
+      error instanceof OpenAI.APIError ? error.requestID : undefined;
+    console.error("survey-generation-failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
+      status: error instanceof OpenAI.APIError ? error.status : undefined,
+      requestId,
+    });
+
     const verifiedFallback = verifiedResearchFallback(
       prompt,
       targetGrade,
       questionCount,
     );
     if (verifiedFallback) {
-      const fallbackReason = invalidResultReason(error);
+      const fallbackReason =
+        error instanceof Error && error.name === "AbortError"
+          ? "timeout"
+          : "responses-api-unavailable";
       cacheResult(
         cacheKey,
         now,
@@ -817,27 +731,16 @@ export async function POST(request: Request) {
       );
       return fallbackResponse(verifiedFallback, fallbackReason);
     }
-    if (error instanceof Error && error.name === "AbortError") {
-      const quickFallback = fastDraftFallback(
-        prompt,
-        targetGrade,
-        questionCount,
-      );
-      cacheResult(
-        cacheKey,
-        now,
-        quickFallback,
-        "verified-fallback",
-        "timeout",
-      );
-      return fallbackResponse(quickFallback, "timeout");
-    }
+
     const resilientFallback = resilientDraftFallback(
       prompt,
       targetGrade,
       questionCount,
     );
-    const fallbackReason = invalidResultReason(error);
+    const fallbackReason =
+      error instanceof Error && error.name === "AbortError"
+        ? "timeout"
+        : invalidResultReason(error);
     cacheResult(
       cacheKey,
       now,

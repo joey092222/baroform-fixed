@@ -268,32 +268,6 @@ function referenceFilesTotalBytes(references: SurveyReferences) {
   return references.files.reduce((total, file) => total + file.size, 0);
 }
 
-function estimateGenerationSeconds(
-  references: SurveyReferences,
-  questionCount: number,
-) {
-  const imageSeconds =
-    Math.min(references.images.length, 5) * 2 +
-    Math.max(0, references.images.length - 5);
-  const fileSeconds = references.files.length * 4;
-  const linkSeconds = references.links.length * 5;
-  const extraQuestionSeconds = Math.max(0, questionCount - 7);
-
-  return Math.min(
-    75,
-    20 + imageSeconds + fileSeconds + linkSeconds + extraQuestionSeconds,
-  );
-}
-
-function formatRemainingTime(seconds: number) {
-  if (seconds >= 60) {
-    const minutes = Math.floor(seconds / 60);
-    const rest = seconds % 60;
-    return rest > 0 ? `약 ${minutes}분 ${rest}초` : `약 ${minutes}분`;
-  }
-  return `약 ${seconds}초`;
-}
-
 function readFileAsDataUrl(file: Blob) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -6124,14 +6098,7 @@ function Footer() {
   );
 }
 
-function GenerationOverlay({
-  references,
-  questionCount,
-}: {
-  references: SurveyReferences;
-  questionCount: number;
-}) {
-  const estimatedSeconds = estimateGenerationSeconds(references, questionCount);
+function GenerationOverlay() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   useEffect(() => {
@@ -6141,21 +6108,16 @@ function GenerationOverlay({
     }, 1000);
 
     return () => window.clearInterval(timer);
-  }, [estimatedSeconds]);
+  }, []);
 
-  const remainingSeconds = Math.max(0, estimatedSeconds - elapsedSeconds);
-  const progressRatio = elapsedSeconds / estimatedSeconds;
-  const progress =
-    remainingSeconds > 0
-      ? Math.min(90, Math.round(12 + progressRatio * 78))
-      : Math.min(96, 90 + Math.floor((elapsedSeconds - estimatedSeconds) / 3));
-  const phase = progressRatio < 0.28 ? 0 : progressRatio < 0.68 ? 1 : 2;
+  const phase = Math.min(4, Math.floor(elapsedSeconds / 4));
   const phaseTitles = [
-    "입력한 내용을 정리하고 있어요",
-    "핵심 기준을 찾고 있어요",
-    "질문을 자연스럽게 다듬고 있어요",
+    "입력 내용을 분석하고 있어요",
+    "관련 정보를 확인하고 있어요",
+    "설문 구조를 설계하고 있어요",
+    "문항과 선택지를 검토하고 있어요",
+    "최종 설문을 완성하고 있어요",
   ];
-  const generationSteps = ["요청 분석", "자료 검토", "문항 구성"];
 
   return (
     <div className="generation-overlay" role="status" aria-live="polite">
@@ -6165,22 +6127,11 @@ function GenerationOverlay({
         </span>
         <strong>{phaseTitles[phase]}</strong>
         <p>
-          응답 대상과 조사 목적을 구분하고, 필요한 참고자료를 반영해 설문을
-          설계해요.
+          공개 자료와 입력한 내용을 함께 확인해 바로 편집할 수 있는 설문을
+          만들고 있어요.
         </p>
-        <div className="generation-time">
-          <span>
-            <Clock3 size={14} />
-            예상 남은 시간
-          </span>
-          <output>
-            {remainingSeconds > 0
-              ? formatRemainingTime(remainingSeconds)
-              : "마무리 중"}
-          </output>
-        </div>
         <div className="research-loading-steps" aria-label="설문 생성 단계">
-          {generationSteps.map((label, index) => {
+          {phaseTitles.map((label, index) => {
             const state = index < phase ? "completed" : index === phase ? "active" : "pending";
             return (
               <span className={state} key={label} aria-current={state === "active" ? "step" : undefined}>
@@ -6190,16 +6141,6 @@ function GenerationOverlay({
               </span>
             );
           })}
-        </div>
-        <div
-          className="loading-line"
-          role="progressbar"
-          aria-label="설문 생성 진행률"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={progress}
-        >
-          <span className="generation-progress" style={{ width: `${progress}%` }} />
         </div>
       </div>
     </div>
@@ -6593,7 +6534,7 @@ export default function Home() {
       });
       const result = (await response.json()) as
         | {
-            status: "ready";
+            status: "ready" | "ready_with_caution";
             prompt: string;
             blueprint: SurveyBlueprint;
             research: SurveyResearch;
@@ -7138,10 +7079,7 @@ export default function Home() {
         />
       )}
       {isAnalyzing && (
-        <GenerationOverlay
-          references={references}
-          questionCount={questionCount}
-        />
+        <GenerationOverlay />
       )}
       {clarification && !isAnalyzing && (
         <ClarificationModal

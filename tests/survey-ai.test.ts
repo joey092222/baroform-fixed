@@ -29,6 +29,7 @@ import {
   normalizedReferenceFile,
 } from "../app/reference-files";
 import { verifyReferenceFileToken } from "../app/reference-file-upload";
+import { createSurveyGenerationSchema } from "../app/lib/ai/survey-generation-schema";
 
 type QuestionType = "scale" | "single" | "multiple" | "text";
 
@@ -277,7 +278,7 @@ test("설문 생성 API는 단순 비율 요청도 검색을 시도하고 실패
       allGradesResponse.headers.get("x-baroform-ai-fallback"),
       "invalid-result",
     );
-    assert.equal(allGrades.status, "ready");
+    assert.equal(allGrades.status, "ready_with_caution");
     assert.equal(allGrades.blueprint.respondentGroup, "대학생");
     assert.deepEqual(allGrades.blueprint.aiQuestions, [
       {
@@ -348,7 +349,7 @@ test("설문 생성 API는 카공 빈도도 검색을 시도하고 실패 시 �
       response.headers.get("x-baroform-ai-fallback"),
       "invalid-result",
     );
-    assert.equal(body.status, "ready");
+    assert.equal(body.status, "ready_with_caution");
     assert.equal(body.clarification, undefined);
     assert.equal(body.blueprint.aiQuestions.length, 7);
     assert.equal(
@@ -412,7 +413,7 @@ test("설문 생성 API는 수면 시간도 검색을 시도하고 실패 시 �
       response.headers.get("x-baroform-ai-fallback"),
       "invalid-result",
     );
-    assert.equal(body.status, "ready");
+    assert.equal(body.status, "ready_with_caution");
     assert.equal(body.clarification, undefined);
     assert.equal(body.blueprint.title, "대학생 수면 시간 조사");
     assert.equal(body.blueprint.aiQuestions.length, 7);
@@ -472,7 +473,7 @@ test("설문 생성 API는 SNS 이용 시간도 검색을 시도하고 실패 �
       response.headers.get("x-baroform-ai-fallback"),
       "invalid-result",
     );
-    assert.equal(body.status, "ready");
+    assert.equal(body.status, "ready_with_caution");
     assert.equal(body.clarification, undefined);
     assert.equal(
       body.blueprint.title,
@@ -683,6 +684,248 @@ function editReadyPayload(
   content.text = JSON.stringify(decoded);
 }
 
+function structuredQuestion(
+  id: number,
+  role:
+    | "screening"
+    | "behavior"
+    | "experience"
+    | "evaluation"
+    | "barrier"
+    | "open",
+  type:
+    | "single_choice"
+    | "multiple_choice"
+    | "scale"
+    | "long_text",
+  text: string,
+  labels: string[] = [],
+) {
+  return {
+    id: `Q${id}`,
+    section_id: "S1",
+    role,
+    type,
+    text,
+    helper_text: null,
+    required: type !== "long_text",
+    reference_period: id === 2 ? "최근 4주" : null,
+    options: labels.map((label, index) => ({
+      id: `Q${id}_O${index + 1}`,
+      label,
+      exclusive: label === "이용하지 않음",
+      fixed_position: label === "기타",
+      allows_text: label === "기타",
+    })),
+    scale:
+      type === "scale"
+        ? {
+            min: 1,
+            max: 5,
+            min_label: "전혀 만족하지 않음",
+            max_label: "매우 만족",
+          }
+        : null,
+    randomize_options: false,
+    show_if: [],
+    validation: {
+      min_value: null,
+      max_value: null,
+      min_selections: type === "multiple_choice" ? 1 : null,
+      max_selections: type === "multiple_choice" ? 3 : null,
+      max_length: type === "long_text" ? 1000 : null,
+    },
+    analysis: {
+      construct: role,
+      purpose: `${text} 결과를 이용 행태 분석에 사용합니다.`,
+      variable_name: `q_${id}`,
+      coding_notes: null,
+    },
+    grounding: {
+      uses_external_fact: id === 1,
+      source_ids: id === 1 ? ["SRC1"] : [],
+    },
+  };
+}
+
+function structuredReadyPayload() {
+  const sourceUrl = "https://comic.naver.com";
+  const questions = [
+    structuredQuestion(1, "screening", "single_choice", "네이버웹툰을 이용한 적이 있나요?", ["예", "아니요"]),
+    structuredQuestion(2, "behavior", "single_choice", "최근 4주 동안 네이버웹툰을 얼마나 자주 이용했나요?", ["이용하지 않음", "월 1~3회", "주 1~2회", "주 3회 이상"]),
+    structuredQuestion(3, "behavior", "single_choice", "한 번 이용할 때 보통 얼마나 오래 웹툰을 보나요?", ["10분 미만", "10~29분", "30~59분", "1시간 이상"]),
+    structuredQuestion(4, "experience", "multiple_choice", "주로 어떤 상황에서 웹툰을 보나요?", ["통학 중", "쉬는 시간", "잠들기 전", "기타"]),
+    structuredQuestion(5, "experience", "multiple_choice", "주로 보는 웹툰 장르를 골라주세요.", ["드라마", "로맨스", "액션", "코미디", "기타"]),
+    structuredQuestion(6, "evaluation", "scale", "네이버웹툰 이용 경험에 전반적으로 얼마나 만족하나요?"),
+    structuredQuestion(7, "open", "long_text", "이용하면서 가장 불편했던 점이 있다면 적어주세요."),
+  ];
+  const generation = {
+    status: "ready" as const,
+    research: {
+      search_status: "verified" as const,
+      entities: [
+        {
+          input_name: "네이버웹툰",
+          resolved_name: "네이버웹툰",
+          resolved_as: "웹툰 서비스",
+          affiliation_or_location: "대한민국",
+          confidence: "verified" as const,
+          verified_facts: [
+            {
+              fact: "웹툰 콘텐츠를 제공하는 서비스입니다.",
+              source_ids: ["SRC1"],
+            },
+          ],
+        },
+      ],
+      sources: [
+        {
+          id: "SRC1",
+          title: "네이버웹툰",
+          url: sourceUrl,
+          source_type: "official" as const,
+          used_for: "서비스 정체 확인",
+        },
+      ],
+      limitations: [],
+    },
+    survey_plan: {
+      survey_type: "이용 현황 조사",
+      target: "네이버웹툰을 알고 있는 대학생",
+      eligibility: "대학생",
+      primary_objective: "대학생의 네이버웹툰 이용 행태와 경험을 파악한다.",
+      sub_objectives: ["이용 빈도", "이용 상황", "불편 경험"],
+      constructs: [
+        { name: "이용 여부", reason: "이용자 규모를 구분한다." },
+        { name: "이용 빈도", reason: "이용 강도를 파악한다." },
+        { name: "이용 시간", reason: "회당 체류 시간을 파악한다." },
+        { name: "이용 상황", reason: "주요 이용 맥락을 파악한다." },
+        { name: "장르 선호", reason: "콘텐츠 선호를 파악한다." },
+        { name: "만족도", reason: "전체 경험을 평가한다." },
+        { name: "불편", reason: "개선 단서를 찾는다." },
+      ],
+      requested_question_count: 7,
+      count_rule: "max_path" as const,
+      total_question_nodes: 7,
+      min_path_questions: 7,
+      max_path_questions: 7,
+      estimated_minutes: 3,
+    },
+    survey: {
+      title: "대학생 네이버웹툰 이용 현황 조사",
+      intro: "대학생의 네이버웹툰 이용 방식과 경험을 알아보기 위한 설문입니다.",
+      sections: [{ id: "S1", title: "이용 경험", description: null }],
+      questions,
+      completion_message: "응답해주셔서 감사합니다.",
+    },
+    quality_check: {
+      all_named_entities_searched: true,
+      all_specific_claims_grounded: true,
+      all_questions_have_analysis_purpose: true,
+      double_barreled_questions_removed: true,
+      leading_questions_removed: true,
+      duplicate_questions_removed: true,
+      response_options_checked: true,
+      all_logic_paths_valid: true,
+      question_count_valid: true,
+      mobile_readability_checked: true,
+      respondent_path_simulation_passed: true,
+      warnings: [],
+    },
+  };
+  const parsed = createSurveyGenerationSchema(7).parse(generation);
+  return {
+    status: "completed",
+    output_parsed: parsed,
+    output: [
+      {
+        type: "web_search_call",
+        status: "completed",
+        action: {
+          sources: [{ title: "네이버웹툰", url: sourceUrl }],
+        },
+      },
+    ],
+  };
+}
+
+test("검색 기반 구조화 결과를 기존 설문 편집 형식으로 연결한다", () => {
+  const result = parseSurveyDraftResponse(
+    structuredReadyPayload(),
+    "대학생 네이버웹툰 이용 현황 조사",
+  );
+
+  assert.equal(result.status, "ready");
+  if (result.status !== "ready" && result.status !== "ready_with_caution") {
+    assert.fail("완성된 설문 결과가 필요합니다.");
+  }
+  assert.equal(result.blueprint.aiQuestions.length, 7);
+  assert.equal(result.blueprint.aiQuestions[1]?.type, "single");
+  assert.equal(result.blueprint.aiQuestions[5]?.type, "scale");
+  assert.equal(result.research.sources[0]?.url, "https://comic.naver.com/");
+  assert.equal(result.surveyPlan?.requested_question_count, 7);
+  assert.equal(result.qualityCheck?.question_count_valid, true);
+  assert.equal(result.completionMessage, "응답해주셔서 감사합니다.");
+});
+
+test("구조화 결과의 중복 문항 ID를 서버 검증에서 거부한다", () => {
+  const payload = structuredReadyPayload();
+  payload.output_parsed.survey.questions[1]!.id = "Q1";
+
+  assert.throws(
+    () =>
+      parseSurveyDraftResponse(
+        payload,
+        "대학생 네이버웹툰 이용 현황 조사",
+      ),
+    /질문 ID Q1가 중복/,
+  );
+});
+
+for (const surveyCase of [
+  { prompt: "맛나샘 만족도 조사", count: 12 },
+  { prompt: "대우관 등하교 경험 조사", count: 10 },
+  {
+    prompt: "연세대학교의 가상 시설 별빛라운지 이용 경험 조사",
+    count: 7,
+  },
+  {
+    prompt:
+      "현재 국내 최대 웹툰 플랫폼인 네이버 웹툰의 대학생 이용 현황과 경험 분석",
+    count: 7,
+  },
+] as const) {
+  test(`${surveyCase.prompt} 요청은 원문과 정확한 문항 수를 검색 요청에 보존한다`, () => {
+    const request = buildSurveyAiRequest(
+      surveyCase.prompt,
+      analyzeSurveyPrompt(surveyCase.prompt),
+      "gpt-5.6",
+      { questionCount: surveyCase.count },
+    );
+    const input = requestInputText(request.input);
+    const format = request.text.format as unknown as {
+      schema: {
+        properties: {
+          survey: {
+            properties: {
+              questions: { minItems?: number; maxItems?: number };
+            };
+          };
+        };
+      };
+    };
+    const questionSchema =
+      format.schema.properties.survey.properties.questions;
+
+    assert.match(input, new RegExp(surveyCase.prompt));
+    assert.match(input, new RegExp(`\\[희망 문항 수\\]\\n${surveyCase.count}`));
+    assert.equal(request.tool_choice, "required");
+    assert.equal(request.reasoning.effort, "high");
+    assert.equal(questionSchema.minItems, surveyCase.count);
+    assert.equal(questionSchema.maxItems, surveyCase.count);
+  });
+}
+
 test("OpenAI 요청은 모든 설문에서 검색과 내부 품질 검사를 강제한다", () => {
   const prompt = "대우관 만족도 조사";
   const request = buildSurveyAiRequest(
@@ -693,24 +936,21 @@ test("OpenAI 요청은 모든 설문에서 검색과 내부 품질 검사를 강
 
   assert.equal(request.model, "gpt-5.6");
   assert.equal(request.tool_choice, "required");
-  assert.equal(request.reasoning.effort, "medium");
+  assert.equal(request.reasoning.effort, "high");
   assert.equal(request.store, false);
   assert.equal(request.tools[0]?.type, "web_search");
-  assert.equal(request.tools[0]?.external_web_access, true);
   assert.equal(request.tools[0]?.search_context_size, "medium");
   assert.equal(request.tools[0]?.user_location.country, "KR");
   assert.equal(request.text.format.type, "json_schema");
   assert.equal(request.text.format.strict, true);
-  assert.match(requestInputText(request.input), /연세대학교 신촌캠퍼스/);
-  assert.match(
-    requestInputText(request.input),
-    /문장이 짧거나 일부 조건이 없다는 이유로 생성을 거절하거나 확인 질문을 반환하지 말고/,
-  );
-  assert.match(requestInputText(request.input), /<current_date>\d{4}-\d{2}-\d{2}<\/current_date>/);
-  assert.match(requestInputText(request.input), /web_search를 반드시 최소 한 번/);
-  assert.match(requestInputText(request.input), /응답자 5명의 응답 경로/);
-  assert.match(request.instructions, /needs_clarification을 반환하지 않는다/);
-  assert.match(request.instructions, /researchClassification=unresolved/);
+  assert.match(requestInputText(request.input), /로그인 프로필 문맥: 별도 정보 없음/);
+  assert.doesNotMatch(requestInputText(request.input), /현재 운영 학교는 연세대학교/);
+  assert.match(request.instructions, /입력이 불완전하면 검색 결과와 입력 문맥/);
+  assert.match(requestInputText(request.input), /\d{4}-\d{2}-\d{2}/);
+  assert.match(request.instructions, /모든 설문 요청에서 최소 한 번 이상 웹 검색/);
+  assert.match(request.instructions, /최소 다음 응답자 경로를 내부적으로 시뮬레이션/);
+  assert.match(request.instructions, /사용자에게 추가 질문을 하지 않는다/);
+  assert.match(request.instructions, /ready_with_caution/);
   assert.equal(JSON.stringify(request).includes("OPENAI_API_KEY"), false);
 });
 
@@ -741,7 +981,7 @@ test("첨부 사진과 링크를 실제 멀티모달 참고 자료로 전달한�
   assert.match(serialized, /input_image/);
   assert.match(serialized, /식당 안내 캡처\.png/);
   assert.match(serialized, new RegExp(link.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  assert.match(serialized, /각 링크의 실제 페이지를 확인/);
+  assert.match(serialized, /reference_links/);
   assert.equal(serialized.includes(dataUrl), true);
   assert.equal((serialized.match(/"type":"input_image"/g) ?? []).length, 10);
 });
@@ -779,7 +1019,7 @@ test("첨부 문서와 표를 실제 input_file 참고 자료로 전달한다", 
   assert.equal((serialized.match(/"type":"input_file"/g) ?? []).length, 2);
   assert.match(serialized, /서비스 기획서\.pdf/);
   assert.match(serialized, /기존 조사표\.xlsx/);
-  assert.match(serialized, /각 파일의 실제 본문과 표를 읽고/);
+  assert.match(serialized, /멀티모달 입력/);
   assert.equal(serialized.includes(pdfData), true);
   assert.equal(serialized.includes(sheetData), true);
   assert.equal(request.tool_choice, "required");
@@ -807,13 +1047,17 @@ test("참고자료가 있으면 깊이 있는 분석 계약과 높은 추론 수
   );
 
   assert.equal(request.reasoning.effort, "high");
+  const schema = request.text.format.schema as {
+    properties: {
+      survey: { properties: { questions: { minItems: number; maxItems: number } } };
+    };
+  };
   assert.equal(
-    request.text.format.schema.properties.result.properties.designPlan
-      .properties.referenceGrounding.minItems,
-    1,
+    schema.properties.survey.properties.questions.minItems,
+    7,
   );
-  assert.match(requestInputText(request.input), /자료 근거, 분석축, 각 문항의 역할/);
-  assert.match(requestInputText(request.input), /최소 두 문항/);
+  assert.match(request.instructions, /근거 연결/);
+  assert.match(request.instructions, /조사 구조/);
 });
 
 test("첨부자료가 한 문항에만 형식적으로 연결된 결과는 거부한다", () => {
@@ -1280,9 +1524,14 @@ test("사용자가 고른 학년과 문항 수를 AI 생성 계약에 반영한�
   );
 
   assert.match(requestInputText(request.input), /3-4학년/);
-  assert.match(requestInputText(request.input), /정확히 12개/);
-  assert.equal(request.text.format.schema.properties.result.properties.aiQuestions.minItems, 12);
-  assert.equal(request.text.format.schema.properties.result.properties.aiQuestions.maxItems, 12);
+  assert.match(requestInputText(request.input), /\[희망 문항 수\]\s+12/);
+  const schema = request.text.format.schema as {
+    properties: {
+      survey: { properties: { questions: { minItems: number; maxItems: number } } };
+    };
+  };
+  assert.equal(schema.properties.survey.properties.questions.minItems, 12);
+  assert.equal(schema.properties.survey.properties.questions.maxItems, 12);
 });
 
 test("학년 적격성과 시설 이용 경험을 서로 다른 문항으로 분리한다", () => {
@@ -1484,7 +1733,7 @@ test("API 키가 없고 목적이 짧은 고유명사도 합리적 가정으로 
       blueprint?: { aiQuestions?: unknown[] };
     };
     assert.equal(response.status, 200);
-    assert.equal(body.status, "ready");
+    assert.equal(body.status, "ready_with_caution");
     assert.equal(body.clarification, undefined);
     assert.ok((body.blueprint?.aiQuestions?.length ?? 0) > 0);
   } finally {
@@ -1519,7 +1768,7 @@ test("대상과 측정 내용이 명확한 빈도 조사는 추가 질문 없이
     };
 
     assert.equal(response.status, 200);
-    assert.equal(body.status, "ready");
+    assert.equal(body.status, "ready_with_caution");
     assert.equal(body.clarification, undefined);
     assert.match(
       body.blueprint?.respondentGroup ?? "",
@@ -1571,7 +1820,7 @@ test("API 키가 없어도 학생 소비 습관은 목적을 되묻지 않고 �
         .join(" ") ?? "";
 
     assert.equal(response.status, 200);
-    assert.equal(body.status, "ready");
+    assert.equal(body.status, "ready_with_caution");
     assert.equal(body.clarification, undefined);
     assert.equal(body.blueprint?.title, "학생 소비 습관 조사");
     assert.match(corpus, /생활비/);
@@ -1663,13 +1912,11 @@ test("검색 출처를 확인하지 못해도 주의 상태의 완성 설문을 
 
   const parsed = parseSurveyDraftResponse(payload, prompt);
 
-  assert.equal(parsed.status, "ready");
-  if (parsed.status === "ready") {
-    assert.equal(parsed.research.status, "fallback");
-    assert.equal(parsed.research.classification, "unresolved");
-    assert.equal(parsed.research.sources.length, 0);
-    assert.match(parsed.research.limitations?.join(" ") ?? "", /검색을 완료하지 못해/);
-  }
+  assert.equal(parsed.status, "ready_with_caution");
+  assert.equal(parsed.research.status, "fallback");
+  assert.equal(parsed.research.classification, "unresolved");
+  assert.equal(parsed.research.sources.length, 0);
+  assert.match(parsed.research.limitations?.join(" ") ?? "", /검색을 완료하지 못해/);
 });
 
 test("AI 연결이 없어도 방향이 명확한 입력은 문맥 기반 초안을 반환한다", async () => {
@@ -1701,7 +1948,7 @@ test("AI 연결이 없어도 방향이 명확한 입력은 문맥 기반 초안�
     };
 
     assert.equal(response.status, 200);
-    assert.equal(body.status, "ready");
+    assert.equal(body.status, "ready_with_caution");
     assert.equal(body.blueprint?.aiQuestions?.length, 9);
     assert.match(
       body.blueprint?.respondentGroup ?? "",
@@ -1724,12 +1971,15 @@ test("AI 연결이 없어도 방향이 명확한 입력은 문맥 기반 초안�
   }
 });
 
-test("AI 결과 형식과 재생성이 모두 실패해도 주의 상태의 완성 설문을 반환한다", async () => {
+test("단일 AI 결과 형식이 실패해도 두 번째 호출 없이 주의 상태의 초안을 반환한다", async () => {
   const previousKey = process.env.OPENAI_API_KEY;
   const previousFetch = globalThis.fetch;
+  let fetchCalls = 0;
   process.env.OPENAI_API_KEY = "test-key";
-  globalThis.fetch = async () =>
-    Response.json({ status: "completed", output: [] });
+  globalThis.fetch = async () => {
+    fetchCalls += 1;
+    return Response.json({ status: "completed", output: [] });
+  };
   try {
     const response = await createSurveyDraft(
       new Request("http://localhost/api/survey-draft", {
@@ -1751,9 +2001,10 @@ test("AI 결과 형식과 재생성이 모두 실패해도 주의 상태의 완�
     };
 
     assert.equal(response.status, 200);
-    assert.equal(body.status, "ready");
+    assert.equal(body.status, "ready_with_caution");
     assert.equal(body.research?.classification, "unresolved");
     assert.ok((body.research?.limitations?.length ?? 0) > 0);
+    assert.equal(fetchCalls, 1);
     assert.equal(response.headers.get("x-baroform-ai-mode"), "verified-fallback");
   } finally {
     globalThis.fetch = previousFetch;
@@ -1787,7 +2038,7 @@ test("한경관 만족도는 건물 시설이 아니라 식당 경험으로 해�
   assert.doesNotMatch(corpus, /강의실|학습공간|엘리베이터/);
 });
 
-test("한경관 사전 검증 정보가 AI 요청에 식당 유형으로 전달된다", () => {
+test("한경관은 사전 힌트를 사실로 단정하지 않고 식당 맥락 검색 대상으로 전달된다", () => {
   const prompt = "한경관 만족도 조사";
   const request = buildSurveyAiRequest(
     prompt,
@@ -1795,12 +2046,13 @@ test("한경관 사전 검증 정보가 AI 요청에 식당 유형으로 전달�
     "gpt-5.6",
   );
 
+  const input = requestInputText(request.input);
+  assert.match(input, /"fallbackDomain":"cafeteria"/);
+  assert.doesNotMatch(input, /연세대학교 한경관\(어울샘식당\)/);
   assert.match(
-    requestInputText(request.input),
-    /연세대학교 한경관\(어울샘식당\)/,
+    request.instructions,
+    /검색 결과 제목이나 검색 요약만 읽고 사실을 확정하지 않는다/,
   );
-  assert.match(requestInputText(request.input), /"entityType":"cafeteria"/);
-  assert.match(requestInputText(request.input), /음식의 맛과 품질/);
 });
 
 test("대우관 등하교 설문은 실제 이동 불편과 개선 요소를 다룬다", () => {
