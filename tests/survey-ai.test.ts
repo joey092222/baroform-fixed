@@ -32,6 +32,7 @@ import {
 import { verifyReferenceFileToken } from "../app/reference-file-upload";
 import { createSurveyGenerationSchema } from "../app/lib/ai/survey-generation-schema";
 import { getSurveyModeGenerationConfig } from "../app/lib/ai/survey-mode-config";
+import { respondentCopyIssues } from "../app/lib/ai/respondent-copy-quality";
 import {
   parseRequestedSurveyMode,
   recommendSurveyMode,
@@ -1044,6 +1045,37 @@ test("검색 기반 구조화 결과를 기존 설문 편집 형식으로 연결
   assert.equal(result.completionMessage, "응답해주셔서 감사합니다.");
 });
 
+test("응답자용 문구는 행정적 표현과 내부 분석 정보를 거부한다", () => {
+  const generation = structuredReadyPayload().output_parsed;
+  assert.deepEqual(respondentCopyIssues(generation), []);
+
+  const unnatural = structuredClone(generation);
+  unnatural.survey.sections[0]!.description =
+    "독립변수와 종속변수를 구분하기 위한 섹션입니다.";
+  unnatural.survey.questions[0]!.text =
+    "귀하는 네이버웹툰 이용 경험 여부가 어디에 해당하나요?";
+  unnatural.survey.questions[0]!.helper_text =
+    "첫 번째 선택지를 골라주세요.";
+  unnatural.survey.questions[0]!.options[0]!.label = "실제 구매자";
+
+  const issues = respondentCopyIssues(unnatural).join(" ");
+  assert.match(issues, /제작자용 분석 정보/);
+  assert.match(issues, /행정적이거나 추상적인 표현/);
+  assert.match(issues, /선택지 위치/);
+  assert.match(issues, /선택지나 척도에 분석용 표현/);
+});
+
+test("질문을 되풀이하는 보조 설명은 자연화 검증에서 거부한다", () => {
+  const generation = structuredClone(structuredReadyPayload().output_parsed);
+  generation.survey.questions[1]!.helper_text =
+    "최근 4주 동안 네이버웹툰을 얼마나 자주 이용했나요?";
+
+  assert.match(
+    respondentCopyIssues(generation).join(" "),
+    /보조 설명이 질문을 반복/,
+  );
+});
+
 test("콘텐츠 설문은 핵심 맥락과 네 가지 분석 축을 충족하면 과잉 검증 없이 연결한다", () => {
   const payload = structuredReadyPayload();
   payload.output_parsed.survey.questions[2] = structuredQuestion(
@@ -1187,6 +1219,10 @@ test("OpenAI 요청은 모든 설문에서 검색과 내부 품질 검사를 강
   assert.match(request.instructions, /최소 다음 응답자 경로를 내부적으로 시뮬레이션/);
   assert.match(request.instructions, /사용자에게 추가 질문을 하지 않는다/);
   assert.match(request.instructions, /ready_with_caution/);
+  assert.match(request.instructions, /한국어 설문 카피에디터/);
+  assert.match(request.instructions, /설문 제목과 소개문/);
+  assert.match(request.instructions, /질문과 선택지를 이어 읽었을 때/);
+  assert.match(request.instructions, /질문만으로 이해할 수 있다면 반드시 null/);
   assert.equal(JSON.stringify(request).includes("OPENAI_API_KEY"), false);
 });
 
@@ -1205,6 +1241,7 @@ test("정밀·연구 설문은 높은 추론과 중간 검색 문맥을 한 요�
   assert.equal(request.tool_choice, "required");
   assert.equal(request.text.format.type, "json_schema");
   assert.match(request.instructions, /설문 제작 모드: 정밀·연구 설문/);
+  assert.match(request.instructions, /한국어 설문 카피에디터/);
   assert.match(requestInputText(request.input), /\[설문 제작 방식\]\n정밀·연구 설문/);
 });
 

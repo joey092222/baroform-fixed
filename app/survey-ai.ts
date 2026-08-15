@@ -28,6 +28,8 @@ import {
   type SurveyGeneration,
 } from "./lib/ai/survey-generation-schema";
 import { SURVEY_SYSTEM_PROMPT } from "./lib/ai/survey-system-prompt";
+import { NATURAL_KOREAN_SURVEY_COPY_PROMPT } from "./lib/ai/survey-korean-copy-prompt";
+import { respondentCopyIssues } from "./lib/ai/respondent-copy-quality";
 import {
   getSurveyModeGenerationConfig,
 } from "./lib/ai/survey-mode-config";
@@ -146,6 +148,7 @@ export function buildSurveyAiInstructions(
   const modeConfig = getSurveyModeGenerationConfig(surveyMode);
   return [
     SURVEY_SYSTEM_PROMPT,
+    NATURAL_KOREAN_SURVEY_COPY_PROMPT,
     SURVEY_OUTPUT_COMPATIBILITY,
     modeConfig.instructions,
   ].join("\n\n");
@@ -1134,6 +1137,7 @@ export function parseSurveyDraftResponse(
       structuredGeneration,
       questionCount,
     );
+    integrityIssues.push(...respondentCopyIssues(structuredGeneration));
     if (integrityIssues.length > 0) {
       throw new SurveyValidationError(integrityIssues);
     }
