@@ -291,6 +291,8 @@ export const SURVEY_SYSTEM_PROMPT = `
 
 모든 문항은 다음 조건을 만족해야 한다.
 
+각 문항의 analysis.purpose는 편집 화면에서 문항 아래에 표시되는 짧은 메모다. 한 문장으로 작성하고 반드시 '~함' 또는 '~했음' 형태의 명사형 종결어미로 끝낸다. '~한다', '~합니다', '~해요' 같은 서술형 종결어미는 사용하지 않는다.
+
 ### 7.1 명확성
 
 * 한 문항에서는 하나의 개념만 묻는다.
@@ -802,7 +804,7 @@ export const SURVEY_SYSTEM_PROMPT = `
 },
 "analysis": {
 "construct": "측정 개념",
-"purpose": "이 문항을 사용하는 이유",
+"purpose": "이 문항을 사용하는 이유를 ~함 또는 ~했음 형태로 작성",
 "variable_name": "분석용 영문 변수명",
 "coding_notes": null
 },

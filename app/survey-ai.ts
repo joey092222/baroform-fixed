@@ -8,6 +8,7 @@ import {
   type SurveyIntentKind,
   type SurveyQuestion,
 } from "./survey-intent";
+import { formatQuestionReason } from "./question-reason";
 import {
   lookupVerifiedSurveyKnowledge,
   type SurveyEntityType,
@@ -421,7 +422,7 @@ function structuredGenerationToLegacy(
   const aiQuestions = generation.survey.questions.map((question, index) => ({
     id: index + 1,
     title: question.text,
-    reason: question.analysis.purpose,
+    reason: formatQuestionReason(question.analysis.purpose),
     type: legacyQuestionType(question.type),
     options: question.options.map((option) => option.label),
     required: question.required,
@@ -651,7 +652,7 @@ function normalizeQuestion(value: unknown, id: number): SurveyQuestion {
     throw new Error("AI 질문 유형이 올바르지 않습니다.");
   }
   const title = naturalQuestionTitle(cleanText(value.title, 170), type);
-  const reason = cleanText(value.reason, 300);
+  const reason = formatQuestionReason(cleanText(value.reason, 300));
   if (title.length < 2 || reason.length < 2) {
     throw new Error("AI 질문 내용이 비어 있습니다.");
   }

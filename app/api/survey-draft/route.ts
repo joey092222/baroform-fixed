@@ -31,6 +31,7 @@ import { verifyReferenceFileToken } from "../../reference-file-upload";
 import { consumePersistentAiRateLimit } from "@/db";
 import { getSessionUser } from "@/db/auth";
 import { schoolLabel } from "@/app/survey-board";
+import { formatQuestionReason } from "@/app/question-reason";
 import OpenAI from "openai";
 
 export const runtime = "nodejs";
@@ -147,7 +148,10 @@ function applyDraftSettings(
     resizeSurveyQuestions(blueprint.aiQuestions, questionCount),
     targetGrade,
     questionCount,
-  );
+  ).map((question) => ({
+    ...question,
+    reason: formatQuestionReason(question.reason),
+  }));
   return {
     ...blueprint,
     description: preserveExplicitAudience
@@ -166,7 +170,10 @@ function applyDraftSettings(
       resizeSurveyQuestions(blueprint.templateQuestions, templateCount),
       targetGrade,
       templateCount,
-    ),
+    ).map((question) => ({
+      ...question,
+      reason: formatQuestionReason(question.reason),
+    })),
     aiQuestions,
   };
 }

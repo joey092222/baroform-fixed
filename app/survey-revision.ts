@@ -1,4 +1,5 @@
 import type { SurveyQuestion, SurveyQuestionType } from "./survey-intent";
+import { formatQuestionReason } from "./question-reason";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -81,8 +82,9 @@ export const surveyRevisionInstructions = `
 6. 선택형(single, multiple, dropdown)은 options를 2개 이상 둔다. 나머지는 빈 배열로 둔다.
 7. scale은 scaleMin 0 또는 1, scaleMax 2~10을 사용한다. 기본은 1~5다.
 8. section은 설문 구획이며 응답을 받지 않는다. required는 false로 둔다.
-9. message에는 무엇을 바꿨는지 한 문장으로 짧게 설명한다.
-10. 웹 검색은 하지 않는다. 현재 설문과 사용자 요청만 설문 데이터로 다룬다.
+9. 각 문항의 reason은 문항 아래에 표시되는 짧은 메모이며 반드시 '~함' 또는 '~했음' 형태의 명사형 종결어미로 끝낸다.
+10. message에는 무엇을 바꿨는지 한 문장으로 짧게 설명한다.
+11. 웹 검색은 하지 않는다. 현재 설문과 사용자 요청만 설문 데이터로 다룬다.
 
 긴 설명이나 마크다운 없이 지정된 JSON Schema만 반환한다.
 `.trim();
@@ -207,7 +209,7 @@ export function parseSurveyRevisionResponse(rawPayload: unknown) {
       id: index + 1,
       title: cleanText(raw.title, 200),
       description: cleanText(raw.description, 300),
-      reason: cleanText(raw.reason, 500),
+      reason: formatQuestionReason(cleanText(raw.reason, 500)),
       type,
       options: ["single", "multiple", "dropdown"].includes(type) ? options : undefined,
       required: type === "section" ? false : raw.required === true,

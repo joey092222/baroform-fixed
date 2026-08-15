@@ -8,6 +8,7 @@ import {
   buildSurveyAiRequest,
   parseSurveyDraftResponse,
 } from "../app/survey-ai";
+import { formatQuestionReason } from "../app/question-reason";
 import {
   buildSurveyRevisionRequest,
   parseSurveyRevisionResponse,
@@ -30,6 +31,21 @@ import {
 } from "../app/reference-files";
 import { verifyReferenceFileToken } from "../app/reference-file-upload";
 import { createSurveyGenerationSchema } from "../app/lib/ai/survey-generation-schema";
+
+test("문항 사용 이유를 명사형 메모 문체로 통일한다", () => {
+  assert.equal(
+    formatQuestionReason("학생들이 가장 시급하다고 판단하는 개선 영역을 하나로 특정한다."),
+    "학생들이 가장 시급하다고 판단하는 개선 영역을 하나로 특정함.",
+  );
+  assert.equal(
+    formatQuestionReason("최근 경험을 구분합니다."),
+    "최근 경험을 구분함.",
+  );
+  assert.equal(
+    formatQuestionReason("다음 운영에서도 유지할 강점을 찾을 수 있어요."),
+    "다음 운영에서도 유지할 강점을 찾음.",
+  );
+});
 
 type QuestionType = "scale" | "single" | "multiple" | "text";
 
@@ -284,7 +300,7 @@ test("설문 생성 API는 단순 비율 요청도 검색을 시도하고 실패
       {
         id: 1,
         title: "현재 자취를 하고 있나요?",
-        reason: "‘예’ 응답 수를 전체 유효 응답 수로 나눠 해당 학생의 비율을 계산해요.",
+        reason: "‘예’ 응답 수를 전체 유효 응답 수로 나눠 해당 학생의 비율을 계산함.",
         type: "single",
         options: ["예", "아니요"],
         required: true,
@@ -1699,6 +1715,7 @@ test("AI 수정 결과에서 확장 문항 유형과 설정을 정규화한다",
   assert.equal(revised.questions[0].id, 1);
   assert.equal(revised.questions[0].type, "date");
   assert.equal(revised.questions[0].required, true);
+  assert.equal(revised.questions[0].reason, "최근 경험을 구분함.");
 });
 
 test("표시 한도를 넘는 실제 검색 출처도 사실 검증에 사용할 수 있다", () => {

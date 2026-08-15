@@ -86,6 +86,7 @@ import {
 } from "./campus-pulse";
 import { WorkspaceReviewView, WorkspaceView } from "./workspace-view";
 import { shouldSubmitPromptOnEnter } from "./prompt-keyboard";
+import { formatQuestionReason } from "./question-reason";
 
 type View =
   | "landing"
@@ -3513,7 +3514,7 @@ function EditorView({
                     {question.type !== "section" && question.reason && (
                       <p className="question-ai-reason">
                         <Sparkles size={13} />
-                        {question.reason}
+                        {formatQuestionReason(question.reason)}
                       </p>
                     )}
                   </div>
