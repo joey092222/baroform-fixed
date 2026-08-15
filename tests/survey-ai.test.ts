@@ -843,6 +843,59 @@ test("설문 생성 API는 연구 모드를 단일 background 요청으로 전�
   }
 });
 
+test("완료된 모델 결과가 의미 검수에서 거부되면 검증된 초안으로 복구한다", async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  const previousFetch = globalThis.fetch;
+  const prompt = "대학생 대상 교내 생활 의견 조사 출력 복구 확인";
+  const questions = Array.from({ length: 7 }, (_, index) =>
+    question(index + 1, `대학생 교내 생활 경험 질문 ${index + 1}`),
+  );
+  const payload = readyOpenAiPayload({
+    prompt,
+    evaluationTarget: "대학생",
+    respondentGroup: "대학생",
+    entityType: "student-life",
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
+    sourceUrls: ["https://example.com/student-life"],
+  });
+  process.env.OPENAI_API_KEY = "test-key";
+  globalThis.fetch = async () => Response.json(payload);
+
+  try {
+    const response = await createSurveyDraft(
+      new Request("http://localhost/api/survey-draft", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          "user-agent": "baroform-output-fallback-test",
+        },
+        body: JSON.stringify({
+          prompt,
+          surveyMode: "standard",
+          targetGrade: "전학년",
+          questionCount: 7,
+          references: { images: [], files: [], links: [] },
+        }),
+      }),
+    );
+    const result = (await response.json()) as { status?: string };
+
+    assert.equal(response.status, 200);
+    assert.equal(result.status, "ready_with_caution");
+    assert.equal(response.headers.get("x-baroform-ai-mode"), "verified-fallback");
+    assert.equal(
+      response.headers.get("x-baroform-ai-fallback"),
+      "model-output-rejected",
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
+
 test("research background polling은 새 생성 없이 같은 responseId를 조회한다", async () => {
   const previousKey = process.env.OPENAI_API_KEY;
   const previousFetch = globalThis.fetch;

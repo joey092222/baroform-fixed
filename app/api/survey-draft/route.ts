@@ -955,6 +955,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     references,
     organizationLocationContext,
   });
+  let upstreamCompleted = false;
 
   try {
     let rawResult: Awaited<ReturnType<typeof openai.responses.parse>>;
@@ -978,6 +979,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
           : modelRequest,
         { signal: lifecycle.signal },
       );
+      upstreamCompleted = true;
 
       if (
         surveyMode === "research" &&
@@ -1223,6 +1225,43 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         {},
         requestId,
       );
+    }
+
+    if (upstreamCompleted && error instanceof Error) {
+      console.warn("survey-generation-output-fallback", {
+        requestId,
+        name: error.name,
+      });
+      const verifiedFallback = verifiedResearchFallback(
+        prompt,
+        targetGrade,
+        questionCount,
+      );
+      const resilientFallback =
+        verifiedFallback ??
+        resilientDraftFallback(prompt, targetGrade, questionCount);
+      cacheResult(
+        cacheKey,
+        now,
+        resilientFallback,
+        "verified-fallback",
+        "model-output-rejected",
+      );
+      const outputFallbackResponse = fallbackResponse(
+        resilientFallback,
+        "model-output-rejected",
+        surveyMode,
+        requestId,
+      );
+      logGenerationMetric({
+        surveyMode,
+        startedAt: generationStartedAt,
+        success: outputFallbackResponse.ok,
+        questionCount: generatedQuestionCount(resilientFallback),
+        searchUsed: false,
+        outcome: "verified-fallback",
+      });
+      return outputFallbackResponse;
     }
 
     return apiError(
