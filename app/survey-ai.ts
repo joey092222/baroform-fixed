@@ -1025,6 +1025,8 @@ function enforceContextualCoverage(
         ? verified.entityType
         : reportedEntityType;
   let rules = contextualCoverageRules(kind, entityType);
+  let minimumRuleMatches = rules.length;
+  let mandatoryRules: RegExp[] = [];
   const contextCorpus = `${prompt} ${evaluationTarget}`;
   let strictCoverageRequired = false;
   if (/웹툰|웹소설|OTT|동영상|영상\s*플랫폼|음악\s*스트리밍|콘텐츠\s*플랫폼/.test(contextCorpus)) {
@@ -1037,6 +1039,8 @@ function enforceContextualCoverage(
       /만족/,
       /불편|개선/,
     ];
+    minimumRuleMatches = 4;
+    mandatoryRules = rules.slice(0, 2);
   } else if (/배달\s*앱|배달앱|음식\s*배달/.test(contextCorpus)) {
     strictCoverageRequired = true;
     rules = [
@@ -1063,16 +1067,18 @@ function enforceContextualCoverage(
     return { aiQuestions, entityType, fallback };
   }
 
-  const aiCovered = rules.every((pattern) =>
-    pattern.test(questionCorpus(aiQuestions)),
-  );
+  const corpus = questionCorpus(aiQuestions);
+  const matchedRuleCount = rules.filter((pattern) => pattern.test(corpus)).length;
+  const aiCovered =
+    matchedRuleCount >= minimumRuleMatches &&
+    mandatoryRules.every((pattern) => pattern.test(corpus));
   if (aiCovered) {
     return { aiQuestions, entityType, fallback };
   }
 
   throw new SurveyValidationError([
     "AI 질문이 조사 대상의 실제 맥락을 충분히 반영하지 못했습니다.",
-    `부족한 맥락 기준: ${rules.map((pattern) => pattern.source).join(", ")}`,
+    `충족한 맥락 기준: ${matchedRuleCount}/${rules.length}`,
     `요청 문항 수: ${requestedQuestionCount}`,
   ]);
 }

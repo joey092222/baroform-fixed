@@ -868,6 +868,48 @@ test("검색 기반 구조화 결과를 기존 설문 편집 형식으로 연결
   assert.equal(result.completionMessage, "응답해주셔서 감사합니다.");
 });
 
+test("콘텐츠 설문은 핵심 맥락과 네 가지 분석 축을 충족하면 과잉 검증 없이 연결한다", () => {
+  const payload = structuredReadyPayload();
+  payload.output_parsed.survey.questions[2] = structuredQuestion(
+    3,
+    "experience",
+    "multiple_choice",
+    "네이버웹툰에서 주로 보는 콘텐츠 장르를 골라주세요.",
+    ["드라마", "로맨스", "액션", "코미디", "기타"],
+  );
+  payload.output_parsed.survey.questions[3] = structuredQuestion(
+    4,
+    "evaluation",
+    "scale",
+    "네이버웹툰 이용 경험에 전반적으로 얼마나 만족하나요?",
+  );
+  payload.output_parsed.survey.questions[4] = structuredQuestion(
+    5,
+    "barrier",
+    "multiple_choice",
+    "네이버웹툰에서 개선이 필요한 점을 골라주세요.",
+    ["작품 탐색", "광고", "결제 부담", "앱 사용성", "특별히 없음"],
+  );
+  payload.output_parsed.survey.questions[5] = structuredQuestion(
+    6,
+    "experience",
+    "multiple_choice",
+    "새로 볼 웹툰 작품을 주로 어떻게 찾나요?",
+    ["추천 목록", "검색", "지인 추천", "SNS", "기타"],
+  );
+
+  const result = parseSurveyDraftResponse(
+    payload,
+    "현재 국내 최대 웹툰 플랫폼인 네이버 웹툰의 대학생 이용 현황과 경험을 분석하고 싶어",
+  );
+
+  assert.equal(result.status, "ready");
+  if (result.status !== "ready" && result.status !== "ready_with_caution") {
+    assert.fail("완성된 설문 결과가 필요합니다.");
+  }
+  assert.match(result.blueprint.title, /네이버웹툰/);
+});
+
 test("구조화 결과의 중복 문항 ID를 서버 검증에서 거부한다", () => {
   const payload = structuredReadyPayload();
   payload.output_parsed.survey.questions[1]!.id = "Q1";
