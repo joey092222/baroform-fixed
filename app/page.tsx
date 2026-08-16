@@ -2856,8 +2856,14 @@ function CreateView({
 
           <details className="create-additional-info">
             <summary>
-              <span><Plus size={16} /> 추가 정보</span>
-              <small>기간·조건·문항 수 등을 설정할 수 있어요.</small>
+              <span className="additional-info-heading">
+                <span className="additional-info-icon" aria-hidden="true"><Plus size={16} /></span>
+                <span>
+                  <strong>추가 정보</strong>
+                  <small>기간·조건·문항 수 등을 설정할 수 있어요.</small>
+                </span>
+              </span>
+              <span className="additional-info-optional">선택</span>
               <ChevronDown size={17} />
             </summary>
             <div className="additional-info-body">
@@ -2914,15 +2920,21 @@ function CreateView({
             </div>
           </details>
 
-          <div className="reference-section-heading">
-            <span>사진·파일·링크</span>
-            <small>설문에 참고할 자료가 있을 때 추가해주세요.</small>
+          <div className="create-reference-section">
+            <div className="reference-section-heading">
+              <span className="reference-section-icon" aria-hidden="true"><FileText size={16} /></span>
+              <span className="reference-section-copy">
+                <strong>사진·파일·링크</strong>
+                <small>설문 설계에 참고할 자료가 있을 때만 추가해주세요.</small>
+              </span>
+              <span className="reference-section-optional">선택</span>
+            </div>
+            <SurveyReferenceControls
+              references={references}
+              onChange={setReferences}
+              disabled={isAnalyzing}
+            />
           </div>
-          <SurveyReferenceControls
-            references={references}
-            onChange={setReferences}
-            disabled={isAnalyzing}
-          />
           <fieldset className="survey-mode-setting" disabled={isAnalyzing}>
             <legend>설문 제작 방식</legend>
             <div className="survey-mode-options">
