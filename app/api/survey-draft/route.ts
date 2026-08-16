@@ -45,6 +45,7 @@ import { parseResponse } from "openai/lib/ResponsesParser";
 import type { Response as OpenAIResponse } from "openai/resources/responses/responses";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
+import { parseSurveyIntent } from "../../survey-semantic-intent";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -314,7 +315,7 @@ function applyDraftSettings(
     targetGrade === "전학년" &&
     Boolean(blueprint.respondentGroup) &&
     !/(?:연세대|연세대학교)/.test(blueprint.respondentGroup ?? "") &&
-    /(?:대학생|대학원생|중학생|고등학생|청년|직장인|학부모|교사|사용자|이용자|소비자)/.test(
+    /(?:전\s*연령대|모든\s*연령대|일반인|\d{1,2}대|대학생|대학원생|중학생|고등학생|청년|직장인|학부모|교사|사용자|이용자|소비자|고객)/.test(
       blueprint.respondentGroup ?? "",
     );
   const templateCount = Math.min(5, questionCount);
@@ -810,6 +811,10 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     references.files.length > 0 ||
     references.links.length > 0;
   if (process.env.NODE_ENV !== "production") {
+    const intent = parseSurveyIntent(
+      enteredPrompt,
+      surveyMode === "research" ? "research" : "general",
+    );
     console.info("survey-generation-request", {
       requestId,
       clientRequestId,
@@ -819,6 +824,15 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         references.images.length +
         references.files.length +
         references.links.length,
+      intent: {
+        objectKind: intent.objectKind,
+        hasTargetPopulation: Boolean(intent.targetPopulation),
+        constructCount: intent.constructs.length,
+        hasExplicitTimeframe: Boolean(intent.explicitTimeframe),
+        screeningRequired: intent.screeningRequired,
+        includesNonUsers: intent.includesNonUsers,
+        ambiguityLevel: intent.ambiguityLevel,
+      },
     });
   }
   if (enteredPrompt.length > 300 || (enteredPrompt.length < 2 && !hasReferences)) {

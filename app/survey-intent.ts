@@ -1,4 +1,10 @@
 import { lookupVerifiedSurveyKnowledge } from "./survey-knowledge";
+import {
+  parseSurveyIntent,
+  shouldEnforceSurveyIntentValidation,
+  validateSurveyIntentCandidate,
+  type SurveyIntent,
+} from "./survey-semantic-intent";
 
 export type SurveyQuestionType =
   | "scale"
@@ -151,6 +157,7 @@ export type SurveyBrief = {
   kind: SurveyIntentKind;
   domain: SurveyDomain;
   semantics: SurveySemantics;
+  surveyIntent: SurveyIntent;
 };
 
 const normalizePrompt = (value: string) =>
@@ -942,6 +949,7 @@ function briefSubjectFromContent(
   }
 
   let subject = content
+    .replace(/\s*(?:설문\s*)?조사\s*$/, "")
     .replace(
       /\s+(?:인지도|인지|인식)\s*(?:과|와|및)\s*(?:사용|이용)\s*(?:경험|현황|행태|실태|패턴|빈도)\s*(?:(?:설문\s*)?조사)?$/,
       "",
@@ -1090,15 +1098,69 @@ function briefDimensions(
   ];
 }
 
-function briefTimeframe(subject: string, content: string, semantics: SurveySemantics) {
+function briefTimeframe(subject: string, content: string) {
   if (/팀플|팀\s*프로젝트|조별\s*과제/.test(`${subject} ${content}`)) {
     return "가장 최근 팀플";
   }
-  if (/학식|식당|급식|교내/.test(`${subject} ${content}`)) return "최근 1학기";
-  if (semantics.kind === "usage" || /빈도|현황|경험/.test(content)) {
-    return "최근 3개월";
+  return "사용자 지정 없음";
+}
+
+function shouldPreferSurveyIntent(intent: SurveyIntent) {
+  if (intent.ambiguityLevel !== "low") return false;
+  return (
+    intent.objectKind === "ability_skill" ||
+    (intent.objectKind === "attitude_perception" &&
+      /(?:비이용자|비사용자|사용해\s*본\s*적이\s*없는|이용해\s*본\s*적이\s*없는).*(?:포함|까지)/.test(
+        intent.rawInput,
+      )) ||
+    (intent.objectKind === "satisfaction_evaluation" &&
+      Boolean(intent.eligibilityCondition))
+  );
+}
+
+function dimensionsFromSurveyIntent(intent: SurveyIntent) {
+  switch (intent.objectKind) {
+    case "ability_skill":
+      return [
+        "사용 경험",
+        "활용 빈도",
+        "수행 가능한 작업",
+        "이해도와 자신감",
+        "어려움과 교육 수요",
+      ];
+    case "attitude_perception":
+      return [
+        "인지 수준",
+        "기대 효과",
+        "우려 사항",
+        "신뢰와 태도",
+        "향후 이용 의향",
+      ];
+    case "satisfaction_evaluation":
+      return [
+        "실제 경험 여부",
+        "전반적 만족도",
+        "세부 경험 평가",
+        "불편 사항",
+        "개선 우선순위",
+      ];
+    case "service_product":
+    case "place_facility":
+    case "behavior_usage":
+      return [
+        "이용 여부 및 빈도",
+        "이용 상황과 목적",
+        "전반적 경험",
+        "불편 사항",
+        "향후 이용 의향",
+      ];
+    case "need_demand":
+      return ["현재 필요", "수요 수준", "필요한 지원", "참여 조건", "우선순위"];
+    default:
+      return intent.constructs.length > 0
+        ? [...intent.constructs, "현재 경험", "평가", "개선 요구"]
+        : ["현재 경험", "주요 판단 기준", "전반적 평가", "개선 요구"];
   }
-  return "현재 또는 가장 최근 경험";
 }
 
 export function parseSurveyBrief(rawBrief: string): SurveyBrief {
@@ -1110,16 +1172,33 @@ export function parseSurveyBrief(rawBrief: string): SurveyBrief {
   const promotional = stripPromotionalPrefix(unwrapped);
   const normalizedBrief = promotional.value;
   const semantics = parseSurveySemantics(normalizedBrief);
+  const surveyIntent = parseSurveyIntent(normalizedBrief);
+  const preferSurveyIntent = shouldPreferSurveyIntent(surveyIntent);
   const split = splitRespondent(normalizedBrief);
   const researchContext = researchContextFromContent(split.content, semantics);
   const awarenessUsageDimensions = awarenessAndUsageDimensions(split.content);
-  const researchSubject = briefSubjectFromContent(
+  let researchSubject = briefSubjectFromContent(
     split.content,
     split.respondentGroup,
     split.topicPrefix,
     researchContext,
   ) || semantics.evaluationTarget;
+  if (
+    surveyIntent.explicitTimeframe &&
+    researchSubject.startsWith(surveyIntent.explicitTimeframe)
+  ) {
+    researchSubject = researchSubject
+      .slice(surveyIntent.explicitTimeframe.length)
+      .trim();
+  }
+  if (preferSurveyIntent) {
+    researchSubject =
+      surveyIntent.objectKind === "ability_skill"
+        ? surveyIntent.constructs[0] ?? surveyIntent.surveyObject ?? researchSubject
+        : surveyIntent.surveyObject ?? researchSubject;
+  }
   let targetRespondents =
+    (preferSurveyIntent ? surveyIntent.targetPopulation : null) ??
     split.respondentGroup ??
     semantics.respondentGroup ??
     (researchContext
@@ -1142,16 +1221,12 @@ export function parseSurveyBrief(rawBrief: string): SurveyBrief {
     throw new Error("조사 의뢰문에서 짧고 명확한 조사 대상을 분리하지 못했습니다.");
   }
 
-  const dimensions = briefDimensions(
-    researchSubject,
-    split.content,
-    semantics,
-  );
-  const recommendedTimeframe = briefTimeframe(
-    researchSubject,
-    split.content,
-    semantics,
-  );
+  const dimensions = preferSurveyIntent
+    ? dimensionsFromSurveyIntent(surveyIntent)
+    : briefDimensions(researchSubject, split.content, semantics);
+  const recommendedTimeframe =
+    surveyIntent.explicitTimeframe ??
+    briefTimeframe(researchSubject, split.content);
   const subjectAudiencePrefix = researchSubject.match(/^(.{1,30}?)의\s+(.+)$/);
   const goalSubject =
     subjectAudiencePrefix && targetRespondents.includes(subjectAudiencePrefix[1])
@@ -1162,13 +1237,17 @@ export function parseSurveyBrief(rawBrief: string): SurveyBrief {
     "을",
     "를",
   );
-  const researchGoal = `${labelWithParticle(targetRespondents, "의", "의")} ${goalSubject} 관련 ${goalDimensions} 파악한다.`;
+  const researchGoal = preferSurveyIntent
+    ? `${labelWithParticle(targetRespondents, "의", "의")} ${goalSubject} 관련 ${surveyIntent.purpose ?? `${goalDimensions} 파악`}한다.`
+    : `${labelWithParticle(targetRespondents, "의", "의")} ${goalSubject} 관련 ${goalDimensions} 파악한다.`;
   const isUsageStudy =
     semantics.kind === "usage" || /이용\s*(?:현황|경험|빈도)|사용\s*(?:현황|경험|빈도)/.test(split.content);
   const contextualSubject = researchContext
     ? `${researchContext} ${researchSubject}`
     : researchSubject;
-  const surveyTitle = /팀플|팀\s*프로젝트|조별\s*과제/.test(normalizedBrief)
+  const surveyTitle = preferSurveyIntent && /(?:조사|연구)$/.test(normalizedBrief)
+    ? normalizedBrief
+    : /팀플|팀\s*프로젝트|조별\s*과제/.test(normalizedBrief)
     ? `${researchSubject} 조사`
     : /학식|식당|급식/.test(researchSubject)
       ? `${researchSubject} 이용 경험 및 만족도 조사`
@@ -1203,6 +1282,7 @@ export function parseSurveyBrief(rawBrief: string): SurveyBrief {
       explicitTopic: researchSubject,
       domain: inferDomain(targetRespondents, researchSubject, normalizedBrief),
     },
+    surveyIntent,
   };
 }
 
@@ -1803,9 +1883,7 @@ function satisfactionProfile(semantics: SurveySemantics): SatisfactionProfile {
     };
   }
 
-  const directExperience = respondentGroup
-    ? `현재 ${respondentGroup}에 해당하거나 관련 경험이 있나요?`
-    : `${labelWithParticle(evaluationTarget, "을", "를")} 직접 경험하거나 이용한 적이 있나요?`;
+  const directExperience = `${labelWithParticle(evaluationTarget, "을", "를")} 직접 경험한 적이 있나요?`;
   return {
     screenerTitle: directExperience,
     screenerOptions: [
@@ -1830,7 +1908,7 @@ function satisfactionProfile(semantics: SurveySemantics): SatisfactionProfile {
       "이용·참여 과정의 편리함에 얼마나 만족하시나요?",
       "정보 안내와 운영 방식에 얼마나 만족하시나요?",
     ],
-    closingTitle: `${evaluationTarget}이 더 좋아지기 위해 바라는 점을 적어주세요.`,
+    closingTitle: `${labelWithParticle(evaluationTarget, "이", "가")} 더 좋아지기 위해 바라는 점을 적어주세요.`,
   };
 }
 
@@ -1959,7 +2037,7 @@ function satisfactionBlueprint(
   return {
     kind: "satisfaction",
     intentLabel: movement ? "이동 경험·개선" : "만족도·개선",
-    subject: titleFocus,
+    subject: evaluationTarget,
     title: `${titleFocus} ${titleSuffix}`,
     description,
     templateTitle: movement
@@ -2327,7 +2405,8 @@ function adoptionBlueprint(subject: string): SurveyBlueprint {
 }
 
 function usageBlueprint(subject: string, brief?: SurveyBrief): SurveyBlueprint {
-  const timeframe = brief?.recommendedTimeframe || "최근 3개월";
+  const timeframe = brief?.surveyIntent.explicitTimeframe ?? null;
+  const timeframePrefix = timeframe ? `${timeframe} ` : "";
   const targetRespondents = brief?.targetRespondents ?? null;
   const corpus = `${subject} ${brief?.normalizedBrief ?? ""}`;
   const contextPrefix = brief?.researchContext
@@ -2369,15 +2448,15 @@ function usageBlueprint(subject: string, brief?: SurveyBrief): SurveyBlueprint {
   questions.push(
     question(
       questions.length + 1,
-      `${timeframe} 이내 ${contextPrefix}${labelWithParticle(subject, "을", "를")} 이용한 적이 있나요?`,
-      "최근 이용자와 비이용자를 구분해 이후 이용 경험 문항을 정확히 해석해요.",
+      `${timeframePrefix}${contextPrefix}${labelWithParticle(subject, "을", "를")} 이용한 적이 있나요?`,
+      "이용 경험이 있는 응답자와 비이용자의 답변을 함께 해석함.",
       "single",
       ["예", "아니요"],
     ),
     question(
       questions.length + 2,
-      `최근 1개월 동안 ${contextPrefix}${labelWithParticle(subject, "을", "를")} 얼마나 자주 이용했나요?`,
-      "기준 기간을 고정해 이용 빈도를 서로 비교할 수 있게 해요.",
+      `${timeframe ? `${timeframe} ` : "평소 "}${contextPrefix}${labelWithParticle(subject, "을", "를")} 얼마나 자주 이용하나요?`,
+      "이용 빈도를 구간별로 비교함.",
       "single",
       ["이용하지 않음", "월 1회", "월 2~3회", "월 4~7회", "월 8회 이상"],
     ),
@@ -2421,7 +2500,7 @@ function usageBlueprint(subject: string, brief?: SurveyBrief): SurveyBlueprint {
       ),
       question(
         questions.length + 6,
-        `최근 3개월 동안 ${subject}에서 유료 콘텐츠를 결제한 경험이 있나요?`,
+        `${timeframe ? `${timeframe} ` : ""}${subject}에서 유료 콘텐츠를 결제한 경험이 있나요?`,
         "무료 이용자와 결제 이용자를 구분해 비용 경험을 별도로 분석해요.",
         "single",
         ["정기적으로 결제함", "한두 번 결제함", "결제를 고민했지만 하지 않음", "결제한 적 없음"],
@@ -2525,21 +2604,21 @@ function usageBlueprint(subject: string, brief?: SurveyBrief): SurveyBlueprint {
     subject,
     title: brief?.surveyTitle ?? `${subject} 이용 현황 및 경험 조사`,
     description: brief
-      ? `본 조사는 ${brief.targetRespondents}의 ${subject} 이용 행태와 서비스 경험을 파악하기 위한 조사입니다. ${timeframe}의 이용 경험을 기준으로 응답해 주세요.`
+      ? `본 조사는 ${brief.targetRespondents}의 ${subject} 이용 행태와 서비스 경험을 파악하기 위한 조사입니다.${timeframe ? ` ${timeframe}의 이용 경험을 기준으로 응답해 주세요.` : ""}`
       : `${subject}의 실제 이용 방식과 만족도, 불편 요소 및 개선 요구를 파악하는 익명 설문입니다.`,
     templateTitle: `${subject} 이용 현황 및 경험`,
     templateSummary: "이용 여부와 빈도, 실제 이용 맥락, 만족도와 불편 사항을 대상 특성에 맞게 확인해요.",
     detectedSignals: [
       `응답 대상 · ${targetRespondents ?? "별도 지정 없음"}`,
       `조사 대상 · ${subject}`,
-      `기준 기간 · ${timeframe}`,
+      ...(timeframe ? [`기준 기간 · ${timeframe}`] : []),
     ],
     templateQuestions,
     aiQuestions,
     respondentGroup: targetRespondents,
     evaluationTarget: subject,
     goal: brief?.researchGoal ?? "이용 현황과 경험 파악",
-    assumptions: brief ? [`${timeframe}의 경험을 기준으로 응답하도록 구성했어요.`] : [],
+    assumptions: [],
     domain: brief?.domain,
   };
 }
@@ -3573,11 +3652,321 @@ function attachSemantics(
   };
 }
 
+function intentObjectForQuestion(intent: SurveyIntent, fallback: string) {
+  const value = intent.surveyObject ?? fallback;
+  if (/AI\s*도구\s*또는\s*AI\s*기반\s*서비스/i.test(value)) {
+    return "AI 기반 도구";
+  }
+  return value;
+}
+
+function ageRangeQuestion(id: number) {
+  return question(
+    id,
+    "연령대를 선택해 주세요.",
+    "연령대별 응답 차이를 비교함.",
+    "single",
+    ["10대 이하", "20대", "30대", "40대", "50대", "60대 이상"],
+  );
+}
+
+function abilityIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
+  const intent = brief.surveyIntent;
+  const object = intentObjectForQuestion(intent, brief.researchSubject);
+  const questions: SurveyQuestion[] = [];
+  if (/전\s*연령대|모든\s*연령대/.test(intent.targetPopulation ?? "")) {
+    questions.push(ageRangeQuestion(1));
+  }
+  questions.push(
+    question(
+      questions.length + 1,
+      `${labelWithParticle(object, "을", "를")} 사용해 본 경험에 가장 가까운 답을 골라주세요.`,
+      "사용 경험이 없는 응답자도 제외하지 않고 경험 수준을 구분함.",
+      "single",
+      [
+        "현재 자주 사용함",
+        "현재 가끔 사용함",
+        "과거에만 사용해 봄",
+        "알고 있지만 사용해 본 적 없음",
+        "이번에 처음 알게 됨",
+      ],
+    ),
+    question(
+      questions.length + 2,
+      `평소 ${labelWithParticle(object, "을", "를")} 얼마나 자주 사용하나요?`,
+      "일상적인 활용 빈도를 구간별로 비교함.",
+      "single",
+      ["사용하지 않음", "월 1회 미만", "월 1~3회", "주 1~2회", "주 3회 이상"],
+    ),
+    question(
+      questions.length + 3,
+      `${labelWithParticle(object, "으로", "로")} 수행할 수 있는 작업을 모두 골라주세요.`,
+      "실제로 수행 가능한 작업 범위를 확인함.",
+      "multiple",
+      [
+        "정보 검색과 확인",
+        "글 작성과 문장 다듬기",
+        "요약과 번역",
+        "자료 분석과 계산",
+        "이미지·영상 등 콘텐츠 제작",
+        "할 수 있는 작업이 아직 없음",
+        "기타",
+      ],
+    ),
+    question(
+      questions.length + 4,
+      `${labelWithParticle(object, "을", "를")} 원하는 목적에 맞게 사용하는 데 어느 정도 자신이 있나요?`,
+      "스스로 인식하는 활용 자신감을 측정함.",
+      "scale",
+    ),
+    question(
+      questions.length + 5,
+      `${labelWithParticle(object, "을", "를")} 사용할 때 어렵게 느끼는 점을 모두 골라주세요.`,
+      "활용을 막는 지식·신뢰·접근 장벽을 파악함.",
+      "multiple",
+      [
+        "무엇을 입력해야 할지 어려움",
+        "결과가 정확한지 판단하기 어려움",
+        "기능과 사용법을 잘 모름",
+        "개인정보와 보안이 걱정됨",
+        "비용이 부담됨",
+        "사용할 필요를 느끼지 못함",
+        "특별히 어려운 점 없음",
+        "기타",
+      ],
+    ),
+    question(
+      questions.length + 6,
+      `${brief.researchSubject}을 높이기 위해 가장 필요한 도움은 무엇인가요?`,
+      "교육과 지원 수요의 우선순위를 확인함.",
+      "single",
+      [
+        "기초 사용법 교육",
+        "실제 과제·업무 활용 사례",
+        "결과 검증과 출처 확인 방법",
+        "개인정보·윤리 안내",
+        "직접 연습할 수 있는 실습",
+        "별도의 도움이 필요하지 않음",
+      ],
+    ),
+  );
+  const normalizedQuestions = questions.slice(0, 7).map((item, index) => ({
+    ...item,
+    id: index + 1,
+  }));
+  return {
+    kind: "general",
+    intentLabel: "능력·역량 실태",
+    subject: brief.researchSubject,
+    title: brief.surveyTitle,
+    description: `${brief.targetRespondents}의 ${brief.researchSubject}과 활용 경험, 어려움 및 교육 수요를 파악하기 위한 설문입니다.`,
+    templateTitle: brief.surveyTitle,
+    templateSummary: "사용 경험과 실제 수행 능력, 자신감, 어려움과 교육 수요를 함께 확인해요.",
+    detectedSignals: [
+      `응답 대상 · ${brief.targetRespondents}`,
+      `측정 개념 · ${brief.researchSubject}`,
+      "비이용자 포함",
+    ],
+    templateQuestions: normalizedQuestions.slice(0, 5),
+    aiQuestions: normalizedQuestions,
+    respondentGroup: brief.targetRespondents,
+    evaluationTarget: brief.researchSubject,
+    goal: intent.purpose ?? brief.researchGoal,
+    assumptions: [],
+    domain: "general",
+  };
+}
+
+function perceptionIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
+  const intent = brief.surveyIntent;
+  const object = intentObjectForQuestion(intent, brief.researchSubject);
+  const questions: SurveyQuestion[] = [];
+  if (/전\s*연령대|모든\s*연령대/.test(intent.targetPopulation ?? "")) {
+    questions.push(ageRangeQuestion(1));
+  }
+  questions.push(
+    question(
+      questions.length + 1,
+      `${labelWithParticle(object, "을", "를")} 어느 정도 알고 있나요?`,
+      "사용 경험과 별개로 인지 수준을 확인함.",
+      "single",
+      ["잘 알고 있음", "어느 정도 알고 있음", "이름만 들어봄", "전혀 알지 못함"],
+    ),
+    question(
+      questions.length + 2,
+      `${labelWithParticle(object, "을", "를")} 사용해 본 경험에 가장 가까운 답을 골라주세요.`,
+      "비이용자를 탈락시키지 않고 사용 경험 수준을 구분함.",
+      "single",
+      ["현재 사용 중", "과거에 사용해 봄", "알지만 사용 경험 없음", "처음 들어봄"],
+    ),
+    question(
+      questions.length + 3,
+      `${object}의 기대되는 점을 모두 골라주세요.`,
+      "긍정적으로 기대하는 가치를 파악함.",
+      "multiple",
+      ["시간 절약", "정보 접근 향상", "학습·업무 효율", "새로운 아이디어", "개인 맞춤 지원", "기대되는 점 없음", "기타"],
+    ),
+    question(
+      questions.length + 4,
+      `${object}에 대해 우려되는 점을 모두 골라주세요.`,
+      "비이용자를 포함한 우려와 장벽을 파악함.",
+      "multiple",
+      ["부정확한 정보", "개인정보와 보안", "과도한 의존", "일자리와 역할 변화", "편향과 공정성", "비용", "우려되는 점 없음", "기타"],
+    ),
+    question(
+      questions.length + 5,
+      `${labelWithParticle(object, "이", "가")} 제공하는 결과를 어느 정도 신뢰하나요?`,
+      "결과에 대한 신뢰 수준을 측정함.",
+      "scale",
+    ),
+    question(
+      questions.length + 6,
+      `앞으로 ${labelWithParticle(object, "을", "를")} 사용할 의향이 어느 정도인가요?`,
+      "현재 경험과 무관하게 향후 이용 의향을 확인함.",
+      "scale",
+    ),
+  );
+  const normalizedQuestions = questions.slice(0, 7).map((item, index) => ({
+    ...item,
+    id: index + 1,
+  }));
+  return {
+    kind: "awareness",
+    intentLabel: "인식·태도",
+    subject: object,
+    title: brief.surveyTitle,
+    description: `${brief.targetRespondents}의 ${object}에 대한 인식, 기대, 우려와 향후 이용 의향을 파악하기 위한 설문입니다.`,
+    templateTitle: brief.surveyTitle,
+    templateSummary: "사용자와 비이용자 모두 답할 수 있도록 인식과 태도를 확인해요.",
+    detectedSignals: [
+      `응답 대상 · ${brief.targetRespondents}`,
+      `조사 대상 · ${object}`,
+      "비이용자 포함",
+    ],
+    templateQuestions: normalizedQuestions.slice(0, 5),
+    aiQuestions: normalizedQuestions,
+    respondentGroup: brief.targetRespondents,
+    evaluationTarget: object,
+    goal: intent.purpose ?? brief.researchGoal,
+    assumptions: [],
+    domain: "general",
+  };
+}
+
+function satisfactionIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
+  const intent = brief.surveyIntent;
+  const object = intentObjectForQuestion(intent, brief.researchSubject);
+  const experienceQuestion = intent.eligibilityCondition
+    ? /(?:먹어본|시식|구매)/.test(intent.targetPopulation ?? "")
+      ? `해당 ${labelWithParticle(object, "을", "를")} 직접 구매하거나 먹어본 경험이 있나요?`
+      : `${intent.eligibilityCondition}이 있나요?`
+    : `${labelWithParticle(object, "을", "를")} 직접 경험한 적이 있나요?`;
+  const questions: SurveyQuestion[] = [];
+  if (intent.screeningRequired) {
+    questions.push(
+      question(
+        1,
+        experienceQuestion,
+        "만족도를 평가할 수 있는 실제 경험 여부를 확인함.",
+        "single",
+        ["현재 경험 중", "최근에 경험함", "과거에 경험함", "경험한 적 없음"],
+      ),
+    );
+  }
+  questions.push(
+    question(
+      questions.length + 1,
+      `${object}에 전반적으로 얼마나 만족하나요?`,
+      "전반적 만족도를 공통 척도로 측정함.",
+      "scale",
+    ),
+    question(
+      questions.length + 2,
+      `${object}에서 만족한 부분을 모두 골라주세요.`,
+      "만족을 만드는 구체적인 요인을 파악함.",
+      "multiple",
+      ["내용과 품질", "이용 편의", "시간과 일정", "정보와 안내", "비용 대비 가치", "소통과 지원", "기타"],
+    ),
+    question(
+      questions.length + 3,
+      `${object}에서 불편했던 점을 모두 골라주세요.`,
+      "만족도를 낮추는 경험을 구분함.",
+      "multiple",
+      ["이용 절차", "시간과 일정", "정보 부족", "품질 편차", "비용 부담", "소통 부족", "불편한 점 없음", "기타"],
+    ),
+    question(
+      questions.length + 4,
+      `${labelWithParticle(object, "이", "가")} 기대한 수준에 얼마나 가까웠나요?`,
+      "사전 기대와 실제 경험의 차이를 확인함.",
+      "scale",
+    ),
+    question(
+      questions.length + 5,
+      `${object}에서 가장 먼저 개선되어야 할 부분은 무엇인가요?`,
+      "개선 우선순위를 하나로 특정함.",
+      "single",
+      ["내용과 품질", "이용 편의", "시간과 일정", "정보와 안내", "비용", "소통과 지원"],
+    ),
+    question(
+      questions.length + 6,
+      `${object}에 대해 추가로 전하고 싶은 의견이 있다면 적어주세요.`,
+      "선택지에 담기지 않은 구체적인 개선 의견을 수집함.",
+      "text",
+      undefined,
+      false,
+    ),
+  );
+  const normalizedQuestions = questions.slice(0, 7).map((item, index) => ({
+    ...item,
+    id: index + 1,
+  }));
+  return {
+    kind: "satisfaction",
+    intentLabel: "만족도·개선",
+    subject: object,
+    title: brief.surveyTitle,
+    description: `${brief.targetRespondents}의 ${object} 경험과 만족도, 개선 요구를 파악하기 위한 설문입니다.`,
+    templateTitle: brief.surveyTitle,
+    templateSummary: "실제 경험과 전반적 만족도, 세부 요인과 개선 우선순위를 확인해요.",
+    detectedSignals: [
+      `응답 대상 · ${brief.targetRespondents}`,
+      `평가 대상 · ${object}`,
+      ...(intent.eligibilityCondition
+        ? [`응답 조건 · ${intent.eligibilityCondition}`]
+        : []),
+    ],
+    templateQuestions: normalizedQuestions.slice(0, 5),
+    aiQuestions: normalizedQuestions,
+    respondentGroup: brief.targetRespondents,
+    evaluationTarget: object,
+    goal: intent.purpose ?? brief.researchGoal,
+    assumptions: [],
+    domain: brief.domain,
+  };
+}
+
+function semanticIntentBlueprint(brief: SurveyBrief) {
+  if (!shouldPreferSurveyIntent(brief.surveyIntent)) return null;
+  switch (brief.surveyIntent.objectKind) {
+    case "ability_skill":
+      return abilityIntentBlueprint(brief);
+    case "attitude_perception":
+      return perceptionIntentBlueprint(brief);
+    case "satisfaction_evaluation":
+      return satisfactionIntentBlueprint(brief);
+    default:
+      return null;
+  }
+}
+
 export function generateSurvey(brief: SurveyBrief): SurveyBlueprint {
   const normalized = brief.normalizedBrief;
   const semantics = brief.semantics;
   const subject = brief.researchSubject;
   let blueprint: SurveyBlueprint;
+
+  const semanticBlueprint = semanticIntentBlueprint(brief);
+  if (semanticBlueprint) return semanticBlueprint;
 
   if (/팀플|팀\s*프로젝트|조별\s*과제/.test(normalized)) {
     return collaborationBlueprint(brief);
@@ -3644,6 +4033,11 @@ export function generateSurvey(brief: SurveyBrief): SurveyBlueprint {
 export function analyzeSurveyPrompt(rawPrompt: string): SurveyBlueprint {
   const directProportion = parseDirectProportionRequest(rawPrompt);
   if (directProportion) return proportionBlueprint(directProportion);
+
+  const surveyIntent = parseSurveyIntent(rawPrompt);
+  if (shouldPreferSurveyIntent(surveyIntent)) {
+    return generateSurvey(parseSurveyBrief(rawPrompt));
+  }
 
   if (surveyRequestPhraseCue.test(normalizePrompt(rawPrompt))) {
     return generateSurvey(parseSurveyBrief(rawPrompt));
@@ -3883,7 +4277,7 @@ export function validateSurvey(
       issues.push(`문항 ${item.id}가 서로 다른 두 개 이상의 개념을 함께 묻고 있습니다.`);
     }
     if (/(?:얼마나\s*자주|이용\s*빈도|사용\s*빈도)/.test(item.title) &&
-        !/(?:최근|지난|하루|일주일|한\s*달|한달|1개월|3개월|학기|일\s*동안|주\s*동안|월\s*동안)/.test(item.title)) {
+        !/(?:평소|최근|지난|하루|일주일|한\s*달|한달|1개월|3개월|학기|일\s*동안|주\s*동안|월\s*동안)/.test(item.title)) {
       issues.push(`문항 ${item.id}의 이용 빈도에 기준 기간이 없습니다.`);
     }
     if (titles.has(normalizedTitle)) {
@@ -3933,6 +4327,23 @@ export function validateSurvey(
     !(/학생/.test(targetToken) && /학생/.test(allText))
   ) {
     issues.push("응답 대상 정보가 제목, 안내문과 문항에서 누락되었습니다.");
+  }
+
+  const intentViolations = shouldEnforceSurveyIntentValidation(
+    brief.surveyIntent,
+  )
+    ? validateSurveyIntentCandidate(brief.surveyIntent, {
+        title: blueprint.title,
+        description: blueprint.description,
+        questions: blueprint.aiQuestions.map((item) => ({
+          id: item.id,
+          title: item.title,
+          options: item.options,
+        })),
+      })
+    : [];
+  for (const violation of intentViolations) {
+    issues.push(`${violation.code}: ${violation.message}`);
   }
 
   return [...new Set(issues)];

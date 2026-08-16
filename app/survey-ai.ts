@@ -2,6 +2,7 @@ import {
   analyzeSurveyPrompt,
   parseSurveyBrief,
   parseExplicitSurveyMeasurement,
+  resizeSurveyQuestions,
   validateSurvey,
   type SurveyBlueprint,
   type SurveyDomain,
@@ -37,6 +38,12 @@ import {
   defaultSurveyMode,
   type SurveyMode,
 } from "./survey-mode";
+import {
+  compactSurveyIntentForPrompt,
+  parseSurveyIntent,
+  shouldEnforceSurveyIntentValidation,
+  validateSurveyIntentCandidate,
+} from "./survey-semantic-intent";
 
 export class SurveyValidationError extends Error {
   readonly issues: string[];
@@ -1268,6 +1275,23 @@ export function parseSurveyDraftResponse(
         normalizeQuestion(item, index + 1),
       )
     : [];
+  const brief = parseSurveyBrief(prompt);
+  const semanticViolations = shouldEnforceSurveyIntentValidation(
+    brief.surveyIntent,
+  )
+    ? validateSurveyIntentCandidate(brief.surveyIntent, {
+        title: cleanText(result.title, 100),
+        description: cleanText(result.description, 500),
+        eligibility: structuredGeneration?.survey_plan.eligibility,
+        questions: structuredGeneration
+          ? structuredGeneration.survey.questions
+          : normalizedAiQuestions.map((item) => ({
+              id: item.id,
+              title: item.title,
+              options: item.options,
+            })),
+      })
+    : [];
   assertQuestionQuality(normalizedAiQuestions, questionCount);
   assertSurveyDepth(
     result.designPlan,
@@ -1275,8 +1299,10 @@ export function parseSurveyDraftResponse(
     questionCount,
     expectsReferences,
   );
-  assertNoSurveyMetaWordsAsExperience(evaluationTarget, normalizedAiQuestions);
-  assertExplicitMeasurementCoverage(prompt, normalizedAiQuestions);
+  if (semanticViolations.length === 0) {
+    assertNoSurveyMetaWordsAsExperience(evaluationTarget, normalizedAiQuestions);
+    assertExplicitMeasurementCoverage(prompt, normalizedAiQuestions);
+  }
 
   const normalizedRespondent = respondentGroup
     .replace(/\s+/g, "")
@@ -1291,7 +1317,6 @@ export function parseSurveyDraftResponse(
     throw new Error("응답 대상과 평가 대상이 올바르게 분리되지 않았습니다.");
   }
 
-  const brief = parseSurveyBrief(prompt);
   const coverage = enforceContextualCoverage(
     prompt,
     kind,
@@ -1344,13 +1369,13 @@ export function parseSurveyDraftResponse(
     targetGrade === "전학년" &&
     Boolean(brief.targetRespondents) &&
     !/(?:연세대|연세대학교)/.test(brief.targetRespondents) &&
-    /(?:대학생|대학원생|중학생|고등학생|청년|직장인|학부모|교사|사용자|이용자|소비자)/.test(
+    /(?:전\s*연령대|모든\s*연령대|일반인|\d{1,2}대|대학생|대학원생|중학생|고등학생|청년|직장인|학부모|교사|사용자|이용자|소비자|고객)/.test(
       brief.targetRespondents,
     );
   const respondentWithGrade = preserveExplicitAudience
     ? brief.targetRespondents
     : respondentGroupForGrade(respondentGroup, targetGrade);
-  const blueprint: SurveyBlueprint = {
+  let blueprint: SurveyBlueprint = {
     kind,
     intentLabel: cleanText(interpretation.intentLabel, 30) || "맞춤 설문",
     subject: evaluationTarget,
@@ -1377,6 +1402,38 @@ export function parseSurveyDraftResponse(
       coverage.fallback.domain,
     ),
   };
+
+  if (semanticViolations.length > 0) {
+    const safeBlueprint = analyzeSurveyPrompt(prompt);
+    const repairedQuestions = applyTargetGradeToQuestions(
+      resizeSurveyQuestions(safeBlueprint.aiQuestions, questionCount),
+      targetGrade,
+      questionCount,
+    ).map((item) => ({
+      ...item,
+      reason: formatQuestionReason(item.reason),
+    }));
+    blueprint = {
+      ...safeBlueprint,
+      description: preserveExplicitAudience
+        ? safeBlueprint.description
+        : surveyDescriptionForGrade(safeBlueprint.description, targetGrade),
+      respondentGroup: preserveExplicitAudience
+        ? safeBlueprint.respondentGroup
+        : respondentGroupForGrade(safeBlueprint.respondentGroup, targetGrade),
+      templateQuestions: repairedQuestions.slice(0, 5),
+      aiQuestions: repairedQuestions,
+    };
+    if (process.env.NODE_ENV !== "production") {
+      console.info("survey-generation-semantic-repair", {
+        violationCodes: semanticViolations.map((item) => item.code),
+        questionCount,
+        objectKind: brief.surveyIntent.objectKind,
+        screeningRequired: brief.surveyIntent.screeningRequired,
+        includesNonUsers: brief.surveyIntent.includesNonUsers,
+      });
+    }
+  }
 
   const validationIssues = validateSurvey(prompt, brief, blueprint);
   if (validationIssues.length > 0) {
@@ -1482,6 +1539,10 @@ export function buildSurveyAiRequest(
   } catch {
     parsedBrief = parseSurveyBrief(fallback.title);
   }
+  const surveyIntent = parseSurveyIntent(
+    prompt,
+    surveyMode === "research" ? "research" : "general",
+  );
   const profileContext =
     options?.organizationLocationContext?.trim() || "별도 정보 없음";
   const attachmentContext = hasReferences
@@ -1515,6 +1576,15 @@ export function buildSurveyAiRequest(
     "",
     "[사용자가 입력한 원문]",
     prompt,
+    "",
+    "[구조화된 설문 의도]",
+    JSON.stringify(compactSurveyIntentForPrompt(surveyIntent)),
+    "",
+    "구조화된 설문 의도에서 대상, 조사 대상물, 측정 개념, 목적, 기간, 응답 자격을 서로 다른 역할로 유지한다.",
+    "조사·실태조사·만족도 조사·인식 조사·수요 조사는 서비스명이나 이용 대상이 아니다.",
+    "명시된 기간이 null이면 최근 1개월·3개월·6개월 같은 기간을 만들지 않는다.",
+    "screeningRequired가 false이면 첫 문항을 탈락형 이용 여부 스크리너로 만들지 않는다.",
+    "includesNonUsers가 true이면 비이용자도 인식·장벽·향후 의향 문항에 응답할 수 있어야 한다.",
     "",
     "[설문 제작 방식]",
     surveyMode === "research" ? "정밀·연구 설문" : "일반 설문",
@@ -1554,6 +1624,7 @@ export function buildSurveyAiRequest(
       targetRespondents: parsedBrief.targetRespondents,
       researchGoal: parsedBrief.researchGoal,
       recommendedTimeframe: parsedBrief.recommendedTimeframe,
+      surveyIntent: compactSurveyIntentForPrompt(surveyIntent),
       dimensions: parsedBrief.dimensions,
       fallbackKind: fallback.kind,
       fallbackDomain: fallback.domain ?? null,

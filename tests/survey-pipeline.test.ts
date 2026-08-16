@@ -55,7 +55,7 @@ for (const item of awarenessUsageCases) {
     const survey = analyzeSurveyPrompt(item.input);
     const renderedQuestions = JSON.stringify(survey.aiQuestions);
     const frequency = survey.aiQuestions.find((question) =>
-      /최근 1개월 동안.*얼마나 자주/.test(question.title),
+      /평소.*얼마나 자주/.test(question.title),
     );
 
     assert.equal(brief.researchSubject, item.subject);
@@ -144,7 +144,7 @@ test("콘텐츠 설문에는 범용 업무용 선택지가 섞이지 않는다",
   const rendered = JSON.stringify(survey);
 
   assert.doesNotMatch(rendered, /정보 탐색|과제·업무|구매·신청|기록·관리/);
-  assert.match(rendered, /최근 1개월/);
+  assert.match(rendered, /평소/);
   assert.match(rendered, /콘텐츠|장르/);
 });
 

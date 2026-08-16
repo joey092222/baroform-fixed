@@ -1407,6 +1407,32 @@ test("검색 기반 구조화 결과를 기존 설문 편집 형식으로 연결
   assert.equal(result.completionMessage, "응답해주셔서 감사합니다.");
 });
 
+test("모델이 조사 제목을 서비스처럼 질문하면 생성 후 의미 검증이 안전한 초안으로 복구한다", () => {
+  const prompt = "전 연령대 AI 사용능력 실태조사";
+  const payload = structuredReadyPayload();
+  payload.output_parsed.survey.title = prompt;
+  payload.output_parsed.survey.intro =
+    "전 연령대의 AI 사용능력 수준을 알아보기 위한 설문입니다.";
+  payload.output_parsed.survey_plan.target = "전 연령대";
+  payload.output_parsed.survey_plan.eligibility = "전 연령대";
+  payload.output_parsed.survey.questions[0]!.text =
+    "최근 3개월 이내 전 연령대 AI 사용능력 실태조사를 이용한 적이 있나요?";
+  payload.output_parsed.survey.questions[0]!.role = "screening";
+
+  const result = parseSurveyDraftResponse(payload, prompt);
+  assert.match(result.status, /^ready/);
+  if (result.status !== "ready" && result.status !== "ready_with_caution") {
+    assert.fail("복구된 설문 결과가 필요합니다.");
+  }
+  const corpus = result.blueprint.aiQuestions
+    .flatMap((question) => [question.title, ...(question.options ?? [])])
+    .join(" ");
+  assert.equal(result.blueprint.aiQuestions[0]?.title, "연령대를 선택해 주세요.");
+  assert.match(corpus, /수행할 수 있는 작업|사용하는 데 어느 정도 자신/);
+  assert.doesNotMatch(corpus, /최근\s*3개월/);
+  assert.doesNotMatch(corpus, /AI 사용능력 실태조사(?:를|을) 이용/);
+});
+
 test("응답자용 문구는 행정적 표현과 내부 분석 정보를 거부한다", () => {
   const generation = structuredReadyPayload().output_parsed;
   assert.deepEqual(respondentCopyIssues(generation), []);
@@ -2862,7 +2888,7 @@ test("인식·사용 행태 요청의 fallback도 실제 대상과 맥락을 분
     const questions = body.blueprint?.aiQuestions ?? [];
     const serialized = JSON.stringify(questions);
     const frequency = questions.find((question) =>
-      /최근 1개월 동안.*얼마나 자주/.test(question.title),
+      /평소.*얼마나 자주/.test(question.title),
     );
 
     assert.equal(response.status, 200);
