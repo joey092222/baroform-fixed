@@ -54,7 +54,9 @@ export function isSurveyMode(value: unknown): value is SurveyMode {
 }
 
 export function parseRequestedSurveyMode(value: unknown): SurveyMode | null {
-  if (typeof value === "undefined") return defaultSurveyMode;
+  if (value === undefined || value === null || value === "") {
+    return defaultSurveyMode;
+  }
   return isSurveyMode(value) ? value : null;
 }
 

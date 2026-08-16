@@ -46,6 +46,8 @@ import {
 
 test("설문 제작 모드의 기본값과 API 설정 매핑이 정확하다", () => {
   assert.equal(parseRequestedSurveyMode(undefined), "standard");
+  assert.equal(parseRequestedSurveyMode(null), "standard");
+  assert.equal(parseRequestedSurveyMode(""), "standard");
   assert.equal(parseRequestedSurveyMode("standard"), "standard");
   assert.equal(parseRequestedSurveyMode("research"), "research");
   assert.equal(parseRequestedSurveyMode("fast"), null);
@@ -1013,6 +1015,69 @@ test("surveyMode가 없는 기존 요청은 일반 설문으로 처리한다", a
   }
 });
 
+test("userInput만 보내는 오래된 모바일 요청도 일반 설문으로 처리한다", async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+  try {
+    const response = await createSurveyDraft(
+      new Request("http://localhost/api/survey-draft", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          "user-agent": "baroform-legacy-mobile-test",
+        },
+        body: JSON.stringify({
+          userInput: "대학생의 대학생활 만족도 설문",
+        }),
+      }),
+    );
+    const body = (await response.json()) as {
+      status?: string;
+      prompt?: string;
+      code?: string;
+    };
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("x-baroform-survey-mode"), "standard");
+    assert.match(body.status ?? "", /^ready/);
+    assert.equal(body.prompt, "대학생의 대학생활 만족도 설문");
+    assert.equal(body.code, undefined);
+  } finally {
+    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+  }
+});
+
+test("잘못된 설문 제작 모드는 구조화된 400 JSON으로 거부한다", async () => {
+  const response = await createSurveyDraft(
+    new Request("http://localhost/api/survey-draft", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "http://localhost",
+        "user-agent": "baroform-invalid-mode-test",
+      },
+      body: JSON.stringify({
+        prompt: "설문",
+        surveyMode: "invalid",
+      }),
+    }),
+  );
+  const body = (await response.json()) as {
+    ok?: boolean;
+    code?: string;
+    error?: string;
+    requestId?: string;
+  };
+
+  assert.equal(response.status, 400);
+  assert.equal(body.ok, false);
+  assert.equal(body.code, "INVALID_SURVEY_MODE");
+  assert.equal(typeof body.error, "string");
+  assert.equal(typeof body.requestId, "string");
+  assert.doesNotMatch(JSON.stringify(body), /stack|ZodError|invalid_type/i);
+});
+
 function structuredQuestion(
   id: number,
   role:
@@ -1636,7 +1701,7 @@ test("정밀·연구 설문은 높은 추론과 중간 검색 문맥을 한 요�
 
 test("일반적인 대학생활 설문은 standard 모드에서 검색 도구를 생략한다", () => {
   const prompt =
-    "대학생의 전반적 대학생활에 관해 조사하고, 이를 바탕으로 보다 나은 대학생활을 만들기 위한 교육환경 조성 및 심리상담 지원 프로그램을 마련하기 위한 설문 조사";
+    "대학생의 전반적 대학생활에 관해 조사하고, 이를 바탕으로 보다 나은 대학생활을 위한 교육환경 조성 및 심리상담 지원 프로그램을 마련하기 위한 설문 조사";
   const request = buildSurveyAiRequest(
     prompt,
     analyzeSurveyPrompt(prompt),

@@ -97,6 +97,11 @@ import {
   surveyModeOptions,
   type SurveyMode,
 } from "./survey-mode";
+import {
+  surveyGenerationErrorMessage,
+  surveyGenerationErrorMetadata,
+  type SurveyGenerationFailureStage,
+} from "./survey-generation-client";
 
 type View =
   | "landing"
@@ -2784,6 +2789,34 @@ function CreateView({
             onChange={setReferences}
             disabled={isAnalyzing}
           />
+          <fieldset className="survey-mode-setting" disabled={isAnalyzing}>
+            <legend>설문 제작 방식</legend>
+            <div className="survey-mode-options">
+              {surveyModeOptions.map((option) => (
+                <label
+                  className={`survey-mode-card ${surveyMode === option.value ? "selected" : ""}`}
+                  key={option.value}
+                >
+                  <input
+                    type="radio"
+                    name="survey-mode"
+                    value={option.value}
+                    checked={surveyMode === option.value}
+                    onChange={() => setSurveyMode(option.value)}
+                  />
+                  <span className="survey-mode-radio" aria-hidden="true" />
+                  <span className="survey-mode-copy">
+                    <span>
+                      <strong>{option.label}</strong>
+                      {recommendedMode === option.value && <em>추천</em>}
+                    </span>
+                    <small>{option.description}</small>
+                  </span>
+                </label>
+              ))}
+            </div>
+            <p>두 방식 모두 관련 정보를 확인하고 문항 품질을 검토해요.</p>
+          </fieldset>
           <div className="create-composer-footer">
             <div className={`create-readiness ${canGenerate ? "ready" : ""}`}>
               <i />
@@ -2802,35 +2835,6 @@ function CreateView({
             </button>
           </div>
         </div>
-
-        <fieldset className="survey-mode-setting" disabled={isAnalyzing}>
-          <legend>설문 제작 방식</legend>
-          <div className="survey-mode-options">
-            {surveyModeOptions.map((option) => (
-              <label
-                className={`survey-mode-card ${surveyMode === option.value ? "selected" : ""}`}
-                key={option.value}
-              >
-                <input
-                  type="radio"
-                  name="survey-mode"
-                  value={option.value}
-                  checked={surveyMode === option.value}
-                  onChange={() => setSurveyMode(option.value)}
-                />
-                <span className="survey-mode-radio" aria-hidden="true" />
-                <span className="survey-mode-copy">
-                  <span>
-                    <strong>{option.label}</strong>
-                    {recommendedMode === option.value && <em>추천</em>}
-                  </span>
-                  <small>{option.description}</small>
-                </span>
-              </label>
-            ))}
-          </div>
-          <p>두 방식 모두 관련 정보를 확인하고 문항 품질을 검토해요.</p>
-        </fieldset>
 
         <div className="create-settings" aria-label="설문 생성 설정">
           <div className="setting-block grade-setting">
@@ -5876,34 +5880,6 @@ function waitForBackgroundPoll(signal: AbortSignal, delayMs = 2_000) {
   });
 }
 
-function surveyGenerationErrorMessage(error: unknown) {
-  if (error instanceof DOMException && error.name === "AbortError") {
-    return "설문 생성을 취소했어요.";
-  }
-  if (error instanceof JsonResponseError) {
-    switch (error.code) {
-      case "SURVEY_GENERATION_CANCELLED":
-        return "설문 생성을 취소했어요.";
-      case "SURVEY_GENERATION_OPENAI_TIMEOUT":
-        return "설문 생성 서비스의 응답이 지연되고 있어요. 잠시 후 다시 시도해 주세요.";
-      case "SURVEY_GENERATION_DEADLINE":
-        return "서버 안전 한도에 가까워져 생성을 마쳤어요. 다시 시도해 주세요.";
-      case "SURVEY_GENERATION_BACKGROUND_FAILED":
-        return "정밀·연구 설문 생성에 실패했어요. 다시 시도해 주세요.";
-      case "SURVEY_GENERATION_CONNECTION_ERROR":
-      case "SERVER_RESPONSE_EMPTY":
-        return "네트워크 연결이 불안정해요. 연결을 확인한 뒤 다시 시도해 주세요.";
-      case "SURVEY_GENERATION_INCOMPLETE":
-      case "SURVEY_GENERATION_OUTPUT_MISSING":
-      case "SURVEY_GENERATION_OUTPUT_INVALID":
-        return "완전한 설문 응답을 받지 못해 적용하지 않았어요. 다시 시도해 주세요.";
-      default:
-        return "설문을 만드는 중 문제가 발생했어요. 잠시 후 다시 시도해 주세요.";
-    }
-  }
-  return "설문을 만드는 중 문제가 발생했어요. 잠시 후 다시 시도해 주세요.";
-}
-
 function Footer() {
   return (
     <footer className="site-footer">
@@ -6347,6 +6323,17 @@ export default function Home() {
     }
     const requestedPrompt =
       enteredPrompt || "첨부 자료를 바탕으로 만족도와 개선점을 조사하고 싶어요.";
+    const selectedSurveyMode: SurveyMode =
+      surveyMode === "research" ? "research" : defaultSurveyMode;
+    const clientRequestId =
+      typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `client-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const attachmentCount =
+      references.images.length +
+      references.files.length +
+      references.links.length;
+    let failureStage: SurveyGenerationFailureStage = "initial-request";
 
     const requestId = analysisRequestRef.current + 1;
     analysisRequestRef.current = requestId;
@@ -6357,14 +6344,27 @@ export default function Home() {
     setIsAnalyzing(true);
     setClarification(null);
 
+    if (process.env.NODE_ENV !== "production") {
+      console.info("survey-generation-client-request", {
+        surveyMode: selectedSurveyMode,
+        inputLength: requestedPrompt.length,
+        attachmentCount,
+        requestId: clientRequestId,
+      });
+    }
+
     try {
       const response = await fetch("/api/survey-draft", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          "x-baroform-client-request-id": clientRequestId,
+        },
         signal: controller.signal,
         body: JSON.stringify({
           prompt: requestedPrompt,
-          surveyMode,
+          userInput: requestedPrompt,
+          surveyMode: selectedSurveyMode,
           targetGrade,
           questionCount,
           references: {
@@ -6391,6 +6391,7 @@ export default function Home() {
           responseId: backgroundJob.responseId,
           jobToken: backgroundJob.jobToken,
         };
+        failureStage = "background-poll";
         while (result.status === "queued" || result.status === "in_progress") {
           await waitForBackgroundPoll(controller.signal);
           const statusUrl = new URL("/api/survey-draft", window.location.origin);
@@ -6411,10 +6412,15 @@ export default function Home() {
 
       if (analysisRequestRef.current !== requestId) return;
       if (!("status" in result)) {
-        throw new Error(
+        throw new JsonResponseError(
           "error" in result && result.error
             ? result.error
             : "AI 초안을 만들지 못했어요.",
+          {
+            code: "SERVER_RESPONSE_INVALID",
+            status: 502,
+            requestId: clientRequestId,
+          },
         );
       }
 
@@ -6434,6 +6440,7 @@ export default function Home() {
         );
       }
 
+      failureStage = "response-apply";
       setSurveyTitle(result.blueprint.title);
       setDescription(result.blueprint.description);
       setQuestions(result.blueprint.aiQuestions);
@@ -6442,13 +6449,15 @@ export default function Home() {
       navigate("editor");
     } catch (analysisError) {
       if (analysisRequestRef.current !== requestId) return;
-      if (analysisError instanceof JsonResponseError) {
-        console.error("survey-generation-client-error", {
-          status: analysisError.status,
-          code: analysisError.code,
-          requestId: analysisError.requestId,
-        });
-      }
+      console.error(
+        "survey-generation-client-error",
+        surveyGenerationErrorMetadata(
+          analysisError,
+          selectedSurveyMode,
+          failureStage,
+          clientRequestId,
+        ),
+      );
       setToast(surveyGenerationErrorMessage(analysisError));
       window.setTimeout(() => setToast(""), 5200);
     } finally {

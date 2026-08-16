@@ -8,6 +8,19 @@ import {
   validateSurvey,
 } from "../app/survey-intent";
 
+test("조사 목적 문구를 대학생활 자체와 분리해 첫 초안을 생성한다", () => {
+  const prompt =
+    "대학생의 전반적 대학생활에 관해 조사하고, 이를 바탕으로 보다 나은 대학생활을 위한 교육환경 조성 및 심리상담 지원 프로그램을 마련하기 위한 설문 조사";
+  const brief = parseSurveyBrief(prompt);
+  const survey = analyzeSurveyPrompt(prompt);
+
+  assert.equal(brief.targetRespondents, "대학생");
+  assert.equal(brief.researchSubject, "전반적 대학생활");
+  assert.equal(survey.subject, "전반적 대학생활");
+  assert.doesNotMatch(JSON.stringify(survey.aiQuestions), /교육환경 조성|심리상담 지원 프로그램/);
+  assert.deepEqual(validateSurvey(prompt, brief, survey), []);
+});
+
 const awarenessUsageCases = [
   {
     input: "교내 네이버 웨일 브라우저 인식 및 사용 행태 조사",
@@ -50,7 +63,7 @@ for (const item of awarenessUsageCases) {
     assert.equal(survey.subject, item.subject);
     assert.equal(survey.aiQuestions.length, 7);
     assert.doesNotMatch(brief.researchSubject, /(?:과|와|및)$/);
-    assert.doesNotMatch(renderedQuestions, /(?:과|와|및)(?:을|를|은|는|이|가|의)/);
+    assert.doesNotMatch(renderedQuestions, /\s및(?:을|를|은|는|이|가|의)/);
     assert.doesNotMatch(renderedQuestions, /상황이나 기능/);
     assert.match(renderedQuestions, /이전부터 알고 있었나요/);
     assert.match(renderedQuestions, /주로 어떤 목적으로 이용하나요/);

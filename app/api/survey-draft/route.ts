@@ -35,7 +35,9 @@ import { getSessionUser } from "@/db/auth";
 import { schoolLabel } from "@/app/survey-board";
 import { formatQuestionReason } from "@/app/question-reason";
 import {
+  defaultSurveyMode,
   parseRequestedSurveyMode,
+  surveyModeValues,
   type SurveyMode,
 } from "@/app/survey-mode";
 import OpenAI from "openai";
@@ -95,10 +97,19 @@ const noStoreHeaders = {
   "x-content-type-options": "nosniff",
 };
 
+const surveyModeRequestSchema = z.preprocess(
+  (value) =>
+    value === undefined || value === null || value === ""
+      ? defaultSurveyMode
+      : value,
+  z.enum(surveyModeValues),
+);
+
 const surveyDraftRequestSchema = z
   .object({
     prompt: z.string().optional(),
-    surveyMode: z.unknown().optional(),
+    userInput: z.string().optional(),
+    surveyMode: surveyModeRequestSchema,
     targetGrade: z.enum(targetGradeValues).optional(),
     questionCount: z.number().int().min(1).max(30).optional(),
     references: z.unknown().optional(),
@@ -714,6 +725,8 @@ function sameOrigin(request: Request) {
 
 async function createSurveyDraftResponse(request: Request, requestId: string) {
   const generationStartedAt = Date.now();
+  const clientRequestId =
+    request.headers.get("x-baroform-client-request-id")?.slice(0, 80) ?? null;
   if (!sameOrigin(request)) {
     return apiError(
       "이 사이트에서 다시 시도해주세요.",
@@ -750,9 +763,22 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
 
   const parsedPayload = surveyDraftRequestSchema.safeParse(rawPayload);
   if (!parsedPayload.success) {
+    const invalidSurveyMode = parsedPayload.error.issues.some(
+      (issue) => issue.path[0] === "surveyMode",
+    );
+    console.warn("survey-generation-invalid-request", {
+      requestId,
+      clientRequestId,
+      code: invalidSurveyMode ? "INVALID_SURVEY_MODE" : "INVALID_REQUEST",
+      issuePaths: parsedPayload.error.issues.map((issue) =>
+        issue.path.join("."),
+      ),
+    });
     return apiError(
-      "설문 생성 요청 형식을 확인해주세요.",
-      "INVALID_REQUEST",
+      invalidSurveyMode
+        ? "설문 제작 방식을 다시 선택해주세요."
+        : "설문 생성 요청 형식을 확인해주세요.",
+      invalidSurveyMode ? "INVALID_SURVEY_MODE" : "INVALID_REQUEST",
       400,
       {},
       requestId,
@@ -760,19 +786,15 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
   }
   const payload = parsedPayload.data;
 
-  const surveyMode = parseRequestedSurveyMode(payload.surveyMode);
-  if (!surveyMode) {
-    return apiError(
-      "설문 제작 방식을 다시 선택해주세요.",
-      "INVALID_SURVEY_MODE",
-      400,
-      {},
-      requestId,
-    );
-  }
+  const surveyMode =
+    parseRequestedSurveyMode(payload.surveyMode) ?? defaultSurveyMode;
 
   const enteredPrompt =
-    typeof payload.prompt === "string" ? normalizePrompt(payload.prompt) : "";
+    typeof payload.prompt === "string"
+      ? normalizePrompt(payload.prompt)
+      : typeof payload.userInput === "string"
+        ? normalizePrompt(payload.userInput)
+        : "";
   const references = await parseSurveyReferences(payload.references);
   if (!references) {
     return apiError(
@@ -787,6 +809,18 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     references.images.length > 0 ||
     references.files.length > 0 ||
     references.links.length > 0;
+  if (process.env.NODE_ENV !== "production") {
+    console.info("survey-generation-request", {
+      requestId,
+      clientRequestId,
+      surveyMode,
+      inputLength: enteredPrompt.length,
+      attachmentCount:
+        references.images.length +
+        references.files.length +
+        references.links.length,
+    });
+  }
   if (enteredPrompt.length > 300 || (enteredPrompt.length < 2 && !hasReferences)) {
     return apiError(
       "설문 내용은 2자 이상 300자 이하로 적거나 참고 자료를 추가해주세요.",
@@ -878,19 +912,21 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       questionCount,
     );
     if (verifiedFallback) {
-      cacheResult(
-        cacheKey,
-        now,
-        verifiedFallback,
-        "verified-fallback",
-        "api-key-missing",
-      );
       const response = fallbackResponse(
         verifiedFallback,
         "api-key-missing",
         surveyMode,
         requestId,
       );
+      if (response.ok) {
+        cacheResult(
+          cacheKey,
+          now,
+          verifiedFallback,
+          "verified-fallback",
+          "api-key-missing",
+        );
+      }
       logGenerationMetric({
         surveyMode,
         startedAt: generationStartedAt,
@@ -906,19 +942,21 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       targetGrade,
       questionCount,
     );
-    cacheResult(
-      cacheKey,
-      now,
-      resilientFallback,
-      "verified-fallback",
-      "api-key-missing",
-    );
     const response = fallbackResponse(
       resilientFallback,
       "api-key-missing",
       surveyMode,
       requestId,
     );
+    if (response.ok) {
+      cacheResult(
+        cacheKey,
+        now,
+        resilientFallback,
+        "verified-fallback",
+        "api-key-missing",
+      );
+    }
     logGenerationMetric({
       surveyMode,
       startedAt: generationStartedAt,
@@ -1038,19 +1076,21 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       const resilientFallback =
         verifiedFallback ??
         resilientDraftFallback(prompt, targetGrade, questionCount);
-      cacheResult(
-        cacheKey,
-        now,
-        resilientFallback,
-        "verified-fallback",
-        "responses-api-error",
-      );
       const fallbackApiResponse = fallbackResponse(
         resilientFallback,
         "responses-api-error",
         surveyMode,
         requestId,
       );
+      if (fallbackApiResponse.ok) {
+        cacheResult(
+          cacheKey,
+          now,
+          resilientFallback,
+          "verified-fallback",
+          "responses-api-error",
+        );
+      }
       logGenerationMetric({
         surveyMode,
         startedAt: generationStartedAt,
@@ -1240,19 +1280,21 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       const resilientFallback =
         verifiedFallback ??
         resilientDraftFallback(prompt, targetGrade, questionCount);
-      cacheResult(
-        cacheKey,
-        now,
-        resilientFallback,
-        "verified-fallback",
-        "model-output-rejected",
-      );
       const outputFallbackResponse = fallbackResponse(
         resilientFallback,
         "model-output-rejected",
         surveyMode,
         requestId,
       );
+      if (outputFallbackResponse.ok) {
+        cacheResult(
+          cacheKey,
+          now,
+          resilientFallback,
+          "verified-fallback",
+          "model-output-rejected",
+        );
+      }
       logGenerationMetric({
         surveyMode,
         startedAt: generationStartedAt,
@@ -1439,19 +1481,22 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
           context.targetGrade,
           context.questionCount,
         );
-      cacheResult(
-        backgroundCacheKey,
-        Date.now(),
-        resilientFallback,
-        "verified-fallback",
-        "model-output-rejected",
-      );
-      return fallbackResponse(
+      const outputFallbackResponse = fallbackResponse(
         resilientFallback,
         "model-output-rejected",
         "research",
         requestId,
       );
+      if (outputFallbackResponse.ok) {
+        cacheResult(
+          backgroundCacheKey,
+          Date.now(),
+          resilientFallback,
+          "verified-fallback",
+          "model-output-rejected",
+        );
+      }
+      return outputFallbackResponse;
     }
 
     const isDirectProportion =

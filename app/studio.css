@@ -377,6 +377,11 @@
   opacity: .7;
 }
 
+.create-composer > .survey-mode-setting {
+  margin-top: 14px;
+  background: var(--bf-bg);
+}
+
 .create-settings {
   display: grid;
   margin-top: 18px;

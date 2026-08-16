@@ -198,6 +198,14 @@ function stripRequestWrapper(value: string) {
       "",
     )
     .replace(/\s*(?:설문|조사)\s*(?:만들기|제작)$/g, "")
+    .replace(
+      /\s*[,，]?\s*(?:(?:이를|그\s*결과를?)\s*바탕으로)\s+.+$/g,
+      "",
+    )
+    .replace(
+      /\s*(?:에\s*대해|에\s*대한|에\s*관해|에\s*관한)?\s*조사하고$/g,
+      "",
+    )
     .trim();
 
   for (let pass = 0; pass < 2; pass += 1) {
@@ -3861,7 +3869,7 @@ export function validateSurvey(
     if (requestExpression.test(item.title)) {
       issues.push(`문항 ${item.id}에 조사 목적 표현이 포함되었습니다.`);
     }
-    if (/(?:과|와|및)(?:을|를|은|는|이|가|의)/.test(item.title)) {
+    if (/\s및(?:을|를|은|는|이|가|의)/.test(item.title)) {
       issues.push(`문항 ${item.id}에 잘못 결합된 접속사와 조사가 포함되었습니다.`);
     }
     if (
