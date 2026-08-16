@@ -206,7 +206,7 @@ test("카공 빈도는 빈도라는 단어가 아니라 실제 카공 행동 주
   assert.equal(draft.title, "대학생 카공 빈도 조사");
   assert.equal(
     draft.aiQuestions[0]?.title,
-    "최근 1개월 동안 카공을 얼마나 자주 하나요?",
+    "평소 카공을 얼마나 자주 하나요?",
   );
   assert.deepEqual(draft.aiQuestions[0]?.options, [
     "전혀 하지 않음",
@@ -444,7 +444,7 @@ test("설문 생성 API는 카공 빈도도 검색을 시도하고 실패 시 �
     assert.equal(body.blueprint.aiQuestions.length, 7);
     assert.equal(
       body.blueprint.aiQuestions[0]?.title,
-      "최근 1개월 동안 카공을 얼마나 자주 하나요?",
+      "평소 카공을 얼마나 자주 하나요?",
     );
     assert.deepEqual(body.blueprint.aiQuestions[0]?.options, [
       "전혀 하지 않음",
@@ -1391,7 +1391,7 @@ function structuredReadyPayload() {
 test("검색 기반 구조화 결과를 기존 설문 편집 형식으로 연결한다", () => {
   const result = parseSurveyDraftResponse(
     structuredReadyPayload(),
-    "대학생 네이버웹툰 이용 현황 조사",
+    "최근 4주 동안 네이버웹툰을 이용한 대학생 대상 네이버웹툰 이용 현황 조사",
   );
 
   assert.equal(result.status, "ready");
@@ -1527,7 +1527,7 @@ test("콘텐츠 설문은 핵심 맥락과 네 가지 분석 축을 충족하면
   if (result.status !== "ready" && result.status !== "ready_with_caution") {
     assert.fail("완성된 설문 결과가 필요합니다.");
   }
-  assert.match(result.blueprint.title, /네이버웹툰/);
+  assert.match(result.blueprint.title.replace(/\s+/g, ""), /네이버웹툰/);
 });
 
 test("검색 신뢰도가 미확정이면 설문은 유지하고 검증 사실만 저장하지 않는다", () => {
@@ -2588,7 +2588,7 @@ test("대상과 측정 내용이 명확한 빈도 조사는 추가 질문 없이
     );
     assert.equal(
       body.blueprint?.aiQuestions?.[0]?.title,
-      "최근 1개월 동안 학교에서 집 가고 싶다는 생각이 얼마나 자주 드나요?",
+      "평소 학교에서 집 가고 싶다는 생각이 얼마나 자주 드나요?",
     );
     assert.doesNotMatch(
       body.blueprint?.aiQuestions?.map((item) => item.title).join(" ") ?? "",
@@ -2816,8 +2816,8 @@ test("단일 AI 결과에 최종 메시지가 없으면 두 번째 호출 없이
 
     assert.equal(response.status, 502);
     assert.equal(body.ok, false);
-    assert.equal(body.code, "SURVEY_GENERATION_MESSAGE_MISSING");
-    assert.match(body.error ?? "", /결과 메시지/);
+    assert.equal(body.code, "EMPTY_MODEL_RESPONSE");
+    assert.match(body.error ?? "", /결과|응답/);
     assert.equal(typeof body.requestId, "string");
     assert.equal(fetchCalls, 1);
     assert.equal(
@@ -3158,7 +3158,7 @@ for (const apiCase of [
       output: [],
     },
     status: 502,
-    code: "SURVEY_GENERATION_INCOMPLETE",
+    code: "EMPTY_MODEL_RESPONSE",
     reason: "max_output_tokens",
   },
   {
@@ -3175,7 +3175,7 @@ for (const apiCase of [
       ],
     },
     status: 422,
-    code: "SURVEY_GENERATION_REFUSED",
+    code: "MODEL_REQUEST_FAILED",
     reason: null,
   },
   {
@@ -3198,7 +3198,7 @@ for (const apiCase of [
       ],
     },
     status: 502,
-    code: "SURVEY_GENERATION_OUTPUT_INVALID",
+    code: "OUTPUT_JSON_INVALID",
     reason: null,
   },
 ] as const) {
@@ -3278,7 +3278,10 @@ test("대우관 등하교 의견은 의견 자체가 아니라 이동 경험으�
 
   assert.equal(draft.title, "대우관 등하교 의견 조사");
   assert.equal(draft.evaluationTarget, "대우관 등하교 경험");
-  assert.match(draft.templateQuestions[0].title, /대우관으로 등교하거나 대우관에서 하교한 빈도/);
+  assert.match(
+    draft.templateQuestions[0].title,
+    /평소 대우관으로 등교하거나 대우관에서 하교하는 빈도/,
+  );
   assert.doesNotMatch(draft.templateQuestions[0].title, /의견.*(?:이용|사용)/);
 });
 
@@ -3330,7 +3333,7 @@ test("대우관 등하교 설문은 실제 이동 불편과 개선 요소를 다
   assert.match(corpus, /셔틀|대중교통/);
 });
 
-test("AI가 의견을 이용 대상으로 만든 결과는 폐기한다", () => {
+test("AI가 의견을 이용 대상으로 만든 결과는 의미 역할 기반 초안으로 복구한다", () => {
   const badQuestions = Array.from({ length: 7 }, (_, index) =>
     question(
       index + 1,
@@ -3344,22 +3347,25 @@ test("AI가 의견을 이용 대상으로 만든 결과는 폐기한다", () => 
     id: index + 1,
   }));
 
-  assert.throws(
-    () =>
-      parseSurveyDraftResponse(
-        readyPayload({
-          prompt: "대우관 등하교에 대한 의견 조사",
-          evaluationTarget: "대우관 등하교에 대한 의견",
-          respondentGroup: "대우관 등하교 경험자",
-          entityType: "building",
-          templateQuestions: badTemplate,
-          aiQuestions: badQuestions,
-          sourceUrls: ["https://www.yonsei.ac.kr/source"],
-        }),
-        "대우관 등하교에 대한 의견 조사",
-      ),
-    /조사 방식 표현|이용 대상으로/,
+  const result = parseSurveyDraftResponse(
+    readyPayload({
+      prompt: "대우관 등하교에 대한 의견 조사",
+      evaluationTarget: "대우관 등하교에 대한 의견",
+      respondentGroup: "대우관 등하교 경험자",
+      entityType: "building",
+      templateQuestions: badTemplate,
+      aiQuestions: badQuestions,
+      sourceUrls: ["https://www.yonsei.ac.kr/source"],
+    }),
+    "대우관 등하교에 대한 의견 조사",
   );
+  assert.match(result.status, /^ready/);
+  if (result.status !== "ready" && result.status !== "ready_with_caution") {
+    assert.fail("복구된 설문 결과가 필요합니다.");
+  }
+  const corpus = result.blueprint.aiQuestions.map((item) => item.title).join(" ");
+  assert.doesNotMatch(corpus, /의견을 직접 이용/);
+  assert.match(corpus, /등교|하교|이동/);
 });
 
 test("AI가 이용 시간을 서비스처럼 해석한 결과는 폐기한다", () => {

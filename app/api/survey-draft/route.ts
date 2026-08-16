@@ -46,6 +46,15 @@ import type { Response as OpenAIResponse } from "openai/resources/responses/resp
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { parseSurveyIntent } from "../../survey-semantic-intent";
+import {
+  createSurveyGenerationTrace,
+  failSurveyGenerationTrace,
+  markSurveyGenerationStage,
+  recordSurveyModelCall,
+  recordSurveyValidation,
+  surveyGenerationTraceSnapshot,
+  type SurveyGenerationTrace,
+} from "../../survey-generation-trace";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -124,9 +133,10 @@ function apiError(
   status: number,
   headers: Record<string, string> = {},
   requestId = crypto.randomUUID(),
+  stage = "request",
 ) {
   return Response.json(
-    { ok: false, error: message, code, requestId },
+    { ok: false, type: "error", error: message, code, stage, requestId },
     {
       status,
       headers: {
@@ -144,7 +154,12 @@ function apiSuccess<T extends SurveyDraftResult>(
   requestId: string,
 ) {
   return Response.json(
-    { ...result, ok: true, requestId },
+    {
+      ...result,
+      ok: true,
+      type: result.status === "needs_clarification" ? "clarification" : "survey",
+      requestId,
+    },
     {
       headers: {
         ...noStoreHeaders,
@@ -162,7 +177,7 @@ function apiPayload<T extends Record<string, unknown>>(
   requestId: string,
 ) {
   return Response.json(
-    { ...payload, ok: true, requestId },
+    { ...payload, ok: true, type: "background", requestId },
     {
       status,
       headers: {
@@ -174,13 +189,33 @@ function apiPayload<T extends Record<string, unknown>>(
   );
 }
 
+function traceHeaders(trace: SurveyGenerationTrace) {
+  const snapshot = surveyGenerationTraceSnapshot(trace);
+  return {
+    "x-baroform-generation-stage": snapshot.stage,
+    "x-baroform-model-calls": String(snapshot.modelCallCount),
+    "x-baroform-validation-count": String(snapshot.validationCount),
+    "x-baroform-repair-count": String(snapshot.repairCount),
+    "x-baroform-regeneration-count": String(snapshot.regenerationCount),
+    "x-baroform-generation-ms": String(snapshot.elapsedMs),
+  };
+}
+
+function logTrace(trace: SurveyGenerationTrace) {
+  if (process.env.NODE_ENV !== "production") {
+    console.info("survey-generation-trace", surveyGenerationTraceSnapshot(trace));
+  }
+}
+
 function fallbackResponse(
   result: SurveyDraftResult,
   reason: string,
   surveyMode: SurveyMode,
   requestId: string,
+  trace?: SurveyGenerationTrace,
 ) {
   if (result.status !== "needs_clarification") {
+    recordSurveyValidation(trace, "semantic-validation");
     let issues: string[] = [];
     try {
       const brief = parseSurveyBrief(result.prompt);
@@ -192,24 +227,36 @@ function fallbackResponse(
       });
     }
     if (issues.length > 0) {
+      if (trace) {
+        markSurveyGenerationStage(trace, "repair-validation");
+        failSurveyGenerationTrace(
+          trace,
+          "REPAIR_EXHAUSTED",
+          new Error(issues.join(" ")),
+        );
+      }
       return apiError(
         `안전한 설문 초안을 만들지 못했어요. ${issues.join(" ")}`,
-        "SURVEY_GENERATION_FAILED",
+        "REPAIR_EXHAUSTED",
         422,
         {
           "x-baroform-ai-mode": "verified-fallback",
           "x-baroform-ai-fallback": reason,
+          ...(trace ? traceHeaders(trace) : {}),
         },
         requestId,
+        "repair-validation",
       );
     }
   }
+  markSurveyGenerationStage(trace, "response-ready");
   return apiSuccess(
     result,
     {
       "x-baroform-ai-mode": "verified-fallback",
       "x-baroform-ai-fallback": reason,
       "x-baroform-survey-mode": surveyMode,
+      ...(trace ? traceHeaders(trace) : {}),
     },
     requestId,
   );
@@ -727,39 +774,51 @@ function sameOrigin(request: Request) {
 
 async function createSurveyDraftResponse(request: Request, requestId: string) {
   const generationStartedAt = Date.now();
+  const trace = createSurveyGenerationTrace(requestId);
+  const earlyError = (
+    message: string,
+    code: string,
+    status: number,
+  ) => {
+    failSurveyGenerationTrace(trace, code, new Error(message));
+    logTrace(trace);
+    return apiError(
+      message,
+      code,
+      status,
+      traceHeaders(trace),
+      requestId,
+      trace.failureStage ?? "request-received",
+    );
+  };
   const clientRequestId =
     request.headers.get("x-baroform-client-request-id")?.slice(0, 80) ?? null;
   if (!sameOrigin(request)) {
-    return apiError(
+    return earlyError(
       "이 사이트에서 다시 시도해주세요.",
       "INVALID_ORIGIN",
       403,
-      {},
-      requestId,
     );
   }
 
   const contentLength = Number(request.headers.get("content-length") ?? "0");
   if (Number.isFinite(contentLength) && contentLength > 3_600_000) {
-    return apiError(
+    return earlyError(
       "요청 내용이 너무 길어요.",
       "REQUEST_TOO_LARGE",
       413,
-      {},
-      requestId,
     );
   }
 
   let rawPayload: unknown;
+  markSurveyGenerationStage(trace, "request-schema-validation");
   try {
     rawPayload = await request.json();
   } catch {
-    return apiError(
+    return earlyError(
       "설문 내용을 읽지 못했어요.",
       "INVALID_JSON",
       400,
-      {},
-      requestId,
     );
   }
 
@@ -776,18 +835,17 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         issue.path.join("."),
       ),
     });
-    return apiError(
+    return earlyError(
       invalidSurveyMode
         ? "설문 제작 방식을 다시 선택해주세요."
         : "설문 생성 요청 형식을 확인해주세요.",
       invalidSurveyMode ? "INVALID_SURVEY_MODE" : "INVALID_REQUEST",
       400,
-      {},
-      requestId,
     );
   }
   const payload = parsedPayload.data;
 
+  markSurveyGenerationStage(trace, "input-preprocessing");
   const surveyMode =
     parseRequestedSurveyMode(payload.surveyMode) ?? defaultSurveyMode;
 
@@ -799,23 +857,22 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         : "";
   const references = await parseSurveyReferences(payload.references);
   if (!references) {
-    return apiError(
+    return earlyError(
       "첨부한 사진·파일·링크를 확인해주세요.",
       "INVALID_REFERENCES",
       400,
-      {},
-      requestId,
     );
   }
   const hasReferences =
     references.images.length > 0 ||
     references.files.length > 0 ||
     references.links.length > 0;
+  markSurveyGenerationStage(trace, "intent-analysis");
+  const intent = parseSurveyIntent(
+    enteredPrompt,
+    surveyMode === "research" ? "research" : "general",
+  );
   if (process.env.NODE_ENV !== "production") {
-    const intent = parseSurveyIntent(
-      enteredPrompt,
-      surveyMode === "research" ? "research" : "general",
-    );
     console.info("survey-generation-request", {
       requestId,
       clientRequestId,
@@ -837,12 +894,10 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     });
   }
   if (enteredPrompt.length > 300 || (enteredPrompt.length < 2 && !hasReferences)) {
-    return apiError(
+    return earlyError(
       "설문 내용은 2자 이상 300자 이하로 적거나 참고 자료를 추가해주세요.",
       "INVALID_PROMPT",
       400,
-      {},
-      requestId,
     );
   }
   const prompt =
@@ -880,6 +935,8 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
   const cacheKey = `${surveyMode}|${prompt.toLocaleLowerCase("ko-KR")}|${targetGrade}|${questionCount}|${referenceKey}`;
   const cached = responseCache.get(cacheKey);
   if (cached && cached.expiresAt > now) {
+    markSurveyGenerationStage(trace, "response-ready");
+    logTrace(trace);
     logGenerationMetric({
       surveyMode,
       startedAt: generationStartedAt,
@@ -895,6 +952,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         "x-baroform-ai-cache": "hit",
         "x-baroform-survey-mode": surveyMode,
         ...(cached.reason ? { "x-baroform-ai-fallback": cached.reason } : {}),
+        ...traceHeaders(trace),
       },
       requestId,
     );
@@ -932,6 +990,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         "api-key-missing",
         surveyMode,
         requestId,
+        trace,
       );
       if (response.ok) {
         cacheResult(
@@ -950,6 +1009,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         searchUsed: false,
         outcome: "verified-fallback",
       });
+      logTrace(trace);
       return response;
     }
     const resilientFallback = resilientDraftFallback(
@@ -962,6 +1022,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       "api-key-missing",
       surveyMode,
       requestId,
+      trace,
     );
     if (response.ok) {
       cacheResult(
@@ -980,6 +1041,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       searchUsed: false,
       outcome: "verified-fallback",
     });
+    logTrace(trace);
     return response;
   }
 
@@ -1013,6 +1075,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
   try {
     let rawResult: Awaited<ReturnType<typeof openai.responses.parse>>;
     try {
+      recordSurveyModelCall(trace);
       rawResult = await openai.responses.parse(
         surveyMode === "research"
           ? {
@@ -1033,6 +1096,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         { signal: lifecycle.signal },
       );
       upstreamCompleted = true;
+      markSurveyGenerationStage(trace, "model-response");
 
       if (
         surveyMode === "research" &&
@@ -1096,6 +1160,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         "responses-api-error",
         surveyMode,
         requestId,
+        trace,
       );
       if (fallbackApiResponse.ok) {
         cacheResult(
@@ -1114,6 +1179,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         searchUsed: false,
         outcome: "verified-fallback",
       });
+      logTrace(trace);
       return fallbackApiResponse;
     }
     console.info("survey-generation-upstream", {
@@ -1127,6 +1193,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       questionCount,
       targetGrade,
       hasReferences,
+      trace,
     );
 
     if (
@@ -1152,6 +1219,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     }
 
     cacheResult(cacheKey, now, result, "model");
+    markSurveyGenerationStage(trace, "response-ready");
     logGenerationMetric({
       surveyMode,
       startedAt: generationStartedAt,
@@ -1161,16 +1229,35 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       requestId: responseRequestId(rawResult),
       outcome: "model",
     });
+    logTrace(trace);
     return apiSuccess(
       result,
       {
         "x-baroform-ai-mode": "model",
         "x-baroform-ai-attempt": "single-response",
         "x-baroform-survey-mode": surveyMode,
+        ...traceHeaders(trace),
       },
       requestId,
     );
   } catch (error) {
+    const tracedError = (
+      message: string,
+      code: string,
+      status: number,
+      headers: Record<string, string> = {},
+    ) => {
+      failSurveyGenerationTrace(trace, code, error);
+      logTrace(trace);
+      return apiError(
+        message,
+        code,
+        status,
+        { ...headers, ...traceHeaders(trace) },
+        requestId,
+        trace.failureStage ?? trace.stage,
+      );
+    };
     if (error instanceof SurveyValidationError) {
       logGenerationMetric({
         surveyMode,
@@ -1180,12 +1267,12 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         searchUsed: false,
         outcome: "validation-error",
       });
-      return apiError(
+      return tracedError(
         `생성된 설문 구조를 안전하게 적용하지 못했어요. ${error.issues.join(" ")}`,
-        "SURVEY_VALIDATION_FAILED",
+        error.category === "schema"
+          ? "OUTPUT_SCHEMA_INVALID"
+          : "SEMANTIC_VALIDATION_FAILED",
         422,
-        {},
-        requestId,
       );
     }
 
@@ -1205,14 +1292,25 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     });
 
     if (error instanceof SurveyGenerationResponseError) {
-      return apiError(
+      const canonicalCode = (() => {
+        switch (error.code) {
+          case "SURVEY_GENERATION_INCOMPLETE":
+          case "SURVEY_GENERATION_MESSAGE_MISSING":
+          case "SURVEY_GENERATION_OUTPUT_MISSING":
+            return "EMPTY_MODEL_RESPONSE";
+          case "SURVEY_GENERATION_FILTERED":
+          case "SURVEY_GENERATION_REFUSED":
+          case "SURVEY_GENERATION_UPSTREAM_FAILED":
+            return "MODEL_REQUEST_FAILED";
+        }
+      })();
+      return tracedError(
         error.message,
-        error.code,
+        canonicalCode,
         error.statusCode,
         error.incompleteReason
           ? { "x-baroform-incomplete-reason": error.incompleteReason }
           : {},
-        requestId,
       );
     }
 
@@ -1220,32 +1318,26 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       error instanceof SyntaxError ||
       (error instanceof Error && error.name === "ZodError")
     ) {
-      return apiError(
+      return tracedError(
         "생성된 설문 구조를 확인하지 못했어요. 다시 시도해주세요.",
-        "SURVEY_GENERATION_OUTPUT_INVALID",
+        "OUTPUT_JSON_INVALID",
         502,
-        {},
-        requestId,
       );
     }
 
     if (lifecycle.deadlineReached()) {
-      return apiError(
+      return tracedError(
         "설문 생성 시간이 서버의 안전 한도에 가까워져 작업을 마쳤어요. 다시 시도해 주세요.",
-        "SURVEY_GENERATION_DEADLINE",
+        "GENERATION_TIMEOUT",
         504,
-        {},
-        requestId,
       );
     }
 
     if (error instanceof OpenAI.APIConnectionTimeoutError) {
-      return apiError(
+      return tracedError(
         "설문 생성 서비스의 응답이 지연되고 있어요. 잠시 후 다시 시도해 주세요.",
-        "SURVEY_GENERATION_OPENAI_TIMEOUT",
+        "MODEL_TIMEOUT",
         504,
-        {},
-        requestId,
       );
     }
 
@@ -1253,32 +1345,26 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       error instanceof OpenAI.APIUserAbortError ||
       (error instanceof Error && error.name === "AbortError")
     ) {
-      return apiError(
+      return tracedError(
         "사용자가 설문 생성을 취소했어요.",
-        "SURVEY_GENERATION_CANCELLED",
+        "CLIENT_CANCELLED",
         499,
-        {},
-        requestId,
       );
     }
 
     if (error instanceof OpenAI.APIConnectionError) {
-      return apiError(
+      return tracedError(
         "설문 생성 서비스와 연결하지 못했어요. 잠시 후 다시 시도해주세요.",
-        "SURVEY_GENERATION_CONNECTION_ERROR",
+        "MODEL_REQUEST_FAILED",
         502,
-        {},
-        requestId,
       );
     }
 
     if (error instanceof OpenAI.APIError) {
-      return apiError(
+      return tracedError(
         "설문 생성 서비스에 일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요.",
-        "SURVEY_GENERATION_UPSTREAM_ERROR",
+        error.status === 429 ? "MODEL_RATE_LIMITED" : "MODEL_REQUEST_FAILED",
         502,
-        {},
-        requestId,
       );
     }
 
@@ -1300,6 +1386,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         "model-output-rejected",
         surveyMode,
         requestId,
+        trace,
       );
       if (outputFallbackResponse.ok) {
         cacheResult(
@@ -1318,15 +1405,14 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         searchUsed: false,
         outcome: "verified-fallback",
       });
+      logTrace(trace);
       return outputFallbackResponse;
     }
 
-    return apiError(
+    return tracedError(
       "설문 생성 중 일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요.",
-      "SURVEY_GENERATION_FAILED",
+      "UNKNOWN_GENERATION_ERROR",
       500,
-      {},
-      requestId,
     );
   } finally {
     lifecycle.dispose();

@@ -3,6 +3,7 @@ import {
   parseSurveyIntent,
   shouldEnforceSurveyIntentValidation,
   validateSurveyIntentCandidate,
+  type SemanticRole,
   type SurveyIntent,
 } from "./survey-semantic-intent";
 
@@ -30,6 +31,10 @@ export type SurveyQuestion = {
   scaleMax?: number;
   scaleMinLabel?: string;
   scaleMaxLabel?: string;
+  measuredConstruct?: string;
+  subjectRole?: SemanticRole;
+  objectRole?: SemanticRole;
+  explicitTimeframe?: string | null;
 };
 
 export function resizeSurveyQuestions(
@@ -1108,11 +1113,15 @@ function briefTimeframe(subject: string, content: string) {
 function shouldPreferSurveyIntent(intent: SurveyIntent) {
   if (intent.ambiguityLevel !== "low") return false;
   return (
+    intent.activities.length > 0 ||
     intent.objectKind === "ability_skill" ||
     (intent.objectKind === "attitude_perception" &&
-      /(?:비이용자|비사용자|사용해\s*본\s*적이\s*없는|이용해\s*본\s*적이\s*없는).*(?:포함|까지)/.test(
+      /(?:비이용자|비사용자|(?:사용|이용)해\s*본\s*적이\s*없는|한\s*번도\s*(?:사용|이용)하지\s*않은).*(?:포함|까지)/.test(
         intent.rawInput,
       )) ||
+    (intent.objectKind === "service_product" &&
+      Boolean(intent.surveyObject) &&
+      /불편|어려움|문제점/.test(intent.rawInput)) ||
     (intent.objectKind === "satisfaction_evaluation" &&
       Boolean(intent.eligibilityCondition))
   );
@@ -1165,10 +1174,18 @@ function dimensionsFromSurveyIntent(intent: SurveyIntent) {
 
 export function parseSurveyBrief(rawBrief: string): SurveyBrief {
   const normalizedRaw = normalizePrompt(rawBrief);
-  const requestPhrase = normalizedRaw.match(
+  const primaryRequest =
+    rawBrief
+      .split(/\r?\n+/)
+      .map((line) => line.trim())
+      .find(Boolean);
+  const normalizedPrimaryRequest = normalizePrompt(
+    primaryRequest ?? normalizedRaw,
+  );
+  const requestPhrase = normalizedPrimaryRequest.match(
     /(?:을|를)?\s*(?:분석|조사|파악|확인|알아보)(?:해|하|고)?\s*싶(?:어|어요|습니다)\s*$/,
   )?.[0];
-  const unwrapped = stripRequestWrapper(normalizedRaw);
+  const unwrapped = stripRequestWrapper(normalizedPrimaryRequest);
   const promotional = stripPromotionalPrefix(unwrapped);
   const normalizedBrief = promotional.value;
   const semantics = parseSurveySemantics(normalizedBrief);
@@ -1609,8 +1626,8 @@ function satisfactionProfile(semantics: SurveySemantics): SatisfactionProfile {
     return {
       screenerTitle: `최근 ${labelWithParticle(experienceBase || evaluationTarget, "을", "를")} 직접 이용한 적이 있나요?`,
       screenerOptions: [
-        "최근 1개월 내 이용함",
-        "최근 3개월 내 이용함",
+        "현재 이용 중",
+        "과거 이용 경험 있음",
         "3개월보다 오래전에 이용함",
         "이용한 적 없음",
       ],
@@ -1704,15 +1721,15 @@ function satisfactionProfile(semantics: SurveySemantics): SatisfactionProfile {
       const placeObject = labelWithParticle(place, "을", "를");
       const screenerTitle =
         activity === "등하교"
-          ? `이번 학기에 ${destination} 등교하거나 ${place}에서 하교한 빈도는 어느 정도인가요?`
-          : `이번 학기에 ${labelWithParticle(movementLabel, "을", "를")} 한 빈도는 어느 정도인가요?`;
+          ? `평소 ${destination} 등교하거나 ${place}에서 하교하는 빈도는 어느 정도인가요?`
+          : `평소 ${labelWithParticle(movementLabel, "을", "를")} 하는 빈도는 어느 정도인가요?`;
       return {
         screenerTitle,
         screenerOptions: [
           "주 4회 이상",
           "주 2~3회",
           "주 1회 이하",
-          `이번 학기에 ${movementLabel} 경험 없음`,
+          `${movementLabel} 경험 없음`,
         ],
         overallTitle: `${placeObject} 오가는 ${activity} 과정에 전반적으로 얼마나 만족하시나요?`,
         strengthsTitle: `${movementLabel}에서 비교적 편리하다고 느낀 부분을 모두 골라주세요.`,
@@ -1743,12 +1760,12 @@ function satisfactionProfile(semantics: SurveySemantics): SatisfactionProfile {
       experienceBase ||
       evaluationTarget;
     return {
-      screenerTitle: `이번 학기에 ${labelWithParticle(buildingLabel, "을", "를")} 직접 이용한 적이 있나요?`,
+      screenerTitle: `${labelWithParticle(buildingLabel, "을", "를")} 직접 이용한 적이 있나요?`,
       screenerOptions: [
         "주 3회 이상 이용",
         "주 1~2회 이용",
         "월 1~3회 이용",
-        "이번 학기에 이용한 적 없음",
+        "이용한 적 없음",
       ],
       overallTitle: `${buildingLabel} 이용환경에 전반적으로 얼마나 만족하시나요?`,
       strengthsTitle: `${buildingLabel}에서 만족한 부분을 모두 골라주세요.`,
@@ -1785,8 +1802,8 @@ function satisfactionProfile(semantics: SurveySemantics): SatisfactionProfile {
     return {
       screenerTitle,
       screenerOptions: [
-        "최근 1개월 내 이용",
-        "최근 3개월 내 이용",
+        "현재 이용 중",
+        "과거 이용 경험 있음",
         "3개월보다 오래전에 이용",
         "직접 이용한 적 없음",
       ],
@@ -1823,8 +1840,8 @@ function satisfactionProfile(semantics: SurveySemantics): SatisfactionProfile {
     return {
       screenerTitle,
       screenerOptions: [
-        "최근 1개월 내 이용",
-        "최근 3개월 내 이용",
+        "현재 이용 중",
+        "과거 이용 경험 있음",
         "3개월보다 오래전에 이용",
         "직접 이용한 적 없음",
       ],
@@ -2625,7 +2642,7 @@ function usageBlueprint(subject: string, brief?: SurveyBrief): SurveyBlueprint {
 
 function collaborationBlueprint(brief: SurveyBrief): SurveyBlueprint {
   const questions = [
-    question(1, "최근 1년 이내 대학 수업에서 팀플을 수행한 경험이 있나요?", "실제 팀플 경험이 있는 응답자를 먼저 구분해 이후 답변을 정확히 해석해요.", "single", ["예", "아니요"]),
+    question(1, "대학 수업에서 팀플을 수행한 경험이 있나요?", "실제 팀플 경험이 있는 응답자를 먼저 구분해 이후 답변을 정확히 해석해요.", "single", ["예", "아니요"]),
     question(2, "가장 최근 팀플에서 의견 충돌이나 갈등을 얼마나 자주 겪었나요?", "기준 경험을 하나로 고정해 갈등 발생 수준을 비교해요.", "single", ["전혀 없었음", "1회", "2~3회", "4회 이상", "프로젝트 내내 반복됨"]),
     question(3, "갈등이 생긴 주된 원인을 모두 골라주세요.", "역할, 참여도, 일정, 소통과 결과물 기준 중 실제 갈등 원인을 구분해요.", "multiple", ["역할 분담", "참여도 차이", "일정 조율", "의사소통 방식", "결과물 품질 기준", "리더십 또는 의사결정", "특별한 갈등 없음", "기타"]),
     question(4, "가장 최근 팀플의 역할 분담은 얼마나 공정했다고 느끼나요?", "갈등과 만족도에 영향을 주는 역할 분담의 공정성을 별도로 측정해요.", "scale"),
@@ -2660,8 +2677,8 @@ function cafeteriaBriefBlueprint(brief: SurveyBrief): SurveyBlueprint {
   const subject = brief.researchSubject;
   const questions = [
     question(1, `현재 ${brief.targetRespondents}에 해당하시나요?`, "조사 대상 학생에 해당하는지 먼저 확인해 결과 해석의 기준을 세워요.", "single", ["재학 중", "휴학 중", "졸업 또는 수료", "해당하지 않음"]),
-    question(2, `최근 1학기 동안 ${labelWithParticle(subject, "을", "를")} 이용한 적이 있나요?`, "최근 이용자와 비이용자를 구분해 만족도 결과가 섞이지 않게 해요.", "single", ["예", "아니요"]),
-    question(3, `최근 1개월 동안 ${labelWithParticle(subject, "을", "를")} 평균적으로 얼마나 자주 이용했나요?`, "기준 기간을 고정해 실제 이용 빈도를 비교해요.", "single", ["이용하지 않음", "월 1~3회", "주 1~2회", "주 3~4회", "주 5회 이상"]),
+    question(2, `${labelWithParticle(subject, "을", "를")} 이용한 적이 있나요?`, "이용자와 비이용자를 구분해 만족도 결과가 섞이지 않게 해요.", "single", ["예", "아니요"]),
+    question(3, `평소 ${labelWithParticle(subject, "을", "를")} 얼마나 자주 이용하나요?`, "평소 이용 빈도를 비교함.", "single", ["이용하지 않음", "월 1~3회", "주 1~2회", "주 3~4회", "주 5회 이상"]),
     question(4, `${subject}을 선택할 때 중요하게 보는 요소를 모두 골라주세요.`, "학생이 식당을 선택하는 실제 기준을 파악해 만족도 결과와 연결해요.", "multiple", ["메뉴", "맛", "가격", "양", "대기 시간", "위생", "좌석과 혼잡", "이동 거리"]),
     question(5, `${subject}의 메뉴와 음식 맛에 얼마나 만족하시나요?`, "식당 경험의 핵심인 메뉴와 맛을 별도로 평가해요.", "scale"),
     question(6, `${subject}의 가격 대비 가치와 음식 양에 얼마나 만족하시나요?`, "가격 부담과 제공량을 함께 보는 가치 평가 기준을 만들어요.", "scale"),
@@ -2674,7 +2691,7 @@ function cafeteriaBriefBlueprint(brief: SurveyBrief): SurveyBlueprint {
     intentLabel: "학식당 이용 경험·만족도",
     subject,
     title: brief.surveyTitle,
-    description: `본 조사는 ${brief.targetRespondents}의 ${subject} 이용 경험과 만족도를 파악하기 위한 조사입니다. 최근 1학기의 이용 경험을 기준으로 응답해 주세요.`,
+    description: `본 조사는 ${brief.targetRespondents}의 ${subject} 이용 경험과 만족도를 파악하기 위한 조사입니다. 가장 잘 기억나는 이용 경험을 기준으로 응답해 주세요.`,
     templateTitle: `${subject} 이용 경험 및 만족도`,
     templateSummary: "이용 여부와 빈도부터 식당 고유 경험, 만족도와 개선점까지 확인해요.",
     detectedSignals: [
@@ -2916,9 +2933,9 @@ function frequencyActionQuestion(focus: string) {
     /^(.+?)\s+(이용|사용|방문|구매|주문|참여|관람)$/,
   );
   if (verbNoun) {
-    return `최근 1개월 동안 ${labelWithParticle(verbNoun[1], "을", "를")} 얼마나 자주 ${verbNoun[2]}하나요?`;
+    return `평소 ${labelWithParticle(verbNoun[1], "을", "를")} 얼마나 자주 ${verbNoun[2]}하나요?`;
   }
-  return `최근 1개월 동안 ${labelWithParticle(focus, "을", "를")} 얼마나 자주 하나요?`;
+  return `평소 ${labelWithParticle(focus, "을", "를")} 얼마나 자주 하나요?`;
 }
 
 function actionFrequencyBlueprint(
@@ -3065,8 +3082,8 @@ function frequencyBlueprint(subject: string): SurveyBlueprint {
 
   const experienceNoun = focus.includes("생각") ? "생각이" : "경험이";
   const occurrenceQuestion = focus.includes("생각")
-    ? `최근 1개월 동안 ${labelWithParticle(focus, "이", "가")} 얼마나 자주 드나요?`
-    : `최근 1개월 동안 ${labelWithParticle(focus, "을", "를")} 얼마나 자주 경험하나요?`;
+    ? `평소 ${labelWithParticle(focus, "이", "가")} 얼마나 자주 드나요?`
+    : `평소 ${labelWithParticle(focus, "을", "를")} 얼마나 자주 경험하나요?`;
   const templateQuestions = [
     question(
       1,
@@ -3162,7 +3179,7 @@ function consumptionHabitsBlueprint(subject: string): SurveyBlueprint {
   const templateQuestions = [
     question(
       1,
-      "최근 한 달 동안 등록금과 보증금을 제외한 생활비로 얼마 정도를 지출했나요?",
+      "평소 한 달 기준으로 등록금과 보증금을 제외한 생활비를 얼마 정도 지출하나요?",
       "학생별 월간 소비 규모를 구간으로 비교해요.",
       "single",
       [
@@ -3945,6 +3962,231 @@ function satisfactionIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
   };
 }
 
+function activityIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
+  const intent = brief.surveyIntent;
+  const object = intent.surveyObject ?? brief.researchSubject;
+  const activityKinds = new Set(
+    intent.activities.flatMap((item) =>
+      item.activityKind ? [item.activityKind] : [],
+    ),
+  );
+  const hasCreate = activityKinds.has("create");
+  const hasDistribute = activityKinds.has("distribute");
+  const hasParticipate = activityKinds.has("participate");
+  const hasPrepare = activityKinds.has("prepare");
+  const hasConduct = activityKinds.has("conduct");
+  const frequencyOptions = [
+    "경험 없음",
+    "드물게 함",
+    "가끔 함",
+    "자주 함",
+    "매우 자주 함",
+  ];
+  let questions: SurveyQuestion[];
+
+  if (hasCreate || hasDistribute) {
+    questions = [
+      question(
+        1,
+        `${labelWithParticle(object, "을", "를")} 직접 제작해 본 경험이 있나요?`,
+        "제작 경험이 없는 응답자도 제외하지 않고 경험 수준을 구분함.",
+        "single",
+        ["여러 번 제작함", "1~2번 제작함", "제작을 도운 적 있음", "제작한 적 없음"],
+      ),
+      question(
+        2,
+        `평소 과제나 연구를 위해 ${labelWithParticle(object, "을", "를")} 제작하는 빈도는 어느 정도인가요?`,
+        "특정 기간을 임의로 만들지 않고 평소 제작 빈도를 확인함.",
+        "single",
+        frequencyOptions,
+      ),
+      question(
+        3,
+        `평소 완성한 ${labelWithParticle(object, "을", "를")} 직접 배포하거나 공유하는 빈도는 어느 정도인가요?`,
+        "제작과 배포를 서로 다른 활동으로 나누어 빈도를 측정함.",
+        "single",
+        frequencyOptions,
+      ),
+      question(
+        4,
+        `${labelWithParticle(object, "을", "를")} 주로 어떤 목적으로 제작하나요?`,
+        "제작이 필요한 실제 과제와 연구 맥락을 구분함.",
+        "multiple",
+        ["수업 과제", "팀 프로젝트", "학술 연구", "동아리·학생단체 활동", "행사·의견 수렴", "기타"],
+      ),
+      question(
+        5,
+        `${object} 응답자를 모집할 때 겪는 어려움을 모두 골라주세요.`,
+        "응답자 모집 단계에서 발생하는 실제 장벽을 파악함.",
+        "multiple",
+        ["참여자를 찾기 어려움", "응답률이 낮음", "목표 집단에 도달하기 어려움", "공유 채널이 부족함", "참여 요청이 부담스러움", "특별한 어려움 없음", "기타"],
+      ),
+      question(
+        6,
+        `${labelWithParticle(object, "을", "를")} 제작하고 배포하는 과정에서 가장 불편한 단계는 무엇인가요?`,
+        "제작·배포 과정의 개선 우선순위를 한 단계로 특정함.",
+        "single",
+        ["문항 구성", "디자인과 설정", "배포 링크 관리", "응답자 모집", "응답 현황 확인", "결과 정리·분석", "불편한 단계 없음"],
+      ),
+      question(
+        7,
+        `${object} 제작과 배포가 더 편해지려면 필요한 점을 적어주세요.`,
+        "선택지에 담기지 않은 개선 요구를 수집함.",
+        "text",
+        undefined,
+        false,
+      ),
+    ];
+  } else if (hasParticipate) {
+    questions = [
+      question(
+        1,
+        `${labelWithParticle(object, "에", "에")} 참여해 본 경험에 가장 가까운 답을 골라주세요.`,
+        "참여 경험이 없는 응답자도 제외하지 않고 경험 수준을 구분함.",
+        "single",
+        ["자주 참여함", "가끔 참여함", "한두 번 참여함", "참여한 적 없음"],
+      ),
+      question(
+        2,
+        `평소 ${labelWithParticle(object, "에", "에")} 얼마나 자주 참여하나요?`,
+        "임의의 최근 기간 없이 평소 참여 빈도를 측정함.",
+        "single",
+        ["참여하지 않음", "드물게 참여함", "가끔 참여함", "자주 참여함", "매우 자주 참여함"],
+      ),
+      question(
+        3,
+        `${labelWithParticle(object, "에", "에")} 주로 어떤 상황에서 참여하나요?`,
+        "참여가 발생하는 실제 맥락을 구분함.",
+        "multiple",
+        ["수업·과제", "연구 참여", "학교·동아리 의견 수렴", "서비스 개선", "보상 제공", "지인의 요청", "기타"],
+      ),
+      question(
+        4,
+        `${object} 참여를 망설이거나 중간에 그만두는 이유를 모두 골라주세요.`,
+        "참여와 완료를 막는 장벽을 파악함.",
+        "multiple",
+        ["문항이 너무 많음", "예상 시간이 불분명함", "개인정보가 걱정됨", "질문이 이해하기 어려움", "보상이 부족함", "관심 없는 주제임", "해당 없음", "기타"],
+      ),
+      question(
+        5,
+        `${object} 참여 과정에서 가장 불편한 부분은 무엇인가요?`,
+        "참여 화면과 절차의 개선 우선순위를 확인함.",
+        "single",
+        ["참여 링크 접속", "설문 안내 이해", "질문 읽기", "선택지 고르기", "모바일 입력", "제출 확인", "불편한 점 없음"],
+      ),
+      question(
+        6,
+        `${object} 참여가 더 편해지려면 가장 필요한 변화는 무엇인가요?`,
+        "참여 경험을 개선할 핵심 조건을 확인함.",
+        "single",
+        ["예상 시간 표시", "짧고 명확한 질문", "개인정보 안내", "모바일 최적화", "진행률 표시", "적절한 보상"],
+      ),
+      question(
+        7,
+        `${object} 참여 경험에서 추가로 개선되었으면 하는 점을 적어주세요.`,
+        "정형 선택지 밖의 불편과 요구를 수집함.",
+        "text",
+        undefined,
+        false,
+      ),
+    ];
+  } else {
+    const actionLabel = hasPrepare && hasConduct
+      ? "준비하고 진행"
+      : hasConduct
+        ? "수행"
+        : intent.activities[0]?.text.replace(object, "").trim() || "경험";
+    questions = [
+      question(
+        1,
+        `${labelWithParticle(object, "을", "를")} 직접 ${actionLabel}해 본 경험이 있나요?`,
+        "실제 활동 경험 수준을 확인하되 미경험자를 배제하지 않음.",
+        "single",
+        ["여러 번 경험함", "1~2번 경험함", "보조로 참여함", "경험한 적 없음"],
+      ),
+      question(
+        2,
+        `평소 과제나 프로젝트에서 ${labelWithParticle(object, "을", "를")} ${actionLabel}하는 빈도는 어느 정도인가요?`,
+        "평소 활동 빈도를 일관된 구간으로 측정함.",
+        "single",
+        frequencyOptions,
+      ),
+      question(
+        3,
+        `${labelWithParticle(object, "을", "를")} ${actionLabel}할 때 주로 사용하는 방식을 모두 골라주세요.`,
+        "활동을 수행하는 구체적인 방법을 파악함.",
+        "multiple",
+        ["대면", "화상 통화", "메신저·채팅", "온라인 문서", "전용 도구·플랫폼", "기타"],
+      ),
+      question(
+        4,
+        `${object} 준비 단계에서 겪는 어려움을 모두 골라주세요.`,
+        "활동 시작 전에 발생하는 준비 장벽을 파악함.",
+        "multiple",
+        ["목표 설정", "대상자 모집", "질문·과제 구성", "일정 조율", "도구 선택", "특별한 어려움 없음", "기타"],
+      ),
+      question(
+        5,
+        `${object} 진행 과정에서 가장 어려운 점은 무엇인가요?`,
+        "실제 진행 단계의 가장 큰 문제를 하나로 특정함.",
+        "single",
+        ["참여 유도", "질문 전달", "시간 관리", "기록·정리", "결과 해석", "소통", "어려운 점 없음"],
+      ),
+      question(
+        6,
+        `${object} 활동을 더 원활하게 하려면 가장 필요한 지원은 무엇인가요?`,
+        "도구·교육·협업 지원의 우선순위를 확인함.",
+        "single",
+        ["실습형 안내", "질문 예시", "대상자 모집 지원", "기록·분석 도구", "팀원 협업 기능", "전문가 피드백"],
+      ),
+      question(
+        7,
+        `${object} 활동에서 겪은 어려움이나 개선 의견을 적어주세요.`,
+        "선택지에 포함되지 않은 실제 경험을 수집함.",
+        "text",
+        undefined,
+        false,
+      ),
+    ];
+  }
+
+  const objectRole = intent.objects[0]?.role ?? "real_world_object";
+  questions = questions.map((item, index) => ({
+    ...item,
+    id: index + 1,
+    measuredConstruct: intent.constructs[index % Math.max(1, intent.constructs.length)] ?? "활동 경험",
+    subjectRole: "target_population",
+    objectRole,
+    explicitTimeframe: intent.explicitTimeframe,
+  }));
+  const activityLabel = [...new Set(intent.activities.map((item) => item.text))]
+    .map((item) => item.startsWith(object) ? item.slice(object.length).trim() : item)
+    .join("·") || "관련 활동";
+  const respondent = intent.targetPopulation ?? brief.targetRespondents;
+
+  return {
+    kind: "usage",
+    intentLabel: "활동 경험·불편",
+    subject: object,
+    title: `${respondent}의 ${object} ${activityLabel} 경험 조사`,
+    description: `${respondent}의 ${object} ${activityLabel} 빈도와 과정에서 겪는 불편 및 개선 요구를 파악하기 위한 설문입니다.`,
+    templateTitle: `${object} ${activityLabel} 핵심 문항`,
+    templateSummary: "실제 활동을 역할별로 나누어 경험, 빈도, 어려움과 개선 요구를 확인해요.",
+    detectedSignals: [
+      `응답 대상 · ${respondent}`,
+      `실제 대상 · ${object}`,
+      `활동 · ${activityLabel}`,
+    ],
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
+    respondentGroup: respondent,
+    evaluationTarget: object,
+    goal: intent.purpose ?? brief.researchGoal,
+    assumptions: [],
+    domain: "general",
+  };
+}
+
 function semanticIntentBlueprint(brief: SurveyBrief) {
   if (!shouldPreferSurveyIntent(brief.surveyIntent)) return null;
   switch (brief.surveyIntent.objectKind) {
@@ -3954,6 +4196,11 @@ function semanticIntentBlueprint(brief: SurveyBrief) {
       return perceptionIntentBlueprint(brief);
     case "satisfaction_evaluation":
       return satisfactionIntentBlueprint(brief);
+    case "behavior_usage":
+      if (brief.surveyIntent.activities.length > 0) {
+        return activityIntentBlueprint(brief);
+      }
+      return null;
     default:
       return null;
   }

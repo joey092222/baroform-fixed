@@ -44,14 +44,25 @@ import {
   shouldEnforceSurveyIntentValidation,
   validateSurveyIntentCandidate,
 } from "./survey-semantic-intent";
+import {
+  markSurveyGenerationStage,
+  recordSurveyRepair,
+  recordSurveyValidation,
+  type SurveyGenerationTrace,
+} from "./survey-generation-trace";
 
 export class SurveyValidationError extends Error {
   readonly issues: string[];
+  readonly category: "schema" | "semantic";
 
-  constructor(issues: string[]) {
+  constructor(
+    issues: string[],
+    category: "schema" | "semantic" = "semantic",
+  ) {
     super(`설문 품질 검증에 실패했습니다: ${issues.join(" ")}`);
     this.name = "SurveyValidationError";
     this.issues = issues;
+    this.category = category;
   }
 }
 
@@ -815,28 +826,6 @@ function questionCorpus(questions: SurveyQuestion[]) {
     .join(" ");
 }
 
-function assertNoSurveyMetaWordsAsExperience(
-  evaluationTarget: string,
-  questions: SurveyQuestion[],
-) {
-  if (
-    /(?:에\s*대한|에\s*관한|관련)\s*(?:의견|생각|인식|평가)(?:\s*조사)?\s*$/.test(
-      evaluationTarget,
-    )
-  ) {
-    throw new Error("AI가 조사 방식 표현을 실제 평가 대상으로 잘못 해석했습니다.");
-  }
-
-  const corpus = questionCorpus(questions);
-  if (
-    /(?:의견|생각|인식|평가|조사)(?:을|를)?\s*(?:직접\s*)?(?:이용|사용|방문|참여|경험)/.test(
-      corpus,
-    )
-  ) {
-    throw new Error("AI가 의견이나 조사를 이용 대상으로 잘못 표현했습니다.");
-  }
-}
-
 function assertExplicitMeasurementCoverage(
   prompt: string,
   questions: SurveyQuestion[],
@@ -1164,8 +1153,12 @@ export function parseSurveyDraftResponse(
   requestedQuestionCount = 7,
   requestedTargetGrade: TargetGrade = "전학년",
   expectsReferences = false,
+  trace?: SurveyGenerationTrace,
 ): SurveyDraftResult {
-  if (!isRecord(rawPayload)) throw new Error("AI 응답을 읽을 수 없습니다.");
+  if (!isRecord(rawPayload)) {
+    throw new SurveyValidationError(["AI 응답을 읽을 수 없습니다."], "schema");
+  }
+  markSurveyGenerationStage(trace, "model-response");
   const completedSearch = assertCompletedResponse(rawPayload);
   const questionCount = Math.min(
     30,
@@ -1180,6 +1173,7 @@ export function parseSurveyDraftResponse(
   }
 
   let structuredGeneration: SurveyGeneration | null = null;
+  recordSurveyValidation(trace, "output-schema-validation");
   const structuredResult = createSurveyGenerationSchema(questionCount).safeParse(decoded);
   if (structuredResult.success) {
     structuredGeneration = structuredResult.data;
@@ -1187,9 +1181,12 @@ export function parseSurveyDraftResponse(
       structuredGeneration,
       questionCount,
     );
-    integrityIssues.push(...respondentCopyIssues(structuredGeneration));
     if (integrityIssues.length > 0) {
-      throw new SurveyValidationError(integrityIssues);
+      throw new SurveyValidationError(integrityIssues, "schema");
+    }
+    const copyIssues = respondentCopyIssues(structuredGeneration);
+    if (copyIssues.length > 0) {
+      throw new SurveyValidationError(copyIssues);
     }
     decoded = structuredGenerationToLegacy(structuredGeneration, prompt);
   }
@@ -1203,6 +1200,7 @@ export function parseSurveyDraftResponse(
       schemaIssues.length > 0
         ? schemaIssues
         : ["AI 설문 결과가 비어 있습니다."],
+      "schema",
     );
   }
 
@@ -1270,12 +1268,12 @@ export function parseSurveyDraftResponse(
         .filter(Boolean)
         .slice(0, 4)
     : [];
+  markSurveyGenerationStage(trace, "question-normalization");
   const normalizedAiQuestions = Array.isArray(result.aiQuestions)
-    ? result.aiQuestions.map((item, index) =>
-        normalizeQuestion(item, index + 1),
-      )
+    ? result.aiQuestions.map((item, index) => normalizeQuestion(item, index + 1))
     : [];
   const brief = parseSurveyBrief(prompt);
+  recordSurveyValidation(trace, "semantic-validation");
   const semanticViolations = shouldEnforceSurveyIntentValidation(
     brief.surveyIntent,
   )
@@ -1300,7 +1298,6 @@ export function parseSurveyDraftResponse(
     expectsReferences,
   );
   if (semanticViolations.length === 0) {
-    assertNoSurveyMetaWordsAsExperience(evaluationTarget, normalizedAiQuestions);
     assertExplicitMeasurementCoverage(prompt, normalizedAiQuestions);
   }
 
@@ -1317,14 +1314,21 @@ export function parseSurveyDraftResponse(
     throw new Error("응답 대상과 평가 대상이 올바르게 분리되지 않았습니다.");
   }
 
-  const coverage = enforceContextualCoverage(
-    prompt,
-    kind,
-    reportedEntityType,
-    evaluationTarget,
-    normalizedAiQuestions,
-    questionCount,
-  );
+  const coverage =
+    semanticViolations.length > 0
+      ? {
+          aiQuestions: normalizedAiQuestions,
+          entityType: reportedEntityType,
+          fallback: analyzeSurveyPrompt(prompt),
+        }
+      : enforceContextualCoverage(
+          prompt,
+          kind,
+          reportedEntityType,
+          evaluationTarget,
+          normalizedAiQuestions,
+          questionCount,
+        );
   const targetGrade = isTargetGrade(requestedTargetGrade)
     ? requestedTargetGrade
     : "전학년";
@@ -1427,6 +1431,7 @@ export function parseSurveyDraftResponse(
   };
 
   if (semanticViolations.length > 0) {
+    recordSurveyRepair(trace);
     repairWithValidatedIntentBlueprint();
     if (process.env.NODE_ENV !== "production") {
       console.info("survey-generation-semantic-repair", {
@@ -1446,6 +1451,7 @@ export function parseSurveyDraftResponse(
     semanticViolations.length === 0 &&
     shouldEnforceSurveyIntentValidation(brief.surveyIntent)
   ) {
+    recordSurveyRepair(trace);
     repairWithValidatedIntentBlueprint();
     validationIssues = validateSurvey(prompt, brief, blueprint);
     if (process.env.NODE_ENV !== "production") {
@@ -1456,6 +1462,9 @@ export function parseSurveyDraftResponse(
         objectKind: brief.surveyIntent.objectKind,
       });
     }
+  }
+  if (semanticViolations.length > 0 || trace?.repairCount) {
+    recordSurveyValidation(trace, "repair-validation");
   }
   if (validationIssues.length > 0) {
     throw new SurveyValidationError(validationIssues);
@@ -1478,6 +1487,7 @@ export function parseSurveyDraftResponse(
     researchClassification !== "verified"
       ? "ready_with_caution"
       : "ready";
+  markSurveyGenerationStage(trace, "response-ready");
 
   return {
     status,

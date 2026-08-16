@@ -5837,6 +5837,7 @@ function RealAnalyticsView({
 }
 
 type SurveyGenerationReadyResult = {
+  type: "survey";
   status: "ready" | "ready_with_caution";
   prompt: string;
   blueprint: SurveyBlueprint;
@@ -5844,6 +5845,7 @@ type SurveyGenerationReadyResult = {
 };
 
 type SurveyGenerationClarificationResult = {
+  type: "clarification";
   status: "needs_clarification";
   prompt: string;
   clarification: SurveyClarification;
@@ -5851,6 +5853,7 @@ type SurveyGenerationClarificationResult = {
 };
 
 type SurveyGenerationBackgroundResult = {
+  type: "background";
   status: "queued" | "in_progress";
   responseId: string;
   jobToken?: string;
@@ -5860,7 +5863,7 @@ type SurveyGenerationResult =
   | SurveyGenerationReadyResult
   | SurveyGenerationClarificationResult
   | SurveyGenerationBackgroundResult
-  | { status?: never; error?: string; code?: string };
+  | { type: "error"; status?: never; error?: string; code?: string; stage?: string };
 
 function waitForBackgroundPoll(signal: AbortSignal, delayMs = 2_000) {
   return new Promise<void>((resolve, reject) => {
@@ -6379,10 +6382,7 @@ export default function Home() {
         "AI 초안을 만들지 못했어요. 잠시 후 다시 시도해주세요.",
       );
 
-      if (
-        (result.status === "queued" || result.status === "in_progress") &&
-        result.jobToken
-      ) {
+      if (result.type === "background" && result.jobToken) {
         const backgroundJob = {
           responseId: result.responseId,
           jobToken: result.jobToken,
@@ -6392,7 +6392,7 @@ export default function Home() {
           jobToken: backgroundJob.jobToken,
         };
         failureStage = "background-poll";
-        while (result.status === "queued" || result.status === "in_progress") {
+        while (result.type === "background") {
           await waitForBackgroundPoll(controller.signal);
           const statusUrl = new URL("/api/survey-draft", window.location.origin);
           statusUrl.searchParams.set("responseId", backgroundJob.responseId);
@@ -6411,7 +6411,7 @@ export default function Home() {
       }
 
       if (analysisRequestRef.current !== requestId) return;
-      if (!("status" in result)) {
+      if (result.type === "error" || !("status" in result)) {
         throw new JsonResponseError(
           "error" in result && result.error
             ? result.error
@@ -6424,7 +6424,7 @@ export default function Home() {
         );
       }
 
-      if (result.status === "needs_clarification") {
+      if (result.type === "clarification") {
         setClarification({
           prompt: requestedPrompt,
           clarification: result.clarification,
@@ -6433,7 +6433,10 @@ export default function Home() {
         return;
       }
 
-      if (result.status !== "ready" && result.status !== "ready_with_caution") {
+      if (
+        result.type !== "survey" ||
+        (result.status !== "ready" && result.status !== "ready_with_caution")
+      ) {
         throw new JsonResponseError(
           "완전한 설문 응답을 받지 못했어요.",
           { code: "SURVEY_GENERATION_INCOMPLETE", status: 502 },
