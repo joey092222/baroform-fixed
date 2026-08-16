@@ -43,14 +43,18 @@ import {
   parseSurveyIntent,
   shouldEnforceSurveyIntentValidation,
   validateSurveyIntentCandidate,
+  type SurveyIntent,
+  type SurveyIntentViolation,
 } from "./survey-semantic-intent";
 import {
   compactSurveyPlanForPrompt,
   createSurveyPlan,
+  type SurveyPlan,
 } from "./survey-planning";
 import {
   markSurveyGenerationStage,
-  recordSurveyFallback,
+  recordSurveyGenerationSource,
+  recordSurveyQuestionOutcome,
   recordSurveyRepair,
   recordSurveyValidation,
   type SurveyGenerationTrace,
@@ -794,6 +798,20 @@ function normalizeQuestion(value: unknown, id: number): SurveyQuestion {
         : undefined,
     scaleMinLabel: cleanText(value.scaleMinLabel, 60) || undefined,
     scaleMaxLabel: cleanText(value.scaleMaxLabel, 60) || undefined,
+    measuredConstruct: cleanText(value.measuredConstruct, 120) || undefined,
+    measuredVariable: cleanText(value.measuredVariable, 120) || undefined,
+    measuredRole:
+      typeof value.measuredRole === "string"
+        ? (value.measuredRole as SurveyQuestion["measuredRole"])
+        : undefined,
+    planBlockId: cleanText(value.planBlockId, 80) || undefined,
+    questionPurpose: cleanText(value.questionPurpose, 240) || undefined,
+    decisionGoalIds: Array.isArray(value.decisionGoalIds)
+      ? value.decisionGoalIds
+          .map((item) => cleanText(item, 80))
+          .filter(Boolean)
+          .slice(0, 12)
+      : undefined,
   };
 }
 
@@ -1167,6 +1185,173 @@ function enforceContextualCoverage(
   ]);
 }
 
+function questionIndexesFromViolations(
+  violations: SurveyIntentViolation[],
+  generation: SurveyGeneration | null,
+  plan: SurveyPlan,
+  questionCount: number,
+) {
+  const indexes = new Set<number>();
+  const structuredIds = generation?.survey.questions.map((item) => item.id) ?? [];
+  for (const violation of violations) {
+    if (violation.questionId !== undefined) {
+      const rawId = String(violation.questionId);
+      const structuredIndex = structuredIds.indexOf(rawId);
+      const numericIndex = Number(rawId) - 1;
+      const index = structuredIndex >= 0 ? structuredIndex : numericIndex;
+      if (Number.isInteger(index) && index >= 0 && index < questionCount) {
+        indexes.add(index);
+        continue;
+      }
+    }
+    if (
+      violation.code === "INCOMPLETE_SURVEY_TITLE" ||
+      violation.code === "GENERIC_DESCRIPTION_MISMATCH"
+    ) {
+      continue;
+    }
+    const evidence = violation.evidence ?? "";
+    const planIndex = plan.blocks.findIndex(
+      (block) =>
+        evidence.includes(block.variable) || block.variable.includes(evidence),
+    );
+    if (planIndex >= 0 && planIndex < questionCount) {
+      indexes.add(planIndex);
+    } else if (violation.code === "DECISION_GOAL_DROPPED") {
+      indexes.add(Math.max(0, questionCount - 1));
+    } else {
+      indexes.add(0);
+    }
+  }
+  return indexes;
+}
+
+function questionIndexesFromQualityIssues(
+  issues: string[],
+  questionCount: number,
+) {
+  const indexes = new Set<number>();
+  for (const issue of issues) {
+    const match = issue.match(/문항\s+(\d+)/);
+    if (!match) continue;
+    const index = Number(match[1]) - 1;
+    if (index >= 0 && index < questionCount) indexes.add(index);
+  }
+  return indexes;
+}
+
+function planBasedReplacement(
+  original: SurveyQuestion,
+  fallbackQuestion: SurveyQuestion,
+  plan: SurveyPlan,
+  intent: SurveyIntent,
+  index: number,
+): SurveyQuestion {
+  const block = plan.blocks[index] ?? plan.blocks.at(-1);
+  return {
+    ...fallbackQuestion,
+    id: original.id,
+    reason: formatQuestionReason(fallbackQuestion.reason),
+    planBlockId: block?.id ?? fallbackQuestion.planBlockId,
+    measuredConstruct:
+      fallbackQuestion.measuredConstruct ?? block?.variable,
+    measuredVariable: fallbackQuestion.measuredVariable ?? block?.variable,
+    measuredRole: fallbackQuestion.measuredRole ?? block?.role,
+    questionPurpose:
+      fallbackQuestion.questionPurpose ?? block?.purpose ?? fallbackQuestion.reason,
+    decisionGoalIds:
+      fallbackQuestion.decisionGoalIds ?? block?.decisionGoalIds,
+    unitOfAnalysis: fallbackQuestion.unitOfAnalysis ?? intent.unitOfAnalysis,
+    subjectRole: fallbackQuestion.subjectRole ?? "target_population",
+    objectRole:
+      fallbackQuestion.objectRole ?? intent.objects[0]?.role ?? "real_world_object",
+    explicitTimeframe:
+      fallbackQuestion.explicitTimeframe ?? intent.explicitTimeframe,
+  };
+}
+
+export function repairInvalidQuestions({
+  survey,
+  intent,
+  plan,
+  violations,
+  qualityIssues = [],
+  structuredGeneration = null,
+  getFallback,
+}: {
+  survey: SurveyBlueprint;
+  intent: SurveyIntent;
+  plan: SurveyPlan;
+  violations: SurveyIntentViolation[];
+  qualityIssues?: string[];
+  structuredGeneration?: SurveyGeneration | null;
+  getFallback: () => SurveyBlueprint;
+}) {
+  const questionCount = survey.aiQuestions.length;
+  const invalidIndexes = questionIndexesFromViolations(
+    violations,
+    structuredGeneration,
+    plan,
+    questionCount,
+  );
+  for (const index of questionIndexesFromQualityIssues(
+    qualityIssues,
+    questionCount,
+  )) {
+    invalidIndexes.add(index);
+  }
+  const repairsTitle = violations.some(
+    (item) => item.code === "INCOMPLETE_SURVEY_TITLE",
+  );
+  const repairsDescription = violations.some(
+    (item) => item.code === "GENERIC_DESCRIPTION_MISMATCH",
+  );
+  if (
+    invalidIndexes.size === 0 &&
+    !repairsTitle &&
+    !repairsDescription &&
+    qualityIssues.length > 0
+  ) {
+    invalidIndexes.add(0);
+  }
+
+  const fallback = getFallback();
+  const fallbackQuestions = resizeSurveyQuestions(
+    fallback.aiQuestions,
+    questionCount,
+  );
+  const repairedQuestionIds: number[] = [];
+  const preservedQuestionIds: number[] = [];
+  const aiQuestions = survey.aiQuestions.map((question, index) => {
+    if (!invalidIndexes.has(index)) {
+      preservedQuestionIds.push(question.id);
+      return question;
+    }
+    repairedQuestionIds.push(question.id);
+    return planBasedReplacement(
+      question,
+      fallbackQuestions[index] ?? fallbackQuestions.at(-1) ?? question,
+      plan,
+      intent,
+      index,
+    );
+  });
+
+  return {
+    survey: {
+      ...survey,
+      ...(repairsTitle ? { title: fallback.title } : {}),
+      ...(repairsDescription ? { description: fallback.description } : {}),
+      templateQuestions: aiQuestions.slice(0, 5),
+      aiQuestions,
+      semanticPlan: plan,
+    },
+    repairedQuestionIds,
+    preservedQuestionIds,
+    repairAttemptCount: 1 as const,
+  };
+}
+
 export function parseSurveyDraftResponse(
   rawPayload: unknown,
   prompt: string,
@@ -1433,66 +1618,86 @@ export function parseSurveyDraftResponse(
     ),
   };
 
-  const repairWithValidatedIntentBlueprint = () => {
-    const safeBlueprint = analyzeSurveyPrompt(prompt);
-    const repairedQuestions = applyTargetGradeToQuestions(
-      resizeSurveyQuestions(safeBlueprint.aiQuestions, questionCount),
+  const rolePlan = createSurveyPlan(brief.surveyIntent, questionCount);
+  blueprint.semanticPlan = rolePlan;
+  recordSurveyGenerationSource(trace, "openai");
+  recordSurveyQuestionOutcome(trace, {
+    originalQuestionCount: blueprint.aiQuestions.length,
+    preservedQuestionIds: blueprint.aiQuestions.map((item) => item.id),
+  });
+  let localFallback: SurveyBlueprint | null = null;
+  const getPlanBasedFallback = () => {
+    if (localFallback) return localFallback;
+    const rawFallback = analyzeSurveyPrompt(prompt);
+    const fallbackQuestions = applyTargetGradeToQuestions(
+      resizeSurveyQuestions(rawFallback.aiQuestions, questionCount),
       targetGrade,
       questionCount,
     ).map((item) => ({
       ...item,
       reason: formatQuestionReason(item.reason),
     }));
-    blueprint = {
-      ...safeBlueprint,
+    localFallback = {
+      ...rawFallback,
       description: preserveExplicitAudience
-        ? safeBlueprint.description
-        : surveyDescriptionForGrade(safeBlueprint.description, targetGrade),
+        ? rawFallback.description
+        : surveyDescriptionForGrade(rawFallback.description, targetGrade),
       respondentGroup: preserveExplicitAudience
-        ? safeBlueprint.respondentGroup
-        : respondentGroupForGrade(safeBlueprint.respondentGroup, targetGrade),
-      templateQuestions: repairedQuestions.slice(0, 5),
-      aiQuestions: repairedQuestions,
+        ? rawFallback.respondentGroup
+        : respondentGroupForGrade(rawFallback.respondentGroup, targetGrade),
+      templateQuestions: fallbackQuestions.slice(0, 5),
+      aiQuestions: fallbackQuestions,
+      semanticPlan: rolePlan,
     };
+    return localFallback;
   };
 
-  if (semanticViolations.length > 0) {
-    recordSurveyRepair(trace);
-    recordSurveyFallback(trace, "semantic-violation-local-repair");
-    repairWithValidatedIntentBlueprint();
-    if (process.env.NODE_ENV !== "production") {
-      console.info("survey-generation-semantic-repair", {
-        trigger: "semantic-violation",
-        violationCodes: semanticViolations.map((item) => item.code),
-        questionCount,
-        objectKind: brief.surveyIntent.objectKind,
-        screeningRequired: brief.surveyIntent.screeningRequired,
-        includesNonUsers: brief.surveyIntent.includesNonUsers,
-      });
-    }
-  }
-
-  let validationIssues = validateSurvey(prompt, brief, blueprint);
-  if (
-    validationIssues.length > 0 &&
-    semanticViolations.length === 0 &&
-    shouldEnforceSurveyIntentValidation(brief.surveyIntent)
-  ) {
-    recordSurveyRepair(trace);
-    recordSurveyFallback(trace, "quality-validation-local-repair");
-    repairWithValidatedIntentBlueprint();
+  let validationIssues =
+    semanticViolations.length === 0
+      ? validateSurvey(prompt, brief, blueprint)
+      : [];
+  const shouldRepair =
+    semanticViolations.length > 0 ||
+    (validationIssues.length > 0 &&
+      shouldEnforceSurveyIntentValidation(brief.surveyIntent));
+  if (shouldRepair) {
+    const repair = repairInvalidQuestions({
+      survey: blueprint,
+      intent: brief.surveyIntent,
+      plan: rolePlan,
+      violations: semanticViolations,
+      qualityIssues: validationIssues,
+      structuredGeneration,
+      getFallback: getPlanBasedFallback,
+    });
+    blueprint = repair.survey;
+    recordSurveyRepair(
+      trace,
+      repair.repairedQuestionIds,
+      repair.preservedQuestionIds,
+    );
+    recordSurveyQuestionOutcome(trace, {
+      originalQuestionCount: aiQuestions.length,
+      repairedQuestionIds: repair.repairedQuestionIds,
+      preservedQuestionIds: repair.preservedQuestionIds,
+    });
+    recordSurveyGenerationSource(trace, "openai_partial_repair");
+    recordSurveyValidation(trace, "repair-validation");
     validationIssues = validateSurvey(prompt, brief, blueprint);
     if (process.env.NODE_ENV !== "production") {
-      console.info("survey-generation-semantic-repair", {
-        trigger: "quality-validation",
-        issueCount: validationIssues.length,
+      console.info("survey-generation-partial-repair", {
+        trigger:
+          semanticViolations.length > 0
+            ? "semantic-violation"
+            : "quality-validation",
+        violationCodes: semanticViolations.map((item) => item.code),
+        initialQualityIssues: validationIssues.length,
+        repairedQuestionIds: repair.repairedQuestionIds,
+        preservedQuestionIds: repair.preservedQuestionIds,
         questionCount,
         objectKind: brief.surveyIntent.objectKind,
       });
     }
-  }
-  if (semanticViolations.length > 0 || trace?.repairCount) {
-    recordSurveyValidation(trace, "repair-validation");
   }
   if (validationIssues.length > 0) {
     throw new SurveyValidationError(validationIssues);
@@ -1643,6 +1848,22 @@ export function buildSurveyAiRequest(
     "[역할 기반 설문 계획]",
     JSON.stringify(compactSurveyPlanForPrompt(surveyPlan)),
     "",
+    "[평가 대상 및 측정 정책]",
+    JSON.stringify({
+      targetPopulation: surveyIntent.targetPopulation,
+      evaluationTargets: surveyIntent.evaluationTargets,
+      targetCardinality: surveyIntent.targetCardinality,
+      targetListSource: surveyIntent.targetListSource,
+      unitOfAnalysis: surveyIntent.unitOfAnalysis,
+      measurementMode: surveyIntent.measurementMode,
+      measuredVariables: surveyPlan.blocks.map((block) => block.variable),
+      screeningRequired: surveyIntent.screeningRequired,
+      screeningReason: surveyIntent.screeningReason,
+      decisionGoals: surveyPlan.decisionGoals,
+      missingInformation: surveyIntent.missingInformation,
+      surveyPlan: compactSurveyPlanForPrompt(surveyPlan),
+    }),
+    "",
     "구조화된 설문 의도에서 대상, 조사 대상물, 측정 개념, 목적, 기간, 응답 자격을 서로 다른 역할로 유지한다.",
     "researchIntent.variables는 각각 독립된 분석 변수다. 복수 변수를 하나의 topic 문자열이나 서비스명으로 다시 합치지 않는다.",
     "researchIntent.relations와 analysisGoals가 있으면 모든 directlyAskable respondent_level 변수를 각각 문항으로 측정한다.",
@@ -1655,6 +1876,11 @@ export function buildSurveyAiRequest(
     "조사·실태조사·만족도 조사·인식 조사·수요 조사는 서비스명이나 이용 대상이 아니다.",
     "명시된 기간이 null이면 최근 1개월·3개월·6개월 같은 기간을 만들지 않는다.",
     "screeningRequired가 false이면 첫 문항을 탈락형 이용 여부 스크리너로 만들지 않는다.",
+    "satisfaction_evaluation이라는 이유만으로 스크리너를 만들지 않는다. 스크리너는 screeningRequired와 screeningReason이 명시된 경우에만 만든다.",
+    "targetCardinality가 multiple이면 evaluationTargets의 각 항목을 unitOfAnalysis 단위로 반복 측정하거나 비교한다. 여러 대상을 하나의 합성 대상명으로 평탄화하지 않는다.",
+    "targetListSource가 creator_required이면 응답자용 질문으로 목록 부족을 숨기지 말고 제작자 확인이 먼저 필요하다고 판단한다.",
+    "사용자가 기간을 명시하지 않았다면 현재·최근·과거 같은 임의 시간 구간을 만들지 않는다.",
+    "각 문항의 analysis.construct, analysis.variable_name, analysis.purpose는 SurveyPlan block의 변수·목적과 연결한다.",
     "includesNonUsers가 true이면 비이용자도 인식·장벽·향후 의향 문항에 응답할 수 있어야 한다.",
     "",
     "[설문 제작 방식]",
@@ -1699,6 +1925,15 @@ export function buildSurveyAiRequest(
       dimensions: parsedBrief.dimensions,
       fallbackKind: fallback.kind,
       fallbackDomain: fallback.domain ?? null,
+      evaluationTargets: surveyIntent.evaluationTargets,
+      targetCardinality: surveyIntent.targetCardinality,
+      targetListSource: surveyIntent.targetListSource,
+      unitOfAnalysis: surveyIntent.unitOfAnalysis,
+      measurementMode: surveyIntent.measurementMode,
+      screeningRequired: surveyIntent.screeningRequired,
+      screeningReason: surveyIntent.screeningReason,
+      missingInformation: surveyIntent.missingInformation,
+      surveyPlan: compactSurveyPlanForPrompt(surveyPlan),
     }),
     "",
     "위 구조는 힌트이며 사용자 원문과 실제 검색 결과가 더 우선한다.",

@@ -43,6 +43,10 @@ import {
   recommendSurveyMode,
   type SurveyMode,
 } from "../app/survey-mode";
+import {
+  createSurveyGenerationTrace,
+  surveyGenerationTraceSnapshot,
+} from "../app/survey-generation-trace";
 
 test("설문 제작 모드의 기본값과 API 설정 매핑이 정확하다", () => {
   assert.equal(parseRequestedSurveyMode(undefined), "standard");
@@ -1389,10 +1393,16 @@ function structuredReadyPayload() {
 }
 
 test("검색 기반 구조화 결과를 기존 설문 편집 형식으로 연결한다", () => {
+  const trace = createSurveyGenerationTrace("normal-openai-result");
   const result = parseSurveyDraftResponse(
     structuredReadyPayload(),
     "최근 4주 동안 네이버웹툰을 이용한 대학생 대상 네이버웹툰 이용 현황 조사",
+    7,
+    "전학년",
+    false,
+    trace,
   );
+  const diagnostics = surveyGenerationTraceSnapshot(trace);
 
   assert.equal(result.status, "ready");
   if (result.status !== "ready" && result.status !== "ready_with_caution") {
@@ -1405,6 +1415,10 @@ test("검색 기반 구조화 결과를 기존 설문 편집 형식으로 연결
   assert.equal(result.surveyPlan?.requested_question_count, 7);
   assert.equal(result.qualityCheck?.question_count_valid, true);
   assert.equal(result.completionMessage, "응답해주셔서 감사합니다.");
+  assert.equal(diagnostics.generationSource, "openai");
+  assert.equal(diagnostics.fallbackCount, 0);
+  assert.deepEqual(diagnostics.repairedQuestionIds, []);
+  assert.deepEqual(diagnostics.preservedQuestionIds, ["1", "2", "3", "4", "5", "6", "7"]);
 });
 
 test("모델이 조사 제목을 서비스처럼 질문하면 생성 후 의미 검증이 안전한 초안으로 복구한다", () => {
@@ -1435,6 +1449,7 @@ test("모델이 조사 제목을 서비스처럼 질문하면 생성 후 의미 
 
 test("강한 설문 의도에서 모델 문항이 기존 품질 검증을 어기면 같은 요청에서 복구한다", () => {
   const prompt = "전 연령대 AI 사용능력 실태조사";
+  const trace = createSurveyGenerationTrace("partial-openai-repair");
   const payload = structuredReadyPayload();
   payload.output_parsed.survey.title = prompt;
   payload.output_parsed.survey.intro =
@@ -1446,7 +1461,15 @@ test("강한 설문 의도에서 모델 문항이 기존 품질 검증을 어기
   payload.output_parsed.survey.questions[1]!.text =
     "AI 기반 도구를 얼마나 자주 사용하나요?";
 
-  const result = parseSurveyDraftResponse(payload, prompt);
+  const result = parseSurveyDraftResponse(
+    payload,
+    prompt,
+    7,
+    "전학년",
+    false,
+    trace,
+  );
+  const diagnostics = surveyGenerationTraceSnapshot(trace);
   assert.match(result.status, /^ready/);
   if (result.status !== "ready" && result.status !== "ready_with_caution") {
     assert.fail("복구된 설문 결과가 필요합니다.");
@@ -1455,6 +1478,11 @@ test("강한 설문 의도에서 모델 문항이 기존 품질 검증을 어기
     result.blueprint.aiQuestions[2]?.title,
     "평소 AI 기반 도구를 얼마나 자주 사용하나요?",
   );
+  assert.equal(diagnostics.generationSource, "openai_partial_repair");
+  assert.equal(diagnostics.fallbackCount, 0);
+  assert.equal(diagnostics.repairCount, 1);
+  assert.ok(diagnostics.repairedQuestionIds.length > 0);
+  assert.ok(diagnostics.preservedQuestionIds.length > 0);
 });
 
 test("응답자용 문구는 행정적 표현과 내부 분석 정보를 거부한다", () => {
@@ -3293,7 +3321,11 @@ test("한경관 만족도는 건물 시설이 아니라 식당 경험으로 해�
 
   assert.equal(draft.domain, "cafeteria");
   assert.equal(draft.evaluationTarget, "한경관");
-  assert.match(draft.aiQuestions[0].title, /한경관 식당에서 식사한 적/);
+  assert.match(
+    draft.aiQuestions[0].title,
+    /한경관 식당에서의 식사 경험에 전반적으로 얼마나 만족/,
+  );
+  assert.doesNotMatch(corpus, /최근.*식사한 적|과거 이용 경험/);
   assert.match(corpus, /맛|음식/);
   assert.match(corpus, /메뉴/);
   assert.match(corpus, /가격|양/);

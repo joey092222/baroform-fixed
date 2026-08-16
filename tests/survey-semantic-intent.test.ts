@@ -125,7 +125,7 @@ test("명시된 최근 3개월 배달 앱 조사는 그 기간과 실제 서비�
   assert.doesNotMatch(corpus, /배달 앱 이용 현황 조사(?:를|을) 이용/);
 });
 
-test("직장인 재택근무 만족도는 대상과 실제 경험을 분리한다", async () => {
+test("직장인 재택근무 만족도는 명시되지 않은 경험 스크리너를 만들지 않는다", async () => {
   const blueprint = await generateThroughRoute(
     "직장인의 재택근무 만족도 조사",
   );
@@ -133,8 +133,8 @@ test("직장인 재택근무 만족도는 대상과 실제 경험을 분리한�
 
   assert.equal(blueprint.respondentGroup, "직장인");
   assert.equal(blueprint.subject, "재택근무");
-  assert.match(blueprint.aiQuestions[0]?.title ?? "", /재택근무를 직접 경험한 적/);
-  assert.match(corpus, /재택근무에 전반적으로 얼마나 만족/);
+  assert.match(blueprint.aiQuestions[0]?.title ?? "", /재택근무에 전반적으로 얼마나 만족/);
+  assert.doesNotMatch(corpus, /재택근무를 직접 경험한 적|현재 경험 중|최근에 경험함|과거에 경험함/);
   assert.doesNotMatch(corpus, /재택근무 만족도 조사(?:를|을) 이용/);
 });
 

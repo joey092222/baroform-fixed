@@ -52,9 +52,11 @@ import {
   markSurveyGenerationStage,
   recordSurveyModelCall,
   recordSurveyFallback,
+  recordSurveyGenerationSource,
   recordSurveyIntentTrace,
   recordSurveyValidation,
   surveyGenerationTraceSnapshot,
+  type GenerationSource,
   type SurveyGenerationTrace,
 } from "../../survey-generation-trace";
 
@@ -80,6 +82,7 @@ type CacheEntry = {
   result: SurveyDraftResult;
   mode: "model" | "verified-fallback";
   reason?: string;
+  generationSource?: GenerationSource;
 };
 
 type ReadySurveyDraftResult = Extract<
@@ -200,6 +203,13 @@ function traceHeaders(trace: SurveyGenerationTrace) {
     "x-baroform-repair-count": String(snapshot.repairCount),
     "x-baroform-regeneration-count": String(snapshot.regenerationCount),
     "x-baroform-generation-ms": String(snapshot.elapsedMs),
+    "x-baroform-generation-source": snapshot.generationSource ?? "unknown",
+    "x-baroform-fallback-count": String(snapshot.fallbackCount),
+    "x-baroform-original-question-count": String(
+      snapshot.originalQuestionCount ?? 0,
+    ),
+    "x-baroform-repaired-question-ids": snapshot.repairedQuestionIds.join(","),
+    "x-baroform-preserved-question-ids": snapshot.preservedQuestionIds.join(","),
     "x-baroform-stage-history": snapshot.stageHistory
       .map((item) => item.stage)
       .join(","),
@@ -218,8 +228,9 @@ function fallbackResponse(
   surveyMode: SurveyMode,
   requestId: string,
   trace?: SurveyGenerationTrace,
+  generationSource: GenerationSource = "resilient_fallback",
 ) {
-  recordSurveyFallback(trace, reason);
+  recordSurveyFallback(trace, reason, generationSource);
   markSurveyGenerationStage(trace, "fallback-started");
   if (result.status !== "needs_clarification") {
     recordSurveyValidation(trace, "semantic-validation");
@@ -274,6 +285,35 @@ function generatedQuestionCount(result: SurveyDraftResult) {
   return result.status === "needs_clarification"
     ? 0
     : result.blueprint.aiQuestions.length;
+}
+
+function creatorClarificationResult(
+  prompt: string,
+  intent: ReturnType<typeof parseSurveyIntent>,
+): SurveyDraftResult {
+  return {
+    status: "needs_clarification",
+    prompt,
+    clarification: {
+      question: "평가할 수업은 어떻게 정할까요?",
+      reason:
+        "수업별 만족도를 비교하려면 평가할 수업 목록이나 반복 평가 방식을 먼저 정해야 해요.",
+      options: [
+        "평가할 수업 목록을 직접 입력할게요",
+        "응답자가 수강한 수업명을 입력하게 할게요",
+        "응답자가 현재 수강 중인 여러 수업을 각각 평가하게 할게요",
+      ],
+    },
+    research: {
+      status: "not-needed",
+      entity: null,
+      summary: "복수 평가 대상의 목록 또는 평가 방식을 확인하고 있어요.",
+      facts: [],
+      sources: [],
+      classification: "unresolved",
+      limitations: intent.missingInformation,
+    },
+  };
 }
 
 function responseUsedWebSearch(response: unknown) {
@@ -349,7 +389,12 @@ function logGenerationMetric({
   questionCount: number;
   searchUsed: boolean;
   requestId?: string | null;
-  outcome: "model" | "cache" | "verified-fallback" | "validation-error";
+  outcome:
+    | "model"
+    | "cache"
+    | "verified-fallback"
+    | "validation-error"
+    | "intent-clarification";
 }) {
   console.info("survey-generation-metric", {
     surveyMode,
@@ -494,12 +539,14 @@ function cacheResult(
   result: SurveyDraftResult,
   mode: CacheEntry["mode"] = "verified-fallback",
   reason?: string,
+  generationSource?: GenerationSource,
 ) {
   responseCache.set(key, {
     expiresAt: now + cacheLifetimeMs,
     result,
     mode,
     reason,
+    generationSource,
   });
 }
 
@@ -948,12 +995,41 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       ? Math.max(2, requestedQuestionCount)
       : requestedQuestionCount;
 
+  if (enteredPrompt && intent.requiresCreatorClarification) {
+    const clarification = creatorClarificationResult(prompt, intent);
+    recordSurveyGenerationSource(trace, "intent_clarification");
+    markSurveyGenerationStage(trace, "response-ready");
+    logGenerationMetric({
+      surveyMode,
+      startedAt: generationStartedAt,
+      success: true,
+      questionCount: 0,
+      searchUsed: false,
+      outcome: "intent-clarification",
+    });
+    logTrace(trace);
+    return apiSuccess(
+      clarification,
+      {
+        "x-baroform-ai-mode": "intent-clarification",
+        "x-baroform-survey-mode": surveyMode,
+        ...traceHeaders(trace),
+      },
+      requestId,
+    );
+  }
+
   const now = Date.now();
   pruneMemory(now);
   const referenceKey = await referenceFingerprint(references);
   const cacheKey = `${surveyMode}|${prompt.toLocaleLowerCase("ko-KR")}|${targetGrade}|${questionCount}|${referenceKey}`;
   const cached = responseCache.get(cacheKey);
   if (cached && cached.expiresAt > now) {
+    const cachedSource =
+      cached.generationSource ??
+      (cached.mode === "model" ? "openai" : "initial_local_blueprint");
+    if (cached.reason) recordSurveyFallback(trace, cached.reason, cachedSource);
+    else recordSurveyGenerationSource(trace, cachedSource);
     markSurveyGenerationStage(trace, "response-ready");
     logTrace(trace);
     logGenerationMetric({
@@ -1012,6 +1088,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         surveyMode,
         requestId,
         trace,
+        "initial_local_blueprint",
       );
       if (response.ok) {
         cacheResult(
@@ -1020,6 +1097,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
           verifiedFallback,
           "verified-fallback",
           "api-key-missing",
+          "initial_local_blueprint",
         );
       }
       logGenerationMetric({
@@ -1044,6 +1122,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       surveyMode,
       requestId,
       trace,
+      "resilient_fallback",
     );
     if (response.ok) {
       cacheResult(
@@ -1052,6 +1131,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         resilientFallback,
         "verified-fallback",
         "api-key-missing",
+        "resilient_fallback",
       );
     }
     logGenerationMetric({
@@ -1184,6 +1264,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         surveyMode,
         requestId,
         trace,
+        "openai_failure_fallback",
       );
       if (fallbackApiResponse.ok) {
         cacheResult(
@@ -1192,6 +1273,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
           resilientFallback,
           "verified-fallback",
           "responses-api-error",
+          "openai_failure_fallback",
         );
       }
       logGenerationMetric({
@@ -1239,9 +1321,21 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         qualityCheck: result.qualityCheck,
         completionMessage: result.completionMessage,
       };
+      recordSurveyFallback(
+        trace,
+        "deterministic-direct-measurement",
+        "fast_draft_fallback",
+      );
     }
 
-    cacheResult(cacheKey, now, result, "model");
+    cacheResult(
+      cacheKey,
+      now,
+      result,
+      "model",
+      trace.fallbackReason ?? undefined,
+      trace.generationSource ?? "openai",
+    );
     markSurveyGenerationStage(trace, "response-ready");
     logGenerationMetric({
       surveyMode,
@@ -1410,6 +1504,9 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         surveyMode,
         requestId,
         trace,
+        error instanceof SurveyValidationError && error.category === "semantic"
+          ? "semantic_repair_fallback"
+          : "parse_failure_fallback",
       );
       if (outputFallbackResponse.ok) {
         cacheResult(
@@ -1418,6 +1515,9 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
           resilientFallback,
           "verified-fallback",
           "model-output-rejected",
+          error instanceof SurveyValidationError && error.category === "semantic"
+            ? "semantic_repair_fallback"
+            : "parse_failure_fallback",
         );
       }
       logGenerationMetric({
@@ -1610,6 +1710,8 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
         "model-output-rejected",
         "research",
         requestId,
+        undefined,
+        "parse_failure_fallback",
       );
       if (outputFallbackResponse.ok) {
         cacheResult(
@@ -1618,6 +1720,7 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
           resilientFallback,
           "verified-fallback",
           "model-output-rejected",
+          "parse_failure_fallback",
         );
       }
       return outputFallbackResponse;
@@ -1653,7 +1756,14 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
       };
     }
 
-    cacheResult(backgroundCacheKey, Date.now(), result, "model");
+    cacheResult(
+      backgroundCacheKey,
+      Date.now(),
+      result,
+      "model",
+      undefined,
+      "openai",
+    );
     return apiSuccess(
       result,
       {

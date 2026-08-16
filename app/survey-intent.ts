@@ -3,8 +3,11 @@ import {
   parseSurveyIntent,
   shouldEnforceSurveyIntentValidation,
   validateSurveyIntentCandidate,
+  type MeasurementMode,
   type SemanticRole,
   type SurveyIntent,
+  type TargetCardinality,
+  type TargetListSource,
 } from "./survey-semantic-intent";
 import {
   createSurveyPlan,
@@ -48,6 +51,7 @@ export type SurveyQuestion = {
   planBlockId?: string;
   questionPurpose?: string;
   decisionGoalIds?: string[];
+  unitOfAnalysis?: string;
   subjectRole?: SemanticRole;
   objectRole?: SemanticRole;
   explicitTimeframe?: string | null;
@@ -135,6 +139,11 @@ export type SurveyMeasurement = {
 export type SurveySemantics = {
   respondentGroup: string | null;
   evaluationTarget: string;
+  evaluationTargets: string[];
+  targetCardinality: TargetCardinality;
+  targetListSource: TargetListSource;
+  unitOfAnalysis: string;
+  measurementMode: MeasurementMode;
   explicitTopic: string | null;
   measurement: SurveyMeasurement | null;
   kind: SurveyIntentKind;
@@ -142,6 +151,10 @@ export type SurveySemantics = {
   goalLabel: string;
   requestedAsOpinion: boolean;
   topicWasInferred: boolean;
+  screeningRequired: boolean;
+  screeningReason: string | null;
+  requiresCreatorClarification: boolean;
+  missingInformation: string[];
   assumptions: string[];
 };
 
@@ -855,6 +868,11 @@ export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
     return {
       respondentGroup: population,
       evaluationTarget: `${conditionLabel} 여부`,
+      evaluationTargets: [`${conditionLabel} 여부`],
+      targetCardinality: "single",
+      targetListSource: null,
+      unitOfAnalysis: "개별 응답자",
+      measurementMode: "single_evaluation",
       explicitTopic,
       measurement: null,
       kind: "general",
@@ -862,6 +880,10 @@ export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
       goalLabel: "해당 학생 비율 파악",
       requestedAsOpinion: false,
       topicWasInferred: false,
+      screeningRequired: false,
+      screeningReason: null,
+      requiresCreatorClarification: false,
+      missingInformation: [],
       assumptions: [],
     };
   }
@@ -900,6 +922,12 @@ export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
   const literalConsumptionHabits = consumptionHabitCue.test(explicitTopic);
   const literalSleepDuration = sleepDurationCue.test(explicitTopic);
   const measurement = measurementFromTopic(explicitTopic);
+  const structuredIntent = parseSurveyIntent(rawPrompt);
+  const resolvedEvaluationTarget =
+    structuredIntent.objectKind === "satisfaction_evaluation" &&
+    structuredIntent.surveyObject
+      ? structuredIntent.surveyObject
+      : evaluationTarget;
   const topicWasInferred = explicitTopic.length < 2;
   const assumptions: string[] = topicWasInferred
     ? [`‘${evaluationTarget}’에 대한 조사로 문맥을 해석했어요.`]
@@ -912,7 +940,12 @@ export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
 
   return {
     respondentGroup,
-    evaluationTarget: evaluationTarget.slice(0, 64),
+    evaluationTarget: resolvedEvaluationTarget.slice(0, 64),
+    evaluationTargets: structuredIntent.evaluationTargets,
+    targetCardinality: structuredIntent.targetCardinality,
+    targetListSource: structuredIntent.targetListSource,
+    unitOfAnalysis: structuredIntent.unitOfAnalysis,
+    measurementMode: structuredIntent.measurementMode,
     explicitTopic: explicitTopic.length >= 2 ? explicitTopic : null,
     measurement,
     kind,
@@ -938,6 +971,11 @@ export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
             : goalLabels[kind],
     requestedAsOpinion,
     topicWasInferred,
+    screeningRequired: structuredIntent.screeningRequired,
+    screeningReason: structuredIntent.screeningReason,
+    requiresCreatorClarification:
+      structuredIntent.requiresCreatorClarification,
+    missingInformation: structuredIntent.missingInformation,
     assumptions,
   };
 }
@@ -1337,8 +1375,18 @@ export function parseSurveyBrief(rawBrief: string): SurveyBrief {
       ...semantics,
       respondentGroup: targetRespondents,
       evaluationTarget: researchSubject,
+      evaluationTargets: surveyIntent.evaluationTargets,
+      targetCardinality: surveyIntent.targetCardinality,
+      targetListSource: surveyIntent.targetListSource,
+      unitOfAnalysis: surveyIntent.unitOfAnalysis,
+      measurementMode: surveyIntent.measurementMode,
       explicitTopic: researchSubject,
       domain: inferDomain(targetRespondents, researchSubject, normalizedBrief),
+      screeningRequired: surveyIntent.screeningRequired,
+      screeningReason: surveyIntent.screeningReason,
+      requiresCreatorClarification:
+        surveyIntent.requiresCreatorClarification,
+      missingInformation: surveyIntent.missingInformation,
     },
     surveyIntent,
   };
@@ -1552,7 +1600,7 @@ function problemBlueprint(subject: string): SurveyBlueprint {
   };
 }
 
-type SatisfactionProfile = {
+type SatisfactionProfileContent = {
   screenerTitle: string;
   screenerOptions: string[];
   overallTitle: string;
@@ -1563,7 +1611,25 @@ type SatisfactionProfile = {
   closingTitle: string;
 };
 
-function satisfactionProfile(semantics: SurveySemantics): SatisfactionProfile {
+type SatisfactionProfile = Omit<
+  SatisfactionProfileContent,
+  "screenerTitle" | "screenerOptions"
+> & {
+  screener?: {
+    title: string;
+    options: string[];
+    reason: string;
+  };
+  contextQuestion?: {
+    title: string;
+    options: string[];
+    reason: string;
+  };
+};
+
+function satisfactionProfileContent(
+  semantics: SurveySemantics,
+): SatisfactionProfileContent {
   const { respondentGroup, evaluationTarget, domain } = semantics;
   const experienceBase = evaluationTarget
     .replace(
@@ -1970,9 +2036,168 @@ function satisfactionProfile(semantics: SurveySemantics): SatisfactionProfile {
   };
 }
 
+function satisfactionProfile(semantics: SurveySemantics): SatisfactionProfile {
+  const content = satisfactionProfileContent(semantics);
+  const { screenerTitle, screenerOptions: _unusedOptions, ...profile } = content;
+  void _unusedOptions;
+  if (!semantics.screeningRequired) {
+    return movementExperience(semantics.evaluationTarget)
+      ? {
+          ...profile,
+          contextQuestion: {
+            title: screenerTitle,
+            options: content.screenerOptions,
+            reason:
+              "이동 경험의 빈도를 측정해 만족도와 불편 응답을 해석할 기준을 만듦.",
+          },
+        }
+      : profile;
+  }
+  return {
+    ...profile,
+    screener: {
+      title: screenerTitle,
+      options: ["경험 있음", "경험 없음"],
+      reason:
+        semantics.screeningReason ??
+        "응답 자격으로 명시된 실제 경험 여부를 확인함.",
+    },
+  };
+}
+
+function multipleSatisfactionBlueprint(
+  semantics: SurveySemantics,
+): SurveyBlueprint {
+  const targets = semantics.evaluationTargets;
+  const targetQuestions = targets.map((target, index) => ({
+    ...question(
+      index + 1,
+      `${target}에 전반적으로 얼마나 만족하시나요?`,
+      `${semantics.unitOfAnalysis}별 만족도를 같은 척도로 측정함.`,
+      "scale",
+    ),
+    planBlockId: `target-satisfaction-${index + 1}`,
+    measuredConstruct: "만족도",
+    measuredVariable: `${target} 만족도`,
+    measuredRole: "construct" as const,
+    questionPurpose: `${target}의 만족도를 다른 평가 대상과 비교함.`,
+    objectRole: "real_world_object" as const,
+  }));
+  const targetLabels = targets.map((target) =>
+    target.replace(/\s*(?:수업|과목|강의)$/, ""),
+  );
+  const supplemental: SurveyQuestion[] = [
+    {
+      ...question(
+        1,
+        "가장 만족도가 높은 수업은 무엇인가요?",
+        "대상별 척도 응답과 함께 상대적 우선순위를 확인함.",
+        "single",
+        targetLabels,
+      ),
+      planBlockId: "target-comparison",
+      measuredConstruct: "상대 만족도",
+      measuredVariable: "가장 만족한 수업",
+      measuredRole: "preference",
+      questionPurpose: "복수 수업 중 상대적으로 만족도가 높은 대상을 구분함.",
+      objectRole: "real_world_object",
+    },
+    {
+      ...question(
+        1,
+        "수업 만족도에 가장 큰 영향을 준 요소를 모두 골라주세요.",
+        "수업별 만족도 차이를 설명할 공통 요인을 확인함.",
+        "multiple",
+        [
+          "수업 내용과 구성",
+          "설명과 진행 방식",
+          "과제의 난이도와 분량",
+          "시험과 평가 방식",
+          "질문 응답과 피드백",
+          "수업 자료",
+          "기타",
+        ],
+      ),
+      planBlockId: "satisfaction-driver",
+      measuredConstruct: "만족 요인",
+      measuredVariable: "수업 만족도 영향 요인",
+      measuredRole: "construct",
+      questionPurpose: "수업별 만족도 차이의 주요 원인을 분석함.",
+    },
+    {
+      ...question(
+        1,
+        "수업에서 가장 먼저 개선되어야 할 부분은 무엇인가요?",
+        "복수 수업에 공통으로 적용할 개선 우선순위를 확인함.",
+        "single",
+        [
+          "수업 내용과 구성",
+          "설명과 진행 방식",
+          "과제의 난이도와 분량",
+          "시험과 평가 방식",
+          "질문 응답과 피드백",
+          "수업 자료",
+        ],
+      ),
+      planBlockId: "improvement-priority",
+      measuredConstruct: "개선 요구",
+      measuredVariable: "수업 개선 우선순위",
+      measuredRole: "unmet_need",
+      questionPurpose: "수업 개선에 필요한 최우선 영역을 정함.",
+    },
+    {
+      ...question(
+        1,
+        "수업별로 좋았던 점이나 개선이 필요한 점을 적어주세요.",
+        "선택지로 설명하기 어려운 수업별 맥락을 수집함.",
+        "text",
+        undefined,
+        false,
+      ),
+      planBlockId: "open-target-evidence",
+      measuredConstruct: "수업별 구체적 경험",
+      measuredVariable: "수업별 개선 의견",
+      measuredRole: "construct",
+      questionPurpose: "대상별 평가 결과를 해석할 구체적인 근거를 수집함.",
+    },
+  ];
+  const aiQuestions = [...targetQuestions, ...supplemental]
+    .slice(0, 7)
+    .map((item, index) => ({ ...item, id: index + 1 }));
+  const titleTargets = targetLabels.join("·");
+  return {
+    kind: "satisfaction",
+    intentLabel: "복수 대상 비교 평가",
+    subject: titleTargets,
+    title: `${titleTargets} 수업 만족도 비교`,
+    description: `${semantics.respondentGroup ?? "응답자"}을 대상으로 ${targets.join("·")}의 만족도와 개선 요구를 수업별로 비교하는 익명 설문입니다.`,
+    templateTitle: `${titleTargets} 비교 문항`,
+    templateSummary:
+      "각 수업을 같은 척도로 반복 평가해 대상별 차이와 개선 우선순위를 확인해요.",
+    detectedSignals: [
+      `평가 대상 · ${targets.join(", ")}`,
+      `분석 단위 · ${semantics.unitOfAnalysis}`,
+      `측정 방식 · ${semantics.measurementMode}`,
+    ],
+    templateQuestions: aiQuestions.slice(0, 5),
+    aiQuestions,
+    respondentGroup: semantics.respondentGroup,
+    evaluationTarget: titleTargets,
+    goal: semantics.goalLabel,
+    assumptions: semantics.assumptions,
+    domain: "course",
+  };
+}
+
 function satisfactionBlueprint(
   semantics: SurveySemantics,
 ): SurveyBlueprint {
+  if (
+    semantics.targetCardinality === "multiple" &&
+    semantics.evaluationTargets.length >= 2
+  ) {
+    return multipleSatisfactionBlueprint(semantics);
+  }
   const {
     respondentGroup,
     evaluationTarget,
@@ -2008,81 +2233,102 @@ function satisfactionBlueprint(
     }
   }
 
-  const templateQuestions = [
+  const templateQuestions: SurveyQuestion[] = [];
+  if (profile.contextQuestion) {
+    templateQuestions.push(
+      question(
+        templateQuestions.length + 1,
+        profile.contextQuestion.title,
+        profile.contextQuestion.reason,
+        "single",
+        profile.contextQuestion.options,
+      ),
+    );
+  }
+  if (profile.screener) {
+    templateQuestions.push(
+      question(
+        templateQuestions.length + 1,
+        profile.screener.title,
+        profile.screener.reason,
+        "single",
+        profile.screener.options,
+      ),
+    );
+  }
+  templateQuestions.push(
     question(
-      1,
-      profile.screenerTitle,
-      "조사 대상과 실제 경험 여부를 먼저 확인해 결과가 엉뚱한 집단과 섞이지 않게 해요.",
-      "single",
-      profile.screenerOptions,
-    ),
-    question(
-      2,
+      templateQuestions.length + 1,
       profile.overallTitle,
       "전체 만족도를 5점 척도로 확인해 세부 경험을 해석할 기준을 만들어요.",
       "scale",
     ),
     question(
-      3,
+      templateQuestions.length + 2,
       profile.strengthsTitle,
       "현재 경험에서 유지해야 할 강점을 구체적인 영역으로 확인해요.",
       "multiple",
       [...profile.areaOptions, "아직 만족한 부분이 없음"],
     ),
     question(
-      4,
+      templateQuestions.length + 3,
       profile.improvementTitle,
       "개선 수요가 몰리는 영역을 찾아 우선순위를 정할 수 있어요.",
       "multiple",
       [...profile.areaOptions, "개선이 필요하다고 느낀 부분 없음"],
     ),
     question(
-      5,
+      templateQuestions.length + 4,
       profile.closingTitle,
       "선택지로 담기 어려운 실제 상황과 구체적인 개선 아이디어를 수집해요.",
       "text",
       undefined,
       false,
     ),
-  ];
+  );
 
   const aiQuestions = [
-    { ...templateQuestions[0], id: 1 },
-    { ...templateQuestions[1], id: 2 },
+    ...(profile.contextQuestion ? [templateQuestions[0]] : []),
+    ...(profile.screener
+      ? [templateQuestions[profile.contextQuestion ? 1 : 0]]
+      : []),
+    templateQuestions[
+      (profile.contextQuestion ? 1 : 0) + (profile.screener ? 1 : 0)
+    ],
     question(
-      3,
+      1,
       profile.detailTitles[0],
       "전체 점수만으로 보이지 않는 첫 번째 핵심 경험을 별도로 진단해요.",
       "scale",
     ),
     question(
-      4,
+      1,
       profile.detailTitles[1],
       "개선 가능한 두 번째 핵심 경험을 같은 척도로 비교해요.",
       "scale",
     ),
     question(
-      5,
+      1,
       profile.detailTitles[2],
       "대상과 주제에 맞는 세 번째 핵심 경험의 만족도를 확인해요.",
       "scale",
     ),
     question(
-      6,
+      1,
       profile.improvementTitle.replace("모두 골라주세요", "우선적으로 골라주세요"),
       "세부 만족도와 함께 가장 먼저 손볼 영역을 직접 확인해요.",
       "multiple",
       [...profile.areaOptions, "개선이 필요하다고 느낀 부분 없음"],
     ),
     question(
-      7,
+      1,
       profile.closingTitle,
       "선택한 영역과 관련된 실제 상황과 바라는 변화를 구체적으로 받아요.",
       "text",
       undefined,
       false,
     ),
-  ];
+  ].map((item, index) => ({ ...item, id: index + 1 }));
 
   const description = movement
     ? `${labelWithParticle(movement.place, "을", "를")} 오가는 ${movement.activity} 빈도와 거리·소요시간, 오르막·계단, 날씨, 혼잡·안전, 교통 연계 및 개선 의견을 파악하는 익명 설문입니다.`
@@ -3914,6 +4160,20 @@ function perceptionIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
 
 function satisfactionIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
   const intent = brief.surveyIntent;
+  if (intent.targetCardinality === "multiple") {
+    return satisfactionBlueprint({
+      ...brief.semantics,
+      evaluationTargets: intent.evaluationTargets,
+      targetCardinality: intent.targetCardinality,
+      targetListSource: intent.targetListSource,
+      unitOfAnalysis: intent.unitOfAnalysis,
+      measurementMode: intent.measurementMode,
+      screeningRequired: intent.screeningRequired,
+      screeningReason: intent.screeningReason,
+      requiresCreatorClarification: intent.requiresCreatorClarification,
+      missingInformation: intent.missingInformation,
+    });
+  }
   const object = intentObjectForQuestion(intent, brief.researchSubject);
   const experienceQuestion = intent.eligibilityCondition
     ? /(?:먹어본|시식|구매)/.test(intent.targetPopulation ?? "")
@@ -3928,7 +4188,7 @@ function satisfactionIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
         experienceQuestion,
         "만족도를 평가할 수 있는 실제 경험 여부를 확인함.",
         "single",
-        ["현재 경험 중", "최근에 경험함", "과거에 경험함", "경험한 적 없음"],
+        ["경험 있음", "경험 없음"],
       ),
     );
   }

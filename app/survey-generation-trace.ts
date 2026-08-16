@@ -1,6 +1,32 @@
 export const MAX_REPAIR_ATTEMPTS = 1;
-export const MAX_REGENERATION_ATTEMPTS = 0;
+export const MAX_FULL_REGENERATION_ATTEMPTS = 0;
+export const MAX_REGENERATION_ATTEMPTS = MAX_FULL_REGENERATION_ATTEMPTS;
 export const MAX_MODEL_CALLS_PER_REQUEST = 1;
+
+export type GenerationSource =
+  | "openai"
+  | "openai_partial_repair"
+  | "initial_local_blueprint"
+  | "openai_failure_fallback"
+  | "parse_failure_fallback"
+  | "semantic_repair_fallback"
+  | "quality_repair_fallback"
+  | "fast_draft_fallback"
+  | "resilient_fallback"
+  | "intent_clarification";
+
+export type GenerationDiagnostics = {
+  requestId: string;
+  generationSource: GenerationSource | null;
+  fallbackReason: string | null;
+  modelCallCount: number;
+  repairCount: number;
+  fallbackCount: number;
+  originalQuestionCount: number | null;
+  repairedQuestionIds: string[];
+  preservedQuestionIds: string[];
+  totalElapsedMs: number;
+};
 
 export type SurveyGenerationStage =
   | "request-received"
@@ -45,8 +71,13 @@ export type SurveyGenerationTrace = {
   extractedTopic: string | null;
   extractedVariables: string[];
   extractedRelations: string[];
+  generationSource: GenerationSource | null;
   fallbackUsed: boolean;
   fallbackReason: string | null;
+  fallbackCount: number;
+  originalQuestionCount: number | null;
+  repairedQuestionIds: string[];
+  preservedQuestionIds: string[];
 };
 
 export function createSurveyGenerationTrace(
@@ -69,9 +100,36 @@ export function createSurveyGenerationTrace(
     extractedTopic: null,
     extractedVariables: [],
     extractedRelations: [],
+    generationSource: null,
     fallbackUsed: false,
     fallbackReason: null,
+    fallbackCount: 0,
+    originalQuestionCount: null,
+    repairedQuestionIds: [],
+    preservedQuestionIds: [],
   };
+}
+
+export function recordSurveyGenerationSource(
+  trace: SurveyGenerationTrace | undefined,
+  source: GenerationSource,
+) {
+  if (!trace) return;
+  trace.generationSource = source;
+}
+
+export function recordSurveyQuestionOutcome(
+  trace: SurveyGenerationTrace | undefined,
+  details: {
+    originalQuestionCount: number;
+    repairedQuestionIds?: Array<string | number>;
+    preservedQuestionIds?: Array<string | number>;
+  },
+) {
+  if (!trace) return;
+  trace.originalQuestionCount = details.originalQuestionCount;
+  trace.repairedQuestionIds = (details.repairedQuestionIds ?? []).map(String);
+  trace.preservedQuestionIds = (details.preservedQuestionIds ?? []).map(String);
 }
 
 export function recordSurveyIntentTrace(
@@ -91,10 +149,13 @@ export function recordSurveyIntentTrace(
 export function recordSurveyFallback(
   trace: SurveyGenerationTrace | undefined,
   reason: string,
+  source?: GenerationSource,
 ) {
   if (!trace) return;
   trace.fallbackUsed = true;
   trace.fallbackReason = reason.slice(0, 120);
+  trace.fallbackCount += 1;
+  if (source) trace.generationSource = source;
 }
 
 export function markSurveyGenerationStage(
@@ -127,12 +188,18 @@ export function recordSurveyValidation(
   markSurveyGenerationStage(trace, stage);
 }
 
-export function recordSurveyRepair(trace: SurveyGenerationTrace | undefined) {
+export function recordSurveyRepair(
+  trace: SurveyGenerationTrace | undefined,
+  repairedQuestionIds: Array<string | number> = [],
+  preservedQuestionIds: Array<string | number> = [],
+) {
   if (!trace) return;
   if (trace.repairCount >= MAX_REPAIR_ATTEMPTS) {
     throw new Error("설문 의미 복구 상한을 초과했습니다.");
   }
   trace.repairCount += 1;
+  trace.repairedQuestionIds = repairedQuestionIds.map(String);
+  trace.preservedQuestionIds = preservedQuestionIds.map(String);
   markSurveyGenerationStage(trace, "local-repair");
 }
 
@@ -166,7 +233,13 @@ export function surveyGenerationTraceSnapshot(trace: SurveyGenerationTrace) {
     extractedTopic: trace.extractedTopic,
     extractedVariables: [...trace.extractedVariables],
     extractedRelations: [...trace.extractedRelations],
+    generationSource: trace.generationSource,
     fallbackUsed: trace.fallbackUsed,
     fallbackReason: trace.fallbackReason,
+    fallbackCount: trace.fallbackCount,
+    originalQuestionCount: trace.originalQuestionCount,
+    repairedQuestionIds: [...trace.repairedQuestionIds],
+    preservedQuestionIds: [...trace.preservedQuestionIds],
+    totalElapsedMs: trace.elapsedMs,
   };
 }

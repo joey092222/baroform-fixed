@@ -1,6 +1,9 @@
 import type {
+  MeasurementMode,
   SemanticRole,
   SurveyIntent,
+  TargetCardinality,
+  TargetListSource,
 } from "./survey-semantic-intent";
 import {
   hasRelationalResearchIntent,
@@ -39,6 +42,14 @@ export type SurveyPlanBlock = {
 export type SurveyPlan = {
   intentKind: SurveyIntent["objectKind"];
   targetPopulation: string | null;
+  evaluationTargets: string[];
+  targetCardinality: TargetCardinality;
+  targetListSource: TargetListSource;
+  unitOfAnalysis: string;
+  measurementMode: MeasurementMode;
+  screeningRequired: boolean;
+  screeningReason: string | null;
+  missingInformation: string[];
   primaryPurpose: string | null;
   decisionGoals: string[];
   blocks: SurveyPlanBlock[];
@@ -186,6 +197,14 @@ function createRelationalSurveyPlan(
   return {
     intentKind: intent.objectKind,
     targetPopulation: intent.targetPopulation,
+    evaluationTargets: intent.evaluationTargets,
+    targetCardinality: intent.targetCardinality,
+    targetListSource: intent.targetListSource,
+    unitOfAnalysis: intent.unitOfAnalysis,
+    measurementMode: intent.measurementMode,
+    screeningRequired: intent.screeningRequired,
+    screeningReason: intent.screeningReason,
+    missingInformation: intent.missingInformation,
     primaryPurpose:
       research.analysisGoals[0]?.description ?? intent.studyPurpose?.text ?? intent.purpose,
     decisionGoals: research.analysisGoals.map((item) => item.description),
@@ -434,6 +453,14 @@ export function createSurveyPlan(
   return {
     intentKind: intent.objectKind,
     targetPopulation: intent.targetPopulation,
+    evaluationTargets: intent.evaluationTargets,
+    targetCardinality: intent.targetCardinality,
+    targetListSource: intent.targetListSource,
+    unitOfAnalysis: intent.unitOfAnalysis,
+    measurementMode: intent.measurementMode,
+    screeningRequired: intent.screeningRequired,
+    screeningReason: intent.screeningReason,
+    missingInformation: intent.missingInformation,
     primaryPurpose: intent.studyPurpose?.text ?? intent.purpose,
     decisionGoals: intent.decisionGoals.map((item) => item.text),
     blocks: blocks.slice(0, requestedQuestionCount),
@@ -445,6 +472,14 @@ export function compactSurveyPlanForPrompt(plan: SurveyPlan) {
   return {
     intentKind: plan.intentKind,
     targetPopulation: plan.targetPopulation,
+    evaluationTargets: plan.evaluationTargets,
+    targetCardinality: plan.targetCardinality,
+    targetListSource: plan.targetListSource,
+    unitOfAnalysis: plan.unitOfAnalysis,
+    measurementMode: plan.measurementMode,
+    screeningRequired: plan.screeningRequired,
+    screeningReason: plan.screeningReason,
+    missingInformation: plan.missingInformation,
     primaryPurpose: plan.primaryPurpose,
     decisionGoals: plan.decisionGoals,
     requestedQuestionCount: plan.requestedQuestionCount,

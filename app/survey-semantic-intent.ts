@@ -83,6 +83,20 @@ export type SurveyIntentObjectKind =
   | "category_set"
   | "decision_support";
 
+export type TargetCardinality = "single" | "multiple";
+
+export type TargetListSource =
+  | "explicit_in_prompt"
+  | "creator_required"
+  | "respondent_supplied"
+  | null;
+
+export type MeasurementMode =
+  | "single_evaluation"
+  | "matrix_evaluation"
+  | "repeated_evaluation"
+  | "comparison";
+
 export type SurveyIntent = {
   rawInput: string;
   entities: IntentEntity[];
@@ -102,9 +116,17 @@ export type SurveyIntent = {
   explicitTimeframeEntity: IntentEntity | null;
   eligibilityCondition: string | null;
   eligibilityEntity: IntentEntity | null;
+  evaluationTargets: string[];
+  targetCardinality: TargetCardinality;
+  targetListSource: TargetListSource;
+  unitOfAnalysis: string;
+  measurementMode: MeasurementMode;
   contexts: IntentEntity[];
   relations: IntentRelation[];
   screeningRequired: boolean;
+  screeningReason: string | null;
+  requiresCreatorClarification: boolean;
+  missingInformation: string[];
   includesNonUsers: boolean;
   studyType: SurveyIntentStudyType;
   ambiguityLevel: "low" | "medium" | "high";
@@ -250,6 +272,16 @@ function stripTimeframe(value: string, timeframe: string | null) {
 }
 
 function extractTarget(value: string) {
+  const multipleCourseAudience = value.match(
+    /^((?:여러|복수의|각|현재\s*듣는)\s*(?:수업|과목|강의)(?:들)?)(?:에\s*대한)?\s+(.+?(?:대학생|학생)(?:들)?)의\s+(.+)$/,
+  );
+  if (multipleCourseAudience) {
+    return {
+      targetPopulation: multipleCourseAudience[2].replace(/들$/, "").trim(),
+      remainder: `${multipleCourseAudience[1]}의 ${multipleCourseAudience[3]}`,
+    };
+  }
+
   const explicit = value.match(/^(.+?)\s*대상(?:으로|인)?\s+(.+)$/);
   if (explicit && personTargetEnding.test(explicit[1].trim())) {
     return {
@@ -703,6 +735,80 @@ function eligibilityFromTarget(target: string | null, surveyObject: string | nul
   return null;
 }
 
+function evaluationDesignFromPrompt(
+  raw: string,
+  primaryClause: string,
+  surveyObject: string | null,
+  objectKind: SurveyIntentObjectKind,
+) {
+  const designText = `${raw} ${primaryClause}`;
+  const courseCue = /(?:수업|과목|강의)/.test(designText);
+  const multipleCue =
+    /(?:여러|복수의|각)\s*(?:수업|과목|강의)|(?:수업|과목|강의)들|수강\s*과목별|현재\s*듣는\s*(?:수업|과목|강의)/.test(
+      designText,
+    );
+  const explicitListPrefix = courseCue
+    ? raw.match(
+        /^(.+?)\s+(?:수업|과목|강의)(?:들)?(?:에\s*대한|의|별)?\s*(?:만족도|평가|비교)/,
+      )?.[1] ?? null
+    : null;
+  const explicitTargets = explicitListPrefix
+    ? explicitListPrefix
+        .split(/,\s*|\s+(?:및|와|과)\s+/)
+        .map((item) =>
+          item
+            .replace(/^(?:여러|복수의|각|현재\s*듣는|수강한?)\s*/, "")
+            .replace(/\s*(?:수업|과목|강의)$/, "")
+            .trim(),
+        )
+        .filter((item) => item.length >= 2)
+    : [];
+  const dedupedTargets = [...new Set(explicitTargets)];
+  const hasExplicitTargetList = dedupedTargets.length >= 2;
+  const targetCardinality: TargetCardinality =
+    hasExplicitTargetList || multipleCue ? "multiple" : "single";
+  const isCourseEvaluation =
+    courseCue && objectKind === "satisfaction_evaluation";
+  const evaluationTargets = hasExplicitTargetList
+    ? dedupedTargets.map((item) => `${item} 수업`)
+    : targetCardinality === "single" && surveyObject
+      ? [surveyObject]
+      : [];
+  const targetListSource: TargetListSource =
+    targetCardinality === "multiple"
+      ? hasExplicitTargetList
+        ? "explicit_in_prompt"
+        : "creator_required"
+      : null;
+  const measurementMode: MeasurementMode =
+    targetCardinality === "multiple"
+      ? /비교|차이|각각|과목별|수업별/.test(raw)
+        ? "comparison"
+        : hasExplicitTargetList
+          ? "matrix_evaluation"
+          : "repeated_evaluation"
+      : "single_evaluation";
+  const requiresCreatorClarification =
+    isCourseEvaluation &&
+    targetCardinality === "multiple" &&
+    targetListSource === "creator_required";
+
+  return {
+    evaluationTargets,
+    targetCardinality,
+    targetListSource,
+    unitOfAnalysis:
+      isCourseEvaluation && targetCardinality === "multiple"
+        ? "개별 수업"
+        : surveyObject?.trim() || "개별 응답자",
+    measurementMode,
+    requiresCreatorClarification,
+    missingInformation: requiresCreatorClarification
+      ? ["평가할 수업 목록", "수업 선택 또는 반복 평가 방식"]
+      : [],
+  };
+}
+
 export function parseSurveyIntent(
   rawInput: string,
   studyType: SurveyIntentStudyType = "general",
@@ -780,6 +886,9 @@ export function parseSurveyIntent(
       ]
     : activityRelations.activities;
   const parts = constructAndObject(primaryClause, kind);
+  if (kind === "satisfaction_evaluation" && parts.surveyObject) {
+    parts.surveyObject = parts.surveyObject.replace(/\s*의$/, "").trim();
+  }
   if (categorySet) {
     parts.surveyObject = categorySet;
     parts.constructs = [categorySet];
@@ -813,6 +922,12 @@ export function parseSurveyIntent(
     target.targetPopulation,
     parts.surveyObject,
   );
+  const evaluationDesign = evaluationDesignFromPrompt(
+    raw,
+    primaryClause,
+    parts.surveyObject,
+    kind,
+  );
   const explicitlyIncludesNonUsers =
     /(?:비이용자|비사용자|사용해\s*본\s*적이\s*없는|이용해\s*본\s*적이\s*없는).*(?:포함|까지)|(?:전\s*연령대|모든\s*연령대|일반인)/.test(
       raw,
@@ -824,16 +939,21 @@ export function parseSurveyIntent(
       kind === "attitude_perception" ||
       activities.length > 0 ||
       /실태|현황/.test(raw));
-  const screeningRequired = Boolean(
-    eligibilityCondition ||
-      (explicitTimeframe &&
-        /(?:이용|사용|구매|방문|참여)\s*(?:경험|현황|실태)/.test(raw)) ||
-      (kind === "satisfaction_evaluation" &&
-        !includesNonUsers &&
-        /재택근무|서비스|시설|제품|프로그램|행사|수업/.test(
-          parts.surveyObject ?? "",
-        )),
+  const explicitPeriodExperienceScreening = Boolean(
+    explicitTimeframe &&
+      evaluationDesign.targetCardinality === "single" &&
+      /(?:이용|사용|구매|방문|참여|시식|먹어본)\s*(?:경험|현황|실태)/.test(
+        raw,
+      ),
   );
+  const screeningRequired = Boolean(
+    eligibilityCondition || explicitPeriodExperienceScreening,
+  );
+  const screeningReason = eligibilityCondition
+    ? `응답 대상이 ‘${eligibilityCondition}’ 조건으로 명시됨.`
+    : explicitPeriodExperienceScreening
+      ? `사용자가 지정한 ‘${explicitTimeframe}’ 기간의 실제 경험 여부가 필요함.`
+      : null;
   const ambiguityLevel: SurveyIntent["ambiguityLevel"] = !parts.surveyObject
     ? "high"
     : target.targetPopulation || activities.length > 0 || kind !== "academic_construct"
@@ -1038,9 +1158,11 @@ export function parseSurveyIntent(
     explicitTimeframeEntity: timeframeEntity,
     eligibilityCondition,
     eligibilityEntity,
+    ...evaluationDesign,
     contexts,
     relations: semanticRelations,
     screeningRequired,
+    screeningReason,
     includesNonUsers,
     studyType,
     ambiguityLevel,
@@ -1170,6 +1292,32 @@ export function validateSurveyIntentCandidate(
       question.referencePeriod ?? question.reference_period ?? "";
     const combined = `${text} ${referencePeriod}`.trim();
     const normalizedQuestion = normalizeRoleText(text);
+    const concreteObjectMatches = text.match(
+      /[가-힣A-Za-z0-9·-]*(?:웹툰|앱|어플|플랫폼|브랜드|제품|서비스)/g,
+    ) ?? [];
+    const foreignConcreteObject = concreteObjectMatches.find((item) => {
+      const normalizedItem = normalizeRoleText(item);
+      if (
+        /^(?:(?:해당|이|그|온라인|모바일)(?:서비스|앱|어플|플랫폼|브랜드|제품)|서비스|제품|플랫폼)$/.test(
+          normalizedItem,
+        )
+      ) {
+        return false;
+      }
+      const allowedCorpus = normalizeRoleText(
+        [intent.rawInput, intent.surveyObject ?? "", ...intent.objects.map((object) => object.text)].join(" "),
+      );
+      return normalizedItem.length >= 2 && !allowedCorpus.includes(normalizedItem);
+    });
+    if (foreignConcreteObject) {
+      pushViolation(violations, {
+        code: "SEMANTIC_RELATION_INVALID",
+        severity: "repairable",
+        message: "사용자 입력에 없는 제품·서비스가 문항의 평가 대상으로 사용됨.",
+        questionId,
+        evidence: foreignConcreteObject,
+      });
+    }
 
     if (
       relationalIntent &&
@@ -1561,7 +1709,15 @@ export function compactSurveyIntentForPrompt(intent: SurveyIntent) {
     purpose: intent.purpose,
     explicitTimeframe: intent.explicitTimeframe,
     eligibilityCondition: intent.eligibilityCondition,
+    evaluationTargets: intent.evaluationTargets,
+    targetCardinality: intent.targetCardinality,
+    targetListSource: intent.targetListSource,
+    unitOfAnalysis: intent.unitOfAnalysis,
+    measurementMode: intent.measurementMode,
     screeningRequired: intent.screeningRequired,
+    screeningReason: intent.screeningReason,
+    requiresCreatorClarification: intent.requiresCreatorClarification,
+    missingInformation: intent.missingInformation,
     includesNonUsers: intent.includesNonUsers,
     studyType: intent.studyType,
     ambiguityLevel: intent.ambiguityLevel,
