@@ -50,6 +50,7 @@ import {
 } from "./survey-planning";
 import {
   markSurveyGenerationStage,
+  recordSurveyFallback,
   recordSurveyRepair,
   recordSurveyValidation,
   type SurveyGenerationTrace,
@@ -1307,6 +1308,11 @@ export function parseSurveyDraftResponse(
               id: item.id,
               title: item.title,
               options: item.options,
+              measuredConstruct: item.measuredConstruct,
+              measuredVariable: item.measuredVariable,
+              measuredRole: item.measuredRole,
+              planBlockId: item.planBlockId,
+              questionPurpose: item.questionPurpose,
             })),
       })
     : [];
@@ -1452,6 +1458,7 @@ export function parseSurveyDraftResponse(
 
   if (semanticViolations.length > 0) {
     recordSurveyRepair(trace);
+    recordSurveyFallback(trace, "semantic-violation-local-repair");
     repairWithValidatedIntentBlueprint();
     if (process.env.NODE_ENV !== "production") {
       console.info("survey-generation-semantic-repair", {
@@ -1472,6 +1479,7 @@ export function parseSurveyDraftResponse(
     shouldEnforceSurveyIntentValidation(brief.surveyIntent)
   ) {
     recordSurveyRepair(trace);
+    recordSurveyFallback(trace, "quality-validation-local-repair");
     repairWithValidatedIntentBlueprint();
     validationIssues = validateSurvey(prompt, brief, blueprint);
     if (process.env.NODE_ENV !== "production") {
@@ -1636,6 +1644,11 @@ export function buildSurveyAiRequest(
     JSON.stringify(compactSurveyPlanForPrompt(surveyPlan)),
     "",
     "구조화된 설문 의도에서 대상, 조사 대상물, 측정 개념, 목적, 기간, 응답 자격을 서로 다른 역할로 유지한다.",
+    "researchIntent.variables는 각각 독립된 분석 변수다. 복수 변수를 하나의 topic 문자열이나 서비스명으로 다시 합치지 않는다.",
+    "researchIntent.relations와 analysisGoals가 있으면 모든 directlyAskable respondent_level 변수를 각각 문항으로 측정한다.",
+    "aggregate_derived 변수와 derivedMetrics(비율·평균·분포·이용률·참여율)는 응답자에게 직접 묻지 않는다. sourceVariableIds의 개인별 기초 변수를 질문하고 결과 분석에서 계산한다.",
+    "관계 표현(~에 따른, ~별, ~와의 관계, ~가 ~에 미치는 영향)은 predictor/grouping 변수와 outcome 변수를 분리하고 교차 분석 또는 집단 비교가 가능하도록 설계한다.",
+    "통학 시간·수면 시간·공부 시간·지출 금액·이용 빈도·만족도·스트레스·거주 형태·여부처럼 측정 가능한 변수에는 구체적인 대상을 다시 적으라는 주관식 문항을 만들지 않는다.",
     "설문 계획의 각 block은 실제 문항으로 측정하고, decisionGoals가 있으면 모든 핵심 문항이 그 결정에 필요한 근거가 되도록 설계한다.",
     "category_set은 제품명이 아니다. 관련성·직접 경험·전반 평가를 묻지 말고 구체적인 범주 선택, 빈도, 비중, 우선순위로 조작화한다.",
     "evidence_for 관계로 연결된 뒤쪽 목적을 버리지 말고, 현재 행동 → 미충족 수요 → 대안 선호 → 이용 의향의 인과 흐름을 유지한다.",

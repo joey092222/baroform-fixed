@@ -42,6 +42,11 @@ export type SurveyGenerationTrace = {
   errorMessage: string | null;
   failureStage: SurveyGenerationStage | null;
   stageHistory: Array<{ stage: SurveyGenerationStage; elapsedMs: number }>;
+  extractedTopic: string | null;
+  extractedVariables: string[];
+  extractedRelations: string[];
+  fallbackUsed: boolean;
+  fallbackReason: string | null;
 };
 
 export function createSurveyGenerationTrace(
@@ -61,7 +66,35 @@ export function createSurveyGenerationTrace(
     errorMessage: null,
     failureStage: null,
     stageHistory: [{ stage: "request-received", elapsedMs: 0 }],
+    extractedTopic: null,
+    extractedVariables: [],
+    extractedRelations: [],
+    fallbackUsed: false,
+    fallbackReason: null,
   };
+}
+
+export function recordSurveyIntentTrace(
+  trace: SurveyGenerationTrace | undefined,
+  details: {
+    topic: string | null;
+    variables: string[];
+    relations: string[];
+  },
+) {
+  if (!trace || process.env.NODE_ENV === "production") return;
+  trace.extractedTopic = details.topic?.slice(0, 120) ?? null;
+  trace.extractedVariables = details.variables.slice(0, 20).map((item) => item.slice(0, 120));
+  trace.extractedRelations = details.relations.slice(0, 20).map((item) => item.slice(0, 160));
+}
+
+export function recordSurveyFallback(
+  trace: SurveyGenerationTrace | undefined,
+  reason: string,
+) {
+  if (!trace) return;
+  trace.fallbackUsed = true;
+  trace.fallbackReason = reason.slice(0, 120);
 }
 
 export function markSurveyGenerationStage(
@@ -130,5 +163,10 @@ export function surveyGenerationTraceSnapshot(trace: SurveyGenerationTrace) {
     errorMessage: trace.errorMessage,
     failureStage: trace.failureStage,
     stageHistory: [...trace.stageHistory],
+    extractedTopic: trace.extractedTopic,
+    extractedVariables: [...trace.extractedVariables],
+    extractedRelations: [...trace.extractedRelations],
+    fallbackUsed: trace.fallbackUsed,
+    fallbackReason: trace.fallbackReason,
   };
 }

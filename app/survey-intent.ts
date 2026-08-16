@@ -11,6 +11,12 @@ import {
   type SurveyPlan,
   type SurveyPlanBlock,
 } from "./survey-planning";
+import {
+  hasRelationalResearchIntent,
+  researchIntentDescription,
+  researchIntentTitle,
+  type ResearchVariable,
+} from "./survey-research-intent";
 
 export type SurveyQuestionType =
   | "scale"
@@ -1122,6 +1128,7 @@ function briefTimeframe(subject: string, content: string) {
 }
 
 function shouldPreferSurveyIntent(intent: SurveyIntent) {
+  if (hasRelationalResearchIntent(intent.researchIntent)) return true;
   if (intent.ambiguityLevel !== "low") return false;
   return (
     intent.activities.some((item) => item.source === "explicit") ||
@@ -3530,11 +3537,10 @@ function generalBlueprint(subject: string): SurveyBlueprint {
   const templateQuestions = [
     question(
       1,
-      `${topic}에서 실제로 경험하거나 선택한 구체적인 대상을 적어주세요.`,
-      "추상적인 조사 주제를 응답자가 답할 수 있는 구체적인 대상으로 확인함.",
-      "shortText",
-      undefined,
-      false,
+      `${topic}과 관련해 평소 가장 자주 겪는 상황은 무엇인가요?`,
+      "조사 주제가 실제 생활에서 나타나는 상황을 응답 가능한 범주로 측정함.",
+      "single",
+      ["일상생활", "학업·업무", "이동", "여가", "사람들과의 교류", "해당 경험 없음", "기타"],
     ),
     question(
       2,
@@ -3571,7 +3577,7 @@ function generalBlueprint(subject: string): SurveyBlueprint {
     intentLabel: "의견·경험",
     subject,
     title: `${subject} 의견 조사`,
-    description: `${subject}에 대한 경험과 평가, 중요 요소 및 개선 의견을 파악하는 익명 설문입니다.`,
+    description: `${subject}과 관련된 실제 행동, 상황, 판단 기준과 요구를 파악하기 위한 설문입니다.`,
     templateTitle: `${subject} 기본 의견`,
     templateSummary: "주제 관련 경험, 전체 평가, 중요 요소와 개선 의견을 균형 있게 확인해요.",
     detectedSignals: [`대상 · ${subject}`, "목적 · 경험과 의견 파악"],
@@ -4555,7 +4561,290 @@ function categorySetIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
   };
 }
 
+function researchVariableQuestion(
+  variable: ResearchVariable,
+  id: number,
+  explicitTimeframe: string | null,
+) {
+  const timeframe = explicitTimeframe ? `${explicitTimeframe} 기준으로 ` : "";
+  const name = variable.name;
+  if (/현재\s*거주\s*형태/.test(name)) {
+    return question(
+      id,
+      "현재 거주 형태를 알려주세요.",
+      "개인별 거주 형태를 측정해 자취 여부를 집계할 수 있게 함.",
+      "single",
+      ["본가에서 통학", "자취", "기숙사·생활관", "친척·지인과 거주", "기타"],
+    );
+  }
+  if (/통학\s*시간/.test(name)) {
+    return question(
+      id,
+      "현재 거주지에서 학교까지 편도로 얼마나 걸리나요?",
+      "개인별 통학 시간을 겹치지 않는 시간 구간으로 측정함.",
+      "single",
+      ["15분 미만", "15분 이상~30분 미만", "30분 이상~60분 미만", "60분 이상~90분 미만", "90분 이상"],
+    );
+  }
+  if (/공부\s*시간/.test(name)) {
+    return question(
+      id,
+      `${timeframe}평소 하루에 공부하는 시간은 어느 정도인가요?`,
+      "개인별 공부 시간을 비교 가능한 시간 구간으로 측정함.",
+      "single",
+      ["1시간 미만", "1시간 이상~2시간 미만", "2시간 이상~4시간 미만", "4시간 이상~6시간 미만", "6시간 이상"],
+    );
+  }
+  if (/성적/.test(name)) {
+    return question(
+      id,
+      "가장 최근 학기의 성적 구간을 알려주세요.",
+      "공부 시간과 비교할 수 있도록 성적을 구간으로 측정함.",
+      "single",
+      ["2.0 미만", "2.0 이상~3.0 미만", "3.0 이상~3.5 미만", "3.5 이상~4.0 미만", "4.0 이상", "응답하고 싶지 않음"],
+    );
+  }
+  if (/연령대/.test(name)) {
+    return question(
+      id,
+      "연령대를 알려주세요.",
+      "연령대별 결과를 비교하기 위한 집단 변수를 측정함.",
+      "single",
+      ["10대 이하", "20대", "30대", "40대", "50대", "60대 이상"],
+    );
+  }
+  if (/(?:AI|인공지능).*사용\s*여부|사용\s*여부.*(?:AI|인공지능)/i.test(name)) {
+    return question(
+      id,
+      `${timeframe}생성형 AI를 사용한 적이 있나요?`,
+      "개인별 AI 사용 여부를 측정해 연령대별 사용률을 계산할 수 있게 함.",
+      "single",
+      ["사용한 적 있음", "사용한 적 없음"],
+    );
+  }
+  if (/운동\s*빈도/.test(name)) {
+    return question(
+      id,
+      `${timeframe || "평소 "}운동을 얼마나 자주 하나요?`,
+      "운동 빈도를 비교 가능한 구간으로 측정함.",
+      "single",
+      ["거의 하지 않음", "월 1~3회", "주 1~2회", "주 3~4회", "주 5회 이상"],
+    );
+  }
+  if (/수면의\s*질/.test(name)) {
+    return question(
+      id,
+      `${timeframe}전반적인 수면의 질은 어느 정도인가요?`,
+      "운동 빈도 집단별 수면의 질을 비교할 수 있게 측정함.",
+      "single",
+      ["매우 좋지 않음", "좋지 않은 편", "보통", "좋은 편", "매우 좋음"],
+    );
+  }
+  if (/근무\s*시간/.test(name)) {
+    return question(
+      id,
+      "평소 하루 실제 근무 시간은 어느 정도인가요?",
+      "개인별 근무 시간을 비교 가능한 시간 구간으로 측정함.",
+      "single",
+      ["6시간 미만", "6시간 이상~8시간 미만", "8시간 이상~10시간 미만", "10시간 이상~12시간 미만", "12시간 이상"],
+    );
+  }
+  if (/이직\s*의향/.test(name)) {
+    return question(
+      id,
+      "현재 이직을 고려하는 정도는 어느 수준인가요?",
+      "근무 시간과 비교할 수 있도록 이직 의향을 단계별로 측정함.",
+      "single",
+      ["전혀 고려하지 않음", "별로 고려하지 않음", "보통", "어느 정도 고려함", "적극적으로 고려함"],
+    );
+  }
+  if (/거주\s*지역/.test(name)) {
+    return question(
+      id,
+      "현재 거주하는 지역을 시·군·구 단위로 적어주세요.",
+      "지역별 결과를 집계하기 위한 거주 지역 변수를 수집함.",
+      "shortText",
+    );
+  }
+  if (/배달\s*앱.*이용\s*여부|이용\s*여부.*배달\s*앱/.test(name)) {
+    return question(
+      id,
+      `${timeframe}배달 앱을 이용한 적이 있나요?`,
+      "개인별 이용 여부를 측정해 지역별 이용률을 계산할 수 있게 함.",
+      "single",
+      ["이용한 적 있음", "이용한 적 없음"],
+    );
+  }
+  if (/학년/.test(name)) {
+    return question(
+      id,
+      "현재 학년을 알려주세요.",
+      "학년별 결과를 비교하기 위한 집단 변수를 측정함.",
+      "single",
+      ["1학년", "2학년", "3학년", "4학년", "5학년 이상", "대학원생"],
+    );
+  }
+  if (/동아리.*참여\s*여부|참여\s*여부.*동아리/.test(name)) {
+    return question(
+      id,
+      "현재 동아리나 학생단체 활동에 참여하고 있나요?",
+      "개인별 참여 여부를 측정해 학년별 참여 비율을 계산할 수 있게 함.",
+      "single",
+      ["참여하고 있음", "현재는 참여하지 않음"],
+    );
+  }
+  if (/이용\s*빈도|사용\s*빈도/.test(name)) {
+    const object = name.replace(/\s*(?:이용|사용)\s*빈도/, "").trim() || "해당 서비스";
+    return question(
+      id,
+      `${timeframe || "평소 "}${labelWithParticle(object, "을", "를")} 얼마나 자주 이용하나요?`,
+      "서비스 이용 빈도를 비교 가능한 구간으로 측정함.",
+      "single",
+      ["거의 이용하지 않음", "월 1~3회", "주 1~2회", "주 3~4회", "거의 매일"],
+    );
+  }
+  if (/만족도/.test(name)) {
+    return question(
+      id,
+      "가장 최근 이용 경험에 전반적으로 얼마나 만족했나요?",
+      "이용 빈도 집단별 만족도 차이를 비교할 수 있게 측정함.",
+      "single",
+      ["매우 불만족", "불만족", "보통", "만족", "매우 만족", "이용 경험 없음"],
+    );
+  }
+  if (/지각\s*빈도/.test(name)) {
+    return question(
+      id,
+      `${timeframe}수업이나 약속에 늦은 빈도는 어느 정도인가요?`,
+      "통학 거리와 비교할 수 있도록 지각 빈도를 측정함.",
+      "single",
+      ["없음", "월 1회 미만", "월 1~3회", "주 1~2회", "주 3회 이상"],
+    );
+  }
+  if (/스트레스\s*수준/.test(name)) {
+    return question(
+      id,
+      `${timeframe}전반적인 스트레스 수준은 어느 정도인가요?`,
+      "선행 변수와 비교할 수 있도록 스트레스를 단계별로 측정함.",
+      "single",
+      ["매우 낮음", "낮은 편", "보통", "높은 편", "매우 높음"],
+    );
+  }
+  if (/구매\s*금액|지출/.test(name)) {
+    return question(
+      id,
+      `${timeframe}${name}은 어느 구간에 해당하나요?`,
+      "개인별 금액을 겹치지 않는 구간으로 측정함.",
+      "single",
+      ["1만원 미만", "1만원 이상~3만원 미만", "3만원 이상~5만원 미만", "5만원 이상~10만원 미만", "10만원 이상"],
+    );
+  }
+  if (variable.measurementLevel === "binary") {
+    return question(
+      id,
+      `${timeframe}${name}에 해당하나요?`,
+      `${name}을(를) 개인별 이분형 변수로 측정함.`,
+      "single",
+      ["예", "아니요"],
+    );
+  }
+  if (variable.measurementLevel === "numeric") {
+    return question(
+      id,
+      `${timeframe}${name}은 어느 정도인가요?`,
+      `${name}을(를) 분석 가능한 수치 또는 구간으로 측정함.`,
+      "shortText",
+    );
+  }
+  return question(
+    id,
+    `${timeframe}${name}은 어느 수준에 해당하나요?`,
+    `${name}을(를) 비교 가능한 응답 범주로 측정함.`,
+    "single",
+    ["매우 낮음", "낮은 편", "보통", "높은 편", "매우 높음"],
+  );
+}
+
+function relationalIntentBlueprint(brief: SurveyBrief): SurveyBlueprint | null {
+  const intent = brief.surveyIntent;
+  const research = intent.researchIntent;
+  if (!hasRelationalResearchIntent(research)) return null;
+  const plan = createSurveyPlan(intent, 7);
+  const directVariables = research.variables.filter(
+    (item) => item.scope === "respondent_level" && item.directlyAskable,
+  );
+  const commuteResidence = /통학\s*시간/.test(
+    directVariables.map((item) => item.name).join(" "),
+  ) && directVariables.some((item) => /현재\s*거주\s*형태/.test(item.name));
+  const orderedVariables = commuteResidence
+    ? [
+        ...directVariables.filter((item) => /현재\s*거주\s*형태/.test(item.name)),
+        ...directVariables.filter((item) => !/현재\s*거주\s*형태/.test(item.name)),
+      ]
+    : directVariables;
+  let questions = orderedVariables.map((variable, index) =>
+    researchVariableQuestion(variable, index + 1, research.explicitTimeframe),
+  );
+  if (commuteResidence) {
+    questions = [
+      ...questions,
+      question(3, "주로 이용하는 통학 수단을 알려주세요.", "통학 시간 구간을 해석할 수 있도록 이동 수단을 구분함.", "single", ["도보", "자전거·개인형 이동수단", "버스", "지하철·기차", "승용차·택시", "여러 수단을 비슷하게 이용", "기타"]),
+      question(4, "본가에서 학교까지 통학한다면 편도로 얼마나 걸릴 것으로 예상하나요?", "자취로 짧아진 현재 통학 시간과 본가 기준 통학 여건을 구분함.", "single", ["30분 미만", "30분 이상~60분 미만", "60분 이상~90분 미만", "90분 이상~120분 미만", "120분 이상", "잘 모르겠음"]),
+      question(5, "통학 시간이 현재 거주 형태를 선택하는 데 어느 정도 영향을 주었나요?", "통학 여건이 주거 선택에 미친 체감 영향을 측정함.", "single", ["전혀 영향을 주지 않음", "별로 영향을 주지 않음", "보통", "어느 정도 영향을 줌", "매우 큰 영향을 줌"]),
+      question(6, "현재 거주 형태를 선택한 주된 이유를 모두 골라주세요.", "자취·기숙사·본가 통학을 선택한 요인을 구분함.", "multiple", ["통학 시간 단축", "주거비 부담", "가족과의 거주", "학업·생활 편의", "독립적인 생활", "기숙사 입주 가능 여부", "안전·생활환경", "기타"]),
+      question(7, "통학 부담을 줄이기 위해 가장 필요한 지원이 있다면 적어주세요.", "통학과 거주 형태의 관계를 해석할 수 있는 지원 요구를 수집함.", "text", undefined, false),
+    ];
+  } else {
+    const predictor = directVariables.find((item) => ["predictor", "grouping"].includes(item.role));
+    const outcome = directVariables.find((item) => item.role === "outcome");
+    const predictorName = predictor?.name ?? "앞선 조건";
+    const outcomeName = outcome?.name ?? "결과";
+    questions.push(
+      question(questions.length + 1, "앞에서 답한 첫 번째 값이 달라지는 주된 상황을 모두 골라주세요.", `${predictorName}의 차이를 설명할 수 있는 상황 변수를 수집함.`, "multiple", ["평일", "주말·공휴일", "학업·업무가 많은 시기", "개인 일정이 많은 시기", "특별한 상황 없음", "기타"]),
+      question(questions.length + 2, `${outcomeName}에 가장 큰 영향을 준 요인은 무엇인가요?`, `${outcomeName}의 차이를 해석할 수 있는 주요 요인을 확인함.`, "single", ["시간", "비용", "접근성", "개인 선호", "주변 환경", "가족·지인의 영향", "기타"]),
+      question(questions.length + 3, "앞에서 답한 두 값이 함께 달라진다고 느끼는 정도는 어느 수준인가요?", "직접 측정한 두 변수와 별도로 응답자가 체감한 연결 정도를 보조적으로 확인함.", "single", ["전혀 관련 없음", "별로 관련 없음", "보통", "관련 있는 편", "매우 관련 있음"]),
+      question(questions.length + 4, `${outcomeName}이 달라졌던 가장 최근의 상황을 적어주세요.`, "관계 분석 결과를 해석할 수 있는 실제 맥락을 수집함.", "shortText", undefined, false),
+      question(questions.length + 5, "앞에서 답한 두 값의 관계에 대해 덧붙이고 싶은 경험이 있다면 적어주세요.", "정형 선택지에서 놓친 관계의 근거를 수집함.", "text", undefined, false),
+    );
+  }
+  questions = questions.slice(0, 7).map((item, index) => {
+    const variable = orderedVariables[index];
+    const block = variable
+      ? plan.blocks.find((candidate) => candidate.researchVariableId === variable.id)
+      : plan.blocks[index];
+    return annotatePlannedQuestion({ ...item, id: index + 1 }, block, intent);
+  });
+  const title = researchIntentTitle(research) ?? `${brief.researchSubject} 조사`;
+  const description =
+    researchIntentDescription(research) ??
+    `${brief.targetRespondents}의 핵심 변수를 직접 측정하고 관계를 분석하기 위한 설문입니다.`;
+  return {
+    kind: "general",
+    intentLabel: "변수 관계 분석",
+    subject: directVariables.map((item) => item.name).join("과 "),
+    title,
+    description,
+    templateTitle: `${directVariables.map((item) => item.name).join("·")} 핵심 문항`,
+    templateSummary: "집계 지표를 직접 묻지 않고 개인별 기초 변수를 측정해 관계를 분석할 수 있게 구성했어요.",
+    detectedSignals: [
+      `응답 대상 · ${research.targetPopulation ?? brief.targetRespondents}`,
+      ...directVariables.map((item) => `측정 변수 · ${item.name}`),
+      ...research.analysisGoals.slice(0, 1).map((item) => `분석 목표 · ${item.description}`),
+    ],
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
+    respondentGroup: research.targetPopulation ?? brief.targetRespondents,
+    evaluationTarget: directVariables.map((item) => item.name).join("과 "),
+    goal: research.analysisGoals[0]?.description ?? brief.researchGoal,
+    assumptions: [],
+    domain: brief.domain,
+    semanticPlan: plan,
+  };
+}
+
 function semanticIntentBlueprint(brief: SurveyBrief) {
+  const relational = relationalIntentBlueprint(brief);
+  if (relational) return relational;
   if (!shouldPreferSurveyIntent(brief.surveyIntent)) return null;
   switch (brief.surveyIntent.objectKind) {
     case "decision_support":

@@ -1,3 +1,10 @@
+import {
+  compactResearchIntentForPrompt,
+  hasRelationalResearchIntent,
+  parseSurveyResearchIntent,
+  type SurveyResearchIntent,
+} from "./survey-research-intent";
+
 export type SurveyIntentStudyType = "general" | "research";
 
 export type SemanticRole =
@@ -102,6 +109,7 @@ export type SurveyIntent = {
   studyType: SurveyIntentStudyType;
   ambiguityLevel: "low" | "medium" | "high";
   objectKind: SurveyIntentObjectKind;
+  researchIntent: SurveyResearchIntent;
 };
 
 export type SurveyIntentViolationCode =
@@ -118,7 +126,16 @@ export type SurveyIntentViolationCode =
   | "GENERIC_TEMPLATE_ROLE_MISMATCH"
   | "INVALID_VERB_OBJECT_RELATION"
   | "DECISION_GOAL_DROPPED"
-  | "UNMEASURABLE_QUESTION";
+  | "UNMEASURABLE_QUESTION"
+  | "MEASURABLE_VARIABLE_MISCLASSIFIED_AS_ABSTRACT"
+  | "MULTI_VARIABLE_INTENT_FLATTENED"
+  | "RELATION_NOT_EXTRACTED"
+  | "DERIVED_METRIC_ASKED_DIRECTLY"
+  | "GENERIC_CONCRETIZATION_FALLBACK_USED"
+  | "VARIABLE_COVERAGE_MISSING"
+  | "ANALYSIS_GOAL_NOT_SUPPORTED"
+  | "INCOMPLETE_SURVEY_TITLE"
+  | "GENERIC_DESCRIPTION_MISMATCH";
 
 export type ValidationSeverity = "fatal" | "repairable" | "warning";
 
@@ -244,7 +261,12 @@ function extractTarget(value: string) {
   const objectThenTarget = value.match(
     /^(.+?)의\s+(.+?(?:학생|대학생|대학원생|직장인|청년|고객|이용자|사용자|소비자|직원|교직원|교사)(?:들)?)의\s+(.+)$/,
   );
-  if (objectThenTarget) {
+  if (
+    objectThenTarget &&
+    !/(?:시간|거리|빈도|비율|평균|분포|관계|영향|따른|만족도|수준|여부|형태)/.test(
+      objectThenTarget[2],
+    )
+  ) {
     return {
       targetPopulation: objectThenTarget[2].replace(/들$/, "").trim(),
       remainder: `${objectThenTarget[1].trim()} ${objectThenTarget[3].trim()}`,
@@ -705,6 +727,10 @@ export function parseSurveyIntent(
     .trim();
   const target = extractTarget(working);
   working = target.remainder;
+  const researchIntent = parseSurveyResearchIntent(raw, {
+    targetPopulation: target.targetPopulation,
+    explicitTimeframe,
+  });
   const purposeChain = splitPurposeChain(working);
   const primaryClause = purposeChain.primaryClause || working;
   const contexts = extractContextEntities(
@@ -1019,6 +1045,7 @@ export function parseSurveyIntent(
     studyType,
     ambiguityLevel,
     objectKind: kind,
+    researchIntent,
   };
 }
 
@@ -1053,6 +1080,8 @@ export function validateSurveyIntentCandidate(
   candidate: SurveyIntentCandidate,
 ) {
   const violations: SurveyIntentViolation[] = [];
+  const researchIntent = intent.researchIntent;
+  const relationalIntent = hasRelationalResearchIntent(researchIntent);
   const inventedTimeframe =
     /(?:최근|지난)\s*(?:\d+\s*(?:일|주|개월|달|년)|한\s*(?:주|달|해)|일주일)|(?:이번|지난)\s*(?:학기|학년도)/;
   const firstQuestion = candidate.questions[0];
@@ -1141,6 +1170,46 @@ export function validateSurveyIntentCandidate(
       question.referencePeriod ?? question.reference_period ?? "";
     const combined = `${text} ${referencePeriod}`.trim();
     const normalizedQuestion = normalizeRoleText(text);
+
+    if (
+      relationalIntent &&
+      /(?:실제로\s*)?(?:경험하거나\s*선택한|조사하고자\s*하는|이\s*주제와\s*관련된)\s*(?:구체적인\s*)?(?:대상|항목)|구체적인\s*(?:대상|항목)을?\s*(?:적어|작성)/.test(
+        text,
+      )
+    ) {
+      pushViolation(violations, {
+        code: "GENERIC_CONCRETIZATION_FALLBACK_USED",
+        severity: "repairable",
+        message: "측정 가능한 변수 대신 응답자에게 조사 대상을 다시 정하도록 요구함.",
+        questionId,
+        evidence: text,
+      });
+      pushViolation(violations, {
+        code: "MEASURABLE_VARIABLE_MISCLASSIFIED_AS_ABSTRACT",
+        severity: "repairable",
+        message: "직접 측정 가능한 변수가 추상 주제로 잘못 분류됨.",
+        questionId,
+        evidence: text,
+      });
+    }
+
+    for (const metric of researchIntent.derivedMetrics) {
+      const metricLabel = metric.name.replace(/\s+/g, "\\s*");
+      if (
+        new RegExp(metricLabel).test(text) &&
+        /(?:몇\s*(?:퍼센트|%)|비율은?\s*(?:얼마|어느)|평균은?\s*(?:얼마|어느)|추측|예상|생각)/.test(
+          text,
+        )
+      ) {
+        pushViolation(violations, {
+          code: "DERIVED_METRIC_ASKED_DIRECTLY",
+          severity: "repairable",
+          message: "응답 결과에서 계산해야 할 집계 지표를 개인 응답자에게 직접 질문함.",
+          questionId,
+          evidence: text,
+        });
+      }
+    }
 
     for (const category of categoryEntities) {
       const mentionsCategory = normalizedQuestion.includes(
@@ -1314,6 +1383,121 @@ export function validateSurveyIntentCandidate(
     });
   }
 
+  if (relationalIntent) {
+    const questionCorpus = candidate.questions
+      .map((item) => candidateQuestionText(item))
+      .join(" ");
+    const metadataCorpus = candidate.questions
+      .flatMap((item) => [item.measuredVariable ?? "", item.measuredConstruct ?? ""])
+      .join(" ");
+    const variableCovered = (variable: SurveyResearchIntent["variables"][number]) => {
+      const compactQuestion = normalizeRoleText(questionCorpus);
+      const compactMetadata = normalizeRoleText(metadataCorpus);
+      const label = normalizeRoleText(variable.name);
+      const core = normalizeRoleText(
+        variable.name
+          .replace(/^현재\s*/, "")
+          .replace(/\s*(?:여부|형태|수준|정도|구간)$/, ""),
+      );
+      if (
+        compactQuestion.includes(label) ||
+        compactMetadata.includes(label) ||
+        (core.length >= 2 &&
+          (compactQuestion.includes(core) || compactMetadata.includes(core)))
+      ) {
+        return true;
+      }
+      if (/현재\s*거주\s*형태|자취\s*여부/.test(variable.name)) {
+        return /거주\s*형태|자취\s*(?:중|여부|하고|하는)/.test(questionCorpus);
+      }
+      if (/사용\s*여부|이용\s*여부/.test(variable.name)) {
+        return /(?:사용|이용)(?:한|해\s*본)?\s*(?:적|경험)?(?:이\s*)?(?:있|없)/.test(
+          questionCorpus,
+        );
+      }
+      if (/참여\s*여부/.test(variable.name)) {
+        return /참여(?:한|해\s*본)?\s*(?:적|경험)?(?:이\s*)?(?:있|없)|현재\s*참여/.test(
+          questionCorpus,
+        );
+      }
+      if (/통학\s*시간/.test(variable.name)) {
+        return /통학\s*시간|학교까지.*(?:걸리|소요)|편도.*(?:분|시간)/.test(
+          questionCorpus,
+        );
+      }
+      if (/공부\s*시간/.test(variable.name)) {
+        return /공부(?:하는)?\s*시간|학습\s*시간/.test(questionCorpus);
+      }
+      if (/근무\s*시간/.test(variable.name)) {
+        return /근무\s*시간|하루.*근무/.test(questionCorpus);
+      }
+      if (/거주\s*지역/.test(variable.name)) {
+        return /거주(?:하는)?\s*지역|현재\s*지역/.test(questionCorpus);
+      }
+      if (/운동\s*빈도/.test(variable.name)) {
+        return /운동.*얼마나\s*자주|운동\s*빈도/.test(questionCorpus);
+      }
+      if (/이용\s*빈도|사용\s*빈도/.test(variable.name)) {
+        return /얼마나\s*자주\s*(?:이용|사용)|(?:이용|사용)\s*빈도/.test(
+          questionCorpus,
+        );
+      }
+      return false;
+    };
+    const requiredVariables = researchIntent.variables.filter(
+      (item) => item.scope === "respondent_level" && item.directlyAskable,
+    );
+    const missingVariables = requiredVariables.filter(
+      (item) => !variableCovered(item),
+    );
+    if (missingVariables.length > 0) {
+      pushViolation(violations, {
+        code: "VARIABLE_COVERAGE_MISSING",
+        severity: "repairable",
+        message: "관계 분석에 필요한 응답자 수준 변수가 문항에서 측정되지 않음.",
+        evidence: missingVariables.map((item) => item.name).join(", "),
+      });
+    }
+    if (requiredVariables.length - missingVariables.length < 2) {
+      pushViolation(violations, {
+        code: "MULTI_VARIABLE_INTENT_FLATTENED",
+        severity: "repairable",
+        message: "복수 변수 조사 요청이 하나의 주제로 평탄화됨.",
+        evidence: researchIntent.relationExpression ?? undefined,
+      });
+      pushViolation(violations, {
+        code: "ANALYSIS_GOAL_NOT_SUPPORTED",
+        severity: "repairable",
+        message: "생성된 문항으로 요청한 관계·집단 비교 분석을 수행할 수 없음.",
+        evidence: researchIntent.analysisGoals.map((item) => item.description).join(", "),
+      });
+    }
+    const title = candidate.title?.trim() ?? "";
+    if (
+      title &&
+      /(?:대해|걸리는|따른|관한|위한|미치는|그리고|및|과|와)\s*$/.test(title)
+    ) {
+      pushViolation(violations, {
+        code: "INCOMPLETE_SURVEY_TITLE",
+        severity: "repairable",
+        message: "설문 제목이 관형절이나 연결어 중간에서 끝남.",
+        evidence: title,
+      });
+    }
+    if (
+      /경험과\s*평가,?\s*중요\s*요소\s*및\s*개선\s*의견|현재\s*경험과\s*의견\s*파악/.test(
+        candidate.description ?? "",
+      )
+    ) {
+      pushViolation(violations, {
+        code: "GENERIC_DESCRIPTION_MISMATCH",
+        severity: "repairable",
+        message: "설명문이 추출된 변수와 분석 목적 대신 범용 문구로 작성됨.",
+        evidence: candidate.description,
+      });
+    }
+  }
+
   if (firstQuestion && !intent.screeningRequired) {
     if (firstQuestion.role === "screening") {
       pushViolation(violations, {
@@ -1382,5 +1566,6 @@ export function compactSurveyIntentForPrompt(intent: SurveyIntent) {
     studyType: intent.studyType,
     ambiguityLevel: intent.ambiguityLevel,
     objectKind: intent.objectKind,
+    researchIntent: compactResearchIntentForPrompt(intent.researchIntent),
   };
 }

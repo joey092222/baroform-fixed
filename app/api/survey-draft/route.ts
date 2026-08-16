@@ -51,6 +51,8 @@ import {
   failSurveyGenerationTrace,
   markSurveyGenerationStage,
   recordSurveyModelCall,
+  recordSurveyFallback,
+  recordSurveyIntentTrace,
   recordSurveyValidation,
   surveyGenerationTraceSnapshot,
   type SurveyGenerationTrace,
@@ -217,6 +219,7 @@ function fallbackResponse(
   requestId: string,
   trace?: SurveyGenerationTrace,
 ) {
+  recordSurveyFallback(trace, reason);
   markSurveyGenerationStage(trace, "fallback-started");
   if (result.status !== "needs_clarification") {
     recordSurveyValidation(trace, "semantic-validation");
@@ -878,6 +881,15 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     enteredPrompt,
     surveyMode === "research" ? "research" : "general",
   );
+  recordSurveyIntentTrace(trace, {
+    topic: intent.surveyObject,
+    variables: intent.researchIntent.variables.map(
+      (item) => `${item.name}:${item.scope}:${item.role}`,
+    ),
+    relations: intent.researchIntent.relations.map(
+      (item) => `${item.type}:${item.fromVariableId}->${item.toVariableId}`,
+    ),
+  });
   markSurveyGenerationStage(trace, "intent-analysis");
   if (process.env.NODE_ENV !== "production") {
     console.info("survey-generation-request", {
