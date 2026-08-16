@@ -98,6 +98,11 @@ import {
   type SurveyMode,
 } from "./survey-mode";
 import {
+  estimateSurveyGenerationSeconds,
+  formatSurveyGenerationSeconds,
+  getSurveyGenerationTiming,
+} from "./survey-generation-time";
+import {
   surveyGenerationErrorMessage,
   surveyGenerationErrorMetadata,
   type SurveyGenerationFailureStage,
@@ -5865,6 +5870,62 @@ type SurveyGenerationResult =
   | SurveyGenerationBackgroundResult
   | { type: "error"; status?: never; error?: string; code?: string; stage?: string };
 
+const surveyGenerationDurationStorageKey =
+  "baroform-survey-generation-duration-v1";
+
+type SurveyGenerationDurationHistory = Partial<Record<SurveyMode, number[]>>;
+
+function readSurveyGenerationDurationHistory(): SurveyGenerationDurationHistory {
+  if (typeof window === "undefined") return {};
+  try {
+    const parsed = JSON.parse(
+      window.localStorage.getItem(surveyGenerationDurationStorageKey) ?? "{}",
+    ) as SurveyGenerationDurationHistory;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function readSurveyGenerationDurations(surveyMode: SurveyMode) {
+  const durations = readSurveyGenerationDurationHistory()[surveyMode];
+  return Array.isArray(durations)
+    ? durations
+        .filter(
+          (duration) =>
+            Number.isFinite(duration) && duration >= 15 && duration <= 600,
+        )
+        .slice(-8)
+    : [];
+}
+
+function recordSurveyGenerationDuration(
+  surveyMode: SurveyMode,
+  durationSeconds: number,
+) {
+  if (
+    typeof window === "undefined" ||
+    !Number.isFinite(durationSeconds) ||
+    durationSeconds < 15 ||
+    durationSeconds > 600
+  ) {
+    return;
+  }
+  const history = readSurveyGenerationDurationHistory();
+  history[surveyMode] = [
+    ...(Array.isArray(history[surveyMode]) ? history[surveyMode] : []),
+    Math.round(durationSeconds),
+  ].slice(-8);
+  try {
+    window.localStorage.setItem(
+      surveyGenerationDurationStorageKey,
+      JSON.stringify(history),
+    );
+  } catch {
+    // 저장 공간을 사용할 수 없어도 설문 생성은 계속 진행한다.
+  }
+}
+
 function waitForBackgroundPoll(signal: AbortSignal, delayMs = 2_000) {
   return new Promise<void>((resolve, reject) => {
     if (signal.aborted) {
@@ -5900,15 +5961,21 @@ function Footer() {
 
 function GenerationOverlay({
   surveyMode,
+  questionCount,
+  attachmentCount,
   onCancel,
 }: {
   surveyMode: SurveyMode;
+  questionCount: number;
+  attachmentCount: number;
   onCancel: () => void;
 }) {
   const [messageIndex, setMessageIndex] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [recentDurations, setRecentDurations] = useState<number[]>([]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
+    const messageTimer = window.setInterval(() => {
       setMessageIndex((current) =>
         Math.min(
           current + 1,
@@ -5916,11 +5983,32 @@ function GenerationOverlay({
         ),
       );
     }, 8_000);
+    const startedAt = Date.now();
+    const elapsedTimer = window.setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1_000));
+    }, 1_000);
+    const historyTimer = window.setTimeout(() => {
+      setRecentDurations(readSurveyGenerationDurations(surveyMode));
+    }, 0);
 
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(messageTimer);
+      window.clearInterval(elapsedTimer);
+      window.clearTimeout(historyTimer);
+    };
   }, [surveyMode]);
 
   const phaseTitles = surveyModeLoadingMessages[surveyMode];
+  const estimatedTotalSeconds = estimateSurveyGenerationSeconds({
+    surveyMode,
+    questionCount,
+    attachmentCount,
+    recentDurations,
+  });
+  const timing = getSurveyGenerationTiming(
+    elapsedSeconds,
+    estimatedTotalSeconds,
+  );
 
   return (
     <div
@@ -5941,6 +6029,20 @@ function GenerationOverlay({
             ? "연결을 오래 유지하지 않고 백그라운드에서 한 번만 생성한 뒤 완료 상태를 확인해요."
             : "입력한 내용을 바탕으로 바로 편집할 수 있는 설문을 만들고 있어요."}
         </p>
+        <div
+          className={`generation-time ${timing.isOverEstimate ? "overtime" : ""}`}
+        >
+          <span><Clock3 size={15} /> 예상 남은 시간</span>
+          <output aria-live="polite">{timing.remainingLabel}</output>
+        </div>
+        <div className="generation-time-meta">
+          <span>경과 {formatSurveyGenerationSeconds(timing.elapsedSeconds)}</span>
+          <small>
+            {recentDurations.length > 0
+              ? "최근 내 생성 기록 기준"
+              : "최근 운영 소요 시간 기준"}
+          </small>
+        </div>
         <button type="button" className="generation-cancel" onClick={onCancel}>
           생성 취소
         </button>
@@ -6336,6 +6438,7 @@ export default function Home() {
       references.images.length +
       references.files.length +
       references.links.length;
+    const generationStartedAt = Date.now();
     let failureStage: SurveyGenerationFailureStage = "initial-request";
 
     const requestId = analysisRequestRef.current + 1;
@@ -6444,6 +6547,10 @@ export default function Home() {
       }
 
       failureStage = "response-apply";
+      recordSurveyGenerationDuration(
+        selectedSurveyMode,
+        Math.ceil((Date.now() - generationStartedAt) / 1_000),
+      );
       setSurveyTitle(result.blueprint.title);
       setDescription(result.blueprint.description);
       setQuestions(result.blueprint.aiQuestions);
@@ -6995,6 +7102,12 @@ export default function Home() {
       {isAnalyzing && (
         <GenerationOverlay
           surveyMode={surveyMode}
+          questionCount={questionCount}
+          attachmentCount={
+            references.images.length +
+            references.files.length +
+            references.links.length
+          }
           onCancel={cancelSurveyGeneration}
         />
       )}
