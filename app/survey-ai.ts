@@ -37,6 +37,12 @@ import {
   defaultSurveyMode,
   type SurveyMode,
 } from "./survey-mode";
+import {
+  classifySurveyTopic,
+  topicCategoryAllowsExperienceScreener,
+  type StructuredSurveyInput,
+  type SurveyTopicCategory,
+} from "./survey-request";
 
 export class SurveyValidationError extends Error {
   readonly issues: string[];
@@ -392,9 +398,9 @@ function generationIntegrityIssues(
   if (
     plan.requested_question_count !== expectedQuestionCount ||
     plan.total_question_nodes !== actualCount ||
-    plan.min_path_questions !== actualCount ||
+    plan.min_path_questions < 1 ||
     plan.min_path_questions > plan.max_path_questions ||
-    plan.max_path_questions !== expectedQuestionCount
+    plan.max_path_questions > actualCount
   ) {
     issues.push("설문 계획의 최소·최대 경로 문항 수가 실제 구조와 맞지 않습니다.");
   }
@@ -445,6 +451,14 @@ function structuredGenerationToLegacy(
         }]
       : [],
   );
+  const legacyIdByQuestionId = new Map(
+    generation.survey.questions.map((question, index) => [question.id, index + 1]),
+  );
+  const optionLabelById = new Map(
+    generation.survey.questions.flatMap((question) =>
+      question.options.map((option) => [option.id, option.label] as const),
+    ),
+  );
   const aiQuestions = generation.survey.questions.map((question, index) => ({
     id: index + 1,
     title: question.text,
@@ -458,6 +472,21 @@ function structuredGenerationToLegacy(
     scaleMax: question.scale?.max,
     scaleMinLabel: question.scale?.min_label,
     scaleMaxLabel: question.scale?.max_label,
+    showIf: question.show_if.flatMap((condition) => {
+      const questionId = legacyIdByQuestionId.get(condition.question_id);
+      const value = optionLabelById.get(condition.value) ?? condition.value;
+      if (!questionId) return [];
+      return [{
+        questionId,
+        operator:
+          condition.operator === "not_equals"
+            ? "notEquals" as const
+            : condition.operator === "not_contains"
+              ? "notContains" as const
+              : condition.operator,
+        value,
+      }];
+    }),
   }));
 
   return {
@@ -734,6 +763,28 @@ function normalizeQuestion(value: unknown, id: number): SurveyQuestion {
   ) {
     throw new Error("AI 객관식 선택지가 부족합니다.");
   }
+  const showIf = Array.isArray(value.showIf)
+    ? value.showIf.flatMap((condition) => {
+        if (!isRecord(condition)) return [];
+        const questionId = Number(condition.questionId);
+        const operator = cleanText(condition.operator, 20);
+        const conditionValue = cleanText(condition.value, 100);
+        if (
+          !Number.isInteger(questionId) ||
+          questionId < 1 ||
+          questionId >= id ||
+          !["equals", "notEquals", "contains", "notContains"].includes(operator) ||
+          !conditionValue
+        ) {
+          return [];
+        }
+        return [{
+          questionId,
+          operator: operator as NonNullable<SurveyQuestion["showIf"]>[number]["operator"],
+          value: conditionValue,
+        }];
+      }).slice(0, 4)
+    : undefined;
   return {
     id,
     title,
@@ -756,6 +807,7 @@ function normalizeQuestion(value: unknown, id: number): SurveyQuestion {
         : undefined,
     scaleMinLabel: cleanText(value.scaleMinLabel, 60) || undefined,
     scaleMaxLabel: cleanText(value.scaleMaxLabel, 60) || undefined,
+    showIf,
   };
 }
 
@@ -1437,6 +1489,8 @@ export function buildSurveyAiRequest(
     targetGrade?: string;
     questionCount?: number;
     organizationLocationContext?: string | null;
+    structuredInput?: StructuredSurveyInput;
+    topicCategory?: SurveyTopicCategory;
     references?: {
       images?: Array<{ name: string; dataUrl: string }>;
       files?: Array<{
@@ -1467,7 +1521,17 @@ export function buildSurveyAiRequest(
     referenceImages.length > 0 ||
     referenceFiles.length > 0 ||
     referenceLinks.length > 0;
-  const useWebSearch = shouldUseWebSearchForSurvey(prompt, surveyMode, {
+  const structuredInput = options?.structuredInput;
+  const semanticTopic = structuredInput?.topic || prompt;
+  const topicCategory =
+    options?.topicCategory ??
+    classifySurveyTopic(structuredInput ?? semanticTopic);
+  const searchCandidate = structuredInput
+    ? [structuredInput.topic, structuredInput.target, structuredInput.context]
+        .filter(Boolean)
+        .join(" ")
+    : prompt;
+  const useWebSearch = shouldUseWebSearchForSurvey(searchCandidate, surveyMode, {
     links: referenceLinks,
   });
   const currentDate = new Intl.DateTimeFormat("en-CA", {
@@ -1478,7 +1542,7 @@ export function buildSurveyAiRequest(
   }).format(new Date());
   let parsedBrief;
   try {
-    parsedBrief = parseSurveyBrief(prompt);
+    parsedBrief = parseSurveyBrief(semanticTopic);
   } catch {
     parsedBrief = parseSurveyBrief(fallback.title);
   }
@@ -1496,9 +1560,13 @@ export function buildSurveyAiRequest(
       })
     : "첨부 자료 없음";
   const audienceContext =
-    targetGrade === "전학년"
-      ? parsedBrief.targetRespondents
-      : `${parsedBrief.targetRespondents}; 응답 학년 조건: ${targetGrade}`;
+    structuredInput?.target
+      ? targetGrade === "전학년"
+        ? structuredInput.target
+        : `${structuredInput.target}; 응답 학년 조건: ${targetGrade}`
+      : targetGrade === "전학년"
+        ? parsedBrief.targetRespondents
+        : `${parsedBrief.targetRespondents}; 응답 학년 조건: ${targetGrade}`;
   const organizationContext = [
     "사용자 원문에 학교·기관·지역이 있으면 그것을 최우선으로 사용한다.",
     `로그인 프로필 문맥: ${profileContext}`,
@@ -1513,20 +1581,39 @@ export function buildSurveyAiRequest(
     "[현재 날짜]",
     currentDate,
     "",
-    "[사용자가 입력한 원문]",
-    prompt,
+    "[조사 대상]",
+    audienceContext || "기존 자유 입력 문맥에서 추론",
+    "",
+    "[조사 주제]",
+    semanticTopic,
+    "",
+    "[조사 목적]",
+    structuredInput?.objective || parsedBrief.researchGoal || "기존 자유 입력 문맥에서 추론",
+    "",
+    "[핵심 조사 내용]",
+    structuredInput?.keyAspects.length
+      ? structuredInput.keyAspects.map((item) => `- ${item}`).join("\n")
+      : "별도 지정 없음",
+    "",
+    "[기준 기간]",
+    structuredInput?.referencePeriod || parsedBrief.recommendedTimeframe || "별도 지정 없음",
+    "",
+    "[기타 조건]",
+    [structuredInput?.context, organizationContext].filter(Boolean).join("\n") || "별도 지정 없음",
+    "",
+    "[첨부 자료]",
+    attachmentContext,
+    "",
+    "[내부 주제 유형]",
+    topicCategory,
+    "",
+    "[이용 경험 스크리너 판단]",
+    topicCategoryAllowsExperienceScreener(topicCategory)
+      ? "실제 대상의 이용·방문·참여 경험이 후속 문항의 적격성을 좌우할 때만 사용 가능"
+      : "조사 주제 자체를 이용했는지 묻는 스크리너 생성 금지",
     "",
     "[설문 제작 방식]",
     surveyMode === "research" ? "정밀·연구 설문" : "일반 설문",
-    "",
-    "[응답 대상]",
-    audienceContext || "사용자 원문에서 추론",
-    "",
-    "[학교·기관·지역 등 검색 대상 식별에 도움이 되는 문맥]",
-    organizationContext,
-    "",
-    "[설문을 통해 알고 싶은 내용]",
-    parsedBrief.researchGoal || "사용자 원문에서 추론",
     "",
     "[희망 문항 수]",
     String(requestedQuestionCount),
@@ -1542,9 +1629,6 @@ export function buildSurveyAiRequest(
     "- 한 화면에 질문 하나를 기본으로 표시",
     "- 선택지 무작위 배열 가능",
     "- 기타 직접 입력 가능",
-    "",
-    "[첨부 자료에서 추출한 내용]",
-    attachmentContext,
     "",
     "[기존 설문 해석 힌트]",
     JSON.stringify({

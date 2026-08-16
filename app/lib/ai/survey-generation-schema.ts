@@ -12,7 +12,7 @@ export const supportedSurveyQuestionTypes = [
 ] as const;
 
 export const supportedSurveyLogic =
-  "현재 조건부 분기는 지원하지 않음. 모든 show_if는 빈 배열이어야 함.";
+  "앞선 단일·복수 선택 문항의 응답에 따른 조건부 표시를 지원함. show_if에는 앞 문항 ID와 실제 선택지 ID만 사용함.";
 
 const nullableText = (maximum: number) => z.string().max(maximum).nullable();
 const nullableNumber = z.number().nullable();
@@ -86,7 +86,7 @@ const questionSchema = z.object({
     max_label: z.string().min(1).max(60),
   }).nullable(),
   randomize_options: z.boolean(),
-  show_if: z.array(conditionSchema).max(0),
+  show_if: z.array(conditionSchema).max(4),
   validation: z.object({
     min_value: nullableNumber,
     max_value: nullableNumber,
