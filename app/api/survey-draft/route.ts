@@ -96,6 +96,7 @@ const maxFreshGenerationsPerHour = Number.isFinite(configuredHourlyLimit)
 const noStoreHeaders = {
   "cache-control": "no-store, max-age=0",
   "x-content-type-options": "nosniff",
+  "x-baroform-survey-engine": "semantic-intent-v2",
 };
 
 const surveyModeRequestSchema = z.preprocess(

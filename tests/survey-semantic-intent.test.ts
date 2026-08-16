@@ -49,6 +49,10 @@ async function generateThroughRoute(prompt: string) {
       error?: string;
       blueprint?: RouteBlueprint;
     };
+    assert.equal(
+      response.headers.get("x-baroform-survey-engine"),
+      "semantic-intent-v2",
+    );
     assert.equal(response.status, 200, JSON.stringify(body));
     assert.match(body.status ?? "", /^ready/);
     assert.ok(body.blueprint);
