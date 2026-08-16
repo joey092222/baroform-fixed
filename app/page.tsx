@@ -6036,12 +6036,10 @@ function GenerationOverlay({
           <output aria-live="polite">{timing.remainingLabel}</output>
         </div>
         <div className="generation-time-meta">
-          <span>경과 {formatSurveyGenerationSeconds(timing.elapsedSeconds)}</span>
-          <small>
-            {recentDurations.length > 0
-              ? "최근 내 생성 기록 기준"
-              : "최근 운영 소요 시간 기준"}
-          </small>
+          경과 {formatSurveyGenerationSeconds(timing.elapsedSeconds)} ·{" "}
+          {recentDurations.length > 0
+            ? "최근 내 생성 기록 기준"
+            : "최근 운영 소요 시간 기준"}
         </div>
         <button type="button" className="generation-cancel" onClick={onCancel}>
           생성 취소
