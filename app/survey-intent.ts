@@ -142,6 +142,7 @@ export type SurveyBrief = {
   normalizedBrief: string;
   surveyTitle: string;
   researchSubject: string;
+  researchContext: string | null;
   targetRespondents: string;
   researchGoal: string;
   recommendedTimeframe: string;
@@ -356,6 +357,7 @@ function detectIntent(prompt: string): SurveyIntentKind {
     .replace(/\s*(?:설문\s*조사|설문|조사)\s*$/g, "")
     .trim();
 
+  if (hasAwarenessAndUsageDimensions(withoutSurveyNoun)) return "usage";
   if (/적응(?:도|상태|경험)?$/.test(withoutSurveyNoun)) return "adaptation";
   if (
     /(가입|입회)\s*(여부|의향|생각|계획)$/.test(withoutSurveyNoun) ||
@@ -572,6 +574,7 @@ function stripGoal(content: string, kind: SurveyIntentKind) {
     ],
     adoption: [/\s*(?:사용|이용|구매|도입|수용)\s*의향$/],
     usage: [
+      /\s*(?:인지도|인지|인식)\s*(?:과|와|및)\s*(?:사용|이용)\s*(?:경험|현황|행태|실태|패턴|빈도)$/,
       /\s*(?:사용|이용)\s*(?:경험|행태|패턴|빈도)(?:(?:과|와)\s*개선점)?$/,
       /\s*(?:사용자\s*경험|사용성|이용\s*실태)$/,
     ],
@@ -704,7 +707,7 @@ function inferDomain(
     return "building";
   }
   if (
-    /앱|서비스|사이트|플랫폼|제품|기능|사용자|사용한|이용한|쓰는/.test(
+    /앱|서비스|사이트|플랫폼|브라우저|제품|기능|사용자|사용한|이용한|쓰는/.test(
       source,
     )
   ) {
@@ -919,6 +922,7 @@ function briefSubjectFromContent(
   content: string,
   respondentGroup: string | null,
   topicPrefix: string | null,
+  researchContext: string | null,
 ) {
   if (topicPrefix) return topicPrefix.trim();
 
@@ -931,6 +935,10 @@ function briefSubjectFromContent(
 
   let subject = content
     .replace(
+      /\s+(?:인지도|인지|인식)\s*(?:과|와|및)\s*(?:사용|이용)\s*(?:경험|현황|행태|실태|패턴|빈도)\s*(?:(?:설문\s*)?조사)?$/,
+      "",
+    )
+    .replace(
       /\s+(?:이용|사용|참여|구매|방문|협업)\s*(?:현황|행태|실태|빈도|횟수|시간|경험|패턴|만족도|의향)(?:\s*(?:과|와|및)\s*.+)?$/,
       "",
     )
@@ -941,11 +949,36 @@ function briefSubjectFromContent(
     .replace(/\s+/g, " ")
     .trim();
 
+  if (researchContext && subject.startsWith(`${researchContext} `)) {
+    subject = subject.slice(researchContext.length).trim();
+  }
+
   const institution = respondentGroup?.match(/^(.+?대학교)/)?.[1];
   if (institution && /^교내\s+/.test(subject)) {
     subject = `${institution} ${subject}`;
   }
   return subject;
+}
+
+function researchContextFromContent(
+  content: string,
+  semantics: SurveySemantics,
+) {
+  if (semantics.kind !== "usage") return null;
+  return content.match(/^(교내|학교|캠퍼스)(?:에서)?\s+/)?.[1] ?? null;
+}
+
+function hasAwarenessAndUsageDimensions(value: string) {
+  return awarenessAndUsageDimensions(value) !== null;
+}
+
+function awarenessAndUsageDimensions(value: string) {
+  const match = value.match(
+    /(?:인지도|인지|인식)\s*(?:과|와|및)\s*(사용|이용)\s*(경험|현황|행태|실태|패턴|빈도)/,
+  );
+  return match
+    ? { usageVerb: match[1], usageDimension: match[2] }
+    : null;
 }
 
 function briefDimensions(
@@ -954,6 +987,16 @@ function briefDimensions(
   semantics: SurveySemantics,
 ) {
   const corpus = `${subject} ${content}`;
+  if (hasAwarenessAndUsageDimensions(content)) {
+    return [
+      "인지 수준",
+      "이용 여부 및 빈도",
+      "주요 이용 목적",
+      "전반적 만족도",
+      "불편 사항",
+      "지속 이용 의향",
+    ];
+  }
   if (/웹툰|웹소설|OTT|동영상|영상\s*플랫폼|음악\s*스트리밍|콘텐츠\s*플랫폼/.test(corpus)) {
     return [
       "이용 여부 및 빈도",
@@ -1060,12 +1103,22 @@ export function parseSurveyBrief(rawBrief: string): SurveyBrief {
   const normalizedBrief = promotional.value;
   const semantics = parseSurveySemantics(normalizedBrief);
   const split = splitRespondent(normalizedBrief);
+  const researchContext = researchContextFromContent(split.content, semantics);
+  const awarenessUsageDimensions = awarenessAndUsageDimensions(split.content);
   const researchSubject = briefSubjectFromContent(
     split.content,
     split.respondentGroup,
     split.topicPrefix,
+    researchContext,
   ) || semantics.evaluationTarget;
-  let targetRespondents = split.respondentGroup ?? semantics.respondentGroup ?? "관련 경험이 있는 응답자";
+  let targetRespondents =
+    split.respondentGroup ??
+    semantics.respondentGroup ??
+    (researchContext
+      ? `${researchContext} 구성원`
+      : awarenessUsageDimensions
+        ? "일반 응답자"
+        : "관련 경험이 있는 응답자");
   if (
     /팀플|팀\s*프로젝트|조별\s*과제/.test(normalizedBrief) &&
     !/경험이\s*있는/.test(targetRespondents)
@@ -1104,12 +1157,17 @@ export function parseSurveyBrief(rawBrief: string): SurveyBrief {
   const researchGoal = `${labelWithParticle(targetRespondents, "의", "의")} ${goalSubject} 관련 ${goalDimensions} 파악한다.`;
   const isUsageStudy =
     semantics.kind === "usage" || /이용\s*(?:현황|경험|빈도)|사용\s*(?:현황|경험|빈도)/.test(split.content);
+  const contextualSubject = researchContext
+    ? `${researchContext} ${researchSubject}`
+    : researchSubject;
   const surveyTitle = /팀플|팀\s*프로젝트|조별\s*과제/.test(normalizedBrief)
     ? `${researchSubject} 조사`
     : /학식|식당|급식/.test(researchSubject)
       ? `${researchSubject} 이용 경험 및 만족도 조사`
       : /불편\s*사항/.test(split.content)
         ? `${targetRespondents}의 ${researchSubject} 이용 빈도 및 불편 사항 조사`
+        : awarenessUsageDimensions
+          ? `${contextualSubject} 인식 및 ${awarenessUsageDimensions.usageVerb} ${awarenessUsageDimensions.usageDimension} 조사`
         : isUsageStudy
           ? `${targetRespondents}의 ${researchSubject} 이용 현황 및 경험 조사`
           : `${targetRespondents}의 ${researchSubject} 조사`;
@@ -1119,6 +1177,7 @@ export function parseSurveyBrief(rawBrief: string): SurveyBrief {
     normalizedBrief,
     surveyTitle: surveyTitle.replace(/의\s+([^\s]+)의\s+/g, "의 $1 "),
     researchSubject,
+    researchContext,
     targetRespondents,
     researchGoal,
     recommendedTimeframe,
@@ -2263,12 +2322,31 @@ function usageBlueprint(subject: string, brief?: SurveyBrief): SurveyBlueprint {
   const timeframe = brief?.recommendedTimeframe || "최근 3개월";
   const targetRespondents = brief?.targetRespondents ?? null;
   const corpus = `${subject} ${brief?.normalizedBrief ?? ""}`;
+  const contextPrefix = brief?.researchContext
+    ? `${brief.researchContext.replace(/에서$/, "")}에서 `
+    : "";
+  const hasAwarenessDimension = hasAwarenessAndUsageDimensions(corpus);
   const isContentService =
     /웹툰|웹소설|OTT|동영상|영상\s*플랫폼|음악\s*스트리밍|콘텐츠\s*플랫폼/.test(corpus);
   const isDeliveryApp = /배달\s*앱|배달앱|음식\s*배달/.test(corpus);
   const questions: SurveyQuestion[] = [];
 
-  if (targetRespondents && /대학|학생/.test(targetRespondents)) {
+  if (hasAwarenessDimension) {
+    questions.push(
+      question(
+        questions.length + 1,
+        `${contextPrefix}${labelWithParticle(subject, "을", "를")} 이전부터 알고 있었나요?`,
+        "조사 대상에 대한 사전 인지 수준을 실제 이용 경험과 분리해 확인해요.",
+        "single",
+        [
+          "어떤 대상인지 잘 알고 있었음",
+          "이름과 주요 특징을 알고 있었음",
+          "이름만 들어본 적이 있음",
+          "이번에 처음 알게 됨",
+        ],
+      ),
+    );
+  } else if (targetRespondents && /대학|학생/.test(targetRespondents)) {
     questions.push(
       question(
         questions.length + 1,
@@ -2283,17 +2361,17 @@ function usageBlueprint(subject: string, brief?: SurveyBrief): SurveyBlueprint {
   questions.push(
     question(
       questions.length + 1,
-      `${timeframe} 이내 ${labelWithParticle(subject, "을", "를")} 이용한 적이 있나요?`,
+      `${timeframe} 이내 ${contextPrefix}${labelWithParticle(subject, "을", "를")} 이용한 적이 있나요?`,
       "최근 이용자와 비이용자를 구분해 이후 이용 경험 문항을 정확히 해석해요.",
       "single",
       ["예", "아니요"],
     ),
     question(
       questions.length + 2,
-      `최근 1개월 동안 ${labelWithParticle(subject, "을", "를")} 평균적으로 얼마나 자주 이용했나요?`,
+      `최근 1개월 동안 ${contextPrefix}${labelWithParticle(subject, "을", "를")} 얼마나 자주 이용했나요?`,
       "기준 기간을 고정해 이용 빈도를 서로 비교할 수 있게 해요.",
       "single",
-      ["월 1회 미만", "월 1~3회", "주 1~2회", "주 3~5회", "주 6회 이상"],
+      ["이용하지 않음", "월 1회", "월 2~3회", "월 4~7회", "월 8회 이상"],
     ),
   );
 
@@ -2389,11 +2467,10 @@ function usageBlueprint(subject: string, brief?: SurveyBrief): SurveyBlueprint {
     questions.push(
       question(
         questions.length + 1,
-        `${labelWithParticle(subject, "을", "를")} 가장 많이 이용하는 상황이나 기능은 무엇인가요?`,
-        "대상 고유의 핵심 이용 흐름을 파악해 범용 선택지에 의존하지 않게 해요.",
-        "text",
-        undefined,
-        false,
+        `${contextPrefix}${labelWithParticle(subject, "을", "를")} 주로 어떤 목적으로 이용하나요?`,
+        "실제 이용 목적을 한 가지 개념으로 분리해 이용 행태를 해석해요.",
+        "multiple",
+        ["수업·학습", "과제·업무", "정보 탐색", "소통·협업", "개인적인 용도", "기타"],
       ),
       question(
         questions.length + 2,
@@ -2423,6 +2500,10 @@ function usageBlueprint(subject: string, brief?: SurveyBrief): SurveyBlueprint {
         false,
       ),
     );
+
+    if (hasAwarenessDimension) {
+      questions.pop();
+    }
   }
 
   const templateQuestions = questions.slice(0, 5).map((item, index) => ({
@@ -3591,10 +3672,7 @@ export function analyzeSurveyPrompt(rawPrompt: string): SurveyBlueprint {
         blueprint = adoptionBlueprint(subject);
         break;
       case "usage":
-        blueprint = usageBlueprint(
-          subject.replace(/\s*(?:이용|사용)\s*경험$/, "").trim() || subject,
-        );
-        break;
+        return generateSurvey(parseSurveyBrief(rawPrompt));
       case "needs":
         blueprint = needsBlueprint(subject);
         break;
@@ -3765,7 +3843,8 @@ export function validateSurvey(
   if (
     brief.researchSubject.length < 2 ||
     brief.researchSubject.length > 80 ||
-    requestExpression.test(brief.researchSubject)
+    requestExpression.test(brief.researchSubject) ||
+    /(?:과|와|및)$/.test(brief.researchSubject)
   ) {
     issues.push("researchSubject가 짧은 명사구로 분리되지 않았습니다.");
   }
@@ -3781,6 +3860,9 @@ export function validateSurvey(
     }
     if (requestExpression.test(item.title)) {
       issues.push(`문항 ${item.id}에 조사 목적 표현이 포함되었습니다.`);
+    }
+    if (/(?:과|와|및)(?:을|를|은|는|이|가|의)/.test(item.title)) {
+      issues.push(`문항 ${item.id}에 잘못 결합된 접속사와 조사가 포함되었습니다.`);
     }
     if (
       /(?:만족|평가).*(?:과|와|및).*(?:불편|개선|의향|빈도|시간|비용)|(?:불편|개선).*(?:과|와|및).*(?:만족|의향|빈도|시간)|(?:빈도|횟수|시간|비용).*(?:과|와|및).*(?:만족|불편|의향)/.test(

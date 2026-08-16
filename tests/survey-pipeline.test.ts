@@ -2,10 +2,69 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  analyzeSurveyPrompt,
   generateSurvey,
   parseSurveyBrief,
   validateSurvey,
 } from "../app/survey-intent";
+
+const awarenessUsageCases = [
+  {
+    input: "교내 네이버 웨일 브라우저 인식 및 사용 행태 조사",
+    subject: "네이버 웨일 브라우저",
+    context: "교내",
+  },
+  {
+    input: "네이버 웨일 브라우저 인지도와 이용 행태 조사",
+    subject: "네이버 웨일 브라우저",
+    context: null,
+  },
+  {
+    input: "대학생들의 생성형 AI 인식 및 사용 행태 조사",
+    subject: "생성형 AI",
+    context: null,
+  },
+  {
+    input: "대학생들의 SNS 인식과 사용 현황 조사",
+    subject: "SNS",
+    context: null,
+  },
+  {
+    input: "교내 도서관 인식 및 이용 경험 조사",
+    subject: "도서관",
+    context: "교내",
+  },
+] as const;
+
+for (const item of awarenessUsageCases) {
+  test(`인식·이용 복합 조사에서 실제 대상을 분리함: ${item.input}`, () => {
+    const brief = parseSurveyBrief(item.input);
+    const survey = analyzeSurveyPrompt(item.input);
+    const renderedQuestions = JSON.stringify(survey.aiQuestions);
+    const frequency = survey.aiQuestions.find((question) =>
+      /최근 1개월 동안.*얼마나 자주/.test(question.title),
+    );
+
+    assert.equal(brief.researchSubject, item.subject);
+    assert.equal(brief.researchContext, item.context);
+    assert.equal(survey.subject, item.subject);
+    assert.equal(survey.aiQuestions.length, 7);
+    assert.doesNotMatch(brief.researchSubject, /(?:과|와|및)$/);
+    assert.doesNotMatch(renderedQuestions, /(?:과|와|및)(?:을|를|은|는|이|가|의)/);
+    assert.doesNotMatch(renderedQuestions, /상황이나 기능/);
+    assert.match(renderedQuestions, /이전부터 알고 있었나요/);
+    assert.match(renderedQuestions, /주로 어떤 목적으로 이용하나요/);
+    assert.ok(frequency?.options);
+    assert.deepEqual(frequency.options, [
+      "이용하지 않음",
+      "월 1회",
+      "월 2~3회",
+      "월 4~7회",
+      "월 8회 이상",
+    ]);
+    assert.deepEqual(validateSurvey(item.input, brief, survey), []);
+  });
+}
 
 const cases = [
   {

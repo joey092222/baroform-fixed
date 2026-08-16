@@ -2758,6 +2758,72 @@ test("긴 조사 의뢰문으로 로컬 폴백이 실행되어도 빈 500 응답
   }
 });
 
+test("인식·사용 행태 요청의 fallback도 실제 대상과 맥락을 분리한다", async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+  const prompt = "교내 네이버 웨일 브라우저 인식 및 사용 행태 조사";
+
+  try {
+    const response = await createSurveyDraft(
+      new Request("http://localhost/api/survey-draft", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          "user-agent": "baroform-awareness-usage-regression-test",
+        },
+        body: JSON.stringify({
+          prompt,
+          surveyMode: "standard",
+          targetGrade: "전학년",
+          questionCount: 7,
+          references: { images: [], files: [], links: [] },
+        }),
+      }),
+    );
+    const body = (await response.json()) as {
+      status?: string;
+      blueprint?: {
+        subject?: string;
+        title?: string;
+        aiQuestions?: Array<{
+          title: string;
+          reason?: string;
+          description?: string;
+          options?: string[];
+        }>;
+      };
+    };
+    const questions = body.blueprint?.aiQuestions ?? [];
+    const serialized = JSON.stringify(questions);
+    const frequency = questions.find((question) =>
+      /최근 1개월 동안.*얼마나 자주/.test(question.title),
+    );
+
+    assert.equal(response.status, 200);
+    assert.match(body.status ?? "", /^ready/);
+    assert.equal(body.blueprint?.subject, "네이버 웨일 브라우저");
+    assert.equal(
+      body.blueprint?.title,
+      "교내 네이버 웨일 브라우저 인식 및 사용 행태 조사",
+    );
+    assert.doesNotMatch(serialized, /인식\s*및(?:을|를|은|는|이|가|의)/);
+    assert.match(serialized, /교내에서 네이버 웨일 브라우저를/);
+    assert.deepEqual(frequency?.options, [
+      "이용하지 않음",
+      "월 1회",
+      "월 2~3회",
+      "월 4~7회",
+      "월 8회 이상",
+    ]);
+    assert.ok(questions.every((question) => question.reason));
+    assert.ok(questions.every((question) => question.description === undefined));
+  } finally {
+    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
+
 test("잘못된 JSON 요청도 요청 ID가 포함된 JSON 오류로 응답한다", async () => {
   const response = await createSurveyDraft(
     new Request("http://localhost/api/survey-draft", {

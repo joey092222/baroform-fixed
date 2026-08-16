@@ -3561,12 +3561,14 @@ function EditorView({
                         maxLength={300}
                       />
                     )}
-                    {question.type !== "section" && question.reason && (
+                    {!preview &&
+                    question.type !== "section" &&
+                    question.reason ? (
                       <p className="question-ai-reason">
                         <Sparkles size={13} />
                         {formatQuestionReason(question.reason)}
                       </p>
-                    )}
+                    ) : null}
                   </div>
                 </div>
 

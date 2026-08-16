@@ -1550,6 +1550,7 @@ export function buildSurveyAiRequest(
     JSON.stringify({
       surveyTitle: parsedBrief.surveyTitle,
       researchSubject: parsedBrief.researchSubject,
+      researchContext: parsedBrief.researchContext,
       targetRespondents: parsedBrief.targetRespondents,
       researchGoal: parsedBrief.researchGoal,
       recommendedTimeframe: parsedBrief.recommendedTimeframe,
