@@ -1403,7 +1403,7 @@ export function parseSurveyDraftResponse(
     ),
   };
 
-  if (semanticViolations.length > 0) {
+  const repairWithValidatedIntentBlueprint = () => {
     const safeBlueprint = analyzeSurveyPrompt(prompt);
     const repairedQuestions = applyTargetGradeToQuestions(
       resizeSurveyQuestions(safeBlueprint.aiQuestions, questionCount),
@@ -1424,8 +1424,13 @@ export function parseSurveyDraftResponse(
       templateQuestions: repairedQuestions.slice(0, 5),
       aiQuestions: repairedQuestions,
     };
+  };
+
+  if (semanticViolations.length > 0) {
+    repairWithValidatedIntentBlueprint();
     if (process.env.NODE_ENV !== "production") {
       console.info("survey-generation-semantic-repair", {
+        trigger: "semantic-violation",
         violationCodes: semanticViolations.map((item) => item.code),
         questionCount,
         objectKind: brief.surveyIntent.objectKind,
@@ -1435,7 +1440,23 @@ export function parseSurveyDraftResponse(
     }
   }
 
-  const validationIssues = validateSurvey(prompt, brief, blueprint);
+  let validationIssues = validateSurvey(prompt, brief, blueprint);
+  if (
+    validationIssues.length > 0 &&
+    semanticViolations.length === 0 &&
+    shouldEnforceSurveyIntentValidation(brief.surveyIntent)
+  ) {
+    repairWithValidatedIntentBlueprint();
+    validationIssues = validateSurvey(prompt, brief, blueprint);
+    if (process.env.NODE_ENV !== "production") {
+      console.info("survey-generation-semantic-repair", {
+        trigger: "quality-validation",
+        issueCount: validationIssues.length,
+        questionCount,
+        objectKind: brief.surveyIntent.objectKind,
+      });
+    }
+  }
   if (validationIssues.length > 0) {
     throw new SurveyValidationError(validationIssues);
   }

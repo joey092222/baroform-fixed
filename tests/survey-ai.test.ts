@@ -1433,6 +1433,30 @@ test("모델이 조사 제목을 서비스처럼 질문하면 생성 후 의미 
   assert.doesNotMatch(corpus, /AI 사용능력 실태조사(?:를|을) 이용/);
 });
 
+test("강한 설문 의도에서 모델 문항이 기존 품질 검증을 어기면 같은 요청에서 복구한다", () => {
+  const prompt = "전 연령대 AI 사용능력 실태조사";
+  const payload = structuredReadyPayload();
+  payload.output_parsed.survey.title = prompt;
+  payload.output_parsed.survey.intro =
+    "전 연령대의 AI 사용능력 수준을 알아보기 위한 설문입니다.";
+  payload.output_parsed.survey_plan.target = "전 연령대";
+  payload.output_parsed.survey_plan.eligibility = "전 연령대";
+  payload.output_parsed.survey.questions[0]!.role = "demographic";
+  payload.output_parsed.survey.questions[0]!.text = "연령대를 선택해 주세요.";
+  payload.output_parsed.survey.questions[1]!.text =
+    "AI 기반 도구를 얼마나 자주 사용하나요?";
+
+  const result = parseSurveyDraftResponse(payload, prompt);
+  assert.match(result.status, /^ready/);
+  if (result.status !== "ready" && result.status !== "ready_with_caution") {
+    assert.fail("복구된 설문 결과가 필요합니다.");
+  }
+  assert.equal(
+    result.blueprint.aiQuestions[2]?.title,
+    "평소 AI 기반 도구를 얼마나 자주 사용하나요?",
+  );
+});
+
 test("응답자용 문구는 행정적 표현과 내부 분석 정보를 거부한다", () => {
   const generation = structuredReadyPayload().output_parsed;
   assert.deepEqual(respondentCopyIssues(generation), []);
