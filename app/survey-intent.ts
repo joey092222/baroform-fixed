@@ -24,11 +24,6 @@ export type SurveyQuestion = {
   scaleMax?: number;
   scaleMinLabel?: string;
   scaleMaxLabel?: string;
-  showIf?: Array<{
-    questionId: number;
-    operator: "equals" | "notEquals" | "contains" | "notContains";
-    value: string;
-  }>;
 };
 
 export function resizeSurveyQuestions(

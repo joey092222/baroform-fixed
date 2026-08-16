@@ -44,11 +44,6 @@ type IncomingQuestion = {
   scaleMax?: number;
   scaleMinLabel?: string;
   scaleMaxLabel?: string;
-  showIf?: Array<{
-    questionId?: number;
-    operator?: "equals" | "notEquals" | "contains" | "notContains";
-    value?: string;
-  }>;
 };
 
 function sameOrigin(request: Request) {
@@ -324,24 +319,6 @@ export async function POST(request: Request) {
           : undefined,
       scaleMinLabel: question.scaleMinLabel?.trim().slice(0, 40) ?? "",
       scaleMaxLabel: question.scaleMaxLabel?.trim().slice(0, 40) ?? "",
-      showIf: (question.showIf ?? []).flatMap((condition) => {
-        const sourceId = Number(condition.questionId);
-        const value = condition.value?.trim().slice(0, 100) ?? "";
-        if (
-          !Number.isInteger(sourceId) ||
-          sourceId < 1 ||
-          sourceId >= index + 1 ||
-          !["equals", "notEquals", "contains", "notContains"].includes(
-            condition.operator ?? "",
-          ) ||
-          !value
-        ) return [];
-        return [{
-          questionId: sourceId,
-          operator: condition.operator,
-          value,
-        }];
-      }).slice(0, 4),
     }));
 
     const db = await getDb();

@@ -8,7 +8,6 @@ import {
   resizeSurveyQuestions,
   validateSurvey,
   type SurveyBlueprint,
-  type SurveyQuestion,
 } from "../../survey-intent";
 import {
   buildSurveyAiRequest,
@@ -41,14 +40,6 @@ import {
   surveyModeValues,
   type SurveyMode,
 } from "@/app/survey-mode";
-import {
-  classifySurveyTopic,
-  hasStructuredSurveyInput,
-  normalizeStructuredSurveyInput,
-  structuredSurveyCacheKey,
-  type StructuredSurveyInput,
-  type SurveyTopicCategory,
-} from "@/app/survey-request";
 import OpenAI from "openai";
 import { parseResponse } from "openai/lib/ResponsesParser";
 import type { Response as OpenAIResponse } from "openai/resources/responses/responses";
@@ -118,12 +109,6 @@ const surveyDraftRequestSchema = z
   .object({
     prompt: z.string().optional(),
     userInput: z.string().optional(),
-    topic: z.string().max(160).optional(),
-    target: z.string().max(160).optional(),
-    objective: z.string().max(500).optional(),
-    keyAspects: z.array(z.string().max(100)).max(12).optional(),
-    referencePeriod: z.string().max(160).optional(),
-    context: z.string().max(500).optional(),
     surveyMode: surveyModeRequestSchema,
     targetGrade: z.enum(targetGradeValues).optional(),
     questionCount: z.number().int().min(1).max(30).optional(),
@@ -193,12 +178,7 @@ function fallbackResponse(
   surveyMode: SurveyMode,
   requestId: string,
 ) {
-  const hasStructuredSemantics =
-    result.status !== "needs_clarification" &&
-    result.blueprint.detectedSignals?.some((signal) =>
-      signal.startsWith("주제 유형 ·"),
-    );
-  if (result.status !== "needs_clarification" && !hasStructuredSemantics) {
+  if (result.status !== "needs_clarification") {
     let issues: string[] = [];
     try {
       const brief = parseSurveyBrief(result.prompt);
@@ -376,21 +356,14 @@ function verifiedResearchFallback(
   prompt: string,
   targetGrade: TargetGrade,
   questionCount: number,
-  structuredInput?: StructuredSurveyInput | null,
-  topicCategory?: SurveyTopicCategory,
 ): SurveyDraftResult | null {
   const knowledge = lookupVerifiedSurveyKnowledge(prompt);
   if (!knowledge) return null;
-  const baseBlueprint = analyzeSurveyPrompt(prompt);
-  const blueprint = structuredInput
-    ? applyStructuredContext(
-        baseBlueprint,
-        structuredInput,
-        topicCategory ?? classifySurveyTopic(structuredInput),
-        targetGrade,
-        questionCount,
-      )
-    : applyDraftSettings(baseBlueprint, targetGrade, questionCount);
+  const blueprint = applyDraftSettings(
+    analyzeSurveyPrompt(prompt),
+    targetGrade,
+    questionCount,
+  );
   const normalizedTarget = (blueprint.evaluationTarget ?? blueprint.subject)
     .replace(/\s+/g, "")
     .toLocaleLowerCase("ko-KR");
@@ -425,19 +398,12 @@ function fastDraftFallback(
   prompt: string,
   targetGrade: TargetGrade,
   questionCount: number,
-  structuredInput?: StructuredSurveyInput | null,
-  topicCategory?: SurveyTopicCategory,
 ): ReadySurveyDraftResult {
-  const baseBlueprint = analyzeSurveyPrompt(prompt);
-  const blueprint = structuredInput
-    ? applyStructuredContext(
-        baseBlueprint,
-        structuredInput,
-        topicCategory ?? classifySurveyTopic(structuredInput),
-        targetGrade,
-        questionCount,
-      )
-    : applyDraftSettings(baseBlueprint, targetGrade, questionCount);
+  const blueprint = applyDraftSettings(
+    analyzeSurveyPrompt(prompt),
+    targetGrade,
+    questionCount,
+  );
   return {
     status: "ready_with_caution",
     prompt,
@@ -457,146 +423,12 @@ function fastDraftFallback(
   };
 }
 
-function abilitySubject(topic: string) {
-  const cleaned = topic
-    .replace(/(?:활용|사용)\s*(?:능력|역량|수준)(?:과\s*사용\s*경험)?/g, "")
-    .replace(/\s*(?:실태)?\s*조사\s*$/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (cleaned) return cleaned;
-  if (/생성형\s*AI/i.test(topic)) return "생성형 AI";
-  if (/AI/i.test(topic)) return "AI 도구";
-  return "해당 도구";
-}
-
-function abilitySurveyQuestions(
-  input: StructuredSurveyInput,
-  questionCount: number,
-): SurveyQuestion[] {
-  const subject = abilitySubject(input.topic);
-  const period = input.referencePeriod || "최근 3개월";
-  const used = "예, 사용한 적이 있어요";
-  const conditional = [{ questionId: 1, operator: "equals" as const, value: used }];
-  const questions: SurveyQuestion[] = [
-    {
-      id: 1,
-      title: `${period} 동안 ${subject}를 사용한 적이 있나요?`,
-      reason: "실제 사용 경험 유무를 구분함.",
-      type: "single",
-      options: [used, "아니요, 사용한 적이 없어요"],
-      required: true,
-    },
-    {
-      id: 2,
-      title: `${period} 동안 ${subject}를 얼마나 자주 사용했나요?`,
-      reason: "실제 사용 빈도를 측정함.",
-      type: "single",
-      options: ["한두 번", "월 1~3회", "주 1~2회", "주 3~5회", "거의 매일"],
-      required: true,
-      showIf: conditional,
-    },
-    {
-      id: 3,
-      title: `${subject}로 스스로 수행할 수 있는 작업을 모두 선택해주세요.`,
-      reason: "활용 가능한 작업의 범위를 파악함.",
-      type: "multiple",
-      options: ["정보 탐색·요약", "글 작성·교정", "이미지·영상 제작", "데이터 분석", "코딩", "아직 잘 모르겠음", "기타"],
-      required: true,
-      showIf: conditional,
-    },
-    {
-      id: 4,
-      title: `${subject}를 활용할 때 가장 어려운 점은 무엇인가요?`,
-      reason: "활용 과정의 핵심 어려움을 확인함.",
-      type: "multiple",
-      options: ["원하는 결과를 얻는 질문 작성", "결과의 정확성 판단", "개인정보·저작권 판단", "업무나 학습에 적용", "비용 부담", "특별한 어려움 없음", "기타"],
-      required: true,
-      showIf: conditional,
-    },
-    {
-      id: 5,
-      title: `${subject} 활용 능력을 스스로 어느 정도라고 생각하나요?`,
-      reason: "응답자가 인식하는 현재 활용 수준을 측정함.",
-      type: "scale",
-      required: true,
-      scaleMin: 1,
-      scaleMax: 5,
-      scaleMinLabel: "매우 낮음",
-      scaleMaxLabel: "매우 높음",
-    },
-    {
-      id: 6,
-      title: `${subject} 활용 교육이 제공된다면 참여할 의향이 있나요?`,
-      reason: "향후 교육 수요를 파악함.",
-      type: "scale",
-      required: true,
-      scaleMin: 1,
-      scaleMax: 5,
-      scaleMinLabel: "전혀 없음",
-      scaleMaxLabel: "매우 높음",
-    },
-    {
-      id: 7,
-      title: `${subject} 활용을 위해 가장 필요하다고 생각하는 교육은 무엇인가요?`,
-      reason: "필요한 교육 내용을 구체적으로 파악함.",
-      type: "text",
-      required: false,
-    },
-  ];
-  return resizeSurveyQuestions(questions, questionCount);
-}
-
-function applyStructuredContext(
-  blueprint: SurveyBlueprint,
-  input: StructuredSurveyInput,
-  category: SurveyTopicCategory,
-  targetGrade: TargetGrade,
-  questionCount: number,
-) {
-  const configured = applyDraftSettings(blueprint, targetGrade, questionCount);
-  const title = /조사$/.test(input.topic) ? input.topic : `${input.topic} 조사`;
-  const objective = input.objective
-    .replace(/(?:하고)?\s*싶(?:어요|습니다)?[.!?]*$/g, "")
-    .replace(/[.!?]+$/g, "")
-    .trim();
-  const details = input.keyAspects.length
-    ? ` ${input.keyAspects.join(", ")}을 중심으로 확인합니다.`
-    : "";
-  return {
-    ...configured,
-    title,
-    aiTitle: title,
-    subject: input.topic,
-    evaluationTarget: input.topic,
-    respondentGroup: input.target,
-    goal: input.objective,
-    description: `${input.target}을 대상으로 ${objective}하기 위한 설문입니다.${details}`,
-    detectedSignals: [
-      ...(configured.detectedSignals ?? []),
-      `주제 유형 · ${category}`,
-      ...(input.referencePeriod ? [`기준 기간 · ${input.referencePeriod}`] : []),
-    ],
-    aiQuestions:
-      category === "ability_skill"
-        ? abilitySurveyQuestions(input, questionCount)
-        : configured.aiQuestions,
-  } satisfies SurveyBlueprint;
-}
-
 function resilientDraftFallback(
   prompt: string,
   targetGrade: TargetGrade,
   questionCount: number,
-  structuredInput?: StructuredSurveyInput | null,
-  topicCategory?: SurveyTopicCategory,
 ) {
-  return fastDraftFallback(
-    prompt,
-    targetGrade,
-    questionCount,
-    structuredInput,
-    topicCategory,
-  );
+  return fastDraftFallback(prompt, targetGrade, questionCount);
 }
 
 function cacheResult(
@@ -957,29 +789,6 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
   const surveyMode =
     parseRequestedSurveyMode(payload.surveyMode) ?? defaultSurveyMode;
 
-  const structuredInputCandidate = normalizeStructuredSurveyInput({
-    topic: payload.topic ?? "",
-    target: payload.target ?? "",
-    objective: payload.objective ?? "",
-    keyAspects: payload.keyAspects ?? [],
-    referencePeriod: payload.referencePeriod ?? "",
-    context: payload.context ?? "",
-  });
-  const structuredInput = hasStructuredSurveyInput(structuredInputCandidate)
-    ? structuredInputCandidate
-    : null;
-  if (
-    structuredInput &&
-    (!structuredInput.topic || !structuredInput.target || !structuredInput.objective)
-  ) {
-    return apiError(
-      "조사 주제, 조사 대상, 조사 목적을 모두 입력해주세요.",
-      "INVALID_STRUCTURED_INPUT",
-      400,
-      {},
-      requestId,
-    );
-  }
   const enteredPrompt =
     typeof payload.prompt === "string"
       ? normalizePrompt(payload.prompt)
@@ -1012,10 +821,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         references.links.length,
     });
   }
-  if (
-    enteredPrompt.length > 300 ||
-    (!structuredInput && enteredPrompt.length < 2 && !hasReferences)
-  ) {
+  if (enteredPrompt.length > 300 || (enteredPrompt.length < 2 && !hasReferences)) {
     return apiError(
       "설문 내용은 2자 이상 300자 이하로 적거나 참고 자료를 추가해주세요.",
       "INVALID_PROMPT",
@@ -1024,12 +830,8 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       requestId,
     );
   }
-  const prompt = structuredInput?.topic ||
-    enteredPrompt ||
-    "첨부 자료를 바탕으로 만족도와 개선점을 조사하고 싶어요.";
-  const topicCategory = structuredInput
-    ? classifySurveyTopic(structuredInput)
-    : classifySurveyTopic(prompt);
+  const prompt =
+    enteredPrompt || "첨부 자료를 바탕으로 만족도와 개선점을 조사하고 싶어요.";
   const targetGrade =
     typeof payload.targetGrade === "string" &&
     isTargetGrade(payload.targetGrade)
@@ -1060,10 +862,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
   const now = Date.now();
   pruneMemory(now);
   const referenceKey = await referenceFingerprint(references);
-  const semanticCacheKey = structuredInput
-    ? structuredSurveyCacheKey(structuredInput)
-    : prompt.toLocaleLowerCase("ko-KR");
-  const cacheKey = `${surveyMode}|${semanticCacheKey}|${targetGrade}|${questionCount}|${referenceKey}`;
+  const cacheKey = `${surveyMode}|${prompt.toLocaleLowerCase("ko-KR")}|${targetGrade}|${questionCount}|${referenceKey}`;
   const cached = responseCache.get(cacheKey);
   if (cached && cached.expiresAt > now) {
     logGenerationMetric({
@@ -1111,8 +910,6 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       prompt,
       targetGrade,
       questionCount,
-      structuredInput,
-      topicCategory,
     );
     if (verifiedFallback) {
       const response = fallbackResponse(
@@ -1144,8 +941,6 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       prompt,
       targetGrade,
       questionCount,
-      structuredInput,
-      topicCategory,
     );
     const response = fallbackResponse(
       resilientFallback,
@@ -1174,16 +969,11 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
   }
 
   const model = process.env.OPENAI_SURVEY_MODEL?.trim() || "gpt-5.6";
-  const baseFallback = analyzeSurveyPrompt(prompt);
-  const fallback = structuredInput
-    ? applyStructuredContext(
-        baseFallback,
-        structuredInput,
-        topicCategory,
-        targetGrade,
-        questionCount,
-      )
-    : applyDraftSettings(baseFallback, targetGrade, questionCount);
+  const fallback = applyDraftSettings(
+    analyzeSurveyPrompt(prompt),
+    targetGrade,
+    questionCount,
+  );
   let organizationLocationContext: string | null = null;
   try {
     const sessionUser = await getSessionUser(request);
@@ -1202,8 +992,6 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     questionCount,
     references,
     organizationLocationContext,
-    structuredInput: structuredInput ?? undefined,
-    topicCategory,
   });
   let upstreamCompleted = false;
 
@@ -1224,15 +1012,6 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
                 baro_reference_key: referenceKey,
                 baro_organization_context:
                   organizationLocationContext ?? "",
-                baro_topic: structuredInput?.topic.slice(0, 500) ?? "",
-                baro_target: structuredInput?.target.slice(0, 500) ?? "",
-                baro_objective: structuredInput?.objective.slice(0, 500) ?? "",
-                baro_key_aspects:
-                  structuredInput?.keyAspects.join("\n").slice(0, 500) ?? "",
-                baro_reference_period:
-                  structuredInput?.referencePeriod.slice(0, 500) ?? "",
-                baro_context: structuredInput?.context.slice(0, 500) ?? "",
-                baro_topic_category: topicCategory,
               },
             }
           : modelRequest,
@@ -1293,18 +1072,10 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         prompt,
         targetGrade,
         questionCount,
-        structuredInput,
-        topicCategory,
       );
       const resilientFallback =
         verifiedFallback ??
-        resilientDraftFallback(
-          prompt,
-          targetGrade,
-          questionCount,
-          structuredInput,
-          topicCategory,
-        );
+        resilientDraftFallback(prompt, targetGrade, questionCount);
       const fallbackApiResponse = fallbackResponse(
         resilientFallback,
         "responses-api-error",
@@ -1344,33 +1115,6 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     );
 
     if (
-      structuredInput &&
-      result.status !== "needs_clarification" &&
-      (topicCategory === "ability_skill" ||
-        topicCategory === "attitude_perception" ||
-        topicCategory === "satisfaction_evaluation" ||
-        topicCategory === "need_demand" ||
-        topicCategory === "academic_construct") &&
-      result.blueprint.aiQuestions.some((question) =>
-        /(?:실태|만족도|인식|능력|역량)?\s*조사(?:를|을)?\s*(?:이용|사용|방문|참여).*적/.test(
-          question.title,
-        ),
-      )
-    ) {
-      result = {
-        ...result,
-        blueprint: applyStructuredContext(
-          analyzeSurveyPrompt(prompt),
-          structuredInput,
-          topicCategory,
-          targetGrade,
-          questionCount,
-        ),
-        research: result.research,
-      };
-    }
-
-    if (
       result.status !== "needs_clarification" &&
       (isDirectProportion ||
         isDirectFrequency ||
@@ -1381,8 +1125,6 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         prompt,
         targetGrade,
         questionCount,
-        structuredInput,
-        topicCategory,
       );
       result = {
         ...deterministic,
@@ -1534,18 +1276,10 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         prompt,
         targetGrade,
         questionCount,
-        structuredInput,
-        topicCategory,
       );
       const resilientFallback =
         verifiedFallback ??
-        resilientDraftFallback(
-          prompt,
-          targetGrade,
-          questionCount,
-          structuredInput,
-          topicCategory,
-        );
+        resilientDraftFallback(prompt, targetGrade, questionCount);
       const outputFallbackResponse = fallbackResponse(
         resilientFallback,
         "model-output-rejected",
@@ -1600,20 +1334,6 @@ function backgroundMetadata(response: OpenAIResponse) {
   ) {
     return null;
   }
-  const structuredCandidate = normalizeStructuredSurveyInput({
-    topic: metadata.baro_topic ?? "",
-    target: metadata.baro_target ?? "",
-    objective: metadata.baro_objective ?? "",
-    keyAspects: metadata.baro_key_aspects ?? "",
-    referencePeriod: metadata.baro_reference_period ?? "",
-    context: metadata.baro_context ?? "",
-  });
-  const structuredInput =
-    structuredCandidate.topic &&
-    structuredCandidate.target &&
-    structuredCandidate.objective
-      ? structuredCandidate
-      : null;
   return {
     prompt,
     targetGrade,
@@ -1622,10 +1342,6 @@ function backgroundMetadata(response: OpenAIResponse) {
     referenceKey: metadata.baro_reference_key || "none",
     organizationLocationContext:
       metadata.baro_organization_context?.trim() || null,
-    structuredInput,
-    topicCategory: structuredInput
-      ? classifySurveyTopic(structuredInput)
-      : classifySurveyTopic(prompt),
   };
 }
 
@@ -1716,32 +1432,18 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
       );
     }
     const model = process.env.OPENAI_SURVEY_MODEL?.trim() || "gpt-5.6";
-    const baseFallback = analyzeSurveyPrompt(context.prompt);
-    const fallback = context.structuredInput
-      ? applyStructuredContext(
-          baseFallback,
-          context.structuredInput,
-          context.topicCategory,
-          context.targetGrade,
-          context.questionCount,
-        )
-      : applyDraftSettings(
-          baseFallback,
-          context.targetGrade,
-          context.questionCount,
-        );
+    const fallback = applyDraftSettings(
+      analyzeSurveyPrompt(context.prompt),
+      context.targetGrade,
+      context.questionCount,
+    );
     const parseParams = buildSurveyAiRequest(context.prompt, fallback, model, {
       surveyMode: "research",
       targetGrade: context.targetGrade,
       questionCount: context.questionCount,
       organizationLocationContext: context.organizationLocationContext,
-      structuredInput: context.structuredInput ?? undefined,
-      topicCategory: context.topicCategory,
     });
-    const semanticCacheKey = context.structuredInput
-      ? structuredSurveyCacheKey(context.structuredInput)
-      : context.prompt.toLocaleLowerCase("ko-KR");
-    const backgroundCacheKey = `research|${semanticCacheKey}|${context.targetGrade}|${context.questionCount}|${context.referenceKey}`;
+    const backgroundCacheKey = `research|${context.prompt.toLocaleLowerCase("ko-KR")}|${context.targetGrade}|${context.questionCount}|${context.referenceKey}`;
     let result: SurveyDraftResult;
     try {
       const parsedResponse = parseResponse(response, parseParams);
@@ -1771,8 +1473,6 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
         context.prompt,
         context.targetGrade,
         context.questionCount,
-        context.structuredInput,
-        context.topicCategory,
       );
       const resilientFallback =
         verifiedFallback ??
@@ -1780,8 +1480,6 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
           context.prompt,
           context.targetGrade,
           context.questionCount,
-          context.structuredInput,
-          context.topicCategory,
         );
       const outputFallbackResponse = fallbackResponse(
         resilientFallback,
@@ -1820,8 +1518,6 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
         context.prompt,
         context.targetGrade,
         context.questionCount,
-        context.structuredInput,
-        context.topicCategory,
       );
       result = {
         ...deterministic,

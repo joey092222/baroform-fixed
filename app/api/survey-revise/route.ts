@@ -103,16 +103,7 @@ export async function POST(request: Request) {
         );
       }
       const result = parseSurveyRevisionResponse(await upstream.json());
-      return Response.json(
-        {
-          ...result,
-          questions: result.questions.map((question, index) => ({
-            ...question,
-            showIf: questions[index]?.showIf,
-          })),
-        },
-        { headers: noStoreHeaders },
-      );
+      return Response.json(result, { headers: noStoreHeaders });
     } finally {
       clearTimeout(timeout);
     }

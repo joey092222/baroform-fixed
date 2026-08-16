@@ -102,13 +102,6 @@ import {
   surveyGenerationErrorMetadata,
   type SurveyGenerationFailureStage,
 } from "./survey-generation-client";
-import {
-  emptySurveyFormValues,
-  isCompleteStructuredSurveyInput,
-  normalizeStructuredSurveyInput,
-  structuredSurveyInputErrors,
-  type SurveyFormValues,
-} from "./survey-request";
 
 type View =
   | "landing"
@@ -124,8 +117,6 @@ type View =
   | "published"
   | "survey"
   | "analytics";
-
-const currentTimestamp = () => Date.now();
 
 type PublicSurvey = {
   source?: "internal" | "external";
@@ -2710,8 +2701,8 @@ function MyPageView({
 }
 
 function CreateView({
-  formValues,
-  setFormValues,
+  prompt,
+  setPrompt,
   references,
   setReferences,
   surveyMode,
@@ -2724,8 +2715,8 @@ function CreateView({
   onBack,
   isAnalyzing,
 }: {
-  formValues: SurveyFormValues;
-  setFormValues: (value: SurveyFormValues) => void;
+  prompt: string;
+  setPrompt: (value: string) => void;
   references: SurveyReferences;
   setReferences: (value: SurveyReferences) => void;
   surveyMode: SurveyMode;
@@ -2738,43 +2729,19 @@ function CreateView({
   onBack: () => void;
   isAnalyzing: boolean;
 }) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-  const normalizedInput = normalizeStructuredSurveyInput(formValues);
-  const errors = structuredSurveyInputErrors(normalizedInput);
-  const canGenerate = isCompleteStructuredSurveyInput(normalizedInput);
-  const recommendationText = [formValues.topic, formValues.objective, formValues.keyAspects]
-    .filter(Boolean)
-    .join(" ");
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const canGenerate = prompt.trim().length >= 2 || hasSurveyReferences(references);
   const recommendedMode = useMemo(
     () =>
-      recommendSurveyMode(recommendationText, {
+      recommendSurveyMode(prompt, {
         files: references.files.map(({ name, mimeType }) => ({ name, mimeType })),
       }),
-    [recommendationText, references.files],
+    [prompt, references.files],
   );
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
-
-  const updateField = (field: keyof SurveyFormValues, value: string) => {
-    setFormValues({ ...formValues, [field]: value });
-  };
-
-  const submit = () => {
-    setSubmitted(true);
-    if (!canGenerate) {
-      const firstMissing = !normalizedInput.topic
-        ? "survey-topic"
-        : !normalizedInput.target
-          ? "survey-target"
-          : "survey-objective";
-      document.getElementById(firstMissing)?.focus();
-      return;
-    }
-    onCreate();
-  };
 
   return (
     <main className="create-page">
@@ -2793,148 +2760,35 @@ function CreateView({
       <section className="create-stage">
         <div className="create-copy">
           <span className="create-ai-mark">설문 초안 만들기</span>
-          <h1>조사할 내용을 나누어 알려주세요.</h1>
-          <p>대상과 주제, 목적을 구분하면 의도에 맞는 문항을 더 정확하게 만들 수 있어요.</p>
+          <h1>어떤 설문을 만들까요?</h1>
+          <p>내용을 적거나 참고할 사진·파일·링크를 추가해주세요.</p>
         </div>
 
-        <div className="create-composer structured-create-composer">
-          <div className="structured-fields">
-            <label className="structured-field" htmlFor="survey-topic">
-              <span><b>무엇을 조사할까요?</b><em>필수</em></span>
-              <input
-                id="survey-topic"
-                ref={inputRef}
-                value={formValues.topic}
-                onChange={(event) => updateField("topic", event.target.value)}
-                placeholder="예) 생성형 AI 활용 능력과 사용 경험"
-                maxLength={160}
-                aria-invalid={submitted && Boolean(errors.topic)}
-                aria-describedby={submitted && errors.topic ? "survey-topic-error" : undefined}
-              />
-              {submitted && errors.topic && <small id="survey-topic-error" className="field-error">{errors.topic}</small>}
-            </label>
-            <label className="structured-field" htmlFor="survey-target">
-              <span><b>누구에게 물어볼까요?</b><em>필수</em></span>
-              <input
-                id="survey-target"
-                value={formValues.target}
-                onChange={(event) => updateField("target", event.target.value)}
-                placeholder="예) 전 연령대의 일반인"
-                maxLength={160}
-                aria-invalid={submitted && Boolean(errors.target)}
-                aria-describedby={submitted && errors.target ? "survey-target-error" : undefined}
-              />
-              {submitted && errors.target && <small id="survey-target-error" className="field-error">{errors.target}</small>}
-            </label>
-            <label className="structured-field structured-field-wide" htmlFor="survey-objective">
-              <span><b>이 설문으로 무엇을 알고 싶나요?</b><em>필수</em></span>
-              <textarea
-                id="survey-objective"
-                value={formValues.objective}
-                onChange={(event) => updateField("objective", event.target.value)}
-                placeholder="예) 연령대별 AI 활용 수준과 필요한 교육을 파악하고 싶어요."
-                rows={2}
-                maxLength={500}
-                aria-invalid={submitted && Boolean(errors.objective)}
-                aria-describedby={submitted && errors.objective ? "survey-objective-error" : undefined}
-              />
-              {submitted && errors.objective && <small id="survey-objective-error" className="field-error">{errors.objective}</small>}
-            </label>
-            <label className="structured-field structured-field-wide" htmlFor="survey-key-aspects">
-              <span><b>어떤 내용을 꼭 확인할까요?</b><i>입력 권장</i></span>
-              <textarea
-                id="survey-key-aspects"
-                value={formValues.keyAspects}
-                onChange={(event) => updateField("keyAspects", event.target.value)}
-                placeholder="예) 사용 빈도, 활용 가능한 작업, 어려운 점, 교육 수요"
-                rows={2}
-                maxLength={600}
-              />
-              <small>쉼표나 줄바꿈으로 나누어 입력할 수 있어요.</small>
-            </label>
-          </div>
-
-          <details className="create-additional-info">
-            <summary>
-              <span className="additional-info-heading">
-                <span className="additional-info-icon" aria-hidden="true"><Plus size={16} /></span>
-                <span>
-                  <strong>추가 정보</strong>
-                  <small>기간·조건·문항 수 등을 설정할 수 있어요.</small>
-                </span>
-              </span>
-              <span className="additional-info-optional">선택</span>
-              <ChevronDown size={17} />
-            </summary>
-            <div className="additional-info-body">
-              <label className="structured-field" htmlFor="survey-reference-period">
-                <span><b>어떤 기간이나 상황을 기준으로 할까요?</b><i>선택</i></span>
-                <input
-                  id="survey-reference-period"
-                  value={formValues.referencePeriod}
-                  onChange={(event) => updateField("referencePeriod", event.target.value)}
-                  placeholder="예) 최근 3개월"
-                  maxLength={160}
-                />
-              </label>
-              <label className="structured-field" htmlFor="survey-context">
-                <span><b>참고할 조건이 있나요?</b><i>선택</i></span>
-                <textarea
-                  id="survey-context"
-                  value={formValues.context}
-                  onChange={(event) => updateField("context", event.target.value)}
-                  placeholder="예) 연령대별로 비교해주세요. 개인정보 질문은 제외해주세요."
-                  rows={2}
-                  maxLength={500}
-                />
-              </label>
-              <div className="create-settings" aria-label="설문 생성 설정">
-                <div className="setting-block grade-setting">
-                  <div className="setting-heading">
-                    <span><UsersRound size={16} /> 응답 학년</span>
-                    <small>대학생 대상일 때만 적용돼요.</small>
-                  </div>
-                  <div className="grade-options">
-                    {targetGradeOptions.map((grade) => (
-                      <button type="button" key={grade} className={targetGrade === grade ? "active" : ""} onClick={() => setTargetGrade(grade)}>
-                        {grade}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="setting-block count-setting">
-                  <div className="setting-heading">
-                    <span><BarChart3 size={16} /> 문항 수</span>
-                    <small>1~30개</small>
-                  </div>
-                  <div className="count-stepper">
-                    <button type="button" onClick={() => setQuestionCount(Math.max(1, questionCount - 1))} disabled={questionCount <= 1} aria-label="문항 수 줄이기"><Minus size={17} /></button>
-                    <label>
-                      <input type="number" value={questionCount} min={1} max={30} onChange={(event) => setQuestionCount(Math.min(30, Math.max(1, Number(event.target.value) || 1)))} aria-label="생성할 문항 수" />
-                      <span>개</span>
-                    </label>
-                    <button type="button" onClick={() => setQuestionCount(Math.min(30, questionCount + 1))} disabled={questionCount >= 30} aria-label="문항 수 늘리기"><Plus size={17} /></button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </details>
-
-          <div className="create-reference-section">
-            <div className="reference-section-heading">
-              <span className="reference-section-icon" aria-hidden="true"><FileText size={16} /></span>
-              <span className="reference-section-copy">
-                <strong>사진·파일·링크</strong>
-                <small>설문 설계에 참고할 자료가 있을 때만 추가해주세요.</small>
-              </span>
-              <span className="reference-section-optional">선택</span>
-            </div>
-            <SurveyReferenceControls
-              references={references}
-              onChange={setReferences}
-              disabled={isAnalyzing}
-            />
-          </div>
+        <div className="create-composer">
+          <textarea
+            id="survey-maker"
+            ref={inputRef}
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+            placeholder="예) 연세대 학생들의 대우관 등하교 경험과 불편한 점을 조사하고 싶어요"
+            rows={3}
+            maxLength={300}
+            onKeyDown={(event) => {
+              if (
+                event.key === "Enter" &&
+                !event.shiftKey &&
+                !event.nativeEvent.isComposing
+              ) {
+                event.preventDefault();
+                onCreate();
+              }
+            }}
+          />
+          <SurveyReferenceControls
+            references={references}
+            onChange={setReferences}
+            disabled={isAnalyzing}
+          />
           <fieldset className="survey-mode-setting" disabled={isAnalyzing}>
             <legend>설문 제작 방식</legend>
             <div className="survey-mode-options">
@@ -2966,11 +2820,12 @@ function CreateView({
           <div className="create-composer-footer">
             <div className={`create-readiness ${canGenerate ? "ready" : ""}`}>
               <i />
-              <span>{canGenerate ? "문항을 만들 준비가 됐어요" : "필수 항목 세 가지를 입력해주세요"}</span>
+              <span>{canGenerate ? "문항을 만들 준비가 됐어요" : "주제나 자료를 입력해주세요"}</span>
             </div>
+            <span className="create-counter">{prompt.length}/300</span>
             <button
               type="button"
-              onClick={submit}
+              onClick={onCreate}
               disabled={isAnalyzing || !canGenerate}
               aria-label="설문 생성하기"
             >
@@ -2978,6 +2833,67 @@ function CreateView({
               <span>{isAnalyzing ? "설문 만드는 중" : "AI로 설문 만들기"}</span>
               {!isAnalyzing && <ArrowRight size={16} />}
             </button>
+          </div>
+        </div>
+
+        <div className="create-settings" aria-label="설문 생성 설정">
+          <div className="setting-block grade-setting">
+            <div className="setting-heading">
+              <span><UsersRound size={16} /> 응답 대상</span>
+              <small>학년을 선택해주세요</small>
+            </div>
+            <div className="grade-options">
+              {targetGradeOptions.map((grade) => (
+                <button
+                  type="button"
+                  key={grade}
+                  className={targetGrade === grade ? "active" : ""}
+                  onClick={() => setTargetGrade(grade)}
+                >
+                  {grade}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="setting-block count-setting">
+            <div className="setting-heading">
+              <span><BarChart3 size={16} /> 문항 수</span>
+              <small>1~30개</small>
+            </div>
+            <div className="count-stepper">
+              <button
+                type="button"
+                onClick={() => setQuestionCount(Math.max(1, questionCount - 1))}
+                disabled={questionCount <= 1}
+                aria-label="문항 수 줄이기"
+              >
+                <Minus size={17} />
+              </button>
+              <label>
+                <input
+                  type="number"
+                  value={questionCount}
+                  min={1}
+                  max={30}
+                  onChange={(event) =>
+                    setQuestionCount(
+                      Math.min(30, Math.max(1, Number(event.target.value) || 1)),
+                    )
+                  }
+                  aria-label="생성할 문항 수"
+                />
+                <span>개</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => setQuestionCount(Math.min(30, questionCount + 1))}
+                disabled={questionCount >= 30}
+                aria-label="문항 수 늘리기"
+              >
+                <Plus size={17} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -4450,22 +4366,7 @@ function SurveyView({
   } | null>(null);
   const startedAt = useRef(0);
   const questions = survey.questions ?? [];
-  const visibleQuestions = questions.filter((question) =>
-    (question.showIf ?? []).every((condition) => {
-      const answer = answers[condition.questionId];
-      const values = Array.isArray(answer)
-        ? answer
-        : answer === undefined || answer === ""
-          ? []
-          : [String(answer)];
-      const matches = values.includes(condition.value);
-      if (condition.operator === "notEquals" || condition.operator === "notContains") {
-        return !matches;
-      }
-      return matches;
-    }),
-  );
-  const answerableQuestions = visibleQuestions.filter((question) => question.type !== "section");
+  const answerableQuestions = questions.filter((question) => question.type !== "section");
   const answeredCount = answerableQuestions.reduce((count, question) => {
     const answer = answers[question.id];
     const answered =
@@ -4495,7 +4396,7 @@ function SurveyView({
   };
 
   const submitResponse = async () => {
-    const missing = visibleQuestions.find((question) => {
+    const missing = questions.find((question) => {
       if (!question.required || question.type === "section") return false;
       const answer = answers[question.id];
       return (
@@ -4522,13 +4423,13 @@ function SurveyView({
           ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
         },
         body: JSON.stringify({
-          answers: visibleQuestions.map((question) => ({
+          answers: questions.map((question) => ({
             questionId: question.id,
             title: question.title,
             type: question.type,
             value: answers[question.id] ?? "",
           })),
-          completionSeconds: Math.round((currentTimestamp() - startedAt.current) / 1000),
+          completionSeconds: Math.round((Date.now() - startedAt.current) / 1000),
         }),
       });
       const result = (await response.json()) as {
@@ -4660,7 +4561,7 @@ function SurveyView({
           </div>
         </section>
 
-        {visibleQuestions.map((question, index) => (
+        {questions.map((question, index) => (
           <section
             className={`respond-question ${question.type === "section" ? "respond-section" : ""}`}
             id={`question-${question.id}`}
@@ -4806,7 +4707,7 @@ function SurveyView({
         <button
           type="button"
           className="respond-submit"
-          disabled={submitting || visibleQuestions.length === 0}
+          disabled={submitting || questions.length === 0}
           onClick={submitResponse}
         >
           {submitting ? "응답 저장 중…" : "응답 제출하기"}
@@ -6047,9 +5948,7 @@ function GenerationOverlay({
 
 export default function Home() {
   const [view, setView] = useState<View>("landing");
-  const [surveyFormValues, setSurveyFormValues] = useState<SurveyFormValues>(
-    emptySurveyFormValues,
-  );
+  const [prompt, setPrompt] = useState("");
   const [references, setReferencesState] = useState<SurveyReferences>({
     images: [],
     files: [],
@@ -6394,9 +6293,9 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const updateSurveyForm = (value: SurveyFormValues) => {
+  const updatePrompt = (value: string) => {
     analysisRequestRef.current += 1;
-    setSurveyFormValues(value);
+    setPrompt(value);
     setClarification(null);
     setIsAnalyzing(false);
   };
@@ -6408,30 +6307,22 @@ export default function Home() {
     setIsAnalyzing(false);
   };
 
-  const startCreate = async (additionalContext?: string) => {
+  const startCreate = async (promptOverride?: string) => {
     if (analysisInFlightRef.current) return;
-    const structuredInput = normalizeStructuredSurveyInput({
-      ...surveyFormValues,
-      context: [surveyFormValues.context, additionalContext]
-        .filter(Boolean)
-        .join(" · "),
-    });
-    const inputErrors = structuredSurveyInputErrors(structuredInput);
-    if (!isCompleteStructuredSurveyInput(structuredInput)) {
-      setToast(inputErrors.topic || inputErrors.target || inputErrors.objective);
+    const enteredPrompt = (promptOverride ?? prompt).trim();
+    if (!enteredPrompt && !hasSurveyReferences(references)) {
+      setToast("설문 내용을 적거나 참고할 사진·파일·링크를 추가해주세요.");
       window.setTimeout(() => setToast(""), 2200);
-      document
-        .getElementById(
-          inputErrors.topic
-            ? "survey-topic"
-            : inputErrors.target
-              ? "survey-target"
-              : "survey-objective",
-        )
-        ?.focus();
+      document.getElementById("survey-maker")?.focus();
       return;
     }
-    const requestedPrompt = structuredInput.topic;
+    if (enteredPrompt.length > 300) {
+      setToast("설문 내용은 300자 이하로 적어주세요.");
+      window.setTimeout(() => setToast(""), 2200);
+      return;
+    }
+    const requestedPrompt =
+      enteredPrompt || "첨부 자료를 바탕으로 만족도와 개선점을 조사하고 싶어요.";
     const selectedSurveyMode: SurveyMode =
       surveyMode === "research" ? "research" : defaultSurveyMode;
     const clientRequestId =
@@ -6473,7 +6364,6 @@ export default function Home() {
         body: JSON.stringify({
           prompt: requestedPrompt,
           userInput: requestedPrompt,
-          ...structuredInput,
           surveyMode: selectedSurveyMode,
           targetGrade,
           questionCount,
@@ -6555,12 +6445,7 @@ export default function Home() {
       setDescription(result.blueprint.description);
       setQuestions(result.blueprint.aiQuestions);
       setQuestionCount(result.blueprint.aiQuestions.length);
-      if (additionalContext) {
-        setSurveyFormValues((current) => ({
-          ...current,
-          context: structuredInput.context,
-        }));
-      }
+      if (prompt !== requestedPrompt) setPrompt(requestedPrompt);
       navigate("editor");
     } catch (analysisError) {
       if (analysisRequestRef.current !== requestId) return;
@@ -6925,12 +6810,7 @@ export default function Home() {
           onAuth={() => setAuthOpen(true)}
           onRefreshSurveys={() => void refreshPublicSurveys()}
           onCreate={(quickPrompt) => {
-            if (quickPrompt) {
-              updateSurveyForm({
-                ...surveyFormValues,
-                topic: quickPrompt,
-              });
-            }
+            if (quickPrompt) updatePrompt(quickPrompt);
             navigate("create");
           }}
           onOpenBoard={() => navigate("board")}
@@ -7008,8 +6888,8 @@ export default function Home() {
       )}
       {view === "create" && (
         <CreateView
-          formValues={surveyFormValues}
-          setFormValues={updateSurveyForm}
+          prompt={prompt}
+          setPrompt={updatePrompt}
           references={references}
           setReferences={updateReferences}
           surveyMode={surveyMode}
@@ -7121,13 +7001,15 @@ export default function Home() {
           onClose={() => {
             setClarification(null);
             window.setTimeout(
-              () => document.getElementById("survey-topic")?.focus(),
+              () => document.getElementById("survey-maker")?.focus(),
               80,
             );
           }}
           onChoose={(option) => {
+            const nextPrompt = `${clarification.prompt} — 추가 설명: ${option}`;
+            setPrompt(nextPrompt);
             setClarification(null);
-            void startCreate(`추가 설명: ${option}`);
+            void startCreate(nextPrompt);
           }}
         />
       )}
