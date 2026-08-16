@@ -45,6 +45,10 @@ import {
   validateSurveyIntentCandidate,
 } from "./survey-semantic-intent";
 import {
+  compactSurveyPlanForPrompt,
+  createSurveyPlan,
+} from "./survey-planning";
+import {
   markSurveyGenerationStage,
   recordSurveyRepair,
   recordSurveyValidation,
@@ -476,6 +480,21 @@ function structuredGenerationToLegacy(
     scaleMax: question.scale?.max,
     scaleMinLabel: question.scale?.min_label,
     scaleMaxLabel: question.scale?.max_label,
+    measuredConstruct:
+      question.analysis.construct ||
+      fallback.aiQuestions[index]?.measuredConstruct,
+    measuredVariable:
+      question.analysis.variable_name ||
+      fallback.aiQuestions[index]?.measuredVariable,
+    measuredRole: fallback.aiQuestions[index]?.measuredRole,
+    planBlockId: fallback.aiQuestions[index]?.planBlockId,
+    questionPurpose:
+      question.analysis.purpose ||
+      fallback.aiQuestions[index]?.questionPurpose,
+    decisionGoalIds: fallback.aiQuestions[index]?.decisionGoalIds,
+    subjectRole: fallback.aiQuestions[index]?.subjectRole,
+    objectRole: fallback.aiQuestions[index]?.objectRole,
+    explicitTimeframe: fallback.aiQuestions[index]?.explicitTimeframe,
   }));
 
   return {
@@ -1159,6 +1178,7 @@ export function parseSurveyDraftResponse(
     throw new SurveyValidationError(["AI 응답을 읽을 수 없습니다."], "schema");
   }
   markSurveyGenerationStage(trace, "model-response");
+  markSurveyGenerationStage(trace, "output-parsing");
   const completedSearch = assertCompletedResponse(rawPayload);
   const questionCount = Math.min(
     30,
@@ -1574,6 +1594,7 @@ export function buildSurveyAiRequest(
     prompt,
     surveyMode === "research" ? "research" : "general",
   );
+  const surveyPlan = createSurveyPlan(surveyIntent, requestedQuestionCount);
   const profileContext =
     options?.organizationLocationContext?.trim() || "별도 정보 없음";
   const attachmentContext = hasReferences
@@ -1611,7 +1632,13 @@ export function buildSurveyAiRequest(
     "[구조화된 설문 의도]",
     JSON.stringify(compactSurveyIntentForPrompt(surveyIntent)),
     "",
+    "[역할 기반 설문 계획]",
+    JSON.stringify(compactSurveyPlanForPrompt(surveyPlan)),
+    "",
     "구조화된 설문 의도에서 대상, 조사 대상물, 측정 개념, 목적, 기간, 응답 자격을 서로 다른 역할로 유지한다.",
+    "설문 계획의 각 block은 실제 문항으로 측정하고, decisionGoals가 있으면 모든 핵심 문항이 그 결정에 필요한 근거가 되도록 설계한다.",
+    "category_set은 제품명이 아니다. 관련성·직접 경험·전반 평가를 묻지 말고 구체적인 범주 선택, 빈도, 비중, 우선순위로 조작화한다.",
+    "evidence_for 관계로 연결된 뒤쪽 목적을 버리지 말고, 현재 행동 → 미충족 수요 → 대안 선호 → 이용 의향의 인과 흐름을 유지한다.",
     "조사·실태조사·만족도 조사·인식 조사·수요 조사는 서비스명이나 이용 대상이 아니다.",
     "명시된 기간이 null이면 최근 1개월·3개월·6개월 같은 기간을 만들지 않는다.",
     "screeningRequired가 false이면 첫 문항을 탈락형 이용 여부 스크리너로 만들지 않는다.",

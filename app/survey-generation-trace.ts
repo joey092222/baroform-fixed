@@ -4,17 +4,27 @@ export const MAX_MODEL_CALLS_PER_REQUEST = 1;
 
 export type SurveyGenerationStage =
   | "request-received"
+  | "input-parsing"
   | "request-schema-validation"
   | "input-preprocessing"
+  | "intent-extraction"
   | "intent-analysis"
+  | "survey-planning"
+  | "question-generation"
   | "model-request"
   | "model-response"
+  | "output-parsing"
   | "output-schema-validation"
   | "question-normalization"
   | "semantic-validation"
   | "local-repair"
   | "repair-validation"
+  | "fallback-started"
+  | "fallback-completed"
+  | "persist-started"
+  | "persist-completed"
   | "response-ready"
+  | "response-sent"
   | "background-poll"
   | "failed";
 
@@ -31,6 +41,7 @@ export type SurveyGenerationTrace = {
   errorName: string | null;
   errorMessage: string | null;
   failureStage: SurveyGenerationStage | null;
+  stageHistory: Array<{ stage: SurveyGenerationStage; elapsedMs: number }>;
 };
 
 export function createSurveyGenerationTrace(
@@ -49,6 +60,7 @@ export function createSurveyGenerationTrace(
     errorName: null,
     errorMessage: null,
     failureStage: null,
+    stageHistory: [{ stage: "request-received", elapsedMs: 0 }],
   };
 }
 
@@ -59,6 +71,9 @@ export function markSurveyGenerationStage(
   if (!trace) return;
   trace.stage = stage;
   trace.elapsedMs = Math.max(0, Date.now() - trace.startedAt);
+  if (trace.stageHistory.at(-1)?.stage !== stage) {
+    trace.stageHistory.push({ stage, elapsedMs: trace.elapsedMs });
+  }
 }
 
 export function recordSurveyModelCall(trace: SurveyGenerationTrace | undefined) {
@@ -114,5 +129,6 @@ export function surveyGenerationTraceSnapshot(trace: SurveyGenerationTrace) {
     errorName: trace.errorName,
     errorMessage: trace.errorMessage,
     failureStage: trace.failureStage,
+    stageHistory: [...trace.stageHistory],
   };
 }

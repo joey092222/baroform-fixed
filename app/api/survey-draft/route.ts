@@ -198,6 +198,9 @@ function traceHeaders(trace: SurveyGenerationTrace) {
     "x-baroform-repair-count": String(snapshot.repairCount),
     "x-baroform-regeneration-count": String(snapshot.regenerationCount),
     "x-baroform-generation-ms": String(snapshot.elapsedMs),
+    "x-baroform-stage-history": snapshot.stageHistory
+      .map((item) => item.stage)
+      .join(","),
   };
 }
 
@@ -214,6 +217,7 @@ function fallbackResponse(
   requestId: string,
   trace?: SurveyGenerationTrace,
 ) {
+  markSurveyGenerationStage(trace, "fallback-started");
   if (result.status !== "needs_clarification") {
     recordSurveyValidation(trace, "semantic-validation");
     let issues: string[] = [];
@@ -249,6 +253,7 @@ function fallbackResponse(
       );
     }
   }
+  markSurveyGenerationStage(trace, "fallback-completed");
   markSurveyGenerationStage(trace, "response-ready");
   return apiSuccess(
     result,
@@ -811,7 +816,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
   }
 
   let rawPayload: unknown;
-  markSurveyGenerationStage(trace, "request-schema-validation");
+  markSurveyGenerationStage(trace, "input-parsing");
   try {
     rawPayload = await request.json();
   } catch {
@@ -823,6 +828,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
   }
 
   const parsedPayload = surveyDraftRequestSchema.safeParse(rawPayload);
+  markSurveyGenerationStage(trace, "request-schema-validation");
   if (!parsedPayload.success) {
     const invalidSurveyMode = parsedPayload.error.issues.some(
       (issue) => issue.path[0] === "surveyMode",
@@ -867,11 +873,12 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     references.images.length > 0 ||
     references.files.length > 0 ||
     references.links.length > 0;
-  markSurveyGenerationStage(trace, "intent-analysis");
+  markSurveyGenerationStage(trace, "intent-extraction");
   const intent = parseSurveyIntent(
     enteredPrompt,
     surveyMode === "research" ? "research" : "general",
   );
+  markSurveyGenerationStage(trace, "intent-analysis");
   if (process.env.NODE_ENV !== "production") {
     console.info("survey-generation-request", {
       requestId,
@@ -979,11 +986,13 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         requestId,
       );
     }
+    markSurveyGenerationStage(trace, "survey-planning");
     const verifiedFallback = verifiedResearchFallback(
       prompt,
       targetGrade,
       questionCount,
     );
+    markSurveyGenerationStage(trace, "question-generation");
     if (verifiedFallback) {
       const response = fallbackResponse(
         verifiedFallback,
@@ -1046,11 +1055,13 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
   }
 
   const model = process.env.OPENAI_SURVEY_MODEL?.trim() || "gpt-5.6";
+  markSurveyGenerationStage(trace, "survey-planning");
   const fallback = applyDraftSettings(
     analyzeSurveyPrompt(prompt),
     targetGrade,
     questionCount,
   );
+  markSurveyGenerationStage(trace, "question-generation");
   let organizationLocationContext: string | null = null;
   try {
     const sessionUser = await getSessionUser(request);

@@ -6,6 +6,11 @@ import {
   type SemanticRole,
   type SurveyIntent,
 } from "./survey-semantic-intent";
+import {
+  createSurveyPlan,
+  type SurveyPlan,
+  type SurveyPlanBlock,
+} from "./survey-planning";
 
 export type SurveyQuestionType =
   | "scale"
@@ -32,6 +37,11 @@ export type SurveyQuestion = {
   scaleMinLabel?: string;
   scaleMaxLabel?: string;
   measuredConstruct?: string;
+  measuredVariable?: string;
+  measuredRole?: SemanticRole;
+  planBlockId?: string;
+  questionPurpose?: string;
+  decisionGoalIds?: string[];
   subjectRole?: SemanticRole;
   objectRole?: SemanticRole;
   explicitTimeframe?: string | null;
@@ -146,6 +156,7 @@ export type SurveyBlueprint = {
   assumptions?: string[];
   aiTitle?: string;
   domain?: SurveyDomain;
+  semanticPlan?: SurveyPlan;
 };
 
 export type SurveyBrief = {
@@ -1113,7 +1124,10 @@ function briefTimeframe(subject: string, content: string) {
 function shouldPreferSurveyIntent(intent: SurveyIntent) {
   if (intent.ambiguityLevel !== "low") return false;
   return (
-    intent.activities.length > 0 ||
+    intent.activities.some((item) => item.source === "explicit") ||
+    intent.objectKind === "category_set" ||
+    intent.objectKind === "decision_support" ||
+    intent.decisionGoals.length > 0 ||
     intent.objectKind === "ability_skill" ||
     (intent.objectKind === "attitude_perception" &&
       /(?:비이용자|비사용자|(?:사용|이용)해\s*본\s*적이\s*없는|한\s*번도\s*(?:사용|이용)하지\s*않은).*(?:포함|까지)/.test(
@@ -1165,6 +1179,17 @@ function dimensionsFromSurveyIntent(intent: SurveyIntent) {
       ];
     case "need_demand":
       return ["현재 필요", "수요 수준", "필요한 지원", "참여 조건", "우선순위"];
+    case "category_set":
+      return ["구체적인 범주", "선택 빈도", "상대적 비중", "선택 상황", "우선순위"];
+    case "decision_support":
+      return [
+        "구체적인 범주",
+        "현재 행동과 비중",
+        "선택 경로",
+        "충족되지 않은 수요",
+        "대안 선호",
+        "이용 의향",
+      ];
     default:
       return intent.constructs.length > 0
         ? [...intent.constructs, "현재 경험", "평가", "개선 요구"]
@@ -1189,7 +1214,16 @@ export function parseSurveyBrief(rawBrief: string): SurveyBrief {
   const promotional = stripPromotionalPrefix(unwrapped);
   const normalizedBrief = promotional.value;
   const semantics = parseSurveySemantics(normalizedBrief);
-  const surveyIntent = parseSurveyIntent(normalizedBrief);
+  // 의미 역할 파싱은 요청 래퍼를 제거하기 전 원문 전체를 사용한다.
+  // "이를 바탕으로" 뒤의 의사결정 목적이 래퍼 정리 과정에서 사라지면
+  // 앞부분만 일반 조사로 오해하게 되기 때문이다.
+  const preservesPurposeChain =
+    /이를\s*바탕으로|그\s*결과(?:를)?\s*(?:활용해|토대로)|이를\s*(?:통해|근거로)|분석\s*결과에\s*따라|조사한\s*뒤|분석한\s*뒤/.test(
+      normalizedPrimaryRequest,
+    );
+  const surveyIntent = parseSurveyIntent(
+    preservesPurposeChain ? normalizedPrimaryRequest : normalizedBrief,
+  );
   const preferSurveyIntent = shouldPreferSurveyIntent(surveyIntent);
   const split = splitRespondent(normalizedBrief);
   const researchContext = researchContextFromContent(split.content, semantics);
@@ -3496,38 +3530,39 @@ function generalBlueprint(subject: string): SurveyBlueprint {
   const templateQuestions = [
     question(
       1,
-      `${topic}과 현재 얼마나 관련이 있나요?`,
-      "응답자와 조사 주제의 관련성을 먼저 확인해요.",
-      "single",
-      ["직접 경험 중", "과거에 경험함", "알고 있지만 경험 없음", "잘 모름"],
+      `${topic}에서 실제로 경험하거나 선택한 구체적인 대상을 적어주세요.`,
+      "추상적인 조사 주제를 응답자가 답할 수 있는 구체적인 대상으로 확인함.",
+      "shortText",
+      undefined,
+      false,
     ),
     question(
       2,
-      `${topic}에 대해 전반적으로 어떻게 평가하시나요?`,
-      "주제에 대한 전체 평가를 공통 척도로 확인해요.",
-      "scale",
+      `${topic}과 관련한 행동은 주로 어떤 상황에서 일어나나요?`,
+      "조사 주제가 실제로 나타나는 행동 맥락을 구분함.",
+      "multiple",
+      ["일상적으로", "학업·업무 중", "이동 중", "여가 시간", "사람들과 함께할 때", "특정한 상황 없음", "기타"],
     ),
     question(
       3,
-      `${topic}과 관련해 중요하게 생각하는 요소를 모두 골라주세요.`,
-      "응답자의 판단 기준과 우선순위를 찾을 수 있어요.",
-      "multiple",
-      ["편의성", "품질", "비용", "신뢰성", "접근성", "주변 의견"],
+      `${topic}과 관련한 행동이나 선택은 평소 얼마나 자주 일어나나요?`,
+      "실제 행동의 반복 빈도를 비교 가능한 구간으로 측정함.",
+      "single",
+      ["거의 매일", "주 3~4회", "주 1~2회", "월 1~3회", "거의 없음"],
     ),
     question(
       4,
-      `${topic}과 관련해 불편하거나 걱정되는 점을 모두 골라주세요.`,
-      "현재 경험과 선택을 막는 요인을 구분해요.",
+      `${topic}과 관련한 선택에서 중요하게 보는 기준을 모두 골라주세요.`,
+      "실제 선택 기준과 우선순위를 파악함.",
       "multiple",
-      ["정보 부족", "시간 부담", "비용 부담", "이용 절차", "신뢰하기 어려움", "특별한 문제 없음"],
+      ["편의성", "품질", "비용", "신뢰성", "접근성", "주변 의견", "기타"],
     ),
     question(
       5,
-      `${topic}과 관련해 전하고 싶은 의견을 자유롭게 적어주세요.`,
-      "선택지 밖의 구체적인 경험과 아이디어를 수집해요.",
-      "text",
-      undefined,
-      false,
+      `${topic}과 관련해 겪는 어려움이나 부족한 점을 모두 골라주세요.`,
+      "현재 행동을 방해하거나 충족되지 않은 요구를 구분함.",
+      "multiple",
+      ["정보 부족", "시간 부담", "비용 부담", "선택지 부족", "접근성", "특별한 문제 없음", "기타"],
     ),
   ];
 
@@ -3545,17 +3580,18 @@ function generalBlueprint(subject: string): SurveyBlueprint {
       ...templateQuestions,
       question(
         6,
-        `${topicWithParticle(subject, "이", "가")} 앞으로 어떻게 달라지면 좋을까요?`,
-        "현재 평가를 넘어 응답자가 원하는 방향을 구체화해요.",
-        "text",
-        undefined,
-        false,
+        `${topic}과 관련해 가장 먼저 필요한 변화는 무엇인가요?`,
+        "조사 결과가 지원해야 할 개선 우선순위를 확인함.",
+        "single",
+        ["정보 제공", "비용 개선", "접근성 개선", "선택지 확대", "품질 개선", "별도 변화 필요 없음", "기타"],
       ),
       question(
         7,
-        `${topic}과 관련한 의견이 실제 결정에 얼마나 중요하게 반영되어야 한다고 생각하시나요?`,
-        "의견의 방향뿐 아니라 응답자가 기대하는 반영 수준도 함께 확인해요.",
-        "scale",
+        `${topic}과 관련한 구체적인 경험이나 제안을 자유롭게 적어주세요.`,
+        "선택지에 포함되지 않은 경험과 근거를 수집함.",
+        "text",
+        undefined,
+        false,
       ),
     ],
   };
@@ -4187,9 +4223,345 @@ function activityIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
   };
 }
 
+function annotatePlannedQuestion(
+  item: SurveyQuestion,
+  block: SurveyPlanBlock | undefined,
+  intent: SurveyIntent,
+): SurveyQuestion {
+  if (!block) return item;
+  return {
+    ...item,
+    measuredConstruct: block.variable,
+    measuredVariable: block.variable,
+    measuredRole: block.role,
+    planBlockId: block.id,
+    questionPurpose: block.purpose,
+    decisionGoalIds: block.decisionGoalIds,
+    subjectRole: "target_population",
+    objectRole: block.role,
+    explicitTimeframe: intent.explicitTimeframe,
+  };
+}
+
+function categoryOptionsForIntent(intent: SurveyIntent) {
+  const corpus = `${intent.surveyObject ?? ""} ${intent.rawInput}`;
+  if (/소비|구매|지출|품목|상품/.test(corpus)) {
+    return [
+      "식사·외식",
+      "카페·디저트",
+      "생활용품",
+      "의류·패션",
+      "화장품·미용",
+      "문구·학용품",
+      "전자기기·디지털",
+      "취미·문화생활",
+      "운동·건강",
+      "기타",
+    ];
+  }
+  if (/콘텐츠|미디어|관심s*분야/.test(corpus)) {
+    return [
+      "학업·정보",
+      "뉴스·시사",
+      "문화·예술",
+      "게임·오락",
+      "스포츠·건강",
+      "관계·커뮤니티",
+      "기타",
+    ];
+  }
+  return [
+    "가장 자주 선택하는 항목",
+    "두 번째로 자주 선택하는 항목",
+    "상황에 따라 선택하는 항목",
+    "아직 선택한 적 없는 항목",
+    "기타",
+  ];
+}
+
+function decisionOptionsForIntent(intent: SurveyIntent) {
+  const decision = intent.entities.find((item) => item.role === "decision_option");
+  const corpus = `${decision?.text ?? ""} ${intent.rawInput}`;
+  if (/매장|가게|점포|상점|신촌|대학가/.test(corpus)) {
+    return [
+      "간편식·한 끼 식사 매장",
+      "카페·디저트 매장",
+      "생활용품·잡화 매장",
+      "문구·학용품 매장",
+      "의류·패션 매장",
+      "화장품·미용 매장",
+      "취미·문화 공간",
+      "운동·건강 관련 매장",
+      "기타",
+    ];
+  }
+  return [
+    "접근성이 좋은 대안",
+    "가격 부담이 적은 대안",
+    "품질이 높은 대안",
+    "선택 폭이 넓은 대안",
+    "운영 시간이 긴 대안",
+    "기타",
+  ];
+}
+
+function decisionSupportIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
+  const intent = brief.surveyIntent;
+  const plan = createSurveyPlan(intent, 7);
+  const categoryEntity = intent.entities.find((item) => item.role === "category_set");
+  const category = categoryEntity?.text ?? intent.surveyObject ?? "주요 항목";
+  const context = intent.contexts[0]?.text ?? "현재 생활권";
+  const decisionOption =
+    intent.entities.find((item) => item.role === "decision_option")?.text ??
+    "필요한 대안";
+  const categoryOptions = categoryOptionsForIntent(intent);
+  const decisionOptions = decisionOptionsForIntent(intent);
+  const observedBehavior = intent.entities.find((item) => item.role === "behavior");
+  const activityLabel =
+    intent.activities[0]?.text ??
+    observedBehavior?.text ??
+    intent.surveyObject ??
+    "현재 행동";
+  const timeframePrefix = intent.explicitTimeframe
+    ? `${intent.explicitTimeframe} 동안 `
+    : "평소 ";
+  const questions = (categoryEntity
+    ? [
+    question(
+      1,
+      `${timeframePrefix}주로 구매하거나 비용을 쓰는 ${category}을 모두 골라주세요.`,
+      "실제 소비가 일어나는 품목 범주를 복수 선택으로 측정함.",
+      "multiple",
+      categoryOptions,
+    ),
+    question(
+      2,
+      `선택한 항목 중 가장 지출 비중이 큰 ${category}은 무엇인가요?`,
+      "범주별 소비의 상대적 우선순위를 확인함.",
+      "single",
+      categoryOptions,
+    ),
+    question(
+      3,
+      `평소 해당 품목을 얼마나 자주 구매하나요?`,
+      "구매 행동의 반복 빈도를 비교 가능한 구간으로 측정함.",
+      "single",
+      ["주 3회 이상", "주 1~2회", "월 1~3회", "월 1회 미만", "거의 구매하지 않음"],
+    ),
+    question(
+      4,
+      `해당 품목을 주로 어디에서 구매하나요?`,
+      "현재 수요가 충족되는 구매 경로를 파악함.",
+      "multiple",
+      [
+        `${context}의 오프라인 매장`,
+        "학교 안 매장",
+        "다른 지역의 오프라인 매장",
+        "온라인 쇼핑몰·앱",
+        "편의점·대형마트",
+        "기타",
+      ],
+    ),
+    question(
+      5,
+      `${context}에서 구하기 어렵거나 선택지가 부족하다고 느끼는 품목을 모두 골라주세요.`,
+      "현재 생활권에서 충족되지 않은 구체적인 소비 수요를 확인함.",
+      "multiple",
+      [...categoryOptions.filter((item) => item !== "기타"), "특별히 없음", "기타"],
+    ),
+    question(
+      6,
+      `${context}에 새로 생기면 가장 이용하고 싶은 ${labelWithParticle(decisionOption, "은", "는")} 무엇인가요?`,
+      "조사 결과가 지원할 개설·도입 대안의 우선순위를 측정함.",
+      "single",
+      decisionOptions,
+    ),
+    question(
+      7,
+      `선택한 ${labelWithParticle(decisionOption, "이", "가")} ${context}에 생긴다면 평소 얼마나 자주 이용할 것 같나요?`,
+      "선호 대안에 대한 실제 이용 가능성을 빈도로 확인함.",
+      "single",
+      ["주 3회 이상", "주 1~2회", "월 1~3회", "월 1회 미만", "이용하지 않을 것 같음"],
+    ),
+      ]
+    : observedBehavior || intent.activities.length > 0
+      ? [
+          question(
+            1,
+            `${labelWithParticle(activityLabel, "은", "는")} 평소 얼마나 자주 일어나나요?`,
+            "앞선 조사 목적에 해당하는 현재 행동 빈도를 측정함.",
+            "single",
+            ["거의 매일", "주 3~4회", "주 1~2회", "월 1~3회", "거의 없음"],
+          ),
+          question(
+            2,
+            `${labelWithParticle(activityLabel, "이", "가")} 주로 일어나는 상황을 모두 골라주세요.`,
+            "현재 행동이 일어나는 맥락과 패턴을 구분함.",
+            "multiple",
+            ["평일", "주말·공휴일", "학업·업무 중", "이동 중", "혼자 있을 때", "사람들과 함께할 때", "기타"],
+          ),
+          question(
+            3,
+            `${activityLabel} 과정에서 가장 불편하거나 충족되지 않는 점을 모두 골라주세요.`,
+            "현재 행동과 최종 의사결정 사이의 미충족 수요를 측정함.",
+            "multiple",
+            ["접근성", "가격·비용", "시간 부담", "선택지 부족", "품질", "정보 부족", "특별히 없음", "기타"],
+          ),
+          question(
+            4,
+            `${context}에 필요하다고 생각하는 ${labelWithParticle(decisionOption, "을", "를")} 모두 골라주세요.`,
+            "문제 해결에 필요한 대안의 범위를 확인함.",
+            "multiple",
+            decisionOptions,
+          ),
+          question(
+            5,
+            `그중 가장 우선적으로 필요한 ${labelWithParticle(decisionOption, "은", "는")} 무엇인가요?`,
+            "최종 의사결정에 사용할 대안의 우선순위를 측정함.",
+            "single",
+            decisionOptions,
+          ),
+          question(
+            6,
+            `${labelWithParticle(decisionOption, "을", "를")} 선택할 때 가장 중요한 기준은 무엇인가요?`,
+            "대안 선정의 평가 기준을 확인함.",
+            "single",
+            ["가격", "품질", "접근성", "운영 시간", "선택의 다양성", "편의성", "기타"],
+          ),
+          question(
+            7,
+            `선택한 ${labelWithParticle(decisionOption, "이", "가")} 마련된다면 평소 얼마나 자주 이용할 것 같나요?`,
+            "선호 대안에 대한 실제 이용 가능성을 빈도로 측정함.",
+            "single",
+            ["주 3회 이상", "주 1~2회", "월 1~3회", "월 1회 미만", "이용하지 않을 것 같음"],
+          ),
+        ]
+    : [
+        question(
+          1,
+          `${context}에 새로 생기길 원하는 ${labelWithParticle(decisionOption, "을", "를")} 모두 골라주세요.`,
+          "원하는 대안의 범위를 복수 선택으로 확인함.",
+          "multiple",
+          decisionOptions,
+        ),
+        question(
+          2,
+          `그중 ${context}에 가장 필요하다고 생각하는 ${labelWithParticle(decisionOption, "은", "는")} 무엇인가요?`,
+          "개설·도입 대안의 최우선 순위를 측정함.",
+          "single",
+          decisionOptions,
+        ),
+        question(
+          3,
+          `${context}에서 현재 가장 충족되지 않는 필요를 모두 골라주세요.`,
+          "현재 선택지로 해결되지 않는 구체적인 수요를 확인함.",
+          "multiple",
+          ["식사·먹거리", "생활 편의", "학업·업무", "휴식·모임", "문화·취미", "건강·운동", "특별히 없음", "기타"],
+        ),
+        question(
+          4,
+          `새로운 ${labelWithParticle(decisionOption, "을", "를")} 주로 어떤 목적으로 이용하고 싶나요?`,
+          "원하는 대안이 해결해야 할 실제 이용 목적을 파악함.",
+          "multiple",
+          ["일상적인 필요 해결", "시간 절약", "비용 절감", "새로운 경험", "학업·업무", "휴식·교류", "기타"],
+        ),
+        question(
+          5,
+          `${labelWithParticle(decisionOption, "을", "를")} 선택할 때 가장 중요한 기준은 무엇인가요?`,
+          "대안 선정에 필요한 평가 기준의 우선순위를 확인함.",
+          "single",
+          ["가격", "품질", "접근성", "운영 시간", "선택의 다양성", "공간·서비스 품질", "기타"],
+        ),
+        question(
+          6,
+          `원하는 ${labelWithParticle(decisionOption, "이", "가")} ${context}에 생긴다면 평소 얼마나 자주 이용할 것 같나요?`,
+          "선호 대안에 대한 실제 이용 가능성을 빈도로 확인함.",
+          "single",
+          ["주 3회 이상", "주 1~2회", "월 1~3회", "월 1회 미만", "이용하지 않을 것 같음"],
+        ),
+        question(
+          7,
+          `${context}에 필요한 ${labelWithParticle(decisionOption, "과", "와")} 그 이유를 자유롭게 적어주세요.`,
+          "선택지에 없는 대안과 구체적인 근거를 수집함.",
+          "text",
+          undefined,
+          false,
+        ),
+      ]
+  ).map((item, index) => annotatePlannedQuestion(item, plan.blocks[index], intent));
+  const respondent = intent.targetPopulation ?? brief.targetRespondents;
+
+  return {
+    kind: "needs",
+    intentLabel: "행동·수요·의사결정",
+    subject: category,
+    title: categoryEntity
+      ? `${respondent}의 ${category} 및 ${decisionOption} 수요 조사`
+      : `${respondent}의 ${context} ${decisionOption} 수요 조사`,
+    description: categoryEntity
+      ? `${respondent}의 실제 구매·지출 행동과 ${context}에서 충족되지 않은 수요를 파악해 필요한 ${decisionOption}을 결정하기 위한 설문입니다.`
+      : `${respondent}이 ${context}에서 필요로 하는 ${decisionOption}과 우선순위, 실제 이용 의향을 파악하기 위한 설문입니다.`,
+    templateTitle: `${category} 및 ${decisionOption} 핵심 문항`,
+    templateSummary: "실제 행동과 범주별 수요를 측정하고 그 결과가 최종 의사결정으로 이어지도록 구성했어요.",
+    detectedSignals: [
+      `응답 대상 · ${respondent}`,
+      `측정 변수 · ${category}`,
+      `맥락 · ${context}`,
+      `결정 목표 · ${intent.decisionGoals[0]?.text ?? decisionOption}`,
+    ],
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
+    respondentGroup: respondent,
+    evaluationTarget: category,
+    goal: intent.purpose ?? brief.researchGoal,
+    assumptions: [],
+    domain: brief.domain,
+    semanticPlan: plan,
+  };
+}
+
+function categorySetIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
+  const intent = brief.surveyIntent;
+  const plan = createSurveyPlan(intent, 7);
+  const category = intent.surveyObject ?? "주요 항목";
+  const options = categoryOptionsForIntent(intent);
+  const questions = [
+    question(1, `해당하는 ${category}을 모두 골라주세요.`, "구체적인 범주를 직접 측정함.", "multiple", options),
+    question(2, `그중 가장 비중이 큰 ${category}은 무엇인가요?`, "범주별 우선순위를 파악함.", "single", options),
+    question(3, `해당 항목을 얼마나 자주 선택하나요?`, "실제 행동 빈도를 측정함.", "single", ["거의 매일", "주 3~4회", "주 1~2회", "월 1~3회", "거의 선택하지 않음"]),
+    question(4, `해당 항목을 주로 선택하는 상황을 모두 골라주세요.`, "선택이 일어나는 맥락을 구분함.", "multiple", ["일상적으로", "학업·업무 중", "여가 시간", "사람들과 함께할 때", "특별한 필요가 생겼을 때", "기타"]),
+    question(5, `${category}을 선택할 때 가장 중요하게 보는 기준은 무엇인가요?`, "선택 기준의 우선순위를 확인함.", "single", ["가격", "품질", "편의성", "접근성", "다양성", "주변 추천", "기타"]),
+    question(6, `${category}과 관련해 현재 부족하다고 느끼는 점을 모두 골라주세요.`, "현재 충족되지 않은 요구를 파악함.", "multiple", ["선택지 부족", "정보 부족", "가격 부담", "접근성 부족", "품질 아쉬움", "특별히 없음", "기타"]),
+    question(7, `${category}과 관련한 구체적인 경험이나 의견을 적어주세요.`, "선택지 밖의 근거를 수집함.", "text", undefined, false),
+  ].map((item, index) => annotatePlannedQuestion(item, plan.blocks[index], intent));
+  const respondent = intent.targetPopulation ?? brief.targetRespondents;
+  return {
+    kind: "general",
+    intentLabel: "범주·행동",
+    subject: category,
+    title: `${respondent}의 ${category} 조사`,
+    description: `${respondent}이 실제로 선택하는 ${category}과 빈도, 선택 상황 및 개선 요구를 파악하는 설문입니다.`,
+    templateTitle: `${category} 핵심 문항`,
+    templateSummary: "추상적인 관련성이나 평가가 아니라 구체적인 범주와 실제 행동을 측정해요.",
+    detectedSignals: [`응답 대상 · ${respondent}`, `측정 변수 · ${category}`],
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
+    respondentGroup: respondent,
+    evaluationTarget: category,
+    goal: intent.purpose ?? brief.researchGoal,
+    assumptions: [],
+    domain: brief.domain,
+    semanticPlan: plan,
+  };
+}
+
 function semanticIntentBlueprint(brief: SurveyBrief) {
   if (!shouldPreferSurveyIntent(brief.surveyIntent)) return null;
   switch (brief.surveyIntent.objectKind) {
+    case "decision_support":
+      return decisionSupportIntentBlueprint(brief);
+    case "category_set":
+      return categorySetIntentBlueprint(brief);
     case "ability_skill":
       return abilityIntentBlueprint(brief);
     case "attitude_perception":

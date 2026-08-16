@@ -4,12 +4,22 @@ export type SemanticRole =
   | "target_population"
   | "study_title"
   | "study_purpose"
+  | "decision_goal"
   | "study_method"
   | "real_world_object"
+  | "concrete_object"
   | "product_or_service"
   | "survey_instrument"
   | "activity"
+  | "behavior"
+  | "category_set"
+  | "ability"
   | "construct"
+  | "attitude"
+  | "preference"
+  | "pain_point"
+  | "unmet_need"
+  | "decision_option"
   | "timeframe"
   | "eligibility"
   | "context";
@@ -25,6 +35,7 @@ export type SurveyActivityKind =
   | "attend";
 
 export type IntentEntity = {
+  id: string;
   text: string;
   normalizedText: string;
   role: SemanticRole;
@@ -33,6 +44,23 @@ export type IntentEntity = {
   start?: number;
   end?: number;
   activityKind?: SurveyActivityKind;
+};
+
+export type IntentRelationType =
+  | "performed_by"
+  | "performed_on"
+  | "measures"
+  | "occurs_in"
+  | "evidence_for"
+  | "limited_to"
+  | "includes"
+  | "excludes";
+
+export type IntentRelation = {
+  type: IntentRelationType;
+  fromEntityId: string;
+  toEntityId: string;
+  source: "explicit" | "inferred";
 };
 
 export type SurveyIntentObjectKind =
@@ -44,7 +72,9 @@ export type SurveyIntentObjectKind =
   | "satisfaction_evaluation"
   | "need_demand"
   | "event_program"
-  | "academic_construct";
+  | "academic_construct"
+  | "category_set"
+  | "decision_support";
 
 export type SurveyIntent = {
   rawInput: string;
@@ -53,6 +83,8 @@ export type SurveyIntent = {
   targetPopulationEntities: IntentEntity[];
   studyTitle: IntentEntity | null;
   studyPurpose: IntentEntity | null;
+  studyPurposes: IntentEntity[];
+  decisionGoals: IntentEntity[];
   surveyObject: string | null;
   objects: IntentEntity[];
   activities: IntentEntity[];
@@ -63,6 +95,8 @@ export type SurveyIntent = {
   explicitTimeframeEntity: IntentEntity | null;
   eligibilityCondition: string | null;
   eligibilityEntity: IntentEntity | null;
+  contexts: IntentEntity[];
+  relations: IntentRelation[];
   screeningRequired: boolean;
   includesNonUsers: boolean;
   studyType: SurveyIntentStudyType;
@@ -78,7 +112,13 @@ export type SurveyIntentViolationCode =
   | "NON_USERS_EXCLUDED"
   | "UNRELATED_SERVICE_EXPERIENCE"
   | "TARGET_PURPOSE_COMPOSITE_OBJECT"
-  | "SEMANTIC_RELATION_INVALID";
+  | "SEMANTIC_RELATION_INVALID"
+  | "ABSTRACT_CATEGORY_TREATED_AS_PRODUCT"
+  | "CATEGORY_SET_NOT_OPERATIONALIZED"
+  | "GENERIC_TEMPLATE_ROLE_MISMATCH"
+  | "INVALID_VERB_OBJECT_RELATION"
+  | "DECISION_GOAL_DROPPED"
+  | "UNMEASURABLE_QUESTION";
 
 export type ValidationSeverity = "fatal" | "repairable" | "warning";
 
@@ -101,6 +141,11 @@ export type SurveyIntentQuestionCandidate = {
   showIf?: unknown[];
   show_if?: unknown[];
   measuredConstruct?: string;
+  measuredVariable?: string;
+  measuredRole?: SemanticRole;
+  planBlockId?: string;
+  questionPurpose?: string;
+  decisionGoalIds?: string[];
   subjectRole?: SemanticRole;
   objectRole?: SemanticRole;
 };
@@ -129,6 +174,16 @@ const normalizeRoleText = (value: string) =>
     .replace(/의(?=[가-힣A-Za-z0-9])/g, "")
     .toLocaleLowerCase("ko-KR");
 
+function semanticEntityId(role: SemanticRole, text: string) {
+  const source = `${role}:${normalizeRoleText(text)}`;
+  let hash = 2166136261;
+  for (const character of source) {
+    hash ^= character.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${role}-${(hash >>> 0).toString(36)}`;
+}
+
 function entity(
   text: string,
   role: SemanticRole,
@@ -140,6 +195,7 @@ function entity(
 ): IntentEntity {
   const normalizedText = normalize(text);
   return {
+    id: semanticEntityId(role, normalizedText),
     text: normalizedText,
     normalizedText,
     role,
@@ -159,7 +215,7 @@ const purposeSuffix =
   /\s*(실태|만족도|인식|인지도|수요|이용\s*현황(?:과\s*경험)?|사용\s*현황(?:과\s*경험)?|이용\s*경험|사용\s*경험|경험|효과|영향)\s*$/;
 
 const targetPrefix =
-  /^(전\s*연령대(?:의\s*일반인)?|모든\s*연령대|일반인|학생(?:들)?|대학생(?:들)?|대학원생(?:들)?|직장인(?:들)?|청년(?:들)?|고등학생(?:들)?|중학생(?:들)?|초등학생(?:들)?|학부모(?:들)?|교사(?:들)?|교직원(?:들)?|직원(?:들)?|소비자(?:들)?|사용자(?:들)?|이용자(?:들)?|연세대학교\s*(?:학부생|학생|재학생)(?:들)?|[가-힣A-Za-z0-9·-]+대학교\s*(?:학부생|학생|재학생)(?:들)?|\d{1,2}대\s*(?:여성|남성)?)(?:들이|이|가|은|는|의|을|를)?\s*/;
+  /^(전\s*연령대(?:의\s*일반인)?|모든\s*연령대|일반인|학생(?:들)?|대학생(?:들)?|대학원생(?:들)?|직장인(?:들)?|청년(?:들)?|자취생(?:들)?|지역\s*주민(?:들)?|앱\s*이용자(?:들)?|고등학생(?:들)?|중학생(?:들)?|초등학생(?:들)?|학부모(?:들)?|교사(?:들)?|교직원(?:들)?|직원(?:들)?|소비자(?:들)?|사용자(?:들)?|이용자(?:들)?|(?:연세대|연세대학교)\s*(?:학부생|학생|재학생)(?:들)?|[가-힣A-Za-z0-9·-]+대(?:학교)?\s*(?:학부생|학생|재학생)(?:들)?|\d{1,2}대\s*(?:여성|남성)?)(?:들이|이|가|은|는|의|을|를)?\s*/;
 
 const personTargetEnding =
   /(?:사람|일반인|학생|대학생|대학원생|직장인|청년|여성|남성|고객|이용자|사용자|소비자|직원|교직원|교사)(?:들)?$/;
@@ -196,7 +252,7 @@ function extractTarget(value: string) {
   }
 
   const genitive = value.match(
-    /^(.+?(?:학생|대학생|대학원생|직장인|청년|고객|이용자|사용자|소비자|직원|교직원|교사)(?:들)?)의\s+(.+)$/,
+    /^(.+?(?:학생|대학생|대학원생|직장인|청년|자취생|주민|학부모|고객|이용자|사용자|소비자|직원|교직원|교사)(?:들)?)의\s+(.+)$/,
   );
   if (genitive) {
     return {
@@ -354,7 +410,7 @@ function extractConstructEntities(value: string, activities: IntentEntity[]) {
   const result: IntentEntity[] = [];
   const add = (text: string) => {
     if (!result.some((item) => normalizeRoleText(item.text) === normalizeRoleText(text))) {
-      result.push(entity(text, "construct"));
+      result.push(entity(text, semanticRoleForVariable(text)));
     }
   };
   const activityLabel = activities.length > 0
@@ -388,6 +444,7 @@ function purposeFor(value: string, kind: SurveyIntentObjectKind) {
 }
 
 function classifyIntent(value: string): SurveyIntentObjectKind {
+  if (categorySetFromClause(value)) return "category_set";
   if (/(?:사용|활용)\s*능력|역량|숙련도|자기효능감|이해도|수행\s*능력/.test(value)) {
     return "ability_skill";
   }
@@ -493,6 +550,126 @@ function constructAndObject(value: string, kind: SurveyIntentObjectKind) {
   };
 }
 
+const evidenceConnectorPattern =
+  /(?:,?\s*)(이를\s*바탕으로|그\s*결과(?:를)?\s*(?:활용해|토대로)|이를\s*(?:통해|근거로)|분석\s*결과에\s*따라|조사한\s*뒤|분석한\s*뒤)(?:\s*)/;
+
+function cleanIntentClause(value: string) {
+  return normalize(value)
+    .replace(
+      /(?:에\s*대해|을|를)?\s*(?:조사|파악|분석|확인|알아보)(?:하고|한\s*뒤|해서|하여|해|하)?\s*$/,
+      "",
+    )
+    .replace(/(?:에\s*대해|을|를)\s*$/, "")
+    .trim();
+}
+
+function splitPurposeChain(value: string) {
+  const match = evidenceConnectorPattern.exec(value);
+  if (!match || match.index === undefined) {
+    return {
+      primaryClause: cleanIntentClause(value),
+      decisionClause: null as string | null,
+      connector: null as string | null,
+    };
+  }
+  return {
+    primaryClause: cleanIntentClause(value.slice(0, match.index)),
+    decisionClause: cleanIntentClause(value.slice(match.index + match[0].length)),
+    connector: match[1].replace(/\s+/g, " ").trim(),
+  };
+}
+
+function extractContextEntities(value: string) {
+  const contexts: IntentEntity[] = [];
+  const contextPattern =
+    /([가-힣A-Za-z0-9·-]+(?:\s+[가-힣A-Za-z0-9·-]+){0,2}\s*(?:근처|주변|인근|지역|캠퍼스|학교\s*앞|대학가))/g;
+  for (const match of value.matchAll(contextPattern)) {
+    const label = normalize(match[1])
+      .replace(
+        /^(?:이를\s*바탕으로|그\s*결과(?:를)?\s*(?:활용해|토대로)|이를\s*(?:통해|근거로)|분석\s*결과에\s*따라)\s*/,
+        "",
+      )
+      .trim();
+    if (
+      label &&
+      !contexts.some(
+        (item) => normalizeRoleText(item.text) === normalizeRoleText(label),
+      )
+    ) {
+      contexts.push(entity(label, "context"));
+    }
+  }
+  const namedPlacePattern = /([가-힣A-Za-z0-9·-]{2,20})(?:에|에서)\s+(?=(?:새로|어떤|필요한|부족한|원하는|구하기))/g;
+  for (const match of value.matchAll(namedPlacePattern)) {
+    const label = normalize(match[1]);
+    if (
+      label &&
+      !/^(?:근처|주변|인근|지역|캠퍼스|학교|대학가)$/.test(label) &&
+      !contexts.some(
+        (item) =>
+          normalizeRoleText(item.text) === normalizeRoleText(label) ||
+          normalizeRoleText(item.text).includes(normalizeRoleText(label)),
+      )
+    ) {
+      contexts.push(entity(label, "context"));
+    }
+  }
+  return contexts;
+}
+
+function categorySetFromClause(value: string) {
+  const normalized = normalize(value);
+  const direct = normalized.match(
+    /((?:주로\s*)?(?:어떤\s*)?(?:[가-힣A-Za-z0-9·-]+\s*){0,4}(?:품목|항목|분야|종류|유형|경로|목적|요인|선호\s*대상))(?=에|을|를|이|가|은|는|\s|$)/,
+  )?.[1];
+  const spending = normalized.match(
+    /((?:돈|비용|예산)을\s*쓰는\s*분야|(?:구매|지출|소비)하는\s*(?:제품\s*)?종류)/,
+  )?.[1];
+  const label = normalizedObjectLabel(spending ?? direct ?? "")
+    .replace(/^(?:(?:주로|어떤)\s+)+/, "")
+    .trim();
+  return label || null;
+}
+
+function decisionOptionFromClause(value: string | null) {
+  if (!value) return null;
+  const normalized = normalize(value);
+  const what = normalized.match(
+    /어떤\s+(.{1,40}?)(?:(?:을|를|이|가)\s*)?(?:개설|열|만들|생기|들어오|도입|마련|선정|결정|제공)/,
+  )?.[1];
+  const needed = normalized.match(
+    /필요한\s+(.{1,40}?)(?:(?:을|를|이|가)\s*)?(?:조사|알아보|파악|분석|확인|선정|결정|$)/,
+  )?.[1];
+  const desired = normalized.match(
+    /(?:새로\s*)?(?:생기길|들어오길)\s*원하는\s+(.{1,40}?)(?:(?:을|를)\s*)?(?:조사|알아보|파악|분석|확인|$)/,
+  )?.[1];
+  const lacking = normalized.match(
+    /(?:필요한|부족한|선호하는)\s+(.{1,40}?)(?:(?:을|를|이|가)\s*)?(?:종류를?\s*)?(?:조사|알아보|파악|분석|확인|선정|결정|$)/,
+  )?.[1];
+  let label = normalize(what ?? needed ?? desired ?? lacking ?? "")
+    .replace(/(?:하면\s*좋을지|좋을지|필요할지).*$/, "")
+    .replace(/(?:을|를|이|가)$/, "")
+    .trim();
+  if (!label) return null;
+  if (/^(?:매장|가게|점포|상점|시설|음식점|공간|서비스)$/.test(label)) {
+    label = `${label} 종류`;
+  }
+  return label.slice(0, 80);
+}
+
+function semanticRoleForVariable(value: string): SemanticRole {
+  if (categorySetFromClause(value)) return "category_set";
+  if (/(?:사용|활용)?\s*(?:능력|역량|숙련도|자기효능감|이해도)/.test(value)) {
+    return "ability";
+  }
+  if (/불편|어려움|문제|장벽/.test(value)) return "pain_point";
+  if (/미충족|부족|구하기\s*어려/.test(value)) return "unmet_need";
+  if (/선호|우선순위|의향/.test(value)) return "preference";
+  if (/인식|태도|우려|기대|신뢰/.test(value)) return "attitude";
+  if (/행동|빈도|패턴|습관|현황/.test(value)) return "behavior";
+  return roleForObject(value);
+}
+
 function eligibilityFromTarget(target: string | null, surveyObject: string | null) {
   if (!target) return null;
   if (/(?:먹어본|시식한|구매한)\s*고객/.test(target)) {
@@ -528,23 +705,68 @@ export function parseSurveyIntent(
     .trim();
   const target = extractTarget(working);
   working = target.remainder;
-  const relations = extractActivityRelations(working);
-  let kind = classifyIntent(working);
+  const purposeChain = splitPurposeChain(working);
+  const primaryClause = purposeChain.primaryClause || working;
+  const contexts = extractContextEntities(
+    purposeChain.decisionClause ?? primaryClause,
+  );
+  const categorySet = categorySetFromClause(primaryClause);
+  const decisionOption = decisionOptionFromClause(
+    purposeChain.decisionClause ??
+      (/원하는|필요한|부족한|개설|들어오|생기/.test(primaryClause)
+        ? primaryClause
+        : null),
+  );
+  const activityRelations = extractActivityRelations(primaryClause);
+  let kind = classifyIntent(primaryClause);
+  if (decisionOption) kind = "decision_support";
+  else if (categorySet) kind = "category_set";
   if (
-    relations.activities.length > 0 &&
-    !["ability_skill", "attitude_perception", "satisfaction_evaluation", "need_demand"].includes(
+    activityRelations.activities.length > 0 &&
+    ![
+      "ability_skill",
+      "attitude_perception",
+      "satisfaction_evaluation",
+      "need_demand",
+      "category_set",
+      "decision_support",
+    ].includes(
       kind,
     )
   ) {
     kind = "behavior_usage";
   }
-  const parts = constructAndObject(working, kind);
+  const inferredActivityLabel =
+    activityRelations.activities.length === 0
+      ? primaryClause.match(
+          /^(.{1,60}?)(?:\s*(?:빈도|횟수|패턴|현황|습관|과정에서))/,
+        )?.[1]?.trim() ?? null
+      : null;
+  const activities = inferredActivityLabel
+    ? [
+        entity(inferredActivityLabel, "activity", {
+          source: "inferred",
+          confidence: 0.8,
+          activityKind: /구매|소비|지출/.test(inferredActivityLabel)
+            ? "purchase"
+            : "use",
+        }),
+      ]
+    : activityRelations.activities;
+  const parts = constructAndObject(primaryClause, kind);
+  if (categorySet) {
+    parts.surveyObject = categorySet;
+    parts.constructs = [categorySet];
+  } else if (decisionOption && !purposeChain.decisionClause) {
+    parts.surveyObject = decisionOption;
+    parts.constructs = [decisionOption];
+  }
   const relationConstructs = extractConstructEntities(
-    working,
-    relations.activities,
+    primaryClause,
+    activities,
   );
-  if (relations.objects.length > 0) {
-    parts.surveyObject = relations.objects[0].text;
+  if (activityRelations.objects.length > 0 && !categorySet) {
+    parts.surveyObject = activityRelations.objects[0].text;
   }
   if (relationConstructs.length > 0) {
     parts.constructs = relationConstructs.map((item) => item.text);
@@ -574,7 +796,7 @@ export function parseSurveyIntent(
     (explicitlyIncludesNonUsers ||
       kind === "ability_skill" ||
       kind === "attitude_perception" ||
-      relations.activities.length > 0 ||
+      activities.length > 0 ||
       /실태|현황/.test(raw));
   const screeningRequired = Boolean(
     eligibilityCondition ||
@@ -588,25 +810,71 @@ export function parseSurveyIntent(
   );
   const ambiguityLevel: SurveyIntent["ambiguityLevel"] = !parts.surveyObject
     ? "high"
-    : target.targetPopulation || relations.activities.length > 0 || kind !== "academic_construct"
+    : target.targetPopulation || activities.length > 0 || kind !== "academic_construct"
       ? "low"
       : "medium";
 
   const targetEntity = target.targetPopulation
     ? entity(target.targetPopulation, "target_population")
     : null;
-  const explicitObjectEntities = relations.objects.length > 0
-    ? relations.objects
+  const explicitObjectEntities = activityRelations.objects.length > 0
+    ? activityRelations.objects
     : parts.surveyObject
-      ? [entity(parts.surveyObject, roleForObject(parts.surveyObject))]
+      ? [
+          entity(
+            parts.surveyObject,
+            categorySet
+              ? "category_set"
+              : decisionOption && !categorySet && !purposeChain.decisionClause
+                ? "decision_option"
+                : roleForObject(parts.surveyObject),
+          ),
+        ]
       : [];
-  const constructEntities = relationConstructs.length > 0
+  let constructEntities = relationConstructs.length > 0
     ? relationConstructs
     : parts.constructs
         .filter(Boolean)
-        .map((item) => entity(item, "construct"));
-  const purpose = purposeFor(working, kind);
-  const studyPurpose = entity(purpose, "study_purpose", {
+        .map((item) => entity(item, semanticRoleForVariable(item)));
+  const contextLabel = contexts[0]?.text ?? null;
+  const decisionOptionEntity = decisionOption
+    ? entity(decisionOption, "decision_option")
+    : null;
+  const behaviorEntity = categorySet
+    ? entity(
+        /소비|구매|지출|돈을\s*쓰/.test(primaryClause)
+          ? "구매 및 지출 행동"
+          : `${categorySet} 선택 행동`,
+        "behavior",
+        { source: "inferred", confidence: 0.86 },
+      )
+    : null;
+  const unmetNeedEntity = decisionOption
+    ? entity(
+        `${contextLabel ? `${contextLabel}에서 ` : ""}충족되지 않는 ${
+          /소비|구매|지출|돈을\s*쓰/.test(primaryClause)
+            ? "소비"
+            : parts.surveyObject ?? "현재"
+        } 수요`,
+        "unmet_need",
+        { source: "inferred", confidence: 0.82 },
+      )
+    : null;
+  constructEntities = [
+    ...constructEntities,
+    ...(behaviorEntity ? [behaviorEntity] : []),
+    ...(unmetNeedEntity ? [unmetNeedEntity] : []),
+    ...(decisionOptionEntity ? [decisionOptionEntity] : []),
+  ].filter(
+    (item, index, items) => items.findIndex((other) => other.id === item.id) === index,
+  );
+
+  const primaryPurposeText = categorySet
+    ? /소비|구매|지출|돈을\s*쓰/.test(primaryClause)
+      ? `${target.targetPopulation ?? "응답자"}의 소비 및 지출 현황 파악`
+      : `${categorySet}별 현황 파악`
+    : purposeFor(primaryClause, kind);
+  const primaryStudyPurpose = entity(primaryPurposeText, "study_purpose", {
     source: /실태|만족도|인식|인지도|수요|효과|영향|현황|불편|어려움|빈도/.test(
       raw,
     )
@@ -614,11 +882,32 @@ export function parseSurveyIntent(
       : "inferred",
     confidence: constructEntities.length > 0 ? 0.94 : 0.7,
   });
+  const decisionPurpose = decisionOption
+    ? entity(
+        `${contextLabel ? `${contextLabel}에 ` : ""}필요한 ${decisionOption} 파악`,
+        "study_purpose",
+        { source: "explicit", confidence: 0.95 },
+      )
+    : null;
+  const studyPurposes = [
+    primaryStudyPurpose,
+    ...(decisionPurpose ? [decisionPurpose] : []),
+  ];
+  const decisionGoal = decisionOption
+    ? entity(
+        `${contextLabel ? `${contextLabel}에 ` : ""}개설·도입할 ${decisionOption} 결정`,
+        "decision_goal",
+        { source: "explicit", confidence: 0.96 },
+      )
+    : null;
+  const decisionGoals = decisionGoal ? [decisionGoal] : [];
+  const purpose = studyPurposes.map((item) => item.text).join(" → ");
+  const studyPurpose = primaryStudyPurpose;
   const explicitStudyTitle = /(?:설문\s*)?조사$|연구$/.test(requestStripped);
   const conciseTitleParts = [
     target.targetPopulation,
     parts.surveyObject,
-    ...constructEntities.slice(0, 2).map((item) => item.text),
+    decisionOption,
   ].filter((item): item is string => Boolean(item));
   const inferredStudyTitle = [...new Set(conciseTitleParts)].join(" ").trim();
   const studyTitle = entity(
@@ -637,16 +926,72 @@ export function parseSurveyIntent(
   const eligibilityEntity = eligibilityCondition
     ? entity(eligibilityCondition, "eligibility")
     : null;
+  const semanticRelations: IntentRelation[] = [];
+  for (const activity of activities) {
+    if (targetEntity) {
+      semanticRelations.push({
+        type: "performed_by",
+        fromEntityId: activity.id,
+        toEntityId: targetEntity.id,
+        source: "explicit",
+      });
+    }
+    const activityObject = explicitObjectEntities[0];
+    if (activityObject) {
+      semanticRelations.push({
+        type: "performed_on",
+        fromEntityId: activity.id,
+        toEntityId: activityObject.id,
+        source: "explicit",
+      });
+    }
+  }
+  for (const variable of constructEntities) {
+    semanticRelations.push({
+      type: "measures",
+      fromEntityId: primaryStudyPurpose.id,
+      toEntityId: variable.id,
+      source: variable.source,
+    });
+  }
+  if (decisionGoal) {
+    semanticRelations.push({
+      type: "evidence_for",
+      fromEntityId: primaryStudyPurpose.id,
+      toEntityId: decisionGoal.id,
+      source: purposeChain.connector ? "explicit" : "inferred",
+    });
+    if (decisionPurpose) {
+      semanticRelations.push({
+        type: "evidence_for",
+        fromEntityId: decisionPurpose.id,
+        toEntityId: decisionGoal.id,
+        source: "explicit",
+      });
+    }
+  }
+  if (contexts[0] && (behaviorEntity || explicitObjectEntities[0])) {
+    semanticRelations.push({
+      type: "occurs_in",
+      fromEntityId: (behaviorEntity ?? explicitObjectEntities[0]).id,
+      toEntityId: contexts[0].id,
+      source: "explicit",
+    });
+  }
   const entities = [
     ...(targetEntity ? [targetEntity] : []),
     studyTitle,
-    studyPurpose,
+    ...studyPurposes,
+    ...decisionGoals,
     ...explicitObjectEntities,
-    ...relations.activities,
+    ...activities,
     ...constructEntities,
+    ...contexts,
     ...(timeframeEntity ? [timeframeEntity] : []),
     ...(eligibilityEntity ? [eligibilityEntity] : []),
-  ];
+  ].filter(
+    (item, index, items) => items.findIndex((other) => other.id === item.id) === index,
+  );
 
   return {
     rawInput: raw,
@@ -655,9 +1000,11 @@ export function parseSurveyIntent(
     targetPopulationEntities: targetEntity ? [targetEntity] : [],
     studyTitle,
     studyPurpose,
+    studyPurposes,
+    decisionGoals,
     surveyObject: parts.surveyObject || null,
     objects: explicitObjectEntities,
-    activities: relations.activities,
+    activities,
     constructs: constructEntities.map((item) => item.text),
     constructEntities,
     purpose,
@@ -665,6 +1012,8 @@ export function parseSurveyIntent(
     explicitTimeframeEntity: timeframeEntity,
     eligibilityCondition,
     eligibilityEntity,
+    contexts,
+    relations: semanticRelations,
     screeningRequired,
     includesNonUsers,
     studyType,
@@ -773,6 +1122,16 @@ export function validateSurveyIntentCandidate(
       item.role,
     ),
   );
+  const categoryEntities = intent.entities.filter(
+    (item) => item.role === "category_set",
+  );
+  const decisionOptionEntities = intent.entities.filter(
+    (item) => item.role === "decision_option",
+  );
+  const contextEntities = intent.contexts;
+  let categoryOperationalized = categoryEntities.length === 0;
+  let decisionGoalCovered = intent.decisionGoals.length === 0;
+  let unmetNeedCovered = intent.decisionGoals.length === 0;
 
   for (const [index, question] of candidate.questions.entries()) {
     const text = candidateQuestionText(question);
@@ -781,6 +1140,69 @@ export function validateSurveyIntentCandidate(
     const referencePeriod =
       question.referencePeriod ?? question.reference_period ?? "";
     const combined = `${text} ${referencePeriod}`.trim();
+    const normalizedQuestion = normalizeRoleText(text);
+
+    for (const category of categoryEntities) {
+      const mentionsCategory = normalizedQuestion.includes(
+        normalizeRoleText(category.text),
+      );
+      if (!mentionsCategory && question.measuredRole !== "category_set") continue;
+      if (
+        /(?:모두\s*)?(?:선택|골라)|무엇|어떤|가장\s*(?:많|큰)|지출|구매|빈도|순위|우선순위/.test(
+          text,
+        ) ||
+        question.measuredRole === "category_set"
+      ) {
+        categoryOperationalized = true;
+      }
+      if (/현재\s*얼마나\s*관련|직접\s*경험\s*중|과거에?\s*경험|알고\s*있지만\s*경험/.test(text)) {
+        pushViolation(violations, {
+          code: "ABSTRACT_CATEGORY_TREATED_AS_PRODUCT",
+          severity: "repairable",
+          message: "범주형 변수가 제품·서비스 경험 대상처럼 사용됨.",
+          questionId,
+          evidence: text,
+        });
+        pushViolation(violations, {
+          code: "INVALID_VERB_OBJECT_RELATION",
+          severity: "repairable",
+          message: "범주형 변수와 경험·관련성 동사의 의미 관계가 성립하지 않음.",
+          questionId,
+          evidence: text,
+        });
+      }
+      if (/전반적으로\s*(?:어떻게\s*)?평가/.test(text)) {
+        pushViolation(violations, {
+          code: "GENERIC_TEMPLATE_ROLE_MISMATCH",
+          severity: "repairable",
+          message: "평가할 수 없는 범주형 변수에 제품 평가 템플릿이 적용됨.",
+          questionId,
+          evidence: text,
+        });
+      }
+    }
+
+    if (
+      decisionOptionEntities.some((item) =>
+        normalizedQuestion.includes(normalizeRoleText(item.text)),
+      ) &&
+      /선호|원하|필요|개설|생기|들어오|도입|마련|우선순위|이용\s*의향|방문/.test(
+        text,
+      )
+    ) {
+      decisionGoalCovered = true;
+    }
+    if (
+      /부족|구하기\s*어려|충족되지\s*않|아쉬|불편|필요한\s*(?:품목|서비스|시설|매장|공간)/.test(
+        text,
+      ) &&
+      (contextEntities.length === 0 ||
+        contextEntities.some((item) =>
+          normalizedQuestion.includes(normalizeRoleText(item.text)),
+        ))
+    ) {
+      unmetNeedCovered = true;
+    }
 
     if (
       studyTitleUsedAsActionObject(text) ||
@@ -875,6 +1297,23 @@ export function validateSurveyIntentCandidate(
     }
   }
 
+  if (!categoryOperationalized) {
+    pushViolation(violations, {
+      code: "CATEGORY_SET_NOT_OPERATIONALIZED",
+      severity: "repairable",
+      message: "범주형 변수가 선택·빈도·우선순위처럼 분석 가능한 문항으로 측정되지 않음.",
+      evidence: categoryEntities.map((item) => item.text).join(", "),
+    });
+  }
+  if (!decisionGoalCovered || !unmetNeedCovered) {
+    pushViolation(violations, {
+      code: "DECISION_GOAL_DROPPED",
+      severity: "repairable",
+      message: "앞선 조사 결과가 사용될 최종 의사결정 목적 또는 미충족 수요 측정이 누락됨.",
+      evidence: intent.decisionGoals.map((item) => item.text).join(", "),
+    });
+  }
+
   if (firstQuestion && !intent.screeningRequired) {
     if (firstQuestion.role === "screening") {
       pushViolation(violations, {
@@ -909,6 +1348,7 @@ export function compactSurveyIntentForPrompt(intent: SurveyIntent) {
   return {
     targetPopulation: intent.targetPopulation,
     semanticRoles: intent.entities.map((item) => ({
+      id: item.id,
       text: item.text,
       role: item.role,
       source: item.source,
@@ -917,6 +1357,14 @@ export function compactSurveyIntentForPrompt(intent: SurveyIntent) {
     })),
     studyTitle: intent.studyTitle?.text ?? null,
     studyPurpose: intent.studyPurpose?.text ?? null,
+    studyPurposes: intent.studyPurposes.map((item) => ({
+      id: item.id,
+      text: item.text,
+    })),
+    decisionGoals: intent.decisionGoals.map((item) => ({
+      id: item.id,
+      text: item.text,
+    })),
     surveyObject: intent.surveyObject,
     objects: intent.objects.map((item) => ({ text: item.text, role: item.role })),
     activities: intent.activities.map((item) => ({
@@ -924,6 +1372,8 @@ export function compactSurveyIntentForPrompt(intent: SurveyIntent) {
       activityKind: item.activityKind,
     })),
     constructs: intent.constructs,
+    contexts: intent.contexts.map((item) => ({ id: item.id, text: item.text })),
+    relations: intent.relations,
     purpose: intent.purpose,
     explicitTimeframe: intent.explicitTimeframe,
     eligibilityCondition: intent.eligibilityCondition,

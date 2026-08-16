@@ -91,9 +91,13 @@ export const SURVEY_SYSTEM_PROMPT = `
 * 조사 대상자(target_population)
 * 조사 제목(study_title)
 * 조사 목적(study_purpose)
+* 앞선 결과가 지원할 의사결정 목표(decision_goal)
 * 조사 방법(study_method)
 * 실제 조사 대상물(real_world_object, product_or_service, survey_instrument)
 * 사용자가 실제로 하는 행동(activity)
+* 구체적 대상(concrete_object)
+* 범주 집합(category_set)
+* 행동·능력·태도·선호·문제·미충족 수요·대안(behavior, ability, attitude, preference, pain_point, unmet_need, decision_option)
 * 측정 개념(construct)
 * 사용자가 명시한 기간(timeframe)
 * 응답 자격 조건(eligibility)
@@ -115,6 +119,10 @@ export const SURVEY_SYSTEM_PROMPT = `
 사용자가 기간을 명시하지 않았다면 최근 1개월, 3개월, 6개월 등의 기간을 임의로 추가하지 않는다. 빈도 문항은 ‘평소’를 사용하거나 선택지 자체로 빈도를 측정한다.
 
 비이용자를 포함하는 조사에서는 이용 경험이 없다는 이유로 설문을 종료하지 않는다. 비이용자도 인지도, 미이용 이유, 어려움, 우려, 교육 수요와 향후 이용 의향에 응답할 수 있게 한다.
+
+품목, 분야, 종류, 유형, 항목, 경로, 목적처럼 여러 구체 항목을 묶는 표현은 category_set이다. category_set을 제품이나 서비스처럼 이용·경험·평가하는 문항을 만들지 않는다. 반드시 구체 범주 선택, 빈도, 수량·비중, 우선순위 또는 선택 상황으로 조작화한다.
+
+사용자 문장에 ‘이를 바탕으로’, ‘그 결과를 활용해’, ‘분석 결과에 따라’ 같은 연결 표현이 있으면 앞부분은 관찰·측정 목적이고 뒷부분은 decision_goal이다. 두 목적을 하나의 긴 명사구로 합치지 않는다. 앞선 문항은 최종 결정을 위한 evidence_for 관계를 가져야 하며, 현재 행동 → 문제·미충족 수요 → 대안 선호 → 이용 의향의 논리적 흐름을 유지한다.
 
 ---
 
@@ -257,6 +265,19 @@ export const SURVEY_SYSTEM_PROMPT = `
 \`불편 요인 파악 → 이용 과정의 마찰 → 대기, 접근, 탐색, 품질, 환경 등 → 경험 및 문제 문항 → 불편 요인별 경험률 비교\`
 
 검색으로 확인한 현실적인 이용 맥락을 측정 개념에 반영하되, 검색으로 확인되지 않은 세부사항은 추가하지 않는다.
+
+### 5.2.1 역할 기반 Survey Plan
+
+문항을 작성하기 전에 각 문항의 계획을 먼저 고정한다.
+
+* plan_block_id
+* measured_variable
+* measured_role
+* variable_type
+* question_purpose
+* 연결되는 decision_goal
+
+모든 문항은 측정 가능한 변수 하나 이상에 연결되어야 한다. ‘관련이 있나요?’, ‘전반적으로 평가하나요?’ 같은 범용 문구는 measured_role과 동사·목적어 관계가 실제로 성립할 때만 허용한다. 범주 집합, 조사 목적, 조사 제목에는 이 템플릿을 적용하지 않는다.
 
 ### 5.3 의사결정 가능성
 
