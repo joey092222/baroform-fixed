@@ -53,14 +53,21 @@ import {
 import {
   compactSurveyPlanForPrompt,
   createSurveyPlan,
+  evaluateSurveyPlanCoverage,
+  questionCoversSurveyPlanBlock,
   type SurveyPlan,
+  type SurveyPlanBlock,
 } from "./survey-planning";
 import {
   markSurveyGenerationStage,
   recordSurveyGenerationSource,
+  recordSurveyModelOutputDiagnostics,
+  recordSurveyModelOutputRejection,
   recordSurveyQuestionOutcome,
   recordSurveyPostprocessTrace,
+  recordSurveyPlanCoverageTrace,
   recordSurveyRepair,
+  recordSurveySchemaDiagnostics,
   recordSurveySemanticDiagnostics,
   recordSurveyValidation,
   type SurveyGenerationTrace,
@@ -217,6 +224,25 @@ export class SurveyGenerationResponseError extends Error {
 export const surveyAiInstructions = buildSurveyAiInstructions();
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function valueAtSchemaPath(
+  value: unknown,
+  path: ReadonlyArray<PropertyKey>,
+): unknown {
+  let current = value;
+  for (const segment of path) {
+    if (!isRecord(current) && !Array.isArray(current)) return undefined;
+    current = (current as Record<PropertyKey, unknown>)[segment];
+  }
+  return current;
+}
+
+function schemaValueType(value: unknown) {
+  if (value === undefined) return "undefined";
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "array";
+  return typeof value;
 }
 
 function cleanText(value: unknown, maximum: number) {
@@ -498,14 +524,18 @@ function structuredGenerationToLegacy(
     measuredVariable:
       question.analysis.variable_name ||
       fallback.aiQuestions[index]?.measuredVariable,
-    measuredRole: fallback.aiQuestions[index]?.measuredRole,
-    planBlockId: fallback.aiQuestions[index]?.planBlockId,
-    purposeBlockId: fallback.aiQuestions[index]?.purposeBlockId,
-    measuredEntityIds: fallback.aiQuestions[index]?.measuredEntityIds,
+    // The model schema does not declare plan block links. Assigning them by array
+    // index made unrelated model questions appear to cover required variables.
+    // Final coverage reclassifies visible question semantics and the server only
+    // attaches block metadata when it performs a deterministic replacement.
+    measuredRole: undefined,
+    planBlockId: undefined,
+    purposeBlockId: undefined,
+    measuredEntityIds: undefined,
     questionPurpose:
       question.analysis.purpose ||
       fallback.aiQuestions[index]?.questionPurpose,
-    decisionGoalIds: fallback.aiQuestions[index]?.decisionGoalIds,
+    decisionGoalIds: undefined,
     subjectRole: fallback.aiQuestions[index]?.subjectRole,
     objectRole: fallback.aiQuestions[index]?.objectRole,
     explicitTimeframe: fallback.aiQuestions[index]?.explicitTimeframe,
@@ -828,6 +858,122 @@ function normalizeQuestion(value: unknown, id: number): SurveyQuestion {
           .filter(Boolean)
           .slice(0, 12)
       : undefined,
+  };
+}
+
+/**
+ * OpenAI decides respondent-facing survey content. Stable database/editor metadata
+ * is finalized by the server so harmless duplicate IDs or stale path counts do not
+ * discard otherwise usable questions.
+ */
+export function normalizeModelGeneratedSurveyMetadata(
+  generation: SurveyGeneration,
+  expectedQuestionCount: number,
+) {
+  const normalizedPaths: string[] = [];
+  const sourceIdMap = new Map<string, string>();
+  const sources = generation.research.sources.map((source, index) => {
+    const id = `source-${index + 1}`;
+    if (!sourceIdMap.has(source.id)) sourceIdMap.set(source.id, id);
+    if (source.id !== id) normalizedPaths.push(`research.sources.${index}.id`);
+    return { ...source, id };
+  });
+  const remapSourceIds = (ids: string[]) => [
+    ...new Set(ids.flatMap((id) => sourceIdMap.get(id) ?? [])),
+  ];
+  const entities = generation.research.entities.map((entity, entityIndex) => ({
+    ...entity,
+    verified_facts: entity.verified_facts.map((fact, factIndex) => {
+      const source_ids = remapSourceIds(fact.source_ids);
+      if (source_ids.join("|") !== fact.source_ids.join("|")) {
+        normalizedPaths.push(
+          `research.entities.${entityIndex}.verified_facts.${factIndex}.source_ids`,
+        );
+      }
+      return { ...fact, source_ids };
+    }),
+  }));
+
+  const sectionIdMap = new Map<string, string>();
+  const sections = generation.survey.sections.map((section, index) => {
+    const id = `section-${index + 1}`;
+    if (!sectionIdMap.has(section.id)) sectionIdMap.set(section.id, id);
+    if (section.id !== id) normalizedPaths.push(`survey.sections.${index}.id`);
+    return { ...section, id };
+  });
+  const firstSectionId = sections[0]?.id ?? "section-1";
+  const usedVariableNames = new Set<string>();
+  const questions = generation.survey.questions.map((question, questionIndex) => {
+    const id = `question-${questionIndex + 1}`;
+    const section_id = sectionIdMap.get(question.section_id) ?? firstSectionId;
+    const originalVariableName = question.analysis.variable_name;
+    let variable_name = originalVariableName;
+    let duplicateIndex = 2;
+    while (usedVariableNames.has(variable_name)) {
+      variable_name = `${originalVariableName}_${duplicateIndex}`;
+      duplicateIndex += 1;
+    }
+    usedVariableNames.add(variable_name);
+    if (question.id !== id) normalizedPaths.push(`survey.questions.${questionIndex}.id`);
+    if (question.section_id !== section_id) {
+      normalizedPaths.push(`survey.questions.${questionIndex}.section_id`);
+    }
+    if (question.analysis.variable_name !== variable_name) {
+      normalizedPaths.push(
+        `survey.questions.${questionIndex}.analysis.variable_name`,
+      );
+    }
+    const options = question.options.map((option, optionIndex) => {
+      const optionId = `${id}-option-${optionIndex + 1}`;
+      if (option.id !== optionId) {
+        normalizedPaths.push(
+          `survey.questions.${questionIndex}.options.${optionIndex}.id`,
+        );
+      }
+      return { ...option, id: optionId };
+    });
+    const source_ids = remapSourceIds(question.grounding.source_ids);
+    const uses_external_fact = source_ids.length > 0;
+    if (source_ids.join("|") !== question.grounding.source_ids.join("|")) {
+      normalizedPaths.push(
+        `survey.questions.${questionIndex}.grounding.source_ids`,
+      );
+    }
+    if (question.grounding.uses_external_fact !== uses_external_fact) {
+      normalizedPaths.push(
+        `survey.questions.${questionIndex}.grounding.uses_external_fact`,
+      );
+    }
+    return {
+      ...question,
+      id,
+      section_id,
+      options,
+      analysis: { ...question.analysis, variable_name },
+      grounding: { uses_external_fact, source_ids },
+    };
+  });
+
+  const planCounts = {
+    requested_question_count: expectedQuestionCount,
+    total_question_nodes: expectedQuestionCount,
+    min_path_questions: expectedQuestionCount,
+    max_path_questions: expectedQuestionCount,
+  };
+  for (const [key, value] of Object.entries(planCounts)) {
+    if (generation.survey_plan[key as keyof typeof planCounts] !== value) {
+      normalizedPaths.push(`survey_plan.${key}`);
+    }
+  }
+
+  return {
+    generation: {
+      ...generation,
+      research: { ...generation.research, sources, entities },
+      survey_plan: { ...generation.survey_plan, ...planCounts },
+      survey: { ...generation.survey, sections, questions },
+    } satisfies SurveyGeneration,
+    normalizedPaths: [...new Set(normalizedPaths)],
   };
 }
 
@@ -1386,6 +1532,169 @@ export function repairInvalidQuestions({
   };
 }
 
+function replacementForPlanBlock(
+  original: SurveyQuestion,
+  fallbackQuestion: SurveyQuestion,
+  block: SurveyPlanBlock,
+  intent: SurveyIntent,
+): SurveyQuestion {
+  return {
+    ...fallbackQuestion,
+    id: original.id,
+    reason: formatQuestionReason(fallbackQuestion.reason),
+    planBlockId: block.id,
+    purposeBlockId: block.purposeBlockId ?? fallbackQuestion.purposeBlockId,
+    measuredEntityIds:
+      block.measuredEntityIds ?? fallbackQuestion.measuredEntityIds,
+    measuredConstruct: block.variable,
+    measuredVariable: block.variable,
+    measuredRole: block.role,
+    questionPurpose: block.purpose,
+    decisionGoalIds: block.decisionGoalIds,
+    unitOfAnalysis: fallbackQuestion.unitOfAnalysis ?? intent.unitOfAnalysis,
+    subjectRole: fallbackQuestion.subjectRole ?? "target_population",
+    objectRole:
+      fallbackQuestion.objectRole ?? intent.objects[0]?.role ?? "real_world_object",
+    explicitTimeframe:
+      fallbackQuestion.explicitTimeframe ?? intent.explicitTimeframe,
+  };
+}
+
+export function restoreMissingRequiredPlanBlocks({
+  survey,
+  intent,
+  plan,
+  getFallback,
+}: {
+  survey: SurveyBlueprint;
+  intent: SurveyIntent;
+  plan: SurveyPlan;
+  getFallback: () => SurveyBlueprint;
+}) {
+  const initialCoverage = evaluateSurveyPlanCoverage(plan, survey.aiQuestions);
+  if (initialCoverage.missingRequiredBlockIds.length === 0) {
+    return {
+      survey,
+      initialCoverage,
+      finalCoverage: initialCoverage,
+      repairedQuestionIds: [] as number[],
+      roleMismatchQuestionIds: initialCoverage.incompatibleQuestionIds,
+      preservedQuestionIds: survey.aiQuestions.map((item) => item.id),
+    };
+  }
+
+  const fallbackQuestions = resizeSurveyQuestions(
+    getFallback().aiQuestions,
+    survey.aiQuestions.length,
+  );
+  const requiredBlocks = plan.blocks.filter(
+    (block) =>
+      block.kind === "measurement" && block.directlyAskable && block.required,
+  );
+  const optionalBlocks = plan.blocks.filter(
+    (block) =>
+      block.kind === "measurement" && block.directlyAskable && !block.required,
+  );
+  const repairedQuestionIds: number[] = [];
+  const questions = survey.aiQuestions.map((item) => ({ ...item }));
+
+  const replacedIndexes = new Set<number>();
+  for (let attempt = 0; attempt < requiredBlocks.length; attempt += 1) {
+    const currentCoverage = evaluateSurveyPlanCoverage(plan, questions);
+    const blockId = currentCoverage.missingRequiredBlockIds[0];
+    if (!blockId) break;
+    const block = requiredBlocks.find((item) => item.id === blockId);
+    if (!block) continue;
+    const fallbackQuestion = fallbackQuestions.find((question) =>
+      questionCoversSurveyPlanBlock(question, block),
+    );
+    if (!fallbackQuestion) continue;
+
+    const protectedIndexes = new Set(
+      questions.flatMap((question, index) =>
+        requiredBlocks.some((requiredBlock) =>
+          questionCoversSurveyPlanBlock(question, requiredBlock),
+        )
+          ? [index]
+          : [],
+      ),
+    );
+    const duplicateReplacementIds = new Set(
+      currentCoverage.semanticDuplicateGroups.flatMap((group) => group.slice(1)),
+    );
+    const incompatibleIds = new Set(currentCoverage.incompatibleQuestionIds);
+    const duplicateIndex = questions.findIndex(
+      (question, index) =>
+        !replacedIndexes.has(index) &&
+        duplicateReplacementIds.has(String(question.id)),
+    );
+    const declaredMismatchIndex = currentCoverage.questionCoverage.findIndex(
+      (coverage, index) =>
+        !replacedIndexes.has(index) &&
+        coverage.declaredPlanBlockId === blockId &&
+        !coverage.roleCompatible,
+    );
+    const incompatibleIndex = questions.findIndex(
+      (question, index) =>
+        !replacedIndexes.has(index) && incompatibleIds.has(String(question.id)),
+    );
+    const unplannedIndex = questions.findLastIndex(
+      (question, index) =>
+        !protectedIndexes.has(index) &&
+        !replacedIndexes.has(index) &&
+        !plan.blocks.some((planBlock) =>
+          questionCoversSurveyPlanBlock(question, planBlock),
+        ),
+    );
+    const optionalIndex = questions.findLastIndex(
+      (question, index) =>
+        !protectedIndexes.has(index) &&
+        !replacedIndexes.has(index) &&
+        optionalBlocks.some((optionalBlock) =>
+          questionCoversSurveyPlanBlock(question, optionalBlock),
+        ),
+    );
+    const replacementIndex =
+      duplicateIndex >= 0
+        ? duplicateIndex
+        : declaredMismatchIndex >= 0
+          ? declaredMismatchIndex
+          : incompatibleIndex >= 0
+            ? incompatibleIndex
+            : unplannedIndex >= 0
+              ? unplannedIndex
+              : optionalIndex;
+    if (replacementIndex < 0) continue;
+    const original = questions[replacementIndex];
+    questions[replacementIndex] = replacementForPlanBlock(
+      original,
+      fallbackQuestion,
+      block,
+      intent,
+    );
+    repairedQuestionIds.push(original.id);
+    replacedIndexes.add(replacementIndex);
+  }
+
+  const finalCoverage = evaluateSurveyPlanCoverage(plan, questions);
+  const repairedSet = new Set(repairedQuestionIds);
+  return {
+    survey: {
+      ...survey,
+      templateQuestions: questions.slice(0, 5),
+      aiQuestions: questions,
+      semanticPlan: plan,
+    },
+    initialCoverage,
+    finalCoverage,
+    repairedQuestionIds,
+    roleMismatchQuestionIds: initialCoverage.incompatibleQuestionIds,
+    preservedQuestionIds: questions
+      .filter((item) => !repairedSet.has(item.id))
+      .map((item) => item.id),
+  };
+}
+
 export function parseSurveyDraftResponse(
   rawPayload: unknown,
   prompt: string,
@@ -1406,6 +1715,9 @@ export function parseSurveyDraftResponse(
   );
   let decoded: unknown = rawPayload.output_parsed;
   if (decoded === undefined || decoded === null) {
+    recordSurveySchemaDiagnostics(trace, {
+      stage: "output_parsed_missing",
+    });
     throw new SurveyGenerationResponseError(
       "SURVEY_GENERATION_OUTPUT_MISSING",
       "생성된 설문 구조를 확인하지 못했어요. 다시 시도해주세요.",
@@ -1414,23 +1726,86 @@ export function parseSurveyDraftResponse(
 
   let structuredGeneration: SurveyGeneration | null = null;
   recordSurveyValidation(trace, "output-schema-validation");
+  const decodedSurvey = isRecord(decoded) && isRecord(decoded.survey)
+    ? decoded.survey
+    : null;
+  const decodedQuestions = decodedSurvey && Array.isArray(decodedSurvey.questions)
+    ? decodedSurvey.questions
+    : [];
+  recordSurveyModelOutputDiagnostics(trace, {
+    hasTitle: Boolean(decodedSurvey && cleanText(decodedSurvey.title, 100)),
+    hasIntro: Boolean(decodedSurvey && cleanText(decodedSurvey.intro, 500)),
+    hasSurveyPlan: Boolean(isRecord(decoded) && isRecord(decoded.survey_plan)),
+    questionTypes: decodedQuestions.map((question) =>
+      isRecord(question) ? cleanText(question.type, 40) || "missing" : "invalid",
+    ),
+  });
   const structuredResult = createSurveyGenerationSchema(questionCount).safeParse(decoded);
   if (structuredResult.success) {
-    structuredGeneration = structuredResult.data;
+    const preNormalizationIssues = generationIntegrityIssues(
+      structuredResult.data,
+      questionCount,
+    );
+    const normalized = normalizeModelGeneratedSurveyMetadata(
+      structuredResult.data,
+      questionCount,
+    );
+    structuredGeneration = normalized.generation;
+    recordSurveyModelOutputDiagnostics(trace, {
+      normalizedInternalMetadataPaths: normalized.normalizedPaths,
+      questionStructureIssues: preNormalizationIssues,
+    });
     const integrityIssues = generationIntegrityIssues(
       structuredGeneration,
       questionCount,
     );
     if (integrityIssues.length > 0) {
+      recordSurveySchemaDiagnostics(trace, {
+        stage: "generation_integrity_validation",
+        issues: integrityIssues.map((_, index) => ({
+          path: ["integrity", index],
+          code: "custom",
+        })),
+      });
+      recordSurveyModelOutputRejection(trace, {
+        at: "generation_integrity_validation",
+        code: "MODEL_OUTPUT_INTEGRITY_INVALID",
+        issues: integrityIssues,
+        issuePaths: integrityIssues.map((_, index) => `integrity.${index}`),
+      });
       throw new SurveyValidationError(integrityIssues, "schema");
     }
     const copyIssues = respondentCopyIssues(structuredGeneration);
     if (copyIssues.length > 0) {
+      recordSurveyModelOutputRejection(trace, {
+        at: "respondent_copy_validation",
+        code: "MODEL_RESPONDENT_COPY_INVALID",
+        issues: copyIssues,
+      });
       throw new SurveyValidationError(copyIssues);
     }
     decoded = structuredGenerationToLegacy(structuredGeneration, prompt);
   }
   if (!isRecord(decoded) || !isRecord(decoded.result)) {
+    if (!structuredResult.success) {
+      recordSurveySchemaDiagnostics(trace, {
+        stage: "structured_output_schema_validation",
+        issues: structuredResult.error.issues.map((issue) => ({
+          path: issue.path,
+          code: issue.code,
+          expected: "expected" in issue ? issue.expected : undefined,
+          received: schemaValueType(valueAtSchemaPath(decoded, issue.path)),
+        })),
+      });
+      recordSurveyModelOutputRejection(trace, {
+        at: "structured_output_schema_validation",
+        code: "MODEL_OUTPUT_SCHEMA_INVALID",
+        issues: structuredResult.error.issues.map((issue) => issue.message),
+        issuePaths: structuredResult.error.issues.map((issue) =>
+          issue.path.map(String).join("."),
+        ),
+      });
+    }
     const schemaIssues = structuredResult.success
       ? []
       : structuredResult.error.issues
@@ -1550,15 +1925,26 @@ export function parseSurveyDraftResponse(
     ),
     violationOrigins: semanticViolations.map((item) => item.origin ?? "question"),
   });
-  assertQuestionQuality(normalizedAiQuestions, questionCount);
-  assertSurveyDepth(
-    result.designPlan,
-    normalizedAiQuestions,
-    questionCount,
-    expectsReferences,
-  );
-  if (semanticViolations.length === 0) {
-    assertExplicitMeasurementCoverage(prompt, normalizedAiQuestions);
+  try {
+    assertQuestionQuality(normalizedAiQuestions, questionCount);
+    assertSurveyDepth(
+      result.designPlan,
+      normalizedAiQuestions,
+      questionCount,
+      expectsReferences,
+    );
+    if (semanticViolations.length === 0) {
+      assertExplicitMeasurementCoverage(prompt, normalizedAiQuestions);
+    }
+  } catch (error) {
+    const issue =
+      error instanceof Error ? error.message : "모델 문항 검증에 실패했습니다.";
+    recordSurveyModelOutputRejection(trace, {
+      at: "question_quality_validation",
+      code: "MODEL_QUESTION_VALIDATION_FAILED",
+      issues: [issue],
+    });
+    throw error;
   }
 
   const normalizedRespondent = respondentGroup
@@ -1714,6 +2100,8 @@ export function parseSurveyDraftResponse(
     semanticViolations.length > 0 ||
     (validationIssues.length > 0 &&
       shouldEnforceSurveyIntentValidation(brief.surveyIntent));
+  let repairedQuestionIds: number[] = [];
+  let preservedQuestionIds = blueprint.aiQuestions.map((item) => item.id);
   if (shouldRepair) {
     const repair = repairInvalidQuestions({
       survey: blueprint,
@@ -1728,29 +2116,8 @@ export function parseSurveyDraftResponse(
     recordSurveySemanticDiagnostics(trace, {
       repairedQuestions: blueprint.aiQuestions.map((item) => item.title),
     });
-    recordSurveyRepair(
-      trace,
-      repair.repairedQuestionIds,
-      repair.preservedQuestionIds,
-    );
-    recordSurveyQuestionOutcome(trace, {
-      originalQuestionCount: aiQuestions.length,
-      repairedQuestionIds: repair.repairedQuestionIds,
-      preservedQuestionIds: repair.preservedQuestionIds,
-    });
-    recordSurveyGenerationSource(trace, "openai_partial_repair");
-    recordSurveyValidation(trace, "repair-validation");
-    validationIssues = validateSurvey(prompt, brief, blueprint);
-    const finalSemanticIssues = lintSurveyQuestionSemantics(
-      brief.parsedSurveyContext,
-      blueprint.aiQuestions,
-    );
-    validationIssues.push(
-      ...finalSemanticIssues.map((item) => `${item.code}: ${item.message}`),
-    );
-    recordSurveySemanticDiagnostics(trace, {
-      secondValidationIssues: validationIssues,
-    });
+    repairedQuestionIds = repair.repairedQuestionIds;
+    preservedQuestionIds = repair.preservedQuestionIds;
     if (process.env.NODE_ENV !== "production") {
       console.info("survey-generation-partial-repair", {
         trigger:
@@ -1766,7 +2133,86 @@ export function parseSurveyDraftResponse(
       });
     }
   }
+
+  const requiredCoverageRepair = restoreMissingRequiredPlanBlocks({
+    survey: blueprint,
+    intent: brief.surveyIntent,
+    plan: rolePlan,
+    getFallback: getPlanBasedFallback,
+  });
+  blueprint = requiredCoverageRepair.survey;
+  recordSurveyPlanCoverageTrace(trace, {
+    initial: requiredCoverageRepair.initialCoverage,
+    final: requiredCoverageRepair.finalCoverage,
+  });
+  const repairedRoleMismatchIds = requiredCoverageRepair.roleMismatchQuestionIds
+    .filter((id) => repairedQuestionIds.includes(Number(id)));
+  if (repairedRoleMismatchIds.length > 0) {
+    recordSurveySemanticDiagnostics(trace, {
+      qualityViolationCodes: [
+        ...(trace?.qualityViolationCodes ?? []),
+        "REPAIRED_QUESTION_ROLE_MISMATCH",
+      ],
+      violationQuestionIds: repairedRoleMismatchIds,
+    });
+  }
+  if (requiredCoverageRepair.repairedQuestionIds.length > 0) {
+    repairedQuestionIds = [
+      ...new Set([
+        ...repairedQuestionIds,
+        ...requiredCoverageRepair.repairedQuestionIds,
+      ]),
+    ];
+    const repairedSet = new Set(repairedQuestionIds);
+    preservedQuestionIds = blueprint.aiQuestions
+      .filter((item) => !repairedSet.has(item.id))
+      .map((item) => item.id);
+  }
+  if (repairedQuestionIds.length > 0) {
+    recordSurveyRepair(trace, repairedQuestionIds, preservedQuestionIds);
+    recordSurveyQuestionOutcome(trace, {
+      originalQuestionCount: aiQuestions.length,
+      repairedQuestionIds,
+      preservedQuestionIds,
+    });
+    recordSurveyGenerationSource(trace, "openai_partial_repair");
+    recordSurveyValidation(trace, "repair-validation");
+  }
+  if (repairedQuestionIds.length > 0) {
+    validationIssues = validateSurvey(prompt, brief, blueprint);
+    const finalSemanticIssues = lintSurveyQuestionSemantics(
+      brief.parsedSurveyContext,
+      blueprint.aiQuestions,
+    );
+    validationIssues.push(
+      ...finalSemanticIssues.map((item) => `${item.code}: ${item.message}`),
+    );
+  }
+  validationIssues.push(
+    ...requiredCoverageRepair.finalCoverage.missingRequiredBlockIds.map(
+      (blockId) => `PLAN_REQUIRED_BLOCK_MISSING: ${blockId}`,
+    ),
+  );
+  validationIssues.push(
+    ...requiredCoverageRepair.finalCoverage.incompatibleQuestionIds.map(
+      (questionId) =>
+        `QUESTION_ROLE_MISMATCH: 문항 ${questionId}의 선언 변수와 실제 질문 의미가 다릅니다.`,
+    ),
+    ...requiredCoverageRepair.finalCoverage.semanticDuplicateGroups.map(
+      (group) =>
+        `SEMANTIC_DUPLICATE_QUESTION: 문항 ${group.join(", ")}이 같은 응답을 중복 측정합니다.`,
+    ),
+  );
+  recordSurveySemanticDiagnostics(trace, {
+    secondValidationIssues: validationIssues,
+    repairedQuestions: blueprint.aiQuestions.map((item) => item.title),
+  });
   if (validationIssues.length > 0) {
+    recordSurveyModelOutputRejection(trace, {
+      at: "final_acceptance",
+      code: "MODEL_FINAL_ACCEPTANCE_FAILED",
+      issues: validationIssues,
+    });
     throw new SurveyValidationError(validationIssues);
   }
   recordSurveyPostprocessTrace(trace, {

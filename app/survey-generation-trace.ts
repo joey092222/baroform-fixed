@@ -1,4 +1,5 @@
 import type { ParsedSurveyContext } from "./survey-context";
+import type { PlanCoverageResult } from "./survey-planning";
 import type { SurveyGenerationSource } from "./survey-generation-response";
 import {
   currentBuildDiagnostics,
@@ -11,6 +12,13 @@ export const MAX_REGENERATION_ATTEMPTS = MAX_FULL_REGENERATION_ATTEMPTS;
 export const MAX_MODEL_CALLS_PER_REQUEST = 1;
 
 export type GenerationSource = SurveyGenerationSource;
+
+function canRecordDetailedGenerationTrace() {
+  return (
+    process.env.NODE_ENV !== "production" ||
+    process.env.VERCEL_ENV === "preview"
+  );
+}
 
 function canonicalGenerationSource(
   source: GenerationSource,
@@ -133,6 +141,32 @@ export type SurveyGenerationTrace = {
   responseIncompleteReason: string | null;
   outputParsedPresent: boolean;
   outputItemTypes: string[];
+  modelOutputTopLevelKeys: string[];
+  modelReturnedQuestionCount: number | null;
+  schemaIssuePaths: string[];
+  schemaIssueCodes: string[];
+  schemaExpectedTypes: string[];
+  schemaReceivedTypes: string[];
+  parseFailureStage: string | null;
+  modelOutputRejectedAt: string | null;
+  modelOutputRejectionCode: string | null;
+  modelOutputRejectionIssues: string[];
+  modelOutputRejectionIssuePaths: string[];
+  modelOutputHasTitle: boolean;
+  modelOutputHasIntro: boolean;
+  modelOutputHasSurveyPlan: boolean;
+  modelQuestionTypes: string[];
+  modelQuestionStructureIssues: string[];
+  normalizedInternalMetadataPaths: string[];
+  initialCoveredRequiredBlockIds: string[];
+  initialMissingRequiredBlockIds: string[];
+  finalCoveredRequiredBlockIds: string[];
+  finalMissingRequiredBlockIds: string[];
+  optionalPlanBlockIds: string[];
+  initialIncompatibleQuestionIds: string[];
+  finalIncompatibleQuestionIds: string[];
+  initialSemanticDuplicateGroups: string[][];
+  semanticDuplicateGroups: string[][];
   questionsBeforePostprocessCount: number;
   finalQuestionCount: number;
   questionsBeforePostprocess: string[];
@@ -202,6 +236,32 @@ export function createSurveyGenerationTrace(
     responseIncompleteReason: null,
     outputParsedPresent: false,
     outputItemTypes: [],
+    modelOutputTopLevelKeys: [],
+    modelReturnedQuestionCount: null,
+    schemaIssuePaths: [],
+    schemaIssueCodes: [],
+    schemaExpectedTypes: [],
+    schemaReceivedTypes: [],
+    parseFailureStage: null,
+    modelOutputRejectedAt: null,
+    modelOutputRejectionCode: null,
+    modelOutputRejectionIssues: [],
+    modelOutputRejectionIssuePaths: [],
+    modelOutputHasTitle: false,
+    modelOutputHasIntro: false,
+    modelOutputHasSurveyPlan: false,
+    modelQuestionTypes: [],
+    modelQuestionStructureIssues: [],
+    normalizedInternalMetadataPaths: [],
+    initialCoveredRequiredBlockIds: [],
+    initialMissingRequiredBlockIds: [],
+    finalCoveredRequiredBlockIds: [],
+    finalMissingRequiredBlockIds: [],
+    optionalPlanBlockIds: [],
+    initialIncompatibleQuestionIds: [],
+    finalIncompatibleQuestionIds: [],
+    initialSemanticDuplicateGroups: [],
+    semanticDuplicateGroups: [],
     questionsBeforePostprocessCount: 0,
     finalQuestionCount: 0,
     questionsBeforePostprocess: [],
@@ -237,7 +297,7 @@ export function recordSurveyContextTrace(
   if (!trace) return;
   trace.selectedSurveyType = context.surveyArchetype;
   trace.selectedTemplateKey = selectedTemplateKey.slice(0, 120);
-  if (process.env.NODE_ENV === "production") return;
+  if (!canRecordDetailedGenerationTrace()) return;
   trace.rawUserInput = context.rawUserInput.slice(0, 500);
   trace.normalizedInput = context.normalizedInput.slice(0, 500);
   trace.parsedSurveyContext = {
@@ -277,6 +337,21 @@ export function recordSurveyModelResponseTrace(
       typeof incompleteReason === "string" ? incompleteReason.slice(0, 120) : null;
     trace.outputParsedPresent =
       payload.output_parsed !== null && payload.output_parsed !== undefined;
+    if (payload.output_parsed && typeof payload.output_parsed === "object") {
+      const parsed = payload.output_parsed as Record<string, unknown>;
+      trace.modelOutputTopLevelKeys = Object.keys(parsed).slice(0, 30);
+      const survey = parsed.survey;
+      const result = parsed.result;
+      const questions =
+        survey && typeof survey === "object"
+          ? (survey as { questions?: unknown }).questions
+          : result && typeof result === "object"
+            ? (result as { aiQuestions?: unknown }).aiQuestions
+            : null;
+      trace.modelReturnedQuestionCount = Array.isArray(questions)
+        ? questions.length
+        : null;
+    }
     trace.outputItemTypes = Array.isArray(payload.output)
       ? payload.output
           .map((item) =>
@@ -288,12 +363,120 @@ export function recordSurveyModelResponseTrace(
           .slice(0, 30)
       : [];
   }
-  if (process.env.NODE_ENV === "production") return;
+  if (!canRecordDetailedGenerationTrace()) return;
   try {
     trace.rawModelResponse = JSON.stringify(rawModelResponse).slice(0, 8_000);
   } catch {
     trace.rawModelResponse = "[unserializable model response]";
   }
+}
+
+export function recordSurveySchemaDiagnostics(
+  trace: SurveyGenerationTrace | undefined,
+  details: {
+    stage: string;
+    issues?: Array<{
+      path?: ReadonlyArray<PropertyKey>;
+      code?: string;
+      expected?: unknown;
+      received?: unknown;
+    }>;
+  },
+) {
+  if (!trace) return;
+  trace.parseFailureStage = details.stage.slice(0, 120);
+  const issues = details.issues ?? [];
+  trace.schemaIssuePaths = issues
+    .slice(0, 12)
+    .map((issue) => (issue.path ?? []).map(String).join(".").slice(0, 200));
+  trace.schemaIssueCodes = issues
+    .slice(0, 12)
+    .map((issue) => String(issue.code ?? "unknown").slice(0, 80));
+  trace.schemaExpectedTypes = issues
+    .slice(0, 12)
+    .map((issue) => String(issue.expected ?? "unknown").slice(0, 80));
+  trace.schemaReceivedTypes = issues
+    .slice(0, 12)
+    .map((issue) => String(issue.received ?? "unknown").slice(0, 80));
+}
+
+export function recordSurveyModelOutputDiagnostics(
+  trace: SurveyGenerationTrace | undefined,
+  details: {
+    hasTitle?: boolean;
+    hasIntro?: boolean;
+    hasSurveyPlan?: boolean;
+    questionTypes?: string[];
+    questionStructureIssues?: string[];
+    normalizedInternalMetadataPaths?: string[];
+  },
+) {
+  if (!trace) return;
+  if (details.hasTitle !== undefined) trace.modelOutputHasTitle = details.hasTitle;
+  if (details.hasIntro !== undefined) trace.modelOutputHasIntro = details.hasIntro;
+  if (details.hasSurveyPlan !== undefined) {
+    trace.modelOutputHasSurveyPlan = details.hasSurveyPlan;
+  }
+  if (details.questionTypes) {
+    trace.modelQuestionTypes = details.questionTypes.slice(0, 30);
+  }
+  if (details.questionStructureIssues) {
+    trace.modelQuestionStructureIssues = details.questionStructureIssues
+      .slice(0, 30)
+      .map((item) => item.slice(0, 200));
+  }
+  if (details.normalizedInternalMetadataPaths) {
+    trace.normalizedInternalMetadataPaths = details.normalizedInternalMetadataPaths
+      .slice(0, 60)
+      .map((item) => item.slice(0, 200));
+  }
+}
+
+export function recordSurveyModelOutputRejection(
+  trace: SurveyGenerationTrace | undefined,
+  details: {
+    at: string;
+    code: string;
+    issues: string[];
+    issuePaths?: string[];
+  },
+) {
+  if (!trace) return;
+  trace.modelOutputRejectedAt = details.at.slice(0, 120);
+  trace.modelOutputRejectionCode = details.code.slice(0, 120);
+  trace.modelOutputRejectionIssues = details.issues
+    .slice(0, 20)
+    .map((item) => item.slice(0, 240));
+  trace.modelOutputRejectionIssuePaths = (details.issuePaths ?? [])
+    .slice(0, 20)
+    .map((item) => item.slice(0, 200));
+}
+
+export function recordSurveyPlanCoverageTrace(
+  trace: SurveyGenerationTrace | undefined,
+  details: { initial: PlanCoverageResult; final: PlanCoverageResult },
+) {
+  if (!trace) return;
+  trace.initialCoveredRequiredBlockIds = [
+    ...details.initial.coveredRequiredBlockIds,
+  ];
+  trace.initialMissingRequiredBlockIds = [
+    ...details.initial.missingRequiredBlockIds,
+  ];
+  trace.finalCoveredRequiredBlockIds = [...details.final.coveredRequiredBlockIds];
+  trace.finalMissingRequiredBlockIds = [...details.final.missingRequiredBlockIds];
+  trace.optionalPlanBlockIds = [...details.final.optionalBlockIds];
+  trace.initialIncompatibleQuestionIds = [
+    ...details.initial.incompatibleQuestionIds,
+  ];
+  trace.finalIncompatibleQuestionIds = [
+    ...details.final.incompatibleQuestionIds,
+  ];
+  trace.initialSemanticDuplicateGroups =
+    details.initial.semanticDuplicateGroups.map((group) => [...group]);
+  trace.semanticDuplicateGroups = details.final.semanticDuplicateGroups.map(
+    (group) => [...group],
+  );
 }
 
 export function recordSurveyPostprocessTrace(
@@ -307,7 +490,7 @@ export function recordSurveyPostprocessTrace(
   if (details.final) {
     trace.finalQuestionCount = details.final.length;
   }
-  if (process.env.NODE_ENV === "production") return;
+  if (!canRecordDetailedGenerationTrace()) return;
   if (details.before) {
     trace.questionsBeforePostprocess = details.before
       .slice(0, 30)
@@ -350,7 +533,7 @@ export function recordSurveyIntentTrace(
     relations: string[];
   },
 ) {
-  if (!trace || process.env.NODE_ENV === "production") return;
+  if (!trace || !canRecordDetailedGenerationTrace()) return;
   trace.extractedTopic = details.topic?.slice(0, 120) ?? null;
   trace.extractedVariables = details.variables.slice(0, 20).map((item) => item.slice(0, 120));
   trace.extractedRelations = details.relations.slice(0, 20).map((item) => item.slice(0, 160));
@@ -388,10 +571,7 @@ export function recordSurveySemanticDiagnostics(
     secondValidationIssues?: string[];
   },
 ) {
-  if (!trace || process.env.NODE_ENV === "production") return;
-  if (details.originalQuestions) {
-    trace.originalQuestions = details.originalQuestions.slice(0, 30).map((item) => item.slice(0, 240));
-  }
+  if (!trace) return;
   if (details.violationCodes) trace.semanticViolationCodes = [...details.violationCodes];
   if (details.qualityViolationCodes) {
     trace.qualityViolationCodes = details.qualityViolationCodes
@@ -402,6 +582,10 @@ export function recordSurveySemanticDiagnostics(
     trace.semanticViolationQuestionIds = details.violationQuestionIds.map(String);
   }
   if (details.violationOrigins) trace.violationOrigins = [...details.violationOrigins];
+  if (!canRecordDetailedGenerationTrace()) return;
+  if (details.originalQuestions) {
+    trace.originalQuestions = details.originalQuestions.slice(0, 30).map((item) => item.slice(0, 240));
+  }
   if (details.repairedQuestions) {
     trace.repairedQuestions = details.repairedQuestions.slice(0, 30).map((item) => item.slice(0, 240));
   }
@@ -545,6 +729,38 @@ export function surveyGenerationTraceSnapshot(trace: SurveyGenerationTrace) {
     responseIncompleteReason: trace.responseIncompleteReason,
     outputParsedPresent: trace.outputParsedPresent,
     outputItemTypes: [...trace.outputItemTypes],
+    modelOutputTopLevelKeys: [...trace.modelOutputTopLevelKeys],
+    modelReturnedQuestionCount: trace.modelReturnedQuestionCount,
+    schemaIssuePaths: [...trace.schemaIssuePaths],
+    schemaIssueCodes: [...trace.schemaIssueCodes],
+    schemaExpectedTypes: [...trace.schemaExpectedTypes],
+    schemaReceivedTypes: [...trace.schemaReceivedTypes],
+    parseFailureStage: trace.parseFailureStage,
+    modelOutputRejectedAt: trace.modelOutputRejectedAt,
+    modelOutputRejectionCode: trace.modelOutputRejectionCode,
+    modelOutputRejectionIssues: [...trace.modelOutputRejectionIssues],
+    modelOutputRejectionIssuePaths: [...trace.modelOutputRejectionIssuePaths],
+    modelOutputHasTitle: trace.modelOutputHasTitle,
+    modelOutputHasIntro: trace.modelOutputHasIntro,
+    modelOutputHasSurveyPlan: trace.modelOutputHasSurveyPlan,
+    modelQuestionTypes: [...trace.modelQuestionTypes],
+    modelQuestionStructureIssues: [...trace.modelQuestionStructureIssues],
+    normalizedInternalMetadataPaths: [...trace.normalizedInternalMetadataPaths],
+    initialCoveredRequiredBlockIds: [...trace.initialCoveredRequiredBlockIds],
+    initialMissingRequiredBlockIds: [...trace.initialMissingRequiredBlockIds],
+    finalCoveredRequiredBlockIds: [...trace.finalCoveredRequiredBlockIds],
+    finalMissingRequiredBlockIds: [...trace.finalMissingRequiredBlockIds],
+    optionalPlanBlockIds: [...trace.optionalPlanBlockIds],
+    initialIncompatibleQuestionIds: [
+      ...trace.initialIncompatibleQuestionIds,
+    ],
+    finalIncompatibleQuestionIds: [...trace.finalIncompatibleQuestionIds],
+    initialSemanticDuplicateGroups: trace.initialSemanticDuplicateGroups.map(
+      (group) => [...group],
+    ),
+    semanticDuplicateGroups: trace.semanticDuplicateGroups.map((group) => [
+      ...group,
+    ]),
     questionsBeforePostprocessCount: trace.questionsBeforePostprocessCount,
     finalQuestionCount: trace.finalQuestionCount,
     questionsBeforePostprocess: [...trace.questionsBeforePostprocess],
@@ -555,7 +771,7 @@ export function surveyGenerationTraceSnapshot(trace: SurveyGenerationTrace) {
 
 export function surveyGenerationLogSnapshot(trace: SurveyGenerationTrace) {
   const snapshot = surveyGenerationTraceSnapshot(trace);
-  if (process.env.NODE_ENV !== "production") return snapshot;
+  if (canRecordDetailedGenerationTrace()) return snapshot;
   return {
     requestId: snapshot.requestId,
     stage: snapshot.stage,
@@ -595,6 +811,29 @@ export function surveyGenerationLogSnapshot(trace: SurveyGenerationTrace) {
     responseIncompleteReason: snapshot.responseIncompleteReason,
     outputParsedPresent: snapshot.outputParsedPresent,
     outputItemTypes: snapshot.outputItemTypes,
+    modelOutputTopLevelKeys: snapshot.modelOutputTopLevelKeys,
+    modelReturnedQuestionCount: snapshot.modelReturnedQuestionCount,
+    schemaIssuePaths: snapshot.schemaIssuePaths,
+    schemaIssueCodes: snapshot.schemaIssueCodes,
+    schemaExpectedTypes: snapshot.schemaExpectedTypes,
+    schemaReceivedTypes: snapshot.schemaReceivedTypes,
+    parseFailureStage: snapshot.parseFailureStage,
+    modelOutputRejectedAt: snapshot.modelOutputRejectedAt,
+    modelOutputRejectionCode: snapshot.modelOutputRejectionCode,
+    modelOutputRejectionIssues: snapshot.modelOutputRejectionIssues,
+    modelOutputRejectionIssuePaths: snapshot.modelOutputRejectionIssuePaths,
+    modelOutputHasTitle: snapshot.modelOutputHasTitle,
+    modelOutputHasIntro: snapshot.modelOutputHasIntro,
+    modelOutputHasSurveyPlan: snapshot.modelOutputHasSurveyPlan,
+    modelQuestionTypes: snapshot.modelQuestionTypes,
+    modelQuestionStructureIssues: snapshot.modelQuestionStructureIssues,
+    normalizedInternalMetadataPaths: snapshot.normalizedInternalMetadataPaths,
+    initialMissingRequiredBlockIds: snapshot.initialMissingRequiredBlockIds,
+    finalMissingRequiredBlockIds: snapshot.finalMissingRequiredBlockIds,
+    initialIncompatibleQuestionIds: snapshot.initialIncompatibleQuestionIds,
+    finalIncompatibleQuestionIds: snapshot.finalIncompatibleQuestionIds,
+    initialSemanticDuplicateGroups: snapshot.initialSemanticDuplicateGroups,
+    semanticDuplicateGroups: snapshot.semanticDuplicateGroups,
     totalElapsedMs: snapshot.totalElapsedMs,
   };
 }

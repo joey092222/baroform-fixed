@@ -64,6 +64,7 @@ import {
   recordSurveyPlanTrace,
   recordSurveyPostprocessTrace,
   recordSurveyRequestTrace,
+  recordSurveySchemaDiagnostics,
   recordSurveyValidation,
   surveyGenerationLogSnapshot,
   surveyGenerationTraceSnapshot,
@@ -338,6 +339,50 @@ function traceHeaders(trace: SurveyGenerationTrace) {
       snapshot.responseIncompleteReason ?? "",
     "x-baroform-output-parsed": String(snapshot.outputParsedPresent),
     "x-baroform-output-types": snapshot.outputItemTypes.join(","),
+    "x-baroform-output-keys": snapshot.modelOutputTopLevelKeys.join(","),
+    "x-baroform-model-question-count": String(
+      snapshot.modelReturnedQuestionCount ?? 0,
+    ),
+    "x-baroform-parse-failure-stage": snapshot.parseFailureStage ?? "",
+    "x-baroform-model-rejected-at": snapshot.modelOutputRejectedAt ?? "",
+    "x-baroform-model-rejection-code":
+      snapshot.modelOutputRejectionCode ?? "",
+    "x-baroform-model-rejection-paths":
+      snapshot.modelOutputRejectionIssuePaths.join(","),
+    "x-baroform-model-rejection-issues": encodeURIComponent(
+      snapshot.modelOutputRejectionIssues.join(" | "),
+    ).slice(0, 1200),
+    "x-baroform-normalized-metadata": snapshot.normalizedInternalMetadataPaths
+      .join(",")
+      .slice(0, 1200),
+    "x-baroform-model-has-title": String(snapshot.modelOutputHasTitle),
+    "x-baroform-model-has-intro": String(snapshot.modelOutputHasIntro),
+    "x-baroform-model-has-survey-plan": String(
+      snapshot.modelOutputHasSurveyPlan,
+    ),
+    "x-baroform-model-question-types": snapshot.modelQuestionTypes.join(","),
+    "x-baroform-model-structure-issues": encodeURIComponent(
+      snapshot.modelQuestionStructureIssues.join(" | "),
+    ).slice(0, 1200),
+    "x-baroform-schema-issue-paths": snapshot.schemaIssuePaths.join(","),
+    "x-baroform-schema-issue-codes": snapshot.schemaIssueCodes.join(","),
+    "x-baroform-schema-expected": snapshot.schemaExpectedTypes.join(","),
+    "x-baroform-schema-received": snapshot.schemaReceivedTypes.join(","),
+    "x-baroform-initial-missing-blocks":
+      snapshot.initialMissingRequiredBlockIds.join(","),
+    "x-baroform-final-missing-blocks":
+      snapshot.finalMissingRequiredBlockIds.join(","),
+    "x-baroform-initial-role-mismatches":
+      snapshot.initialIncompatibleQuestionIds.join(","),
+    "x-baroform-final-role-mismatches":
+      snapshot.finalIncompatibleQuestionIds.join(","),
+    "x-baroform-initial-semantic-duplicates":
+      snapshot.initialSemanticDuplicateGroups.map((group) => group.join("+")).join(","),
+    "x-baroform-final-semantic-duplicates": snapshot.semanticDuplicateGroups
+      .map((group) => group.join("+"))
+      .join(","),
+    "x-baroform-selected-survey-type": snapshot.selectedSurveyType ?? "",
+    "x-baroform-selected-template-key": snapshot.selectedTemplateKey ?? "",
     "x-baroform-intent-mode": snapshot.intentMode ?? "unknown",
     "x-baroform-purpose-kinds": snapshot.purposeKinds.join(","),
     "x-baroform-purpose-block-count": String(snapshot.purposeBlockCount),
@@ -351,6 +396,38 @@ function traceHeaders(trace: SurveyGenerationTrace) {
       .map((item) => item.stage)
       .join(","),
   };
+}
+
+function outputRejectionFallbackSource(
+  trace: SurveyGenerationTrace,
+  error: unknown,
+): GenerationSource {
+  if (error instanceof SyntaxError) return "openai_output_parse_failure_fallback";
+  if (error instanceof z.ZodError) {
+    return "openai_output_schema_rejection_fallback";
+  }
+  if (
+    trace.modelOutputRejectedAt === "structured_output_schema_validation" ||
+    trace.modelOutputRejectionCode === "MODEL_OUTPUT_SCHEMA_INVALID"
+  ) {
+    return "openai_output_schema_rejection_fallback";
+  }
+  if (
+    trace.modelOutputRejectedAt === "generation_integrity_validation" &&
+    trace.modelOutputRejectionIssues.some((issue) => /설문 계획|경로 문항 수/.test(issue))
+  ) {
+    return "openai_plan_validation_fallback";
+  }
+  if (
+    trace.modelOutputRejectedAt === "generation_integrity_validation" ||
+    trace.modelOutputRejectedAt === "question_quality_validation"
+  ) {
+    return "openai_question_validation_fallback";
+  }
+  if (error instanceof SurveyValidationError && error.category === "semantic") {
+    return "semantic_validation_fallback";
+  }
+  return "openai_question_validation_fallback";
 }
 
 function logTrace(trace: SurveyGenerationTrace) {
@@ -1171,7 +1248,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     purposeBlockCount: intent.purposeBlocks.length,
     blocks: surveyPlan.blocks.map(
       (block) =>
-        `${block.id}:${block.kind}:askable=${block.directlyAskable}:variables=${block.variableIds.join("+")}:question=${block.questionType ?? "none"}:analysis=${block.analysisType ?? "none"}`,
+        `${block.id}:${block.kind}:required=${block.required}:askable=${block.directlyAskable}:variables=${block.variableIds.join("+")}:question=${block.questionType ?? "none"}:analysis=${block.analysisType ?? "none"}`,
     ),
   });
 
@@ -1599,12 +1676,28 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         error instanceof OpenAI.APIError &&
         !(error instanceof OpenAI.APIConnectionError);
 
+      if (isInvalidStructuredOutput) {
+        recordSurveySchemaDiagnostics(trace, {
+          stage:
+            error instanceof SyntaxError
+              ? "responses_api_json_parse"
+              : "responses_api_structured_parse",
+          issues:
+            error instanceof z.ZodError
+              ? error.issues.map((issue) => ({
+                  path: issue.path,
+                  code: issue.code,
+                  expected: "expected" in issue ? issue.expected : undefined,
+                  received: "unknown",
+                }))
+              : [],
+        });
+      }
+
       if (isInvalidStructuredOutput && intent.intentMode === "composite") {
         return respondWithPlanBasedFallback(
           "model-output-rejected",
-          intent.intentMode === "composite"
-            ? "composite_plan_fallback"
-            : "openai_parse_failure_fallback",
+          "composite_plan_fallback",
         );
       }
 
@@ -1731,6 +1824,29 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         error instanceof SyntaxError ||
         (error instanceof Error && error.name === "ZodError"))
     ) {
+      if (!trace.parseFailureStage) {
+        recordSurveySchemaDiagnostics(trace, {
+          stage:
+            error instanceof SurveyValidationError
+              ? error.category === "schema"
+                ? "survey_output_schema_validation"
+                : "survey_semantic_validation"
+              : error instanceof SurveyGenerationResponseError
+                ? "responses_api_contract_validation"
+                : error instanceof SyntaxError
+                  ? "responses_api_json_parse"
+                  : "responses_api_structured_parse",
+          issues:
+            error instanceof z.ZodError
+              ? error.issues.map((issue) => ({
+                  path: issue.path,
+                  code: issue.code,
+                  expected: "expected" in issue ? issue.expected : undefined,
+                  received: "unknown",
+                }))
+              : [],
+        });
+      }
       console.warn("survey-generation-output-fallback", {
         requestId,
         name: error instanceof Error ? error.name : "UnknownError",
@@ -1741,11 +1857,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       });
       return respondWithPlanBasedFallback(
         "model-output-rejected",
-        intent.intentMode === "composite"
-          ? "composite_plan_fallback"
-          : error instanceof SurveyValidationError && error.category === "semantic"
-            ? "semantic_validation_fallback"
-            : "openai_parse_failure_fallback",
+        "composite_plan_fallback",
       );
     }
 
@@ -1854,9 +1966,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       });
       return respondWithPlanBasedFallback(
         "model-output-rejected",
-        error instanceof SurveyValidationError && error.category === "semantic"
-          ? "semantic_validation_fallback"
-          : "openai_parse_failure_fallback",
+        outputRejectionFallbackSource(trace, error),
       );
     }
 
@@ -2092,7 +2202,7 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
         "research",
         requestId,
         trace,
-        "openai_parse_failure_fallback",
+        outputRejectionFallbackSource(trace, error),
       );
       if (outputFallbackResponse.ok) {
         cacheResult(
@@ -2101,7 +2211,7 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
           resilientFallback,
           "verified-fallback",
           "model-output-rejected",
-          "openai_parse_failure_fallback",
+          outputRejectionFallbackSource(trace, error),
         );
       }
       return outputFallbackResponse;
