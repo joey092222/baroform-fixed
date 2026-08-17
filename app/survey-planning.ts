@@ -82,6 +82,20 @@ export type SurveyPlan = {
   requestedQuestionCount: number;
 };
 
+export type SurveyPlanCoverageQuestion = {
+  planBlockId?: string;
+  measuredVariable?: string;
+  measuredConstruct?: string;
+  title: string;
+  options?: string[];
+};
+
+export type PlanCoverageResult = {
+  coveredRequiredBlockIds: string[];
+  missingRequiredBlockIds: string[];
+  optionalBlockIds: string[];
+};
+
 const makeBlock = (
   id: string,
   variable: string,
@@ -123,6 +137,278 @@ const makeBlock = (
   directlyAskable: true,
   ...research,
 });
+
+function usageAudienceIsPrequalified(intent: SurveyIntent) {
+  const audience = `${intent.targetPopulation ?? ""} ${intent.eligibilityCondition ?? ""}`;
+  return /(?:이용|사용|구매|구독|방문|참여)(?:\s*해?\s*본|\s*경험이\s*있는|\s*중인|\s*하고\s*있는)|(?:이용자|사용자|구독자|구매자|방문자|참여자)/.test(
+    audience,
+  );
+}
+
+function usageTarget(intent: SurveyIntent, purposeBlock: SurveyPurposeBlock) {
+  const explicitEntity = intent.entities.find((item) =>
+    ["product_or_service", "existing_service", "facility"].includes(item.role),
+  );
+  const candidate =
+    explicitEntity?.text ||
+    purposeBlock.target ||
+    intent.evaluationTargets[0] ||
+    intent.surveyObject ||
+    intent.semanticContext.primaryEntity;
+  return candidate
+    .replace(
+      /\s+(?:이용|사용|방문|구매)?\s*(?:경험|현황|행태|패턴|빈도|시간대|선호\s*장르)(?:와|과|및|,|\s).*/,
+      "",
+    )
+    .replace(/\s+(?:이용|사용|방문|구매)?\s*(?:경험|현황|행태|패턴|빈도|시간대|선호\s*장르)$/u, "")
+    .trim();
+}
+
+function usagePlanBlocks(intent: SurveyIntent, decisionGoalIds: string[]) {
+  const purposeBlock = intent.purposeBlocks.find(
+    (item) => item.kind === "usage_experience" || item.kind === "behavior_usage",
+  );
+  if (
+    !purposeBlock ||
+    intent.intentMode !== "single" ||
+    intent.objectKind !== "service_product"
+  ) {
+    return [];
+  }
+
+  const corpus = [
+    intent.rawInput,
+    purposeBlock.text,
+    purposeBlock.target,
+    ...intent.semanticContext.researchConstructs,
+  ].join(" ");
+  const target = usageTarget(intent, purposeBlock);
+  if (!target) return [];
+
+  const sourceEntityIds = [
+    ...purposeBlock.targetEntityIds,
+    ...purposeBlock.constructEntityIds,
+  ];
+  const measuredEntityIds = [...new Set(sourceEntityIds)];
+  const withPurpose = (block: SurveyPlanBlock, required: boolean) => ({
+    ...block,
+    required,
+    purposeBlockId: purposeBlock.id,
+    measuredEntityIds,
+  });
+  const blocks: SurveyPlanBlock[] = [];
+  const asksStatus =
+    !usageAudienceIsPrequalified(intent) &&
+    /(?:이용|사용|구매|구독|방문)\s*(?:경험|여부|현황)|(?:이용|사용)해?\s*본/.test(
+      corpus,
+    );
+  const asksFrequency =
+    /(?:이용|사용|구매|구독|방문)\s*(?:경험|현황|행태|패턴|빈도)|얼마나\s*자주/.test(
+      corpus,
+    ) &&
+    !/^(?=.*(?:시간대|언제))(?:(?!빈도|현황|경험|패턴|행태).)*$/u.test(
+      intent.rawInput,
+    );
+  const asksTimeContext = /(?:이용|사용|방문)\s*시간대|주로\s*언제/.test(
+    intent.rawInput,
+  );
+  const asksGenre = /(?:선호|이용|콘텐츠)\s*장르/.test(intent.rawInput);
+
+  if (asksStatus) {
+    blocks.push(
+      withPurpose(
+        makeBlock(
+          "usage-status",
+          `${target} 이용 경험 여부`,
+          "behavior",
+          "binary",
+          "조사 대상 서비스의 실제 이용 경험 여부를 구분함.",
+          measuredEntityIds,
+          decisionGoalIds,
+        ),
+        true,
+      ),
+    );
+  }
+  if (asksFrequency) {
+    blocks.push(
+      withPurpose(
+        makeBlock(
+          "usage-frequency",
+          `${target} 이용 빈도`,
+          "behavior",
+          "frequency",
+          "실제 이용 빈도를 횟수 또는 주기 구간으로 측정함.",
+          measuredEntityIds,
+          decisionGoalIds,
+        ),
+        true,
+      ),
+    );
+  }
+  if (asksTimeContext) {
+    blocks.push(
+      withPurpose(
+        makeBlock(
+          "usage-time-context",
+          `${target} 이용 시간대`,
+          "context",
+          "nominal",
+          "주로 이용하는 시간대를 구분함.",
+          measuredEntityIds,
+          decisionGoalIds,
+        ),
+        true,
+      ),
+    );
+  }
+  if (asksGenre) {
+    blocks.push(
+      withPurpose(
+        makeBlock(
+          "usage-preferred-genre",
+          `${target} 선호 장르`,
+          "preference",
+          "nominal",
+          "이용자가 선호하는 콘텐츠 장르를 구분함.",
+          measuredEntityIds,
+          decisionGoalIds,
+        ),
+        true,
+      ),
+    );
+  }
+
+  const inferredBlocks = [
+    {
+      id: "usage-purpose",
+      pattern: /이용\s*목적/,
+      variable: `${target} 이용 목적과 상황`,
+      role: "context" as const,
+      variableType: "nominal" as const,
+      purpose: "서비스를 이용하는 주된 목적과 상황을 구분함.",
+    },
+    {
+      id: "usage-satisfaction",
+      pattern: /만족/,
+      variable: `${target} 이용 만족도`,
+      role: "construct" as const,
+      variableType: "scale" as const,
+      purpose: "서비스 이용 경험의 전반적 만족도를 측정함.",
+    },
+    {
+      id: "usage-pain",
+      pattern: /불편|어려움|문제/,
+      variable: `${target} 이용 불편`,
+      role: "pain_point" as const,
+      variableType: "nominal" as const,
+      purpose: "서비스 이용 중 경험한 불편을 구분함.",
+    },
+    {
+      id: "usage-improvement",
+      pattern: /개선|보완|수요/,
+      variable: `${target} 개선 수요`,
+      role: "unmet_need" as const,
+      variableType: "nominal" as const,
+      purpose: "서비스에서 우선 개선할 요구를 파악함.",
+    },
+  ];
+  for (const item of inferredBlocks) {
+    if (!item.pattern.test(corpus)) continue;
+    blocks.push(
+      withPurpose(
+        makeBlock(
+          item.id,
+          item.variable,
+          item.role,
+          item.variableType,
+          item.purpose,
+          measuredEntityIds,
+          decisionGoalIds,
+        ),
+        item.pattern.test(intent.rawInput),
+      ),
+    );
+  }
+  return blocks;
+}
+
+function normalizedCoverageText(question: SurveyPlanCoverageQuestion) {
+  return [
+    question.title,
+    question.measuredVariable ?? "",
+    question.measuredConstruct ?? "",
+    ...(question.options ?? []),
+  ]
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function questionCoversSurveyPlanBlock(
+  question: SurveyPlanCoverageQuestion,
+  block: SurveyPlanBlock,
+) {
+  if (block.kind !== "measurement" || !block.directlyAskable) return false;
+  const text = normalizedCoverageText(question);
+  const specialMatchers: Record<string, RegExp> = {
+    "usage-status":
+      /(?:이용|사용|구매|구독|방문)(?:해?\s*본|한\s*적|\s*경험\s*여부|\s*여부)|이용자와\s*비이용자/,
+    "usage-frequency":
+      /얼마나\s*자주|(?:이용|사용|구매|구독|방문)\s*빈도|(?:하루|주당|한\s*주|월|한\s*달).*\d+\s*회/,
+    "usage-time-context": /주로\s*언제|시간대|요일별|시간대별/,
+    "usage-preferred-genre": /장르/,
+    "usage-purpose": /이용\s*목적|주로\s*어떤\s*(?:상황|이유)|이용하는\s*이유/,
+    "usage-satisfaction": /만족/,
+    "usage-pain": /불편|어려움|문제점/,
+    "usage-improvement": /개선|보완|바라는\s*(?:점|기능)|필요한\s*기능/,
+  };
+  const matcher = specialMatchers[block.id];
+  if (matcher) return matcher.test(text);
+  if (question.planBlockId === block.id) return true;
+  const variable = block.variable.replace(/\s+/g, " ").trim();
+  return Boolean(
+    variable &&
+      (text.includes(variable) ||
+        (question.measuredVariable && variable.includes(question.measuredVariable))),
+  );
+}
+
+export function evaluateSurveyPlanCoverage(
+  plan: SurveyPlan,
+  questions: SurveyPlanCoverageQuestion[],
+): PlanCoverageResult {
+  const askableMeasurementBlocks = plan.blocks.filter(
+    (block) => block.kind === "measurement" && block.directlyAskable,
+  );
+  // Legacy plan blocks predate question-to-plan linking and cannot be enforced safely.
+  // The explicit usage blocks below are the first blocks with deterministic coverage
+  // predicates and server-side restoration candidates.
+  const requiredBlocks = askableMeasurementBlocks.filter(
+    (block) =>
+      block.required &&
+      [
+        "usage-status",
+        "usage-frequency",
+        "usage-time-context",
+        "usage-preferred-genre",
+      ].includes(block.id),
+  );
+  const coveredRequiredBlockIds = requiredBlocks
+    .filter((block) =>
+      questions.some((question) => questionCoversSurveyPlanBlock(question, block)),
+    )
+    .map((block) => block.id);
+  return {
+    coveredRequiredBlockIds,
+    missingRequiredBlockIds: requiredBlocks
+      .filter((block) => !coveredRequiredBlockIds.includes(block.id))
+      .map((block) => block.id),
+    optionalBlockIds: askableMeasurementBlocks
+      .filter((block) => !block.required)
+      .map((block) => block.id),
+  };
+}
 
 function planVariableType(level: ResearchMeasurementLevel): SurveyVariableType {
   switch (level) {
@@ -487,7 +773,7 @@ export function createSurveyPlan(
   const context = intent.contexts[0];
   const decisionGoalIds = intent.decisionGoals.map((item) => item.id);
   const contextPrefix = context ? `${context.text} ` : "";
-  const blocks: SurveyPlanBlock[] = [];
+  const blocks: SurveyPlanBlock[] = usagePlanBlocks(intent, decisionGoalIds);
 
   if (category) {
     blocks.push(
@@ -695,8 +981,7 @@ export function createSurveyPlan(
   }
 
   if (blocks.length < requestedQuestionCount) {
-    blocks.push(
-      makeBlock(
+    const openEvidence = makeBlock(
         "open-evidence",
         "구체적인 경험과 제안",
         "construct",
@@ -704,8 +989,9 @@ export function createSurveyPlan(
         "선택지에 포함되지 않은 근거와 대안을 수집함.",
         [],
         decisionGoalIds,
-      ),
-    );
+      );
+    openEvidence.required = false;
+    blocks.push(openEvidence);
   }
 
   return {
@@ -763,6 +1049,8 @@ export function compactSurveyPlanForPrompt(plan: SurveyPlan) {
       questionType: block.questionType,
       analysisType: block.analysisType,
       purpose: block.purpose,
+      questionCount: block.questionCount,
+      required: block.required,
       decisionGoalIds: block.decisionGoalIds,
       researchVariableId: block.researchVariableId,
       variableScope: block.variableScope,

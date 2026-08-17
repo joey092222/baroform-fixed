@@ -64,6 +64,7 @@ import {
   recordSurveyPlanTrace,
   recordSurveyPostprocessTrace,
   recordSurveyRequestTrace,
+  recordSurveySchemaDiagnostics,
   recordSurveyValidation,
   surveyGenerationLogSnapshot,
   surveyGenerationTraceSnapshot,
@@ -338,6 +339,21 @@ function traceHeaders(trace: SurveyGenerationTrace) {
       snapshot.responseIncompleteReason ?? "",
     "x-baroform-output-parsed": String(snapshot.outputParsedPresent),
     "x-baroform-output-types": snapshot.outputItemTypes.join(","),
+    "x-baroform-output-keys": snapshot.modelOutputTopLevelKeys.join(","),
+    "x-baroform-model-question-count": String(
+      snapshot.modelReturnedQuestionCount ?? 0,
+    ),
+    "x-baroform-parse-failure-stage": snapshot.parseFailureStage ?? "",
+    "x-baroform-schema-issue-paths": snapshot.schemaIssuePaths.join(","),
+    "x-baroform-schema-issue-codes": snapshot.schemaIssueCodes.join(","),
+    "x-baroform-schema-expected": snapshot.schemaExpectedTypes.join(","),
+    "x-baroform-schema-received": snapshot.schemaReceivedTypes.join(","),
+    "x-baroform-initial-missing-blocks":
+      snapshot.initialMissingRequiredBlockIds.join(","),
+    "x-baroform-final-missing-blocks":
+      snapshot.finalMissingRequiredBlockIds.join(","),
+    "x-baroform-selected-survey-type": snapshot.selectedSurveyType ?? "",
+    "x-baroform-selected-template-key": snapshot.selectedTemplateKey ?? "",
     "x-baroform-intent-mode": snapshot.intentMode ?? "unknown",
     "x-baroform-purpose-kinds": snapshot.purposeKinds.join(","),
     "x-baroform-purpose-block-count": String(snapshot.purposeBlockCount),
@@ -1171,7 +1187,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     purposeBlockCount: intent.purposeBlocks.length,
     blocks: surveyPlan.blocks.map(
       (block) =>
-        `${block.id}:${block.kind}:askable=${block.directlyAskable}:variables=${block.variableIds.join("+")}:question=${block.questionType ?? "none"}:analysis=${block.analysisType ?? "none"}`,
+        `${block.id}:${block.kind}:required=${block.required}:askable=${block.directlyAskable}:variables=${block.variableIds.join("+")}:question=${block.questionType ?? "none"}:analysis=${block.analysisType ?? "none"}`,
     ),
   });
 
@@ -1599,6 +1615,24 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         error instanceof OpenAI.APIError &&
         !(error instanceof OpenAI.APIConnectionError);
 
+      if (isInvalidStructuredOutput) {
+        recordSurveySchemaDiagnostics(trace, {
+          stage:
+            error instanceof SyntaxError
+              ? "responses_api_json_parse"
+              : "responses_api_structured_parse",
+          issues:
+            error instanceof z.ZodError
+              ? error.issues.map((issue) => ({
+                  path: issue.path,
+                  code: issue.code,
+                  expected: "expected" in issue ? issue.expected : undefined,
+                  received: "unknown",
+                }))
+              : [],
+        });
+      }
+
       if (isInvalidStructuredOutput && intent.intentMode === "composite") {
         return respondWithPlanBasedFallback(
           "model-output-rejected",
@@ -1731,6 +1765,29 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         error instanceof SyntaxError ||
         (error instanceof Error && error.name === "ZodError"))
     ) {
+      if (!trace.parseFailureStage) {
+        recordSurveySchemaDiagnostics(trace, {
+          stage:
+            error instanceof SurveyValidationError
+              ? error.category === "schema"
+                ? "survey_output_schema_validation"
+                : "survey_semantic_validation"
+              : error instanceof SurveyGenerationResponseError
+                ? "responses_api_contract_validation"
+                : error instanceof SyntaxError
+                  ? "responses_api_json_parse"
+                  : "responses_api_structured_parse",
+          issues:
+            error instanceof z.ZodError
+              ? error.issues.map((issue) => ({
+                  path: issue.path,
+                  code: issue.code,
+                  expected: "expected" in issue ? issue.expected : undefined,
+                  received: "unknown",
+                }))
+              : [],
+        });
+      }
       console.warn("survey-generation-output-fallback", {
         requestId,
         name: error instanceof Error ? error.name : "UnknownError",

@@ -45,6 +45,7 @@ import {
 } from "../app/survey-mode";
 import {
   createSurveyGenerationTrace,
+  recordSurveyModelResponseTrace,
   surveyGenerationTraceSnapshot,
 } from "../app/survey-generation-trace";
 
@@ -1504,6 +1505,45 @@ test("강한 설문 의도에서 모델 문항이 기존 품질 검증을 어기
   assert.equal(diagnostics.repairCount, 1);
   assert.ok(diagnostics.repairedQuestionIds.length > 0);
   assert.ok(diagnostics.preservedQuestionIds.length > 0);
+});
+
+test("구조화 출력 거절 시 안전한 Zod 경로와 타입 진단을 보존한다", () => {
+  const payload = structuredClone(structuredReadyPayload());
+  const firstQuestion = payload.output_parsed.survey.questions[0] as unknown as Record<
+    string,
+    unknown
+  >;
+  delete firstQuestion.analysis;
+  const trace = createSurveyGenerationTrace("schema-diagnostics");
+  recordSurveyModelResponseTrace(trace, payload);
+
+  assert.throws(
+    () =>
+      parseSurveyDraftResponse(
+        payload,
+        "대학생 네이버웹툰 이용 현황 조사",
+        7,
+        "전학년",
+        false,
+        trace,
+      ),
+    /설문 품질 검증에 실패/,
+  );
+  const diagnostics = surveyGenerationTraceSnapshot(trace);
+
+  assert.equal(diagnostics.parseFailureStage, "structured_output_schema_validation");
+  assert.ok(diagnostics.schemaIssuePaths.includes("survey.questions.0.analysis"));
+  assert.ok(diagnostics.schemaIssueCodes.includes("invalid_type"));
+  assert.ok(diagnostics.schemaExpectedTypes.includes("object"));
+  assert.ok(diagnostics.schemaReceivedTypes.includes("undefined"));
+  assert.deepEqual(diagnostics.modelOutputTopLevelKeys, [
+    "status",
+    "research",
+    "survey_plan",
+    "survey",
+    "quality_check",
+  ]);
+  assert.equal(diagnostics.modelReturnedQuestionCount, 7);
 });
 
 test("응답자용 문구는 행정적 표현과 내부 분석 정보를 거부한다", () => {
