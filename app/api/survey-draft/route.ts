@@ -47,10 +47,13 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { parseSurveyIntent } from "../../survey-semantic-intent";
 import {
-  parseSurveyGenerationContext,
   surveyTemplateKeyForContext,
 } from "../../survey-context";
 import { createSurveyPlan } from "../../survey-planning";
+import {
+  parseCanonicalSurveyIntent,
+  type CanonicalSurveyIntent,
+} from "../../survey-canonical-intent";
 import {
   createSurveyGenerationTrace,
   failSurveyGenerationTrace,
@@ -58,6 +61,7 @@ import {
   recordSurveyModelCall,
   recordSurveyFallback,
   recordSurveyGenerationSource,
+  recordCanonicalSurveyIntentTrace,
   recordSurveyContextTrace,
   recordSurveyIntentTrace,
   recordSurveyModelResponseTrace,
@@ -441,6 +445,7 @@ function fallbackResponse(
   requestId: string,
   trace?: SurveyGenerationTrace,
   generationSource: GenerationSource = "resilient_fallback",
+  canonicalIntent?: CanonicalSurveyIntent,
 ) {
   recordSurveyFallback(trace, reason, generationSource);
   markSurveyGenerationStage(trace, "fallback-started");
@@ -451,7 +456,7 @@ function fallbackResponse(
     recordSurveyValidation(trace, "semantic-validation");
     let issues: string[] = [];
     try {
-      const brief = parseSurveyBrief(result.prompt);
+      const brief = parseSurveyBrief(result.prompt, canonicalIntent);
       issues = validateSurvey(result.prompt, brief, result.blueprint);
     } catch (error) {
       console.warn("survey-fallback-validation-skipped", {
@@ -509,23 +514,37 @@ function creatorClarificationResult(
   prompt: string,
   intent: ReturnType<typeof parseSurveyIntent>,
 ): SurveyDraftResult {
+  const relationNeedsClarification =
+    intent.researchIntent.parseFailureCode ===
+    "RELATION_EXPRESSION_DETECTED_BUT_NOT_PARSED";
   return {
     status: "needs_clarification",
     prompt,
     clarification: {
-      question: "평가할 수업은 어떻게 정할까요?",
-      reason:
-        "수업별 만족도를 비교하려면 평가할 수업 목록이나 반복 평가 방식을 먼저 정해야 해요.",
-      options: [
-        "평가할 수업 목록을 직접 입력할게요",
-        "응답자가 수강한 수업명을 입력하게 할게요",
-        "응답자가 현재 수강 중인 여러 수업을 각각 평가하게 할게요",
-      ],
+      question: relationNeedsClarification
+        ? "서로 비교할 두 항목을 나누어 알려주세요."
+        : "평가할 수업은 어떻게 정할까요?",
+      reason: relationNeedsClarification
+        ? "관계 조사를 감지했지만 두 측정 항목을 안전하게 구분하지 못했어요."
+        : "수업별 만족도를 비교하려면 평가할 수업 목록이나 반복 평가 방식을 먼저 정해야 해요.",
+      options: relationNeedsClarification
+        ? [
+            "첫 번째 항목과 두 번째 항목을 직접 입력할게요",
+            "두 항목의 관계만 비교할게요",
+            "관계와 함께 집단별 차이도 비교할게요",
+          ]
+        : [
+            "평가할 수업 목록을 직접 입력할게요",
+            "응답자가 수강한 수업명을 입력하게 할게요",
+            "응답자가 현재 수강 중인 여러 수업을 각각 평가하게 할게요",
+          ],
     },
     research: {
       status: "not-needed",
       entity: null,
-      summary: "복수 평가 대상의 목록 또는 평가 방식을 확인하고 있어요.",
+      summary: relationNeedsClarification
+        ? "관계를 분석할 두 측정 항목을 확인하고 있어요."
+        : "복수 평가 대상의 목록 또는 평가 방식을 확인하고 있어요.",
       facts: [],
       sources: [],
       classification: "unresolved",
@@ -676,11 +695,12 @@ function verifiedResearchFallback(
   prompt: string,
   targetGrade: TargetGrade,
   questionCount: number,
+  canonicalIntent?: CanonicalSurveyIntent,
 ): SurveyDraftResult | null {
   const knowledge = lookupVerifiedSurveyKnowledge(prompt);
   if (!knowledge) return null;
   const blueprint = applyDraftSettings(
-    analyzeSurveyPrompt(prompt),
+    analyzeSurveyPrompt(prompt, canonicalIntent),
     targetGrade,
     questionCount,
   );
@@ -718,9 +738,10 @@ function fastDraftFallback(
   prompt: string,
   targetGrade: TargetGrade,
   questionCount: number,
+  canonicalIntent?: CanonicalSurveyIntent,
 ): ReadySurveyDraftResult {
   const blueprint = applyDraftSettings(
-    analyzeSurveyPrompt(prompt),
+    analyzeSurveyPrompt(prompt, canonicalIntent),
     targetGrade,
     questionCount,
   );
@@ -747,8 +768,14 @@ function resilientDraftFallback(
   prompt: string,
   targetGrade: TargetGrade,
   questionCount: number,
+  canonicalIntent?: CanonicalSurveyIntent,
 ) {
-  return fastDraftFallback(prompt, targetGrade, questionCount);
+  return fastDraftFallback(
+    prompt,
+    targetGrade,
+    questionCount,
+    canonicalIntent,
+  );
 }
 
 function cacheResult(
@@ -1155,16 +1182,18 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     references.files.length > 0 ||
     references.links.length > 0;
   markSurveyGenerationStage(trace, "intent-extraction");
-  const parsedSurveyContext = parseSurveyGenerationContext(enteredPrompt);
+  const canonicalIntent = parseCanonicalSurveyIntent(
+    enteredPrompt,
+    surveyMode === "research" ? "research" : "general",
+  );
+  const parsedSurveyContext = canonicalIntent.generationContext;
+  recordCanonicalSurveyIntentTrace(trace, canonicalIntent);
   recordSurveyContextTrace(
     trace,
     parsedSurveyContext,
     surveyTemplateKeyForContext(parsedSurveyContext),
   );
-  const intent = parseSurveyIntent(
-    enteredPrompt,
-    surveyMode === "research" ? "research" : "general",
-  );
+  const intent = canonicalIntent.surveyIntent;
   recordSurveyIntentTrace(trace, {
     topic: intent.surveyObject,
     variables: intent.researchIntent.variables.map(
@@ -1370,6 +1399,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       prompt,
       targetGrade,
       questionCount,
+      canonicalIntent,
     );
     markSurveyGenerationStage(trace, "question-generation");
     if (verifiedFallback) {
@@ -1380,6 +1410,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         requestId,
         trace,
         "initial_local_blueprint",
+        canonicalIntent,
       );
       if (response.ok) {
         cacheResult(
@@ -1406,6 +1437,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       prompt,
       targetGrade,
       questionCount,
+      canonicalIntent,
     );
     const response = fallbackResponse(
       resilientFallback,
@@ -1416,6 +1448,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       intent.intentMode === "composite"
         ? "composite_plan_fallback"
         : "resilient_fallback",
+      canonicalIntent,
     );
     if (response.ok) {
       cacheResult(
@@ -1501,8 +1534,18 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
   const getPlanBasedFallback = () => {
     if (planBasedFallback) return planBasedFallback;
     planBasedFallback =
-      verifiedResearchFallback(prompt, targetGrade, questionCount) ??
-      resilientDraftFallback(prompt, targetGrade, questionCount);
+      verifiedResearchFallback(
+        prompt,
+        targetGrade,
+        questionCount,
+        canonicalIntent,
+      ) ??
+      resilientDraftFallback(
+        prompt,
+        targetGrade,
+        questionCount,
+        canonicalIntent,
+      );
     return planBasedFallback;
   };
   const respondWithPlanBasedFallback = (
@@ -1523,6 +1566,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       requestId,
       trace,
       generationSource,
+      canonicalIntent,
     );
     if (response.ok) {
       cacheResult(
@@ -1567,6 +1611,8 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     organizationLocationContext,
     reasoningEffort: modelRoute.reasoningEffort,
     serviceTier: modelRoute.requestedServiceTier,
+    canonicalIntent,
+    surveyPlan,
   });
   let upstreamCompleted = false;
   let modelCallStarted = false;
@@ -1728,6 +1774,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       targetGrade,
       hasReferences,
       trace,
+      { canonicalIntent, surveyPlan },
     );
     if (result.status === "ready" || result.status === "ready_with_caution") {
       recordSurveyPostprocessTrace(trace, {
@@ -1747,6 +1794,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         prompt,
         targetGrade,
         questionCount,
+        canonicalIntent,
       );
       result = {
         ...deterministic,
@@ -2136,6 +2184,14 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
     }
     const modelRoute = resolveSurveyGenerationModel("research");
     const model = modelRoute.model;
+    const canonicalIntent = parseCanonicalSurveyIntent(
+      context.prompt,
+      "research",
+    );
+    const surveyPlan = createSurveyPlan(
+      canonicalIntent.surveyIntent,
+      context.questionCount,
+    );
     const parseParams = buildSurveyAiRequest(context.prompt, null, model, {
       surveyMode: "research",
       targetGrade: context.targetGrade,
@@ -2143,6 +2199,8 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
       organizationLocationContext: context.organizationLocationContext,
       reasoningEffort: modelRoute.reasoningEffort,
       serviceTier: modelRoute.requestedServiceTier,
+      canonicalIntent,
+      surveyPlan,
     });
     const backgroundCacheKey = generationCacheKey({
       requestScope: context.requestScope,
@@ -2163,6 +2221,7 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
         context.targetGrade,
         context.hasReferences,
         trace,
+        { canonicalIntent, surveyPlan },
       );
       if (result.status === "ready" || result.status === "ready_with_caution") {
         recordSurveyPostprocessTrace(trace, {
@@ -2188,6 +2247,7 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
         context.prompt,
         context.targetGrade,
         context.questionCount,
+        canonicalIntent,
       );
       const resilientFallback =
         verifiedFallback ??
@@ -2195,6 +2255,7 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
           context.prompt,
           context.targetGrade,
           context.questionCount,
+          canonicalIntent,
         );
       const outputFallbackResponse = fallbackResponse(
         resilientFallback,
@@ -2203,6 +2264,7 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
         requestId,
         trace,
         outputRejectionFallbackSource(trace, error),
+        canonicalIntent,
       );
       if (outputFallbackResponse.ok) {
         cacheResult(
@@ -2236,6 +2298,7 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
         context.prompt,
         context.targetGrade,
         context.questionCount,
+        canonicalIntent,
       );
       result = {
         ...deterministic,

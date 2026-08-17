@@ -132,6 +132,14 @@ export type SurveyGenerationTrace = {
   extractedActivities: string[];
   extractedResearchGoals: string[];
   extractedStudyPurposes: string[];
+  canonicalSurveyArchetype: string | null;
+  canonicalEntitySummaries: string[];
+  canonicalActivitySummaries: string[];
+  canonicalConstructSummaries: string[];
+  canonicalPurposeSummaries: string[];
+  canonicalRelationSummaries: string[];
+  canonicalAmbiguityCode: string | null;
+  canonicalOperationalizationPlan: string[];
   selectedSurveyType: string | null;
   selectedTemplateKey: string | null;
   selectedBlueprint: string | null;
@@ -227,6 +235,14 @@ export function createSurveyGenerationTrace(
     extractedActivities: [],
     extractedResearchGoals: [],
     extractedStudyPurposes: [],
+    canonicalSurveyArchetype: null,
+    canonicalEntitySummaries: [],
+    canonicalActivitySummaries: [],
+    canonicalConstructSummaries: [],
+    canonicalPurposeSummaries: [],
+    canonicalRelationSummaries: [],
+    canonicalAmbiguityCode: null,
+    canonicalOperationalizationPlan: [],
     selectedSurveyType: null,
     selectedTemplateKey: null,
     selectedBlueprint: null,
@@ -539,6 +555,73 @@ export function recordSurveyIntentTrace(
   trace.extractedRelations = details.relations.slice(0, 20).map((item) => item.slice(0, 160));
 }
 
+export function recordCanonicalSurveyIntentTrace(
+  trace: SurveyGenerationTrace | undefined,
+  details: {
+    surveyArchetype: string;
+    entities: Array<{
+      id: string;
+      text: string;
+      kind: string;
+      role: string;
+      confidence: number;
+      evidence: string[];
+    }>;
+    activities: Array<{
+      id: string;
+      text: string;
+      kind: string;
+      objectEntityIds: string[];
+    }>;
+    constructs: Array<{
+      id: string;
+      name: string;
+      kind: string;
+      measurementMode: string;
+      dimensions: Array<{ name: string; required: boolean }>;
+    }>;
+    purposes: Array<{ id: string; text: string; kind: string }>;
+    relations: Array<{
+      type: string;
+      fromVariableId: string;
+      toVariableId: string;
+    }>;
+    ambiguity: { code: string | null };
+    operationalizationPlan: Array<{
+      constructId: string;
+      constructName: string;
+      measurementMode: string;
+      requiredDimensions: string[];
+      optionalDimensions: string[];
+    }>;
+  },
+) {
+  if (!trace) return;
+  trace.canonicalSurveyArchetype = details.surveyArchetype.slice(0, 80);
+  trace.canonicalAmbiguityCode = details.ambiguity.code?.slice(0, 120) ?? null;
+  if (!canRecordDetailedGenerationTrace()) return;
+  trace.canonicalEntitySummaries = details.entities.slice(0, 30).map((item) =>
+    `${item.id}:${item.role}:${item.kind}:${item.text}:confidence=${item.confidence.toFixed(2)}:evidence=${item.evidence.join("|")}`.slice(0, 500),
+  );
+  trace.canonicalActivitySummaries = details.activities.slice(0, 20).map((item) =>
+    `${item.id}:${item.kind}:${item.text}:objects=${item.objectEntityIds.join("+")}`.slice(0, 400),
+  );
+  trace.canonicalConstructSummaries = details.constructs.slice(0, 30).map((item) =>
+    `${item.id}:${item.kind}:${item.measurementMode}:${item.name}:dimensions=${item.dimensions.map((dimension) => `${dimension.name}:${dimension.required ? "required" : "optional"}`).join("|")}`.slice(0, 700),
+  );
+  trace.canonicalPurposeSummaries = details.purposes.slice(0, 20).map((item) =>
+    `${item.id}:${item.kind}:${item.text}`.slice(0, 400),
+  );
+  trace.canonicalRelationSummaries = details.relations.slice(0, 20).map((item) =>
+    `${item.type}:${item.fromVariableId}->${item.toVariableId}`.slice(0, 300),
+  );
+  trace.canonicalOperationalizationPlan = details.operationalizationPlan
+    .slice(0, 30)
+    .map((item) =>
+      `${item.constructId}:${item.constructName}:${item.measurementMode}:required=${item.requiredDimensions.join("|")}:optional=${item.optionalDimensions.join("|")}`.slice(0, 700),
+    );
+}
+
 export function recordSurveyPlanTrace(
   trace: SurveyGenerationTrace | undefined,
   details: {
@@ -720,6 +803,16 @@ export function surveyGenerationTraceSnapshot(trace: SurveyGenerationTrace) {
     extractedActivities: [...trace.extractedActivities],
     extractedResearchGoals: [...trace.extractedResearchGoals],
     extractedStudyPurposes: [...trace.extractedStudyPurposes],
+    canonicalSurveyArchetype: trace.canonicalSurveyArchetype,
+    canonicalEntitySummaries: [...trace.canonicalEntitySummaries],
+    canonicalActivitySummaries: [...trace.canonicalActivitySummaries],
+    canonicalConstructSummaries: [...trace.canonicalConstructSummaries],
+    canonicalPurposeSummaries: [...trace.canonicalPurposeSummaries],
+    canonicalRelationSummaries: [...trace.canonicalRelationSummaries],
+    canonicalAmbiguityCode: trace.canonicalAmbiguityCode,
+    canonicalOperationalizationPlan: [
+      ...trace.canonicalOperationalizationPlan,
+    ],
     selectedSurveyType: trace.selectedSurveyType,
     selectedTemplateKey: trace.selectedTemplateKey,
     selectedBlueprint: trace.selectedBlueprint,

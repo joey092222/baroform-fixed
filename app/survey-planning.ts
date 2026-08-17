@@ -793,33 +793,79 @@ function createRelationalSurveyPlan(
 ): SurveyPlan {
   const research = intent.researchIntent;
   const relationIds = research.relations.map((item) => item.id);
-  const measurementBlocks = research.variables
+  const measurementBlockGroups = research.variables
     .filter(
       (variable) =>
         variable.scope === "respondent_level" && variable.directlyAskable,
     )
-    .map((variable) =>
-      makeBlock(
-        `measure-${variable.id}`,
-        variable.name,
-        semanticRoleForResearchVariable(variable),
-        planVariableType(variable.measurementLevel),
-        `${variable.name}${objectParticle(variable.name)} 응답자 수준에서 직접 측정함.`,
-        [variable.id],
-        [],
-        {
-          researchVariableId: variable.id,
-          variableScope: variable.scope,
-          directlyAskable: variable.directlyAskable,
-          analysisUsage: research.analysisGoals
-            .filter((goal) => goal.variableIds.includes(variable.id))
-            .map((goal) => goal.description)
-            .join("; "),
-          relationIds,
-        },
-      ),
-    );
+    .map((variable) => {
+      const analysisUsage = research.analysisGoals
+        .filter((goal) => goal.variableIds.includes(variable.id))
+        .map((goal) => goal.description)
+        .join("; ");
+      if (
+        variable.measurementMode !== "single_item" &&
+        variable.dimensions.length > 0
+      ) {
+        return variable.dimensions.map((dimension) => {
+          const block = makeBlock(
+            `measure-${variable.id}-${dimension.id}`,
+            dimension.name,
+            semanticRoleForResearchVariable(variable),
+            planVariableType(dimension.measurementLevel),
+            `${variable.name}의 '${dimension.name}' 차원을 응답자 수준에서 측정함.`,
+            [variable.id, dimension.id],
+            [],
+            {
+              researchVariableId: variable.id,
+              variableScope: variable.scope,
+              directlyAskable: true,
+              analysisUsage,
+              relationIds,
+            },
+          );
+          block.required = dimension.required;
+          return block;
+        });
+      }
+      return [
+        makeBlock(
+          `measure-${variable.id}`,
+          variable.name,
+          semanticRoleForResearchVariable(variable),
+          planVariableType(variable.measurementLevel),
+          `${variable.name}${objectParticle(variable.name)} 응답자 수준에서 직접 측정함.`,
+          [variable.id],
+          [],
+          {
+            researchVariableId: variable.id,
+            variableScope: variable.scope,
+            directlyAskable: variable.directlyAskable,
+            analysisUsage,
+            relationIds,
+          },
+        ),
+      ];
+    });
+  const measurementBlocks = [
+    ...measurementBlockGroups.flatMap((group) =>
+      group.filter((block) => block.required),
+    ),
+    ...measurementBlockGroups.flatMap((group) =>
+      group.filter((block) => !block.required),
+    ),
+  ];
   const corpus = research.variables.map((item) => item.name).join(" ");
+  if (
+    /통학\s*시간/.test(corpus) &&
+    research.variables.some((item) => /현재\s*거주\s*형태/.test(item.name))
+  ) {
+    measurementBlocks.sort((left, right) => {
+      const leftOrder = /현재\s*거주\s*형태/.test(left.variable) ? 0 : 1;
+      const rightOrder = /현재\s*거주\s*형태/.test(right.variable) ? 0 : 1;
+      return leftOrder - rightOrder;
+    });
+  }
   const supplemental = /통학\s*시간.*(?:거주\s*형태|자취\s*여부)|(?:거주\s*형태|자취\s*여부).*통학\s*시간/.test(
     corpus,
   )

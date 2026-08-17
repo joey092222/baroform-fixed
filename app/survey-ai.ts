@@ -44,12 +44,15 @@ import {
 } from "./survey-mode";
 import {
   compactSurveyIntentForPrompt,
-  parseSurveyIntent,
   shouldEnforceSurveyIntentValidation,
   validateSurveyIntentCandidate,
   type SurveyIntent,
   type SurveyIntentViolation,
 } from "./survey-semantic-intent";
+import {
+  parseCanonicalSurveyIntent,
+  type CanonicalSurveyIntent,
+} from "./survey-canonical-intent";
 import {
   compactSurveyPlanForPrompt,
   createSurveyPlan,
@@ -477,9 +480,8 @@ function generationIntegrityIssues(
 
 function structuredGenerationToLegacy(
   generation: SurveyGeneration,
-  prompt: string,
+  fallback: SurveyBlueprint,
 ) {
-  const fallback = analyzeSurveyPrompt(prompt);
   const firstEntity = generation.research.entities[0] ?? null;
   const sourceById = new Map(
     generation.research.sources.map((source) => [source.id, source.url]),
@@ -1266,8 +1268,8 @@ function enforceContextualCoverage(
   evaluationTarget: string,
   aiQuestions: SurveyQuestion[],
   requestedQuestionCount: number,
+  fallback: SurveyBlueprint,
 ) {
-  const fallback = analyzeSurveyPrompt(prompt);
   const verified = lookupVerifiedSurveyKnowledge(prompt);
   const normalizedTarget = evaluationTarget
     .replace(/\s+/g, "")
@@ -1702,6 +1704,10 @@ export function parseSurveyDraftResponse(
   requestedTargetGrade: TargetGrade = "전학년",
   expectsReferences = false,
   trace?: SurveyGenerationTrace,
+  generationContext?: {
+    canonicalIntent?: CanonicalSurveyIntent;
+    surveyPlan?: SurveyPlan;
+  },
 ): SurveyDraftResult {
   if (!isRecord(rawPayload)) {
     throw new SurveyValidationError(["AI 응답을 읽을 수 없습니다."], "schema");
@@ -1713,6 +1719,13 @@ export function parseSurveyDraftResponse(
     30,
     Math.max(1, Math.round(requestedQuestionCount)),
   );
+  const canonicalIntent =
+    generationContext?.canonicalIntent ??
+    parseCanonicalSurveyIntent(prompt);
+  const canonicalFallback = analyzeSurveyPrompt(prompt, canonicalIntent);
+  const canonicalPlan =
+    generationContext?.surveyPlan ??
+    createSurveyPlan(canonicalIntent.surveyIntent, questionCount);
   let decoded: unknown = rawPayload.output_parsed;
   if (decoded === undefined || decoded === null) {
     recordSurveySchemaDiagnostics(trace, {
@@ -1784,7 +1797,10 @@ export function parseSurveyDraftResponse(
       });
       throw new SurveyValidationError(copyIssues);
     }
-    decoded = structuredGenerationToLegacy(structuredGeneration, prompt);
+    decoded = structuredGenerationToLegacy(
+      structuredGeneration,
+      canonicalFallback,
+    );
   }
   if (!isRecord(decoded) || !isRecord(decoded.result)) {
     if (!structuredResult.success) {
@@ -1890,7 +1906,7 @@ export function parseSurveyDraftResponse(
   recordSurveyPostprocessTrace(trace, {
     before: normalizedAiQuestions.map((item) => item.title),
   });
-  const brief = parseSurveyBrief(prompt);
+  const brief = parseSurveyBrief(prompt, canonicalIntent);
   recordSurveyValidation(trace, "semantic-validation");
   const semanticViolations = shouldEnforceSurveyIntentValidation(
     brief.surveyIntent,
@@ -1933,9 +1949,7 @@ export function parseSurveyDraftResponse(
       questionCount,
       expectsReferences,
     );
-    if (semanticViolations.length === 0) {
-      assertExplicitMeasurementCoverage(prompt, normalizedAiQuestions);
-    }
+    assertExplicitMeasurementCoverage(prompt, normalizedAiQuestions);
   } catch (error) {
     const issue =
       error instanceof Error ? error.message : "모델 문항 검증에 실패했습니다.";
@@ -1965,7 +1979,7 @@ export function parseSurveyDraftResponse(
       ? {
           aiQuestions: normalizedAiQuestions,
           entityType: reportedEntityType,
-          fallback: analyzeSurveyPrompt(prompt),
+          fallback: canonicalFallback,
         }
       : enforceContextualCoverage(
           prompt,
@@ -1974,6 +1988,7 @@ export function parseSurveyDraftResponse(
           evaluationTarget,
           normalizedAiQuestions,
           questionCount,
+          canonicalFallback,
         );
   const targetGrade = isTargetGrade(requestedTargetGrade)
     ? requestedTargetGrade
@@ -2053,7 +2068,7 @@ export function parseSurveyDraftResponse(
     ),
   };
 
-  const rolePlan = createSurveyPlan(brief.surveyIntent, questionCount);
+  const rolePlan = canonicalPlan;
   blueprint.semanticPlan = rolePlan;
   recordSurveyGenerationSource(trace, "openai");
   recordSurveyQuestionOutcome(trace, {
@@ -2063,7 +2078,7 @@ export function parseSurveyDraftResponse(
   let localFallback: SurveyBlueprint | null = null;
   const getPlanBasedFallback = () => {
     if (localFallback) return localFallback;
-    const rawFallback = analyzeSurveyPrompt(prompt);
+    const rawFallback = canonicalFallback;
     const fallbackQuestions = applyTargetGradeToQuestions(
       resizeSurveyQuestions(rawFallback.aiQuestions, questionCount),
       targetGrade,
@@ -2276,6 +2291,8 @@ export function buildSurveyAiRequest(
     organizationLocationContext?: string | null;
     reasoningEffort?: BaroformReasoningEffort;
     serviceTier?: BaroformServiceTier;
+    canonicalIntent?: CanonicalSurveyIntent;
+    surveyPlan?: SurveyPlan;
     references?: {
       images?: Array<{ name: string; dataUrl: string }>;
       files?: Array<{
@@ -2316,18 +2333,23 @@ export function buildSurveyAiRequest(
     day: "2-digit",
   }).format(new Date());
   let parsedBrief;
+  const canonicalIntent =
+    options?.canonicalIntent ??
+    parseCanonicalSurveyIntent(
+      prompt,
+      surveyMode === "research" ? "research" : "general",
+    );
   try {
-    parsedBrief = parseSurveyBrief(prompt);
+    parsedBrief = parseSurveyBrief(prompt, canonicalIntent);
   } catch {
     parsedBrief = parseSurveyBrief(
       fallbackHint?.title ?? "사용자 입력을 바탕으로 한 설문 조사",
     );
   }
-  const surveyIntent = parseSurveyIntent(
-    prompt,
-    surveyMode === "research" ? "research" : "general",
-  );
-  const surveyPlan = createSurveyPlan(surveyIntent, requestedQuestionCount);
+  const surveyIntent = canonicalIntent.surveyIntent;
+  const surveyPlan =
+    options?.surveyPlan ??
+    createSurveyPlan(surveyIntent, requestedQuestionCount);
   const profileContext =
     options?.organizationLocationContext?.trim() || "별도 정보 없음";
   const attachmentContext = hasReferences
@@ -2364,6 +2386,21 @@ export function buildSurveyAiRequest(
     "",
     "[구조화된 설문 의도]",
     JSON.stringify(compactSurveyIntentForPrompt(surveyIntent)),
+    "",
+    "[CanonicalSurveyIntent]",
+    JSON.stringify({
+      audience: canonicalIntent.audience,
+      entities: canonicalIntent.entities,
+      activities: canonicalIntent.activities,
+      constructs: canonicalIntent.constructs,
+      purposes: canonicalIntent.purposes,
+      relations: canonicalIntent.relations,
+      unitOfAnalysis: canonicalIntent.unitOfAnalysis,
+      surveyArchetype: canonicalIntent.surveyArchetype,
+      objectKind: canonicalIntent.objectKind,
+      ambiguity: canonicalIntent.ambiguity,
+      operationalizationPlan: canonicalIntent.operationalizationPlan,
+    }),
     "",
     "[실체·활동·조사목적 분리 컨텍스트]",
     JSON.stringify(parsedBrief.parsedSurveyContext),
