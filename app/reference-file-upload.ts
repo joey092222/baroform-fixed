@@ -2,6 +2,7 @@ import {
   normalizedReferenceFile,
   referenceFileLifetimeSeconds,
 } from "./reference-files";
+import { shouldMockOpenAi } from "./lib/ai/openai-runtime";
 
 export {
   maxReferenceFileBytes,
@@ -38,6 +39,7 @@ function tokenSecret() {
   const secret =
     process.env.BAROFORM_REFERENCE_SECRET?.trim() ||
     process.env.OPENAI_API_KEY?.trim();
+  if (!secret && shouldMockOpenAi()) return "baroform-local-mock-reference-secret";
   if (!secret) throw new Error("Reference upload secret is not configured");
   return secret;
 }
@@ -178,9 +180,64 @@ export async function openAiUploadRequest(
   path: string,
   init: RequestInit,
 ) {
+  if (shouldMockOpenAi()) return mockOpenAiUploadResponse(path, init);
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
   const headers = new Headers(init.headers);
   headers.set("authorization", `Bearer ${apiKey}`);
-  return fetch(`https://api.openai.com/v1${path}`, { ...init, headers });
+  const startedAt = performance.now();
+  try {
+    const response = await fetch(`https://api.openai.com/v1${path}`, { ...init, headers });
+    console.info("baroform-openai-operation", {
+      requestType: "file_extract",
+      operation: path.endsWith("/parts")
+        ? "upload_part"
+        : path.endsWith("/complete")
+          ? "upload_complete"
+          : "upload_start",
+      status: response.status,
+      success: response.ok,
+      retryCount: 0,
+      latencyMs: Math.round(performance.now() - startedAt),
+      occurredAt: new Date().toISOString(),
+    });
+    return response;
+  } catch (error) {
+    console.warn("baroform-openai-operation", {
+      requestType: "file_extract",
+      operation: "upload",
+      success: false,
+      errorCode: "UPLOAD_NETWORK_ERROR",
+      retryCount: 0,
+      latencyMs: Math.round(performance.now() - startedAt),
+    });
+    throw error;
+  }
+}
+
+const mockUploadSizes = new Map<string, number>();
+
+function mockOpenAiUploadResponse(path: string, init: RequestInit) {
+  if (path === "/uploads" && init.method === "POST") {
+    const body = typeof init.body === "string" ? JSON.parse(init.body) as { bytes?: unknown } : {};
+    const uploadId = `upload_mock_${crypto.randomUUID().replaceAll("-", "")}`;
+    mockUploadSizes.set(uploadId, typeof body.bytes === "number" ? body.bytes : 0);
+    return Response.json({ id: uploadId, status: "pending" });
+  }
+  const uploadMatch = path.match(/^\/uploads\/([^/]+)\/(parts|complete)$/);
+  if (uploadMatch?.[2] === "parts") {
+    return Response.json({
+      id: `part_mock_${crypto.randomUUID().replaceAll("-", "")}`,
+    });
+  }
+  if (uploadMatch?.[2] === "complete") {
+    const uploadId = decodeURIComponent(uploadMatch[1]);
+    return Response.json({
+      file: {
+        id: `file-mock_${crypto.randomUUID().replaceAll("-", "")}`,
+        bytes: mockUploadSizes.get(uploadId) ?? 0,
+      },
+    });
+  }
+  return Response.json({ error: "unsupported mock upload route" }, { status: 404 });
 }

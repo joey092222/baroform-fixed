@@ -3,6 +3,14 @@ import {
   parseSurveyRevisionResponse,
 } from "@/app/survey-revision";
 import type { SurveyQuestion } from "@/app/survey-intent";
+import { resolveSurveyRevisionModel } from "@/app/lib/ai/model-router";
+import {
+  createTrackedOpenAiClient,
+  logOpenAiUsage,
+  runOpenAiWithTransientRetry,
+  shouldMockOpenAi,
+} from "@/app/lib/ai/openai-runtime";
+import OpenAI from "openai";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,57 +70,96 @@ export async function POST(request: Request) {
       );
     }
 
+    const requestId = crypto.randomUUID();
+    const modelRoute = resolveSurveyRevisionModel(instruction);
     const apiKey = process.env.OPENAI_API_KEY?.trim();
+    if (shouldMockOpenAi()) {
+      return Response.json(
+        {
+          title,
+          description,
+          questions,
+          message: "비용 없는 테스트 모드에서 수정 요청을 확인했어요.",
+          mock: true,
+        },
+        { headers: noStoreHeaders },
+      );
+    }
     if (!apiKey) {
       return Response.json(
         { error: "AI 수정 연결이 아직 설정되지 않았어요." },
         { status: 503, headers: noStoreHeaders },
       );
     }
-    const model = process.env.OPENAI_SURVEY_MODEL?.trim() || "gpt-5.6-terra";
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), revisionTimeoutMs);
+    const openai = createTrackedOpenAiClient(apiKey, revisionTimeoutMs);
+    const startedAt = performance.now();
+    let usageLogged = false;
+    let actualRetryCount = 0;
     try {
-      const upstream = await fetch("https://api.openai.com/v1/responses", {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${apiKey}`,
-          "content-type": "application/json",
+      const attempted = await runOpenAiWithTransientRetry(
+        () => openai.responses.create(buildSurveyRevisionRequest({
+          model: modelRoute.model,
+          title,
+          description,
+          questions,
+          instruction,
+          targetGrade,
+          reasoningEffort: modelRoute.reasoningEffort,
+          serviceTier: modelRoute.requestedServiceTier,
+        }), {
+          signal: request.signal,
+        }),
+        (retryCount) => {
+          actualRetryCount = retryCount;
         },
-        body: JSON.stringify(
-          buildSurveyRevisionRequest({
-            model,
-            title,
-            description,
-            questions,
-            instruction,
-            targetGrade,
-          }),
-        ),
-        signal: AbortSignal.any([request.signal, controller.signal]),
+      );
+      const upstream = attempted.value;
+      actualRetryCount = attempted.retryCount;
+      logOpenAiUsage(upstream, {
+        requestId,
+        requestType: "survey_ai_edit",
+        model: modelRoute.model,
+        reasoningEffort: modelRoute.reasoningEffort,
+        requestedServiceTier: modelRoute.requestedServiceTier,
+        retryCount: actualRetryCount,
+        startedAt,
+        success: true,
       });
-      if (!upstream.ok) {
-        return Response.json(
-          {
-            error:
-              upstream.status === 429
-                ? "지금 AI 수정 요청이 많아요. 잠시 후 다시 시도해주세요."
-                : "AI가 설문을 수정하지 못했어요. 잠시 후 다시 시도해주세요.",
-          },
-          { status: 503, headers: noStoreHeaders },
-        );
-      }
-      const result = parseSurveyRevisionResponse(await upstream.json());
+      usageLogged = true;
+      const result = parseSurveyRevisionResponse(upstream);
       return Response.json(result, { headers: noStoreHeaders });
-    } finally {
-      clearTimeout(timeout);
+    } catch (error) {
+      if (!usageLogged) {
+        logOpenAiUsage(null, {
+          requestId,
+          requestType: "survey_ai_edit",
+          model: modelRoute.model,
+          reasoningEffort: modelRoute.reasoningEffort,
+          requestedServiceTier: modelRoute.requestedServiceTier,
+          retryCount: actualRetryCount,
+          startedAt,
+          success: false,
+          errorCode:
+            error instanceof OpenAI.APIConnectionTimeoutError
+              ? "MODEL_TIMEOUT"
+              : error instanceof OpenAI.APIError && error.status === 429
+                ? "MODEL_RATE_LIMITED"
+                : "MODEL_REQUEST_FAILED",
+        });
+      }
+      throw error;
     }
   } catch (error) {
     const message =
-      error instanceof Error && error.name === "AbortError"
+      error instanceof OpenAI.APIConnectionTimeoutError
         ? "AI 수정 시간이 길어졌어요. 수정 요청을 조금 더 짧게 적어주세요."
+        : error instanceof OpenAI.APIUserAbortError ||
+            (error instanceof Error && error.name === "AbortError")
+          ? "사용자가 AI 수정을 취소했어요."
+          : error instanceof OpenAI.APIError && error.status === 429
+            ? "지금 AI 수정 요청이 많아요. 잠시 후 다시 시도해주세요."
         : error instanceof Error
-          ? error.message
+          ? "AI가 설문을 수정하지 못했어요. 잠시 후 다시 시도해주세요."
           : "AI가 설문을 수정하지 못했어요.";
     return Response.json(
       { error: message },

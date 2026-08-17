@@ -34,6 +34,10 @@ import { respondentCopyIssues } from "./lib/ai/respondent-copy-quality";
 import {
   getSurveyModeGenerationConfig,
 } from "./lib/ai/survey-mode-config";
+import type {
+  BaroformReasoningEffort,
+  BaroformServiceTier,
+} from "./lib/ai/model-router";
 import {
   defaultSurveyMode,
   type SurveyMode,
@@ -1803,6 +1807,8 @@ export function buildSurveyAiRequest(
     targetGrade?: string;
     questionCount?: number;
     organizationLocationContext?: string | null;
+    reasoningEffort?: BaroformReasoningEffort;
+    serviceTier?: BaroformServiceTier;
     references?: {
       images?: Array<{ name: string; dataUrl: string }>;
       files?: Array<{
@@ -1823,8 +1829,8 @@ export function buildSurveyAiRequest(
   );
   const maxOutputTokens =
     surveyMode === "research"
-      ? 48_000
-      : Math.max(24_000, 16_000 + requestedQuestionCount * 600);
+      ? Math.max(18_000, 6_000 + requestedQuestionCount * 650)
+      : Math.max(10_000, 4_000 + requestedQuestionCount * 500);
   const targetGrade = options?.targetGrade?.trim() || "전학년";
   const referenceImages = (options?.references?.images ?? []).slice(0, 10);
   const referenceFiles = (options?.references?.files ?? []).slice(0, 3);
@@ -1895,7 +1901,7 @@ export function buildSurveyAiRequest(
     "[역할 기반 설문 계획]",
     JSON.stringify(compactSurveyPlanForPrompt(surveyPlan)),
     "",
-    "[평가 대상 및 측정 정책]",
+    "[반드시 지킬 측정 정책]",
     JSON.stringify({
       targetPopulation: surveyIntent.targetPopulation,
       evaluationTargets: surveyIntent.evaluationTargets,
@@ -1903,47 +1909,17 @@ export function buildSurveyAiRequest(
       targetListSource: surveyIntent.targetListSource,
       unitOfAnalysis: surveyIntent.unitOfAnalysis,
       measurementMode: surveyIntent.measurementMode,
-      measuredVariables: surveyPlan.blocks
-        .filter((block) => block.kind === "measurement" && block.directlyAskable)
-        .map((block) => block.variable),
       screeningRequired: surveyIntent.screeningRequired,
       screeningReason: surveyIntent.screeningReason,
-      decisionGoals: surveyPlan.decisionGoals,
       missingInformation: surveyIntent.missingInformation,
-      surveyPlan: compactSurveyPlanForPrompt(surveyPlan),
-      policies: {
-        preserveAllPurposeBlocks: true,
-        doNotFlattenCompositeIntent: true,
-        doNotUseStudyPurposeAsQuestionTarget: true,
-        orderCurrentExperienceBeforeProposedSolutionDemand: true,
-      },
+      preserveAllPurposeBlocks: true,
     }),
     "",
-    "구조화된 설문 의도에서 대상, 조사 대상물, 측정 개념, 목적, 기간, 응답 자격을 서로 다른 역할로 유지한다.",
-    "researchIntent.variables는 각각 독립된 분석 변수다. 복수 변수를 하나의 topic 문자열이나 서비스명으로 다시 합치지 않는다.",
-    "researchIntent.relations와 analysisGoals가 있으면 모든 directlyAskable respondent_level 변수를 각각 문항으로 측정한다.",
-    "SurveyPlan의 kind가 analysis인 block은 질문이 아니다. variableIds의 측정값을 결과 단계에서 분석하며, analysis block 자체를 응답자 문항으로 변환하지 않는다.",
-    "관계·영향·차이는 두 변수의 실제 응답값으로 분석한다. '두 값이 관련 있다고 느끼나요'처럼 관계 자체를 응답자에게 주관적으로 판단시키는 문항은 만들지 않는다.",
-    "numeric 변수는 현재 지원되는 설문 스키마에 맞춰 서로 겹치지 않는 순서형 single_choice 구간으로 측정한다. 단순 short_text로 내보내지 않는다.",
-    "aggregate_derived 변수와 derivedMetrics(비율·평균·분포·이용률·참여율)는 응답자에게 직접 묻지 않는다. sourceVariableIds의 개인별 기초 변수를 질문하고 결과 분석에서 계산한다.",
-    "관계 표현(~에 따른, ~별, ~와의 관계, ~가 ~에 미치는 영향)은 predictor/grouping 변수와 outcome 변수를 분리하고 교차 분석 또는 집단 비교가 가능하도록 설계한다.",
-    "통학 시간·수면 시간·공부 시간·지출 금액·이용 빈도·만족도·스트레스·거주 형태·여부처럼 측정 가능한 변수에는 구체적인 대상을 다시 적으라는 주관식 문항을 만들지 않는다.",
-    "설문 계획의 measurement block만 실제 문항으로 측정한다. analysis block은 문항으로 만들지 않고 측정된 variableIds의 분석 명세로 유지한다.",
-    "category_set은 제품명이 아니다. 관련성·직접 경험·전반 평가를 묻지 말고 구체적인 범주 선택, 빈도, 비중, 우선순위로 조작화한다.",
-    "evidence_for 관계로 연결된 뒤쪽 목적을 버리지 말고, 현재 행동 → 미충족 수요 → 대안 선호 → 이용 의향의 인과 흐름을 유지한다.",
-    "조사·실태조사·만족도 조사·인식 조사·수요 조사는 서비스명이나 이용 대상이 아니다.",
-    "명시된 기간이 null이면 최근 1개월·3개월·6개월 같은 기간을 만들지 않는다.",
-    "screeningRequired가 false이면 첫 문항을 탈락형 이용 여부 스크리너로 만들지 않는다.",
-    "satisfaction_evaluation이라는 이유만으로 스크리너를 만들지 않는다. 스크리너는 screeningRequired와 screeningReason이 명시된 경우에만 만든다.",
-    "targetCardinality가 multiple이면 evaluationTargets의 각 항목을 unitOfAnalysis 단위로 반복 측정하거나 비교한다. 여러 대상을 하나의 합성 대상명으로 평탄화하지 않는다.",
-    "intentMode가 composite이면 purposeBlocks를 순서대로 모두 측정한다. 각 문항은 하나의 purposeBlockId와 실제 measuredEntityIds에 연결한다.",
-    "composite 의도에서는 studyPurposes 전체나 사용자 원문 전체를 evaluationTarget 또는 서비스명으로 사용하지 않는다.",
-    "problem_solution 관계에서는 기존 이용 경험과 불편을 먼저 측정한 뒤 proposed_solution의 필요성, 이용 의향, 선호 조건을 측정한다.",
-    "composite 의도는 legacyEvaluationTarget과 일반 needs 템플릿을 사용하지 않는다. existing_context와 proposed_solution을 별도 대상으로 유지한다.",
-    "targetListSource가 creator_required이면 응답자용 질문으로 목록 부족을 숨기지 말고 제작자 확인이 먼저 필요하다고 판단한다.",
-    "사용자가 기간을 명시하지 않았다면 현재·최근·과거 같은 임의 시간 구간을 만들지 않는다.",
-    "각 문항의 analysis.construct, analysis.variable_name, analysis.purpose는 SurveyPlan block의 변수·목적과 연결한다.",
-    "includesNonUsers가 true이면 비이용자도 인식·장벽·향후 의향 문항에 응답할 수 있어야 한다.",
+    "의도와 계획의 역할을 합치지 말고 measurement block만 문항으로 만든다. analysis block과 파생 지표는 응답값으로 계산한다.",
+    "복합 목적은 현재 행동·경험을 먼저 측정하고 미충족 수요·대안 의향을 뒤에 측정하며 어느 목적도 버리지 않는다.",
+    "기간이 없으면 기간을 만들지 않고, screeningRequired=false이면 탈락형 스크리너를 만들지 않는다.",
+    "조사 유형을 서비스명으로 취급하지 말고, 관계는 각 변수를 따로 측정해 결과에서 분석한다.",
+    "수치 변수는 겹치지 않는 구간 선택지로 측정하고, 한 문항에는 한 변수만 묻는다.",
     "",
     "[설문 제작 방식]",
     surveyMode === "research" ? "정밀·연구 설문" : "일반 설문",
@@ -1975,15 +1951,13 @@ export function buildSurveyAiRequest(
     "[첨부 자료에서 추출한 내용]",
     attachmentContext,
     "",
-    "[기존 설문 해석 힌트]",
+    "[최소 제작 문맥]",
     JSON.stringify({
       surveyTitle: parsedBrief.surveyTitle,
       researchSubject: parsedBrief.researchSubject,
       researchContext: parsedBrief.researchContext,
-      targetRespondents: parsedBrief.targetRespondents,
       researchGoal: parsedBrief.researchGoal,
       recommendedTimeframe: parsedBrief.recommendedTimeframe,
-      surveyIntent: compactSurveyIntentForPrompt(surveyIntent),
       dimensions: parsedBrief.dimensions,
       fallbackKind:
         fallbackHint?.kind ??
@@ -1991,15 +1965,6 @@ export function buildSurveyAiRequest(
           ? "composite"
           : surveyIntent.objectKind),
       fallbackDomain: fallbackHint?.domain ?? null,
-      evaluationTargets: surveyIntent.evaluationTargets,
-      targetCardinality: surveyIntent.targetCardinality,
-      targetListSource: surveyIntent.targetListSource,
-      unitOfAnalysis: surveyIntent.unitOfAnalysis,
-      measurementMode: surveyIntent.measurementMode,
-      screeningRequired: surveyIntent.screeningRequired,
-      screeningReason: surveyIntent.screeningReason,
-      missingInformation: surveyIntent.missingInformation,
-      surveyPlan: compactSurveyPlanForPrompt(surveyPlan),
     }),
     "",
     "위 구조는 힌트이며 사용자 원문과 실제 검색 결과가 더 우선한다.",
@@ -2026,7 +1991,7 @@ export function buildSurveyAiRequest(
               ...referenceImages.map((image) => ({
                 type: "input_image" as const,
                 image_url: image.dataUrl,
-                detail: "high" as const,
+                detail: surveyMode === "research" ? ("high" as const) : ("low" as const),
               })),
             ],
           },
@@ -2035,7 +2000,8 @@ export function buildSurveyAiRequest(
 
   return {
     model,
-    reasoning: { effort: modeConfig.reasoningEffort },
+    reasoning: { effort: options?.reasoningEffort ?? modeConfig.reasoningEffort },
+    service_tier: options?.serviceTier ?? "default",
     ...(useWebSearch
       ? {
           tools: [
@@ -2050,6 +2016,7 @@ export function buildSurveyAiRequest(
             },
           ],
           tool_choice: "required" as const,
+          max_tool_calls: 1,
           include: ["web_search_call.action.sources" as const],
         }
       : {}),
@@ -2082,9 +2049,9 @@ const genericSurveyInstitutionTerms = new Set([
 const timeSensitiveFactPattern =
   /(?:최신\s*(?:정보|현황|통계)|현재\s*(?:운영|가격|요금|메뉴|위치)|올해\s*(?:운영|현황|통계)|운영\s*시간|정확한\s*(?:가격|요금|메뉴|위치)|공식\s*(?:정보|자료)|사실\s*확인|검색(?:해|을|이)?)/i;
 const knownFactSensitiveEntityPattern =
-  /(?:맛나샘|대우관|연세대|고려대|서울대|성균관대|한양대|이화여대|에브리타임|배달의민족|카카오톡|인스타그램|네이버|유튜브|Google\s*Forms|Typeform)/i;
+  /(?:맛나샘|한경관|대우관|에브리타임|배달의민족|카카오톡|인스타그램|네이버(?:웹툰)?|유튜브|Google\s*Forms|Typeform)/i;
 const namedInstitutionPattern =
-  /(?:[가-힣A-Za-z0-9·.-]{2,}(?:대학교|고등학교|캠퍼스|도서관|학생회관|생활관|기숙사|상담센터|복지센터|식당|라운지|관)(?![가-힣]))/g;
+  /(?:[가-힣A-Za-z0-9·.-]{2,}(?:도서관|학생회관|생활관|기숙사|상담센터|복지센터|식당|라운지|관)(?![가-힣]))/g;
 const namedProductPattern =
   /["'“”‘’]?([가-힣A-Za-z0-9·.-]{2,24})["'“”‘’]?\s+(?:앱|어플|서비스|브랜드|플랫폼)(?![가-힣])/g;
 const genericProductNames =

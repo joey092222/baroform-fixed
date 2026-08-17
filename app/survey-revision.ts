@@ -1,5 +1,9 @@
 import type { SurveyQuestion, SurveyQuestionType } from "./survey-intent";
 import { formatQuestionReason } from "./question-reason";
+import type {
+  BaroformReasoningEffort,
+  BaroformServiceTier,
+} from "./lib/ai/model-router";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -96,6 +100,8 @@ export function buildSurveyRevisionRequest({
   questions,
   instruction,
   targetGrade,
+  reasoningEffort = "low",
+  serviceTier = "default",
 }: {
   model: string;
   title: string;
@@ -103,22 +109,43 @@ export function buildSurveyRevisionRequest({
   questions: SurveyQuestion[];
   instruction: string;
   targetGrade: string;
+  reasoningEffort?: BaroformReasoningEffort;
+  serviceTier?: BaroformServiceTier;
 }) {
+  const compactQuestions = questions.map((question) => ({
+    id: question.id,
+    title: question.title,
+    ...(question.description ? { description: question.description } : {}),
+    ...(question.reason ? { reason: question.reason } : {}),
+    type: question.type,
+    ...(question.options?.length ? { options: question.options } : {}),
+    required: question.required,
+    ...(question.shuffleOptions ? { shuffleOptions: true } : {}),
+    ...(question.type === "scale"
+      ? {
+          scaleMin: question.scaleMin,
+          scaleMax: question.scaleMax,
+          scaleMinLabel: question.scaleMinLabel,
+          scaleMaxLabel: question.scaleMaxLabel,
+        }
+      : {}),
+  }));
   return {
     model,
-    reasoning: { effort: "low" },
+    reasoning: { effort: reasoningEffort },
+    service_tier: serviceTier,
     store: false,
-    max_output_tokens: 7000,
+    max_output_tokens: Math.min(9_000, Math.max(4_500, 2_500 + questions.length * 220)),
     instructions: surveyRevisionInstructions,
     input: [
       `<target_grade>${targetGrade}</target_grade>`,
-      `<current_survey>${JSON.stringify({ title, description, questions })}</current_survey>`,
+      `<current_survey>${JSON.stringify({ title, description, questions: compactQuestions })}</current_survey>`,
       `<revision_request>${instruction}</revision_request>`,
       "수정된 설문 전체를 반환하세요.",
     ].join("\n"),
     text: {
       format: {
-        type: "json_schema",
+        type: "json_schema" as const,
         name: "baroform_survey_revision",
         strict: true,
         schema: revisionSchema,

@@ -1696,7 +1696,7 @@ for (const surveyCase of [
     const request = buildSurveyAiRequest(
       surveyCase.prompt,
       analyzeSurveyPrompt(surveyCase.prompt),
-      "gpt-5.6",
+    "gpt-5.6-terra",
       { questionCount: surveyCase.count },
     );
     const input = requestInputText(request.input);
@@ -1718,7 +1718,7 @@ for (const surveyCase of [
     assert.match(input, new RegExp(`\\[희망 문항 수\\]\\n${surveyCase.count}`));
     assert.equal(request.tool_choice, "required");
     assert.equal(request.reasoning.effort, "medium");
-    assert.equal(request.max_output_tokens, 24_000);
+    assert.equal(request.max_output_tokens, Math.max(10_000, 4_000 + surveyCase.count * 500));
     assert.doesNotMatch(JSON.stringify(request.text.format.schema), /"format":"uri"/);
     assert.equal(questionSchema.minItems, surveyCase.count);
     assert.equal(questionSchema.maxItems, surveyCase.count);
@@ -1730,10 +1730,10 @@ test("고유명사가 있는 OpenAI 요청은 검색과 내부 품질 검사를 
   const request = buildSurveyAiRequest(
     prompt,
     analyzeSurveyPrompt(prompt),
-    "gpt-5.6",
+    "gpt-5.6-terra",
   );
 
-  assert.equal(request.model, "gpt-5.6");
+  assert.equal(request.model, "gpt-5.6-terra");
   assert.equal(request.tool_choice, "required");
   assert.equal(request.reasoning.effort, "medium");
   assert.equal(request.store, false);
@@ -1762,12 +1762,12 @@ test("정밀·연구 설문은 높은 추론과 중간 검색 문맥을 한 요�
   const request = buildSurveyAiRequest(
     prompt,
     analyzeSurveyPrompt(prompt),
-    "gpt-5.6",
+    "gpt-5.6-terra",
     { surveyMode: "research", questionCount: 12 },
   );
 
   assert.equal(request.reasoning.effort, "high");
-  assert.equal(request.max_output_tokens, 48_000);
+  assert.equal(request.max_output_tokens, 18_000);
   assert.equal(request.tools?.[0]?.type, "web_search");
   assert.equal(request.tools?.[0]?.search_context_size, "medium");
   assert.equal(request.tool_choice, "required");
@@ -1783,7 +1783,7 @@ test("일반적인 대학생활 설문은 standard 모드에서 검색 도구를
   const request = buildSurveyAiRequest(
     prompt,
     analyzeSurveyPrompt(prompt),
-    "gpt-5.6",
+    "gpt-5.6-terra",
     { surveyMode: "standard" },
   );
 
@@ -1800,7 +1800,7 @@ test("첨부 사진과 링크를 실제 멀티모달 참고 자료로 전달한�
   const request = buildSurveyAiRequest(
     prompt,
     analyzeSurveyPrompt(prompt),
-    "gpt-5.6",
+    "gpt-5.6-terra",
     {
       targetGrade: "전학년",
       questionCount: 7,
@@ -1832,7 +1832,7 @@ test("첨부 문서와 표를 실제 input_file 참고 자료로 전달한다", 
   const request = buildSurveyAiRequest(
     prompt,
     analyzeSurveyPrompt(prompt),
-    "gpt-5.6",
+    "gpt-5.6-terra",
     {
       references: {
         images: [],
@@ -1868,7 +1868,7 @@ test("일반 모드는 참고자료가 있어도 선택한 생성 설정을 유�
   const request = buildSurveyAiRequest(
     "첨부 자료를 토대로 학생 지원 서비스 수요를 조사해줘",
     analyzeSurveyPrompt("학생 지원 서비스 수요 조사"),
-    "gpt-5.6",
+    "gpt-5.6-terra",
     {
       questionCount: 7,
       references: {
@@ -2031,7 +2031,7 @@ test("업로드된 큰 파일은 Base64 대신 OpenAI file_id로 전달한다", 
   const request = buildSurveyAiRequest(
     "첨부 보고서를 참고해 만족도 조사를 만들어줘",
     analyzeSurveyPrompt("첨부 보고서를 참고해 만족도 조사를 만들어줘"),
-    "gpt-5.6",
+    "gpt-5.6-terra",
     {
       references: {
         images: [],
@@ -2358,7 +2358,7 @@ test("사용자가 고른 학년과 문항 수를 AI 생성 계약에 반영한�
   const request = buildSurveyAiRequest(
     prompt,
     analyzeSurveyPrompt(prompt),
-    "gpt-5.6",
+    "gpt-5.6-terra",
     { targetGrade: "3-4학년", questionCount: 12 },
   );
 
@@ -2435,7 +2435,7 @@ test("AI 수정 요청은 현재 설문 전체를 보존 가능한 구조로 전
     question(2, "이동에 걸리는 시간은 어느 정도인가요?"),
   ];
   const request = buildSurveyRevisionRequest({
-    model: "gpt-5.6",
+    model: "gpt-5.6-terra",
     title: "대우관 등하교 경험 조사",
     description: "이동 경험을 조사합니다.",
     questions: currentQuestions,
@@ -3293,7 +3293,7 @@ test("Vercel 한도보다 먼저 구조화된 오류를 반환하도록 런타�
     openAiTimeoutMs: 280_000,
     functionDeadlineMs: 290_000,
     backgroundPollTimeoutMs: 30_000,
-    maxRetries: 0,
+    maxRetries: 1,
   });
   assert.ok(
     surveyGenerationRuntime.openAiTimeoutMs <=
@@ -3338,7 +3338,7 @@ test("한경관은 사전 힌트를 사실로 단정하지 않고 식당 맥락 
   const request = buildSurveyAiRequest(
     prompt,
     analyzeSurveyPrompt(prompt),
-    "gpt-5.6",
+    "gpt-5.6-terra",
   );
 
   const input = requestInputText(request.input);

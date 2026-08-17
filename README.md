@@ -45,7 +45,12 @@ API 키나 `.env.local` 파일은 GitHub에 올리지 마세요.
 
 | 이름 | 기본값 | 설명 |
 |---|---|---|
-| `OPENAI_SURVEY_MODEL` | `gpt-5.6-terra` | 속도와 정확도를 균형 있게 맞춘 설문 조사·생성 모델 |
+| `AI_MODEL_SURVEY_MEDIUM` | `gpt-5.6-terra` | 일반 설문 생성 모델 |
+| `AI_MODEL_SURVEY_HIGH` | `gpt-5.6-sol` | 정밀·연구 설문 생성 모델 |
+| `AI_MODEL_SIMPLE_EDIT` | `gpt-5.6-luna` | 짧은 문장 표현 수정 모델 |
+| `OPENAI_SERVICE_TIER` | `default` | 일반 요청의 OpenAI 처리 등급 |
+| `AI_MOCK_MODE` | `false` | 실제 OpenAI 네트워크 없이 로컬 fixture를 사용하는 모드 |
+| `ALLOW_REAL_OPENAI_IN_NON_PRODUCTION` | `false` | Preview·Development의 실제 OpenAI 호출 허용 여부 |
 | `BAROFORM_AI_MAX_PER_HOUR` | `8` | 한 사용자 기준 시간당 신규 AI 생성 상한 |
 
 환경 변수는 Vercel 프로젝트의 `Settings` → `Environment Variables`에서 등록합니다. `OPENAI_API_KEY` 앞에 `NEXT_PUBLIC_`을 붙이면 브라우저에 노출될 수 있으므로 절대 붙이지 마세요.

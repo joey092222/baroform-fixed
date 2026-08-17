@@ -43,7 +43,7 @@ import {
 import OpenAI from "openai";
 import { parseResponse } from "openai/lib/ResponsesParser";
 import type { Response as OpenAIResponse } from "openai/resources/responses/responses";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { parseSurveyIntent } from "../../survey-semantic-intent";
 import { createSurveyPlan } from "../../survey-planning";
@@ -61,6 +61,14 @@ import {
   type GenerationSource,
   type SurveyGenerationTrace,
 } from "../../survey-generation-trace";
+import { resolveSurveyGenerationModel } from "@/app/lib/ai/model-router";
+import {
+  createTrackedOpenAiClient,
+  logOpenAiUsage,
+  openAiMaxRetries,
+  runOpenAiWithTransientRetry,
+  shouldMockOpenAi,
+} from "@/app/lib/ai/openai-runtime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,7 +77,6 @@ export const maxDuration = 300;
 const openAiTimeoutMs = 280_000;
 const functionDeadlineMs = 290_000;
 const backgroundPollTimeoutMs = 30_000;
-const openAiMaxRetries = 0;
 
 export const surveyGenerationRuntime = {
   maxDurationSeconds: maxDuration,
@@ -98,6 +105,11 @@ type RateEntry = {
 };
 
 const responseCache = new Map<string, CacheEntry>();
+const generationFlights = new Map<string, Promise<void>>();
+const backgroundGenerationCache = new Map<
+  string,
+  { expiresAt: number; responseId: string; jobToken: string; status: "queued" | "in_progress" }
+>();
 const rateBuckets = new Map<string, RateEntry>();
 const cacheLifetimeMs = 6 * 60 * 60 * 1000;
 const rateWindowMs = 60 * 60 * 1000;
@@ -559,12 +571,22 @@ function normalizePrompt(value: string) {
   return value.replace(/\r\n?/g, "\n").trim();
 }
 
-function createOpenAiClient(apiKey: string, timeout = openAiTimeoutMs) {
-  return new OpenAI({
-    apiKey,
-    maxRetries: openAiMaxRetries,
-    timeout,
-  });
+function generationCacheKey(value: unknown) {
+  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+
+function generationRequestScope(request: Request) {
+  const authorization = request.headers.get("authorization")?.trim();
+  const anonymousScope = [
+    request.headers.get("cf-connecting-ip") ??
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      request.headers.get("x-real-ip") ??
+      "local",
+    request.headers.get("user-agent")?.slice(0, 120) ?? "unknown",
+  ].join("|");
+  return createHash("sha256")
+    .update(authorization || anonymousScope)
+    .digest("hex");
 }
 
 function backgroundJobToken(responseId: string, apiKey: string) {
@@ -774,6 +796,9 @@ function pruneMemory(now: number) {
   }
   for (const [key, entry] of rateBuckets) {
     if (entry.resetAt <= now) rateBuckets.delete(key);
+  }
+  for (const [key, entry] of backgroundGenerationCache) {
+    if (entry.expiresAt <= now) backgroundGenerationCache.delete(key);
   }
   while (responseCache.size > 100) {
     const oldest = responseCache.keys().next().value as string | undefined;
@@ -1038,7 +1063,14 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
   const now = Date.now();
   pruneMemory(now);
   const referenceKey = await referenceFingerprint(references);
-  const cacheKey = `${surveyMode}|${prompt.toLocaleLowerCase("ko-KR")}|${targetGrade}|${questionCount}|${referenceKey}`;
+  const cacheKey = generationCacheKey({
+    requestScope: generationRequestScope(request),
+    surveyMode,
+    prompt: prompt.toLocaleLowerCase("ko-KR"),
+    targetGrade,
+    questionCount,
+    referenceKey,
+  });
   const cached = responseCache.get(cacheKey);
   if (cached && cached.expiresAt > now) {
     const cachedSource =
@@ -1068,6 +1100,27 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       requestId,
     );
   }
+  const activeBackground = backgroundGenerationCache.get(cacheKey);
+  if (
+    surveyMode === "research" &&
+    activeBackground &&
+    activeBackground.expiresAt > now
+  ) {
+    return apiPayload(
+      {
+        status: activeBackground.status,
+        responseId: activeBackground.responseId,
+        jobToken: activeBackground.jobToken,
+      },
+      202,
+      {
+        "x-baroform-ai-mode": "background",
+        "x-baroform-ai-cache": "background-hit",
+        "x-baroform-survey-mode": surveyMode,
+      },
+      requestId,
+    );
+  }
 
   if (!(await consumeRateLimit(request, now))) {
     return apiError(
@@ -1080,8 +1133,10 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
   }
 
   const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) {
-    if (hasReferences) {
+  const mockMode = shouldMockOpenAi();
+  if (!apiKey || mockMode) {
+    const fallbackReason = mockMode ? "mock-mode" : "api-key-missing";
+    if (hasReferences && !mockMode) {
       return apiError(
         "첨부 자료 분석 연결을 확인하는 중이에요. 잠시 후 다시 시도해주세요.",
         "REFERENCE_AI_UNAVAILABLE",
@@ -1100,7 +1155,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     if (verifiedFallback) {
       const response = fallbackResponse(
         verifiedFallback,
-        "api-key-missing",
+        fallbackReason,
         surveyMode,
         requestId,
         trace,
@@ -1112,7 +1167,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
           now,
           verifiedFallback,
           "verified-fallback",
-          "api-key-missing",
+          fallbackReason,
           "initial_local_blueprint",
         );
       }
@@ -1134,7 +1189,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     );
     const response = fallbackResponse(
       resilientFallback,
-      "api-key-missing",
+      fallbackReason,
       surveyMode,
       requestId,
       trace,
@@ -1148,7 +1203,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         now,
         resilientFallback,
         "verified-fallback",
-        "api-key-missing",
+        fallbackReason,
         intent.intentMode === "composite"
           ? "composite_plan_fallback"
           : "resilient_fallback",
@@ -1166,7 +1221,49 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     return response;
   }
 
-  const model = process.env.OPENAI_SURVEY_MODEL?.trim() || "gpt-5.6";
+  const modelRoute = resolveSurveyGenerationModel(surveyMode);
+  const model = modelRoute.model;
+  const activeFlight = generationFlights.get(cacheKey);
+  if (activeFlight) {
+    await activeFlight;
+    const shared = responseCache.get(cacheKey);
+    if (shared && shared.expiresAt > Date.now()) {
+      return apiSuccess(
+        shared.result,
+        {
+          "x-baroform-ai-mode": shared.mode,
+          "x-baroform-ai-cache": "shared-in-flight",
+          "x-baroform-survey-mode": surveyMode,
+          ...traceHeaders(trace),
+        },
+        requestId,
+      );
+    }
+    const sharedBackground = backgroundGenerationCache.get(cacheKey);
+    if (surveyMode === "research" && sharedBackground) {
+      return apiPayload(
+        {
+          status: sharedBackground.status,
+          responseId: sharedBackground.responseId,
+          jobToken: sharedBackground.jobToken,
+        },
+        202,
+        {
+          "x-baroform-ai-mode": "background",
+          "x-baroform-ai-cache": "shared-in-flight",
+          "x-baroform-survey-mode": surveyMode,
+        },
+        requestId,
+      );
+    }
+  }
+
+  let releaseFlight = () => {};
+  const currentFlight = new Promise<void>((resolve) => {
+    releaseFlight = resolve;
+  });
+  generationFlights.set(cacheKey, currentFlight);
+
   markSurveyGenerationStage(trace, "survey-planning");
   markSurveyGenerationStage(trace, "question-generation");
   let planBasedFallback: SurveyDraftResult | null = null;
@@ -1212,9 +1309,11 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     return response;
   };
   let organizationLocationContext: string | null = null;
+  let sessionUserId: string | null = null;
   try {
     const sessionUser = await getSessionUser(request);
     if (sessionUser) {
+      sessionUserId = sessionUser.id;
       organizationLocationContext = `로그인 프로필 학교: ${schoolLabel(sessionUser.schoolId)}`;
     }
   } catch {
@@ -1222,51 +1321,88 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
   }
 
   const lifecycle = combineRequestAndDeadlineSignals(request);
-  const openai = createOpenAiClient(apiKey);
+  const openai = createTrackedOpenAiClient(apiKey, openAiTimeoutMs);
   const modelRequest = buildSurveyAiRequest(prompt, null, model, {
     surveyMode,
     targetGrade,
     questionCount,
     references,
     organizationLocationContext,
+    reasoningEffort: modelRoute.reasoningEffort,
+    serviceTier: modelRoute.requestedServiceTier,
   });
   let upstreamCompleted = false;
+  let modelCallStarted = false;
+  let usageLogged = false;
+  let actualRetryCount = 0;
+  const modelCallStartedAt = performance.now();
 
   try {
     let rawResult: Awaited<ReturnType<typeof openai.responses.parse>>;
     try {
       recordSurveyModelCall(trace);
-      rawResult = await openai.responses.parse(
-        surveyMode === "research"
-          ? {
-              ...modelRequest,
-              background: true,
-              store: true,
-              metadata: {
-                baro_prompt: prompt,
-                baro_target_grade: targetGrade,
-                baro_question_count: String(questionCount),
-                baro_has_references: String(hasReferences),
-                baro_reference_key: referenceKey,
-                baro_organization_context:
-                  organizationLocationContext ?? "",
-              },
-            }
-          : modelRequest,
-        { signal: lifecycle.signal },
+      modelCallStarted = true;
+      const attempted = await runOpenAiWithTransientRetry(
+        () => openai.responses.parse(
+          surveyMode === "research"
+            ? {
+                ...modelRequest,
+                background: true,
+                store: true,
+                metadata: {
+                  baro_prompt: prompt,
+                  baro_target_grade: targetGrade,
+                  baro_question_count: String(questionCount),
+                  baro_has_references: String(hasReferences),
+                  baro_reference_key: referenceKey,
+                  baro_request_scope: generationRequestScope(request),
+                  baro_organization_context:
+                    organizationLocationContext ?? "",
+                },
+              }
+            : modelRequest,
+          { signal: lifecycle.signal },
+        ),
+        (retryCount) => {
+          actualRetryCount = retryCount;
+        },
       );
+      rawResult = attempted.value;
+      actualRetryCount = attempted.retryCount;
       upstreamCompleted = true;
       markSurveyGenerationStage(trace, "model-response");
+
+      logOpenAiUsage(rawResult, {
+        requestId,
+        userId: sessionUserId,
+        requestType: "survey_generate",
+        surveyMode,
+        model: modelRoute.model,
+        reasoningEffort: modelRoute.reasoningEffort,
+        requestedServiceTier: modelRoute.requestedServiceTier,
+        webSearchCalls: responseUsedWebSearch(rawResult) ? 1 : 0,
+        retryCount: actualRetryCount,
+        startedAt: modelCallStartedAt,
+        success: true,
+      });
+      usageLogged = true;
 
       if (
         surveyMode === "research" &&
         (rawResult.status === "queued" || rawResult.status === "in_progress")
       ) {
+        const jobToken = backgroundJobToken(rawResult.id, apiKey);
+        backgroundGenerationCache.set(cacheKey, {
+          expiresAt: Date.now() + cacheLifetimeMs,
+          responseId: rawResult.id,
+          jobToken,
+          status: rawResult.status,
+        });
         return apiPayload(
           {
             status: rawResult.status,
             responseId: rawResult.id,
-            jobToken: backgroundJobToken(rawResult.id, apiKey),
+            jobToken,
           },
           202,
           {
@@ -1567,6 +1703,25 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     );
   } finally {
     lifecycle.dispose();
+    if (modelCallStarted && !usageLogged) {
+      logOpenAiUsage(null, {
+        requestId,
+        userId: sessionUserId,
+        requestType: "survey_generate",
+        surveyMode,
+        model: modelRoute.model,
+        reasoningEffort: modelRoute.reasoningEffort,
+        requestedServiceTier: modelRoute.requestedServiceTier,
+        retryCount: actualRetryCount,
+        startedAt: modelCallStartedAt,
+        success: false,
+        errorCode: "MODEL_REQUEST_FAILED",
+      });
+    }
+    if (generationFlights.get(cacheKey) === currentFlight) {
+      generationFlights.delete(cacheKey);
+    }
+    releaseFlight();
   }
 }
 
@@ -1592,6 +1747,7 @@ function backgroundMetadata(response: OpenAIResponse) {
     questionCount: parsedCount,
     hasReferences: metadata.baro_has_references === "true",
     referenceKey: metadata.baro_reference_key || "none",
+    requestScope: metadata.baro_request_scope || "background",
     organizationLocationContext:
       metadata.baro_organization_context?.trim() || null,
   };
@@ -1630,7 +1786,7 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
   }
 
   try {
-    const openai = createOpenAiClient(apiKey, backgroundPollTimeoutMs);
+    const openai = createTrackedOpenAiClient(apiKey, backgroundPollTimeoutMs);
     const response = await openai.responses.retrieve(job.responseId, {}, {
       signal: request.signal,
     });
@@ -1683,14 +1839,25 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
         requestId,
       );
     }
-    const model = process.env.OPENAI_SURVEY_MODEL?.trim() || "gpt-5.6";
+    const modelRoute = resolveSurveyGenerationModel("research");
+    const model = modelRoute.model;
     const parseParams = buildSurveyAiRequest(context.prompt, null, model, {
       surveyMode: "research",
       targetGrade: context.targetGrade,
       questionCount: context.questionCount,
       organizationLocationContext: context.organizationLocationContext,
+      reasoningEffort: modelRoute.reasoningEffort,
+      serviceTier: modelRoute.requestedServiceTier,
     });
-    const backgroundCacheKey = `research|${context.prompt.toLocaleLowerCase("ko-KR")}|${context.targetGrade}|${context.questionCount}|${context.referenceKey}`;
+    const backgroundCacheKey = generationCacheKey({
+      requestScope: context.requestScope,
+      surveyMode: "research",
+      prompt: context.prompt.toLocaleLowerCase("ko-KR"),
+      targetGrade: context.targetGrade,
+      questionCount: context.questionCount,
+      referenceKey: context.referenceKey,
+    });
+    backgroundGenerationCache.delete(backgroundCacheKey);
     let result: SurveyDraftResult;
     try {
       const parsedResponse = parseResponse(response, parseParams);
@@ -1865,8 +2032,11 @@ async function cancelBackgroundJob(request: Request, requestId: string) {
     );
   }
   try {
-    const openai = createOpenAiClient(apiKey, backgroundPollTimeoutMs);
+    const openai = createTrackedOpenAiClient(apiKey, backgroundPollTimeoutMs);
     await openai.responses.cancel(job.responseId, { signal: request.signal });
+    for (const [key, entry] of backgroundGenerationCache) {
+      if (entry.responseId === job.responseId) backgroundGenerationCache.delete(key);
+    }
     return apiPayload(
       { status: "cancelled", responseId: job.responseId },
       200,

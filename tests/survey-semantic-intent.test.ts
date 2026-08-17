@@ -89,7 +89,7 @@ test("전 연령대 AI 사용능력 실태조사는 능력과 실제 활용을 �
   const request = buildSurveyAiRequest(
     prompt,
     analyzeSurveyPrompt(prompt),
-    "gpt-5.6",
+    "gpt-5.6-terra",
   );
   const requestText =
     typeof request.input === "string"
