@@ -1726,18 +1726,57 @@ test("research background 완료 결과가 의미 검수에서 거부되면 같�
   }
 });
 
-test("구조화 결과의 중복 문항 ID를 서버 검증에서 거부한다", () => {
+test("구조화 결과의 중복 문항 ID는 서버가 결정적으로 정규화한다", () => {
   const payload = structuredReadyPayload();
   payload.output_parsed.survey.questions[1]!.id = "Q1";
+  const trace = createSurveyGenerationTrace("normalize-duplicate-question-id");
+
+  const result = parseSurveyDraftResponse(
+    payload,
+    "대학생 네이버웹툰 이용 현황 조사",
+    7,
+    "전학년",
+    false,
+    trace,
+  );
+  const diagnostics = surveyGenerationTraceSnapshot(trace);
+
+  assert.match(result.status, /^ready/);
+  assert.ok(
+    diagnostics.normalizedInternalMetadataPaths.includes(
+      "survey.questions.1.id",
+    ),
+  );
+  assert.equal(diagnostics.modelOutputRejectedAt, null);
+});
+
+test("정규화할 수 없는 모델 품질 거절은 정확한 단계와 issue path를 trace에 남긴다", () => {
+  const payload = structuredReadyPayload();
+  payload.output_parsed.quality_check.all_logic_paths_valid = false;
+  const trace = createSurveyGenerationTrace("trace-model-integrity-rejection");
 
   assert.throws(
     () =>
       parseSurveyDraftResponse(
         payload,
-        "대학생 네이버웹툰 이용 현황 조사",
+        "대학생의 이동 경험과 불편 조사",
+        7,
+        "전학년",
+        false,
+        trace,
       ),
-    /질문 ID Q1가 중복/,
+    /완료되지 않은 품질 검사/,
   );
+  const diagnostics = surveyGenerationTraceSnapshot(trace);
+  assert.equal(
+    diagnostics.modelOutputRejectedAt,
+    "generation_integrity_validation",
+  );
+  assert.equal(
+    diagnostics.modelOutputRejectionCode,
+    "MODEL_OUTPUT_INTEGRITY_INVALID",
+  );
+  assert.deepEqual(diagnostics.modelOutputRejectionIssuePaths, ["integrity.0"]);
 });
 
 for (const surveyCase of [

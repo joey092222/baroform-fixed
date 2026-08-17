@@ -83,17 +83,31 @@ export type SurveyPlan = {
 };
 
 export type SurveyPlanCoverageQuestion = {
+  id?: string | number;
+  type?: string;
   planBlockId?: string;
   measuredVariable?: string;
   measuredConstruct?: string;
+  measuredEntityIds?: string[];
   title: string;
   options?: string[];
+};
+
+export type FinalQuestionCoverage = {
+  questionId: string;
+  declaredPlanBlockId: string | null;
+  declaredVariable: string | null;
+  inferredVariable: string | null;
+  roleCompatible: boolean;
 };
 
 export type PlanCoverageResult = {
   coveredRequiredBlockIds: string[];
   missingRequiredBlockIds: string[];
   optionalBlockIds: string[];
+  questionCoverage: FinalQuestionCoverage[];
+  incompatibleQuestionIds: string[];
+  semanticDuplicateGroups: string[][];
 };
 
 const makeBlock = (
@@ -345,6 +359,142 @@ function normalizedCoverageText(question: SurveyPlanCoverageQuestion) {
     .trim();
 }
 
+function visibleQuestionText(question: SurveyPlanCoverageQuestion) {
+  return [question.title, ...(question.options ?? [])]
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const explicitUsageBlockIds = [
+  "usage-status",
+  "usage-frequency",
+  "usage-time-context",
+  "usage-preferred-genre",
+  "usage-purpose",
+  "usage-satisfaction",
+  "usage-pain",
+  "usage-improvement",
+] as const;
+
+type ExplicitUsageBlockId = (typeof explicitUsageBlockIds)[number];
+
+function isExplicitUsageBlockId(value: string | undefined): value is ExplicitUsageBlockId {
+  return Boolean(
+    value && explicitUsageBlockIds.includes(value as ExplicitUsageBlockId),
+  );
+}
+
+function hasOrderedFrequencyResponse(question: SurveyPlanCoverageQuestion) {
+  const options = question.options ?? [];
+  if (options.length < 3) return false;
+  const corpus = options.join(" ");
+  const intervalCount = options.filter((option) =>
+    /(?:매일|거의\s*매일|주\s*\d+\s*(?:회|번)|주\s*1회|월\s*\d+\s*(?:회|번)|한\s*달|드물|가끔|자주|전혀)/.test(
+      option,
+    ),
+  ).length;
+  return (
+    intervalCount >= Math.min(3, options.length) ||
+    /(?:하루|일주일|한\s*주|한\s*달|월).*(?:회|번)/.test(corpus)
+  );
+}
+
+function hasStatusResponse(question: SurveyPlanCoverageQuestion) {
+  const options = question.options ?? [];
+  if (options.length < 2 || options.length > 5) return false;
+  const corpus = options.join(" ");
+  return (
+    /(?:예|있음|있다|이용\s*중|현재\s*이용|과거.*이용)/.test(corpus) &&
+    /(?:아니요|없음|없다|이용한\s*적\s*없|사용한\s*적\s*없)/.test(corpus)
+  );
+}
+
+/**
+ * Reclassifies what a respondent-facing question actually measures. Model supplied
+ * metadata is intentionally excluded: declared metadata is checked against this
+ * result, never used to manufacture it.
+ */
+export function inferExplicitUsageQuestionRole(
+  question: SurveyPlanCoverageQuestion,
+): ExplicitUsageBlockId | null {
+  const text = visibleQuestionText(question);
+  const title = question.title.replace(/\s+/g, " ").trim();
+
+  if (/장르/.test(text)) return "usage-preferred-genre";
+  if (/만족/.test(text)) return "usage-satisfaction";
+  if (/불편|어려움|문제점/.test(text)) return "usage-pain";
+  if (/개선|보완|바라는\s*(?:점|기능)|필요한\s*기능/.test(text)) {
+    return "usage-improvement";
+  }
+  if (/이용\s*목적|이용하는\s*이유|보는\s*이유|주로\s*어떤\s*(?:상황|이유)/.test(text)) {
+    return "usage-purpose";
+  }
+  if (
+    /주로\s*언제|어느\s*시간대|시간대|요일별|아침|점심|저녁|취침\s*전/.test(
+      text,
+    ) &&
+    !/얼마나\s*자주|빈도|몇\s*(?:회|번)/.test(title)
+  ) {
+    return "usage-time-context";
+  }
+  if (
+    /얼마나\s*자주|(?:이용|사용|구매|구독|방문|시청|감상)\s*빈도|몇\s*(?:회|번)|주당|월평균/.test(
+      title,
+    ) ||
+    hasOrderedFrequencyResponse(question)
+  ) {
+    return "usage-frequency";
+  }
+  if (
+    /(?:이용|사용|구매|구독|방문|시청|감상)(?:해?\s*본|한\s*적|\s*경험\s*여부|\s*여부)|(?:본|시청한)\s*적/.test(
+      title,
+    ) &&
+    ((question.options?.length ?? 0) === 0 || hasStatusResponse(question))
+  ) {
+    return "usage-status";
+  }
+  return null;
+}
+
+function questionId(question: SurveyPlanCoverageQuestion, index: number) {
+  return String(question.id ?? index + 1);
+}
+
+function usageQuestionRoleIsCompatible(
+  question: SurveyPlanCoverageQuestion,
+  blockId: ExplicitUsageBlockId,
+) {
+  return inferExplicitUsageQuestionRole(question) === blockId;
+}
+
+function semanticDuplicateGroups(
+  plan: SurveyPlan,
+  questions: SurveyPlanCoverageQuestion[],
+) {
+  const groups = new Map<string, string[]>();
+  questions.forEach((question, index) => {
+    const inferred = inferExplicitUsageQuestionRole(question);
+    if (inferred !== "usage-status" && inferred !== "usage-frequency") return;
+    const entityKey = (question.measuredEntityIds ?? []).slice().sort().join("|");
+    const titleTarget = question.title
+      .replace(/^(?:현재|최근(?:\s*\d+\s*(?:일|주|개월))?|평소)\s*/u, "")
+      .match(
+        /^(.+?)(?:을|를)?\s*(?:이용|사용|구매|구독|방문|시청|감상|보)(?:해?\s*본|한\s*적|\s*경험|\s*여부|\s*빈도|.*얼마나\s*자주)/u,
+      )?.[1]
+      ?.replace(/[\s?!.,'"“”‘’]/g, "")
+      .toLocaleLowerCase("ko-KR");
+    // A single-purpose usage survey has one evaluation target. In composite surveys
+    // an entity link is required before equal roles are considered duplicates.
+    if (plan.intentMode === "composite" && !entityKey) return;
+    if (!entityKey && !titleTarget) return;
+    const responseKind = question.type ?? "unknown";
+    const key = `${inferred}:${entityKey || titleTarget}:${responseKind}`;
+    groups.set(key, [...(groups.get(key) ?? []), questionId(question, index)]);
+  });
+  return [...groups.values()].filter((ids) => ids.length > 1);
+}
+
 export function questionCoversSurveyPlanBlock(
   question: SurveyPlanCoverageQuestion,
   block: SurveyPlanBlock,
@@ -364,6 +514,9 @@ export function questionCoversSurveyPlanBlock(
     "usage-improvement": /개선|보완|바라는\s*(?:점|기능)|필요한\s*기능/,
   };
   const matcher = specialMatchers[block.id];
+  if (matcher && isExplicitUsageBlockId(block.id)) {
+    return usageQuestionRoleIsCompatible(question, block.id);
+  }
   if (matcher) return matcher.test(text);
   if (question.planBlockId === block.id) return true;
   const variable = block.variable.replace(/\s+/g, " ").trim();
@@ -394,6 +547,20 @@ export function evaluateSurveyPlanCoverage(
         "usage-preferred-genre",
       ].includes(block.id),
   );
+  const questionCoverage = questions.map((question, index) => {
+    const declaredPlanBlockId = question.planBlockId ?? null;
+    const inferredVariable = inferExplicitUsageQuestionRole(question);
+    return {
+      questionId: questionId(question, index),
+      declaredPlanBlockId,
+      declaredVariable:
+        question.measuredVariable ?? question.measuredConstruct ?? null,
+      inferredVariable,
+      roleCompatible:
+        !isExplicitUsageBlockId(declaredPlanBlockId ?? undefined) ||
+        inferredVariable === declaredPlanBlockId,
+    } satisfies FinalQuestionCoverage;
+  });
   const coveredRequiredBlockIds = requiredBlocks
     .filter((block) =>
       questions.some((question) => questionCoversSurveyPlanBlock(question, block)),
@@ -407,6 +574,11 @@ export function evaluateSurveyPlanCoverage(
     optionalBlockIds: askableMeasurementBlocks
       .filter((block) => !block.required)
       .map((block) => block.id),
+    questionCoverage,
+    incompatibleQuestionIds: questionCoverage
+      .filter((item) => !item.roleCompatible)
+      .map((item) => item.questionId),
+    semanticDuplicateGroups: semanticDuplicateGroups(plan, questions),
   };
 }
 
