@@ -70,10 +70,11 @@ test("OG 제목은 최대 두 줄과 말줄임으로 안전하게 제한한다",
 });
 
 test("운영 공개 조회와 share route는 익명 공개 조건과 서버 metadata를 사용한다", async () => {
-  const [dataSource, pageSource, imageSource] = await Promise.all([
+  const [dataSource, pageSource, imageSource, fontSource] = await Promise.all([
     readFile("app/lib/public-survey.ts", "utf8"),
     readFile("app/s/[shareToken]/page.tsx", "utf8"),
     readFile("app/s/[shareToken]/opengraph-image.tsx", "utf8"),
+    readFile("app/lib/open-graph-font.ts", "utf8"),
   ]);
 
   assert.match(dataSource, /eq\(surveys\.isPublic, true\)/);
@@ -82,4 +83,7 @@ test("운영 공개 조회와 share route는 익명 공개 조건과 서버 meta
   assert.match(pageSource, /getPublicSurvey/);
   assert.match(imageSource, /ImageResponse/);
   assert.doesNotMatch(imageSource, /OpenAI|openai/);
+  assert.match(fontSource, /NotoSansKR-Bold-Baroform\.ttf/);
+  assert.doesNotMatch(fontSource, /\.woff2/);
+  assert.match(fontSource, /revalidate: 86_400/);
 });

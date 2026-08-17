@@ -1,6 +1,4 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-import notoSansKrUnicode from "@fontsource-variable/noto-sans-kr/unicode.json";
+import { getSiteUrl } from "@/app/survey-share";
 
 type OpenGraphFont = {
   name: string;
@@ -9,75 +7,41 @@ type OpenGraphFont = {
   style: "normal";
 };
 
-type UnicodeRange = {
-  subset: string;
-  ranges: Array<[number, number]>;
-};
+export const openGraphFontPath = "/fonts/NotoSansKR-Bold-Baroform.ttf";
 
-const parsedUnicodeRanges: UnicodeRange[] = Object.entries(
-  notoSansKrUnicode as Record<string, string>,
-).map(([subset, definition]) => ({
-  subset: subset.replace(/^\[|\]$/g, ""),
-  ranges: definition.split(",").flatMap((entry) => {
-    const match = /^U\+([0-9a-f]+)(?:-([0-9a-f]+))?$/i.exec(entry.trim());
-    if (!match) return [];
-    const start = Number.parseInt(match[1], 16);
-    const end = Number.parseInt(match[2] ?? match[1], 16);
-    return [[start, end] as [number, number]];
-  }),
-}));
+let fontPromise: Promise<ArrayBuffer> | null = null;
 
-const fontPromises = new Map<string, Promise<OpenGraphFont>>();
+async function fetchOpenGraphFont() {
+  const fontUrl = new URL(openGraphFontPath, getSiteUrl());
+  const response = await fetch(fontUrl, {
+    next: { revalidate: 86_400 },
+  });
 
-function subsetForCharacter(character: string) {
-  const codePoint = character.codePointAt(0);
-  if (codePoint === undefined) return null;
-
-  for (let index = parsedUnicodeRanges.length - 1; index >= 0; index -= 1) {
-    const subset = parsedUnicodeRanges[index];
-    if (subset.ranges.some(([start, end]) => codePoint >= start && codePoint <= end)) {
-      return subset.subset;
-    }
+  if (!response.ok) {
+    throw new Error(`Open Graph font request failed (${response.status})`);
   }
-  return null;
-}
 
-function fontFileName(subset: string) {
-  return `noto-sans-kr-${subset}-wght-normal.woff2`;
-}
+  const data = await response.arrayBuffer();
+  if (data.byteLength < 100_000) {
+    throw new Error("Open Graph font response was incomplete");
+  }
 
-function loadFont(subset: string) {
-  const existing = fontPromises.get(subset);
-  if (existing) return existing;
-
-  const promise = readFile(
-    join(
-      process.cwd(),
-      "node_modules",
-      "@fontsource-variable",
-      "noto-sans-kr",
-      "files",
-      fontFileName(subset),
-    ),
-  ).then((data) => ({
-    name: `NotoKR${subset.replace(/[^a-z0-9]/gi, "")}`,
-    data: Uint8Array.from(data).buffer,
-    weight: 700 as const,
-    style: "normal" as const,
-  }));
-
-  fontPromises.set(subset, promise);
-  return promise;
+  return data;
 }
 
 export async function loadOpenGraphKoreanFonts(text: string) {
-  const subsets = Array.from(
-    new Set(Array.from(text).map(subsetForCharacter).filter(Boolean)),
-  ) as string[];
-  const fonts = await Promise.all(subsets.map(loadFont));
+  void text;
+  fontPromise ??= fetchOpenGraphFont();
+  const data = await fontPromise;
+  const font: OpenGraphFont = {
+    name: "BaroformNotoKR",
+    data,
+    weight: 700,
+    style: "normal",
+  };
 
   return {
-    fonts,
-    fontFamily: fonts.map((font) => font.name).join(", "),
+    fonts: [font],
+    fontFamily: font.name,
   };
 }
