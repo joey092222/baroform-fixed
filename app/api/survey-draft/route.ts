@@ -46,6 +46,10 @@ import type { Response as OpenAIResponse } from "openai/resources/responses/resp
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { parseSurveyIntent } from "../../survey-semantic-intent";
+import {
+  parseSurveyGenerationContext,
+  surveyTemplateKeyForContext,
+} from "../../survey-context";
 import { createSurveyPlan } from "../../survey-planning";
 import {
   createSurveyGenerationTrace,
@@ -54,13 +58,22 @@ import {
   recordSurveyModelCall,
   recordSurveyFallback,
   recordSurveyGenerationSource,
+  recordSurveyContextTrace,
   recordSurveyIntentTrace,
+  recordSurveyModelResponseTrace,
   recordSurveyPlanTrace,
+  recordSurveyPostprocessTrace,
+  recordSurveyRequestTrace,
   recordSurveyValidation,
+  surveyGenerationLogSnapshot,
   surveyGenerationTraceSnapshot,
   type GenerationSource,
   type SurveyGenerationTrace,
 } from "../../survey-generation-trace";
+import type {
+  SurveyGenerationBackgroundStatus,
+  SurveyGenerationResponseMetadata,
+} from "../../survey-generation-response";
 import { resolveSurveyGenerationModel } from "@/app/lib/ai/model-router";
 import {
   createTrackedOpenAiClient,
@@ -69,6 +82,7 @@ import {
   runOpenAiWithTransientRetry,
   shouldMockOpenAi,
 } from "@/app/lib/ai/openai-runtime";
+import { buildDiagnosticsHeaders } from "@/app/build-diagnostics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -125,7 +139,41 @@ const noStoreHeaders = {
   "cache-control": "no-store, max-age=0",
   "x-content-type-options": "nosniff",
   "x-baroform-survey-engine": "semantic-intent-v2",
+  ...buildDiagnosticsHeaders(),
 };
+
+function nullableResponseHeader(
+  headers: Record<string, string>,
+  name: string,
+) {
+  const value = headers[name]?.trim();
+  return value && value !== "unknown" ? value : null;
+}
+
+function responseGenerationSource(
+  headers: Record<string, string>,
+  fallback: GenerationSource | null = null,
+) {
+  const source =
+    (nullableResponseHeader(
+      headers,
+      "x-baroform-generation-source",
+    ) as GenerationSource | null) ?? fallback;
+  if (source === "intent_clarification") return "clarification";
+  if (source === "semantic_repair_fallback") {
+    return "semantic_validation_fallback";
+  }
+  if (source === "quality_repair_fallback") {
+    return "quality_validation_fallback";
+  }
+  if (source === "openai_failure_fallback") {
+    return "openai_request_failure_fallback";
+  }
+  if (source === "parse_failure_fallback") {
+    return "openai_parse_failure_fallback";
+  }
+  return source;
+}
 
 const surveyModeRequestSchema = z.preprocess(
   (value) =>
@@ -154,14 +202,35 @@ function apiError(
   requestId = crypto.randomUUID(),
   stage = "request",
 ) {
+  const metadata: SurveyGenerationResponseMetadata = {
+    ok: false,
+    type: "error",
+    status: "error",
+    code,
+    stage,
+    requestId,
+    generationSource: responseGenerationSource(headers),
+    fallbackReason: nullableResponseHeader(
+      headers,
+      "x-baroform-ai-fallback",
+    ),
+  };
   return Response.json(
-    { ok: false, type: "error", error: message, code, stage, requestId },
+    {
+      error: message,
+      ...metadata,
+    },
     {
       status,
       headers: {
         ...noStoreHeaders,
         ...headers,
         "x-baroform-request-id": requestId,
+        "x-baroform-generation-source":
+          metadata.generationSource ?? "unknown",
+        "x-baroform-ai-fallback": metadata.fallbackReason ?? "",
+        "x-baroform-error-code": code,
+        "x-baroform-error-stage": stage,
       },
     },
   );
@@ -172,12 +241,35 @@ function apiSuccess<T extends SurveyDraftResult>(
   headers: Record<string, string>,
   requestId: string,
 ) {
+  const type =
+    result.status === "needs_clarification" ? "clarification" : "survey";
+  const metadata: SurveyGenerationResponseMetadata = {
+    ok: true,
+    type,
+    status: result.status,
+    requestId,
+    code: null,
+    stage:
+      nullableResponseHeader(headers, "x-baroform-generation-stage") ??
+      "response-ready",
+    generationSource: responseGenerationSource(
+      headers,
+      type === "clarification"
+        ? "clarification"
+        : headers["x-baroform-ai-mode"] === "model" ||
+            headers["x-baroform-ai-mode"] === "background"
+          ? "openai"
+          : null,
+    ),
+    fallbackReason: nullableResponseHeader(
+      headers,
+      "x-baroform-ai-fallback",
+    ),
+  };
   return Response.json(
     {
       ...result,
-      ok: true,
-      type: result.status === "needs_clarification" ? "clarification" : "survey",
-      requestId,
+      ...metadata,
     },
     {
       headers: {
@@ -189,14 +281,36 @@ function apiSuccess<T extends SurveyDraftResult>(
   );
 }
 
-function apiPayload<T extends Record<string, unknown>>(
+function apiPayload<
+  T extends Record<string, unknown> & {
+    status: SurveyGenerationBackgroundStatus;
+  },
+>(
   payload: T,
   status: number,
   headers: Record<string, string>,
   requestId: string,
 ) {
+  const metadata: SurveyGenerationResponseMetadata = {
+    ok: true,
+    type: "background",
+    status: payload.status,
+    requestId,
+    code: null,
+    stage:
+      nullableResponseHeader(headers, "x-baroform-generation-stage") ??
+      "background-poll",
+    generationSource: responseGenerationSource(headers, "openai"),
+    fallbackReason: nullableResponseHeader(
+      headers,
+      "x-baroform-ai-fallback",
+    ),
+  };
   return Response.json(
-    { ...payload, ok: true, type: "background", requestId },
+    {
+      ...payload,
+      ...metadata,
+    },
     {
       status,
       headers: {
@@ -218,6 +332,12 @@ function traceHeaders(trace: SurveyGenerationTrace) {
     "x-baroform-regeneration-count": String(snapshot.regenerationCount),
     "x-baroform-generation-ms": String(snapshot.elapsedMs),
     "x-baroform-generation-source": snapshot.generationSource ?? "unknown",
+    "x-baroform-ai-fallback": snapshot.fallbackReason ?? "",
+    "x-baroform-openai-status": snapshot.responseStatus ?? "unknown",
+    "x-baroform-openai-incomplete-reason":
+      snapshot.responseIncompleteReason ?? "",
+    "x-baroform-output-parsed": String(snapshot.outputParsedPresent),
+    "x-baroform-output-types": snapshot.outputItemTypes.join(","),
     "x-baroform-intent-mode": snapshot.intentMode ?? "unknown",
     "x-baroform-purpose-kinds": snapshot.purposeKinds.join(","),
     "x-baroform-purpose-block-count": String(snapshot.purposeBlockCount),
@@ -234,9 +354,7 @@ function traceHeaders(trace: SurveyGenerationTrace) {
 }
 
 function logTrace(trace: SurveyGenerationTrace) {
-  if (process.env.NODE_ENV !== "production") {
-    console.info("survey-generation-trace", surveyGenerationTraceSnapshot(trace));
-  }
+  console.info("survey-generation-trace", surveyGenerationLogSnapshot(trace));
 }
 
 function fallbackResponse(
@@ -250,6 +368,9 @@ function fallbackResponse(
   recordSurveyFallback(trace, reason, generationSource);
   markSurveyGenerationStage(trace, "fallback-started");
   if (result.status !== "needs_clarification") {
+    recordSurveyPostprocessTrace(trace, {
+      before: result.blueprint.aiQuestions.map((item) => item.title),
+    });
     recordSurveyValidation(trace, "semantic-validation");
     let issues: string[] = [];
     try {
@@ -283,6 +404,9 @@ function fallbackResponse(
         "repair-validation",
       );
     }
+    recordSurveyPostprocessTrace(trace, {
+      final: result.blueprint.aiQuestions.map((item) => item.title),
+    });
   }
   markSurveyGenerationStage(trace, "fallback-completed");
   markSurveyGenerationStage(trace, "response-ready");
@@ -954,6 +1078,12 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     references.files.length > 0 ||
     references.links.length > 0;
   markSurveyGenerationStage(trace, "intent-extraction");
+  const parsedSurveyContext = parseSurveyGenerationContext(enteredPrompt);
+  recordSurveyContextTrace(
+    trace,
+    parsedSurveyContext,
+    surveyTemplateKeyForContext(parsedSurveyContext),
+  );
   const intent = parseSurveyIntent(
     enteredPrompt,
     surveyMode === "research" ? "research" : "general",
@@ -1024,6 +1154,15 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         targetGrade !== "전학년"
       ? Math.max(2, requestedQuestionCount)
       : requestedQuestionCount;
+  recordSurveyRequestTrace(trace, {
+    httpMethod: request.method,
+    contentType: request.headers.get("content-type"),
+    surveyMode,
+    questionCount,
+    targetGrade,
+    attachmentCount:
+      references.images.length + references.files.length + references.links.length,
+  });
   const surveyPlan = createSurveyPlan(intent, questionCount);
   recordSurveyPlanTrace(trace, {
     intentKind: intent.objectKind,
@@ -1106,6 +1245,9 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     activeBackground &&
     activeBackground.expiresAt > now
   ) {
+    recordSurveyGenerationSource(trace, "openai");
+    markSurveyGenerationStage(trace, "background-poll");
+    logTrace(trace);
     return apiPayload(
       {
         status: activeBackground.status,
@@ -1117,6 +1259,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         "x-baroform-ai-mode": "background",
         "x-baroform-ai-cache": "background-hit",
         "x-baroform-survey-mode": surveyMode,
+        ...traceHeaders(trace),
       },
       requestId,
     );
@@ -1135,7 +1278,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   const mockMode = shouldMockOpenAi();
   if (!apiKey || mockMode) {
-    const fallbackReason = mockMode ? "mock-mode" : "api-key-missing";
+    const fallbackReason = !apiKey ? "api-key-missing" : "mock-mode";
     if (hasReferences && !mockMode) {
       return apiError(
         "첨부 자료 분석 연결을 확인하는 중이에요. 잠시 후 다시 시도해주세요.",
@@ -1228,6 +1371,13 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     await activeFlight;
     const shared = responseCache.get(cacheKey);
     if (shared && shared.expiresAt > Date.now()) {
+      const sharedSource =
+        shared.generationSource ??
+        (shared.mode === "model" ? "openai" : "initial_local_blueprint");
+      if (shared.reason) recordSurveyFallback(trace, shared.reason, sharedSource);
+      else recordSurveyGenerationSource(trace, sharedSource);
+      markSurveyGenerationStage(trace, "response-ready");
+      logTrace(trace);
       return apiSuccess(
         shared.result,
         {
@@ -1241,6 +1391,9 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     }
     const sharedBackground = backgroundGenerationCache.get(cacheKey);
     if (surveyMode === "research" && sharedBackground) {
+      recordSurveyGenerationSource(trace, "openai");
+      markSurveyGenerationStage(trace, "background-poll");
+      logTrace(trace);
       return apiPayload(
         {
           status: sharedBackground.status,
@@ -1252,6 +1405,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
           "x-baroform-ai-mode": "background",
           "x-baroform-ai-cache": "shared-in-flight",
           "x-baroform-survey-mode": surveyMode,
+          ...traceHeaders(trace),
         },
         requestId,
       );
@@ -1279,6 +1433,12 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     generationSource: GenerationSource,
   ) => {
     const result = getPlanBasedFallback();
+    if (result.status === "ready" || result.status === "ready_with_caution") {
+      recordSurveyPostprocessTrace(trace, {
+        before: result.blueprint.aiQuestions.map((item) => item.title),
+        final: result.blueprint.aiQuestions.map((item) => item.title),
+      });
+    }
     const response = fallbackResponse(
       result,
       reason,
@@ -1371,6 +1531,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       actualRetryCount = attempted.retryCount;
       upstreamCompleted = true;
       markSurveyGenerationStage(trace, "model-response");
+      recordSurveyModelResponseTrace(trace, rawResult);
 
       logOpenAiUsage(rawResult, {
         requestId,
@@ -1398,6 +1559,8 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
           jobToken,
           status: rawResult.status,
         });
+        markSurveyGenerationStage(trace, "background-poll");
+        logTrace(trace);
         return apiPayload(
           {
             status: rawResult.status,
@@ -1408,6 +1571,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
           {
             "x-baroform-ai-mode": "background",
             "x-baroform-survey-mode": surveyMode,
+            ...traceHeaders(trace),
           },
           requestId,
         );
@@ -1440,7 +1604,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
           "model-output-rejected",
           intent.intentMode === "composite"
             ? "composite_plan_fallback"
-            : "parse_failure_fallback",
+            : "openai_parse_failure_fallback",
         );
       }
 
@@ -1456,7 +1620,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         "responses-api-error",
         intent.intentMode === "composite"
           ? "composite_plan_fallback"
-          : "openai_failure_fallback",
+          : "openai_request_failure_fallback",
       );
     }
     console.info("survey-generation-upstream", {
@@ -1472,6 +1636,12 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       hasReferences,
       trace,
     );
+    if (result.status === "ready" || result.status === "ready_with_caution") {
+      recordSurveyPostprocessTrace(trace, {
+        before: result.blueprint.aiQuestions.map((item) => item.title),
+        final: result.blueprint.aiQuestions.map((item) => item.title),
+      });
+    }
 
     if (
       result.status !== "needs_clarification" &&
@@ -1498,6 +1668,12 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         "deterministic-direct-measurement",
         "fast_draft_fallback",
       );
+    }
+
+    if (result.status === "ready" || result.status === "ready_with_caution") {
+      recordSurveyPostprocessTrace(trace, {
+        final: result.blueprint.aiQuestions.map((item) => item.title),
+      });
     }
 
     cacheResult(
@@ -1568,8 +1744,8 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         intent.intentMode === "composite"
           ? "composite_plan_fallback"
           : error instanceof SurveyValidationError && error.category === "semantic"
-            ? "semantic_repair_fallback"
-            : "parse_failure_fallback",
+            ? "semantic_validation_fallback"
+            : "openai_parse_failure_fallback",
       );
     }
 
@@ -1607,21 +1783,9 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     });
 
     if (error instanceof SurveyGenerationResponseError) {
-      const canonicalCode = (() => {
-        switch (error.code) {
-          case "SURVEY_GENERATION_INCOMPLETE":
-          case "SURVEY_GENERATION_MESSAGE_MISSING":
-          case "SURVEY_GENERATION_OUTPUT_MISSING":
-            return "EMPTY_MODEL_RESPONSE";
-          case "SURVEY_GENERATION_FILTERED":
-          case "SURVEY_GENERATION_REFUSED":
-          case "SURVEY_GENERATION_UPSTREAM_FAILED":
-            return "MODEL_REQUEST_FAILED";
-        }
-      })();
       return tracedError(
         error.message,
-        canonicalCode,
+        error.code,
         error.statusCode,
         error.incompleteReason
           ? { "x-baroform-incomplete-reason": error.incompleteReason }
@@ -1691,8 +1855,8 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       return respondWithPlanBasedFallback(
         "model-output-rejected",
         error instanceof SurveyValidationError && error.category === "semantic"
-          ? "semantic_repair_fallback"
-          : "parse_failure_fallback",
+          ? "semantic_validation_fallback"
+          : "openai_parse_failure_fallback",
       );
     }
 
@@ -1764,24 +1928,40 @@ function backgroundJobParams(request: Request) {
 }
 
 async function handleBackgroundStatus(request: Request, requestId: string) {
-  if (!sameOrigin(request)) {
+  const trace = createSurveyGenerationTrace(requestId);
+  markSurveyGenerationStage(trace, "background-poll");
+  const backgroundError = (
+    message: string,
+    code: string,
+    status: number,
+    error: unknown = new Error(message),
+    headers: Record<string, string> = {},
+  ) => {
+    failSurveyGenerationTrace(trace, code, error);
+    logTrace(trace);
     return apiError(
+      message,
+      code,
+      status,
+      { ...headers, ...traceHeaders(trace) },
+      requestId,
+      trace.failureStage ?? "background-poll",
+    );
+  };
+  if (!sameOrigin(request)) {
+    return backgroundError(
       "현재 사이트에서 다시 시도해 주세요.",
       "INVALID_ORIGIN",
       403,
-      {},
-      requestId,
     );
   }
   const job = backgroundJobParams(request);
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!job || !apiKey || !validBackgroundJobToken(job.responseId, job.jobToken, apiKey)) {
-    return apiError(
+    return backgroundError(
       "정밀·연구 설문 작업 정보를 확인하지 못했어요.",
       "INVALID_BACKGROUND_JOB",
       400,
-      {},
-      requestId,
     );
   }
 
@@ -1790,53 +1970,58 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
     const response = await openai.responses.retrieve(job.responseId, {}, {
       signal: request.signal,
     });
+    recordSurveyModelResponseTrace(trace, response);
+    recordSurveyGenerationSource(trace, "openai");
     if (response.status === "queued" || response.status === "in_progress") {
+      logTrace(trace);
       return apiPayload(
         { status: response.status, responseId: response.id },
         202,
         {
           "x-baroform-ai-mode": "background",
           "x-baroform-survey-mode": "research",
+          ...traceHeaders(trace),
         },
         requestId,
       );
     }
     if (response.status === "cancelled") {
-      return apiError(
+      return backgroundError(
         "사용자가 정밀·연구 설문 생성을 취소했어요.",
         "SURVEY_GENERATION_CANCELLED",
         499,
-        {},
-        requestId,
       );
     }
     if (response.status === "incomplete") {
-      return apiError(
+      return backgroundError(
         "정밀·연구 설문의 응답이 완전하지 않아 적용하지 않았어요.",
         "SURVEY_GENERATION_INCOMPLETE",
         502,
-        {},
-        requestId,
+        new Error(
+          response.incomplete_details?.reason ?? "background response incomplete",
+        ),
+        response.incomplete_details?.reason
+          ? {
+              "x-baroform-incomplete-reason":
+                response.incomplete_details.reason,
+            }
+          : {},
       );
     }
     if (response.status !== "completed") {
-      return apiError(
+      return backgroundError(
         "정밀·연구 설문 생성에 실패했어요. 다시 시도해 주세요.",
         "SURVEY_GENERATION_BACKGROUND_FAILED",
         502,
-        {},
-        requestId,
       );
     }
 
     const context = backgroundMetadata(response);
     if (!context) {
-      return apiError(
+      return backgroundError(
         "정밀·연구 설문의 작업 정보를 복원하지 못했어요.",
         "SURVEY_GENERATION_BACKGROUND_FAILED",
         502,
-        {},
-        requestId,
       );
     }
     const modelRoute = resolveSurveyGenerationModel("research");
@@ -1867,7 +2052,13 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
         context.questionCount,
         context.targetGrade,
         context.hasReferences,
+        trace,
       );
+      if (result.status === "ready" || result.status === "ready_with_caution") {
+        recordSurveyPostprocessTrace(trace, {
+          before: result.blueprint.aiQuestions.map((item) => item.title),
+        });
+      }
     } catch (error) {
       if (
         error instanceof SyntaxError ||
@@ -1900,8 +2091,8 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
         "model-output-rejected",
         "research",
         requestId,
-        undefined,
-        "parse_failure_fallback",
+        trace,
+        "openai_parse_failure_fallback",
       );
       if (outputFallbackResponse.ok) {
         cacheResult(
@@ -1910,7 +2101,7 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
           resilientFallback,
           "verified-fallback",
           "model-output-rejected",
-          "parse_failure_fallback",
+          "openai_parse_failure_fallback",
         );
       }
       return outputFallbackResponse;
@@ -1944,6 +2135,17 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
         qualityCheck: result.qualityCheck,
         completionMessage: result.completionMessage,
       };
+      recordSurveyFallback(
+        trace,
+        "deterministic-direct-measurement",
+        "fast_draft_fallback",
+      );
+    }
+
+    if (result.status === "ready" || result.status === "ready_with_caution") {
+      recordSurveyPostprocessTrace(trace, {
+        final: result.blueprint.aiQuestions.map((item) => item.title),
+      });
     }
 
     cacheResult(
@@ -1954,12 +2156,15 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
       undefined,
       "openai",
     );
+    markSurveyGenerationStage(trace, "response-ready");
+    logTrace(trace);
     return apiSuccess(
       result,
       {
         "x-baroform-ai-mode": "background",
         "x-baroform-ai-attempt": "single-background-response",
         "x-baroform-survey-mode": "research",
+        ...traceHeaders(trace),
       },
       requestId,
     );
@@ -1970,42 +2175,55 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
       name: error instanceof Error ? error.name : "UnknownError",
     });
     if (error instanceof OpenAI.APIConnectionTimeoutError) {
-      return apiError(
+      return backgroundError(
         "정밀·연구 설문 상태 확인이 지연되고 있어요. 잠시 후 다시 확인해 주세요.",
         "SURVEY_GENERATION_OPENAI_TIMEOUT",
         504,
-        {},
-        requestId,
+        error,
       );
     }
     if (error instanceof OpenAI.APIConnectionError) {
-      return apiError(
+      return backgroundError(
         "설문 생성 서비스와 연결하지 못했어요. 잠시 후 다시 시도해 주세요.",
         "SURVEY_GENERATION_CONNECTION_ERROR",
         502,
-        {},
-        requestId,
+        error,
       );
     }
-    if (
-      error instanceof SyntaxError ||
-      error instanceof SurveyGenerationResponseError ||
-      error instanceof SurveyValidationError
-    ) {
-      return apiError(
-        "정밀·연구 설문의 응답이 완전하지 않아 적용하지 않았어요.",
-        "SURVEY_GENERATION_INCOMPLETE",
+    if (error instanceof SurveyGenerationResponseError) {
+      return backgroundError(
+        error.message,
+        error.code,
+        error.statusCode,
+        error,
+        error.incompleteReason
+          ? { "x-baroform-incomplete-reason": error.incompleteReason }
+          : {},
+      );
+    }
+    if (error instanceof SurveyValidationError) {
+      return backgroundError(
+        `생성된 설문 구조를 안전하게 적용하지 못했어요. ${error.issues.join(" ")}`,
+        error.category === "schema"
+          ? "OUTPUT_SCHEMA_INVALID"
+          : "SEMANTIC_VALIDATION_FAILED",
+        422,
+        error,
+      );
+    }
+    if (error instanceof SyntaxError) {
+      return backgroundError(
+        "생성된 설문 JSON을 확인하지 못했어요.",
+        "OUTPUT_JSON_INVALID",
         502,
-        {},
-        requestId,
+        error,
       );
     }
-    return apiError(
+    return backgroundError(
       "정밀·연구 설문 생성에 실패했어요. 다시 시도해 주세요.",
       "SURVEY_GENERATION_BACKGROUND_FAILED",
       502,
-      {},
-      requestId,
+      error,
     );
   }
 }

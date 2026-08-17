@@ -1,20 +1,35 @@
+import type { ParsedSurveyContext } from "./survey-context";
+import type { SurveyGenerationSource } from "./survey-generation-response";
+import {
+  currentBuildDiagnostics,
+  type BuildDiagnostics,
+} from "./build-diagnostics";
+
 export const MAX_REPAIR_ATTEMPTS = 1;
 export const MAX_FULL_REGENERATION_ATTEMPTS = 0;
 export const MAX_REGENERATION_ATTEMPTS = MAX_FULL_REGENERATION_ATTEMPTS;
 export const MAX_MODEL_CALLS_PER_REQUEST = 1;
 
-export type GenerationSource =
-  | "openai"
-  | "openai_partial_repair"
-  | "initial_local_blueprint"
-  | "openai_failure_fallback"
-  | "parse_failure_fallback"
-  | "semantic_repair_fallback"
-  | "quality_repair_fallback"
-  | "fast_draft_fallback"
-  | "resilient_fallback"
-  | "composite_plan_fallback"
-  | "intent_clarification";
+export type GenerationSource = SurveyGenerationSource;
+
+function canonicalGenerationSource(
+  source: GenerationSource,
+): GenerationSource {
+  switch (source) {
+    case "intent_clarification":
+      return "clarification";
+    case "semantic_repair_fallback":
+      return "semantic_validation_fallback";
+    case "quality_repair_fallback":
+      return "quality_validation_fallback";
+    case "openai_failure_fallback":
+      return "openai_request_failure_fallback";
+    case "parse_failure_fallback":
+      return "openai_parse_failure_fallback";
+    default:
+      return source;
+  }
+}
 
 export type GenerationDiagnostics = {
   requestId: string;
@@ -72,6 +87,13 @@ export type SurveyGenerationTrace = {
   errorMessage: string | null;
   failureStage: SurveyGenerationStage | null;
   stageHistory: Array<{ stage: SurveyGenerationStage; elapsedMs: number }>;
+  buildDiagnostics: BuildDiagnostics;
+  httpMethod: string | null;
+  contentType: string | null;
+  surveyMode: string | null;
+  requestedQuestionCount: number | null;
+  targetGrade: string | null;
+  attachmentCount: number;
   extractedTopic: string | null;
   extractedVariables: string[];
   extractedRelations: string[];
@@ -82,6 +104,7 @@ export type SurveyGenerationTrace = {
   generatedPlanBlocks: string[];
   originalQuestions: string[];
   semanticViolationCodes: string[];
+  qualityViolationCodes: string[];
   semanticViolationQuestionIds: string[];
   violationOrigins: string[];
   repairedQuestions: string[];
@@ -93,6 +116,27 @@ export type SurveyGenerationTrace = {
   originalQuestionCount: number | null;
   repairedQuestionIds: string[];
   preservedQuestionIds: string[];
+  rawUserInput: string | null;
+  normalizedInput: string | null;
+  parsedSurveyContext: ParsedSurveyContext | null;
+  extractedAudience: string | null;
+  extractedEntities: string[];
+  extractedActivities: string[];
+  extractedResearchGoals: string[];
+  extractedStudyPurposes: string[];
+  selectedSurveyType: string | null;
+  selectedTemplateKey: string | null;
+  selectedBlueprint: string | null;
+  rawModelResponsePresent: boolean;
+  rawModelResponse: string | null;
+  responseStatus: string | null;
+  responseIncompleteReason: string | null;
+  outputParsedPresent: boolean;
+  outputItemTypes: string[];
+  questionsBeforePostprocessCount: number;
+  finalQuestionCount: number;
+  questionsBeforePostprocess: string[];
+  finalQuestions: string[];
 };
 
 export function createSurveyGenerationTrace(
@@ -112,6 +156,13 @@ export function createSurveyGenerationTrace(
     errorMessage: null,
     failureStage: null,
     stageHistory: [{ stage: "request-received", elapsedMs: 0 }],
+    buildDiagnostics: currentBuildDiagnostics(),
+    httpMethod: null,
+    contentType: null,
+    surveyMode: null,
+    requestedQuestionCount: null,
+    targetGrade: null,
+    attachmentCount: 0,
     extractedTopic: null,
     extractedVariables: [],
     extractedRelations: [],
@@ -122,6 +173,7 @@ export function createSurveyGenerationTrace(
     generatedPlanBlocks: [],
     originalQuestions: [],
     semanticViolationCodes: [],
+    qualityViolationCodes: [],
     semanticViolationQuestionIds: [],
     violationOrigins: [],
     repairedQuestions: [],
@@ -133,7 +185,139 @@ export function createSurveyGenerationTrace(
     originalQuestionCount: null,
     repairedQuestionIds: [],
     preservedQuestionIds: [],
+    rawUserInput: null,
+    normalizedInput: null,
+    parsedSurveyContext: null,
+    extractedAudience: null,
+    extractedEntities: [],
+    extractedActivities: [],
+    extractedResearchGoals: [],
+    extractedStudyPurposes: [],
+    selectedSurveyType: null,
+    selectedTemplateKey: null,
+    selectedBlueprint: null,
+    rawModelResponsePresent: false,
+    rawModelResponse: null,
+    responseStatus: null,
+    responseIncompleteReason: null,
+    outputParsedPresent: false,
+    outputItemTypes: [],
+    questionsBeforePostprocessCount: 0,
+    finalQuestionCount: 0,
+    questionsBeforePostprocess: [],
+    finalQuestions: [],
   };
+}
+
+export function recordSurveyRequestTrace(
+  trace: SurveyGenerationTrace | undefined,
+  details: {
+    httpMethod: string;
+    contentType: string | null;
+    surveyMode: string;
+    questionCount: number;
+    targetGrade: string;
+    attachmentCount: number;
+  },
+) {
+  if (!trace) return;
+  trace.httpMethod = details.httpMethod.slice(0, 20);
+  trace.contentType = details.contentType?.slice(0, 120) ?? null;
+  trace.surveyMode = details.surveyMode.slice(0, 40);
+  trace.requestedQuestionCount = details.questionCount;
+  trace.targetGrade = details.targetGrade.slice(0, 80);
+  trace.attachmentCount = details.attachmentCount;
+}
+
+export function recordSurveyContextTrace(
+  trace: SurveyGenerationTrace | undefined,
+  context: ParsedSurveyContext,
+  selectedTemplateKey: string,
+) {
+  if (!trace) return;
+  trace.selectedSurveyType = context.surveyArchetype;
+  trace.selectedTemplateKey = selectedTemplateKey.slice(0, 120);
+  if (process.env.NODE_ENV === "production") return;
+  trace.rawUserInput = context.rawUserInput.slice(0, 500);
+  trace.normalizedInput = context.normalizedInput.slice(0, 500);
+  trace.parsedSurveyContext = {
+    ...context,
+    rawUserInput: context.rawUserInput.slice(0, 500),
+    normalizedInput: context.normalizedInput.slice(0, 500),
+    researchConstructs: context.researchConstructs.slice(0, 20),
+  };
+  trace.extractedAudience = context.audience?.slice(0, 160) ?? null;
+  trace.extractedEntities = [context.primaryEntity.slice(0, 200)];
+  trace.extractedActivities = context.activity
+    ? [context.activity.slice(0, 240)]
+    : [];
+  trace.extractedResearchGoals = [context.researchGoal.slice(0, 300)];
+}
+
+export function recordSurveyModelResponseTrace(
+  trace: SurveyGenerationTrace | undefined,
+  rawModelResponse: unknown,
+) {
+  if (!trace) return;
+  trace.rawModelResponsePresent = rawModelResponse !== null && rawModelResponse !== undefined;
+  if (rawModelResponse && typeof rawModelResponse === "object") {
+    const payload = rawModelResponse as {
+      status?: unknown;
+      incomplete_details?: unknown;
+      output_parsed?: unknown;
+      output?: unknown;
+    };
+    trace.responseStatus =
+      typeof payload.status === "string" ? payload.status.slice(0, 80) : null;
+    const incompleteReason =
+      payload.incomplete_details && typeof payload.incomplete_details === "object"
+        ? (payload.incomplete_details as { reason?: unknown }).reason
+        : null;
+    trace.responseIncompleteReason =
+      typeof incompleteReason === "string" ? incompleteReason.slice(0, 120) : null;
+    trace.outputParsedPresent =
+      payload.output_parsed !== null && payload.output_parsed !== undefined;
+    trace.outputItemTypes = Array.isArray(payload.output)
+      ? payload.output
+          .map((item) =>
+            item && typeof item === "object"
+              ? (item as { type?: unknown }).type
+              : null,
+          )
+          .filter((value): value is string => typeof value === "string")
+          .slice(0, 30)
+      : [];
+  }
+  if (process.env.NODE_ENV === "production") return;
+  try {
+    trace.rawModelResponse = JSON.stringify(rawModelResponse).slice(0, 8_000);
+  } catch {
+    trace.rawModelResponse = "[unserializable model response]";
+  }
+}
+
+export function recordSurveyPostprocessTrace(
+  trace: SurveyGenerationTrace | undefined,
+  details: { before?: string[]; final?: string[] },
+) {
+  if (!trace) return;
+  if (details.before) {
+    trace.questionsBeforePostprocessCount = details.before.length;
+  }
+  if (details.final) {
+    trace.finalQuestionCount = details.final.length;
+  }
+  if (process.env.NODE_ENV === "production") return;
+  if (details.before) {
+    trace.questionsBeforePostprocess = details.before
+      .slice(0, 30)
+      .map((item) => item.slice(0, 240));
+  }
+  if (details.final) {
+    trace.finalQuestions = details.final
+      .slice(0, 30)
+      .map((item) => item.slice(0, 240));
+  }
 }
 
 export function recordSurveyGenerationSource(
@@ -141,7 +325,7 @@ export function recordSurveyGenerationSource(
   source: GenerationSource,
 ) {
   if (!trace) return;
-  trace.generationSource = source;
+  trace.generationSource = canonicalGenerationSource(source);
 }
 
 export function recordSurveyQuestionOutcome(
@@ -188,6 +372,8 @@ export function recordSurveyPlanTrace(
   trace.purposeKinds = (details.purposeKinds ?? []).slice(0, 12);
   trace.purposeBlockCount = details.purposeBlockCount ?? 0;
   trace.generatedPlanBlocks = details.blocks.slice(0, 40).map((item) => item.slice(0, 240));
+  trace.extractedStudyPurposes = [...trace.purposeKinds];
+  trace.selectedBlueprint = trace.generatedPlanBlocks.join(" | ").slice(0, 2_000);
 }
 
 export function recordSurveySemanticDiagnostics(
@@ -195,6 +381,7 @@ export function recordSurveySemanticDiagnostics(
   details: {
     originalQuestions?: string[];
     violationCodes?: string[];
+    qualityViolationCodes?: string[];
     violationQuestionIds?: Array<string | number>;
     violationOrigins?: string[];
     repairedQuestions?: string[];
@@ -206,6 +393,11 @@ export function recordSurveySemanticDiagnostics(
     trace.originalQuestions = details.originalQuestions.slice(0, 30).map((item) => item.slice(0, 240));
   }
   if (details.violationCodes) trace.semanticViolationCodes = [...details.violationCodes];
+  if (details.qualityViolationCodes) {
+    trace.qualityViolationCodes = details.qualityViolationCodes
+      .slice(0, 30)
+      .map((item) => item.slice(0, 160));
+  }
   if (details.violationQuestionIds) {
     trace.semanticViolationQuestionIds = details.violationQuestionIds.map(String);
   }
@@ -227,7 +419,7 @@ export function recordSurveyFallback(
   trace.fallbackUsed = true;
   trace.fallbackReason = reason.slice(0, 120);
   trace.fallbackCount += 1;
-  if (source) trace.generationSource = source;
+  if (source) trace.generationSource = canonicalGenerationSource(source);
 }
 
 export function markSurveyGenerationStage(
@@ -302,6 +494,18 @@ export function surveyGenerationTraceSnapshot(trace: SurveyGenerationTrace) {
     errorMessage: trace.errorMessage,
     failureStage: trace.failureStage,
     stageHistory: [...trace.stageHistory],
+    buildCommitSha: trace.buildDiagnostics.buildCommitSha,
+    deploymentEnvironment: trace.buildDiagnostics.deploymentEnvironment,
+    deploymentUrl: trace.buildDiagnostics.deploymentUrl,
+    deploymentId: trace.buildDiagnostics.deploymentId,
+    gitBranch: trace.buildDiagnostics.gitBranch,
+    appVersion: trace.buildDiagnostics.appVersion,
+    httpMethod: trace.httpMethod,
+    contentType: trace.contentType,
+    surveyMode: trace.surveyMode,
+    requestedQuestionCount: trace.requestedQuestionCount,
+    targetGrade: trace.targetGrade,
+    attachmentCount: trace.attachmentCount,
     extractedTopic: trace.extractedTopic,
     extractedVariables: [...trace.extractedVariables],
     extractedRelations: [...trace.extractedRelations],
@@ -312,6 +516,7 @@ export function surveyGenerationTraceSnapshot(trace: SurveyGenerationTrace) {
     generatedPlanBlocks: [...trace.generatedPlanBlocks],
     originalQuestions: [...trace.originalQuestions],
     semanticViolationCodes: [...trace.semanticViolationCodes],
+    qualityViolationCodes: [...trace.qualityViolationCodes],
     semanticViolationQuestionIds: [...trace.semanticViolationQuestionIds],
     violationOrigins: [...trace.violationOrigins],
     repairedQuestions: [...trace.repairedQuestions],
@@ -323,6 +528,73 @@ export function surveyGenerationTraceSnapshot(trace: SurveyGenerationTrace) {
     originalQuestionCount: trace.originalQuestionCount,
     repairedQuestionIds: [...trace.repairedQuestionIds],
     preservedQuestionIds: [...trace.preservedQuestionIds],
+    rawUserInput: trace.rawUserInput,
+    normalizedInput: trace.normalizedInput,
+    parsedSurveyContext: trace.parsedSurveyContext,
+    extractedAudience: trace.extractedAudience,
+    extractedEntities: [...trace.extractedEntities],
+    extractedActivities: [...trace.extractedActivities],
+    extractedResearchGoals: [...trace.extractedResearchGoals],
+    extractedStudyPurposes: [...trace.extractedStudyPurposes],
+    selectedSurveyType: trace.selectedSurveyType,
+    selectedTemplateKey: trace.selectedTemplateKey,
+    selectedBlueprint: trace.selectedBlueprint,
+    rawModelResponsePresent: trace.rawModelResponsePresent,
+    rawModelResponse: trace.rawModelResponse,
+    responseStatus: trace.responseStatus,
+    responseIncompleteReason: trace.responseIncompleteReason,
+    outputParsedPresent: trace.outputParsedPresent,
+    outputItemTypes: [...trace.outputItemTypes],
+    questionsBeforePostprocessCount: trace.questionsBeforePostprocessCount,
+    finalQuestionCount: trace.finalQuestionCount,
+    questionsBeforePostprocess: [...trace.questionsBeforePostprocess],
+    finalQuestions: [...trace.finalQuestions],
     totalElapsedMs: trace.elapsedMs,
+  };
+}
+
+export function surveyGenerationLogSnapshot(trace: SurveyGenerationTrace) {
+  const snapshot = surveyGenerationTraceSnapshot(trace);
+  if (process.env.NODE_ENV !== "production") return snapshot;
+  return {
+    requestId: snapshot.requestId,
+    stage: snapshot.stage,
+    failureStage: snapshot.failureStage,
+    errorCode: snapshot.errorCode,
+    stageHistory: snapshot.stageHistory,
+    buildCommitSha: snapshot.buildCommitSha,
+    deploymentEnvironment: snapshot.deploymentEnvironment,
+    deploymentUrl: snapshot.deploymentUrl,
+    deploymentId: snapshot.deploymentId,
+    gitBranch: snapshot.gitBranch,
+    appVersion: snapshot.appVersion,
+    httpMethod: snapshot.httpMethod,
+    contentType: snapshot.contentType,
+    surveyMode: snapshot.surveyMode,
+    requestedQuestionCount: snapshot.requestedQuestionCount,
+    targetGrade: snapshot.targetGrade,
+    attachmentCount: snapshot.attachmentCount,
+    selectedSurveyType: snapshot.selectedSurveyType,
+    selectedTemplateKey: snapshot.selectedTemplateKey,
+    intentMode: snapshot.intentMode,
+    purposeKinds: snapshot.purposeKinds,
+    purposeBlockCount: snapshot.purposeBlockCount,
+    generationSource: snapshot.generationSource,
+    semanticViolationCodes: snapshot.semanticViolationCodes,
+    qualityViolationCodes: snapshot.qualityViolationCodes,
+    fallbackUsed: snapshot.fallbackUsed,
+    fallbackReason: snapshot.fallbackReason,
+    modelCallCount: snapshot.modelCallCount,
+    repairCount: snapshot.repairCount,
+    fallbackCount: snapshot.fallbackCount,
+    originalQuestionCount: snapshot.originalQuestionCount,
+    questionsBeforePostprocessCount: snapshot.questionsBeforePostprocessCount,
+    finalQuestionCount: snapshot.finalQuestionCount,
+    rawModelResponsePresent: snapshot.rawModelResponsePresent,
+    responseStatus: snapshot.responseStatus,
+    responseIncompleteReason: snapshot.responseIncompleteReason,
+    outputParsedPresent: snapshot.outputParsedPresent,
+    outputItemTypes: snapshot.outputItemTypes,
+    totalElapsedMs: snapshot.totalElapsedMs,
   };
 }

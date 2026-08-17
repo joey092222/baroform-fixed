@@ -21,6 +21,12 @@ import {
   researchIntentTitle,
   type ResearchVariable,
 } from "./survey-research-intent";
+import {
+  canUseUsageBlueprint,
+  parseSurveyGenerationContext,
+  surveyTemplateKeyForContext,
+  type ParsedSurveyContext,
+} from "./survey-context";
 
 export type SurveyQuestionType =
   | "scale"
@@ -159,6 +165,7 @@ export type SurveySemantics = {
   requiresCreatorClarification: boolean;
   missingInformation: string[];
   assumptions: string[];
+  parsedSurveyContext: ParsedSurveyContext;
 };
 
 export type SurveyBlueprint = {
@@ -179,6 +186,8 @@ export type SurveyBlueprint = {
   aiTitle?: string;
   domain?: SurveyDomain;
   semanticPlan?: SurveyPlan;
+  parsedSurveyContext?: ParsedSurveyContext;
+  selectedTemplateKey?: string;
 };
 
 export type SurveyBrief = {
@@ -196,6 +205,7 @@ export type SurveyBrief = {
   domain: SurveyDomain;
   semantics: SurveySemantics;
   surveyIntent: SurveyIntent;
+  parsedSurveyContext: ParsedSurveyContext;
 };
 
 const normalizePrompt = (value: string) =>
@@ -231,7 +241,7 @@ function stripRequestWrapper(value: string) {
       "",
     )
     .replace(
-      /\s*(?:을|를)?\s*조사(?:해\s*줘|해줘|해주세요|해\s*주세요|해\s*달라|해달라|하라|하고\s*싶(?:어|어요|습니다))$/g,
+      /\s*(?:에\s*대해|에\s*관해|와\s*관련해|과\s*관련해)?\s*(?:을|를)?\s*조사(?:해\s*줘|해줘|해주세요|해\s*주세요|해\s*달라|해달라|하라|하고\s*싶(?:다|어|어요|습니다))$/g,
       "",
     )
     .replace(
@@ -255,7 +265,7 @@ function stripRequestWrapper(value: string) {
 
   for (let pass = 0; pass < 2; pass += 1) {
     prompt = prompt
-      .replace(/\s*(?:에\s*대한|에\s*관한|관련)\s*$/g, "")
+      .replace(/\s*(?:에\s*대해|에\s*관해|에\s*대한|에\s*관한|관련)\s*$/g, "")
       .replace(/\s+/g, " ")
       .trim();
   }
@@ -406,6 +416,13 @@ export function parseExplicitSurveyMeasurement(
 }
 
 function detectIntent(prompt: string): SurveyIntentKind {
+  const parsedContext = parseSurveyGenerationContext(prompt);
+  if (parsedContext.surveyArchetype === "mobility_experience") return "general";
+  if (parsedContext.surveyArchetype === "learning_experience") return "general";
+  if (parsedContext.surveyArchetype === "relationship_experience") return "general";
+  if (parsedContext.surveyArchetype === "attitude") return "awareness";
+  if (parsedContext.surveyArchetype === "satisfaction") return "satisfaction";
+  if (parsedContext.surveyArchetype === "demand") return "needs";
   const withoutSurveyNoun = prompt
     .replace(/\s*(?:설문\s*조사|설문|조사)\s*$/g, "")
     .trim();
@@ -531,6 +548,17 @@ function splitRespondent(prompt: string) {
     };
   }
 
+  const objectAudience = prompt.match(
+    new RegExp(`^(.+?)(?:의)\\s+(.*${personHead}(?:들)?)\\s+(.+)$`),
+  );
+  if (objectAudience) {
+    return {
+      respondentGroup: cleanRespondent(objectAudience[2]),
+      content: objectAudience[3].trim(),
+      topicPrefix: objectAudience[1].trim(),
+    };
+  }
+
   const topicAudience = prompt.match(
     new RegExp(
       `^(.+?)(?:에\\s*대한|에\\s*관한)\\s+(.*${personHead}(?:들)?)\\s+(.+)$`,
@@ -605,7 +633,7 @@ function splitRespondent(prompt: string) {
 function stripGoal(content: string, kind: SurveyIntentKind) {
   let topic = content
     .replace(/\s*(?:설문\s*조사|설문|조사)\s*$/g, "")
-    .replace(/\s*(?:에\s*대한|에\s*관한|관련)\s*$/g, "")
+    .replace(/\s*(?:에\s*대해|에\s*관해|에\s*대한|에\s*관한|관련)\s*$/g, "")
     .trim();
 
   const endings: Record<SurveyIntentKind, RegExp[]> = {
@@ -650,7 +678,7 @@ function stripGoal(content: string, kind: SurveyIntentKind) {
       /\s*(?:에\s*대한|에\s*관한|관련)?\s*(?:의견|생각)(?:\s*(?:수렴|파악))?(?:\s*(?:설문\s*)?조사)?$/g,
       "",
     )
-    .replace(/\s*(?:에\s*대한|에\s*관한|관련)$/g, "")
+    .replace(/\s*(?:에\s*대해|에\s*관해|에\s*대한|에\s*관한|관련)$/g, "")
     .replace(/\s*(?:에|에서)$/g, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -864,6 +892,7 @@ const goalLabels: Record<SurveyIntentKind, string> = {
 };
 
 export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
+  const parsedSurveyContext = parseSurveyGenerationContext(rawPrompt);
   const directProportion = parseDirectProportionRequest(rawPrompt);
   if (directProportion) {
     const { population, qualifyingGroup, conditionLabel } = directProportion;
@@ -888,6 +917,7 @@ export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
       requiresCreatorClarification: false,
       missingInformation: [],
       assumptions: [],
+      parsedSurveyContext,
     };
   }
 
@@ -896,13 +926,22 @@ export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
     prompt,
   );
   const detectedKind = detectIntent(prompt);
-  const { respondentGroup, content, topicPrefix } = splitRespondent(prompt);
+  const split = splitRespondent(prompt);
+  const respondentGroup = parsedSurveyContext.audience ?? split.respondentGroup;
+  const { content, topicPrefix } = split;
   const contentTopic = stripGoal(content, detectedKind);
-  const explicitTopic = topicPrefix
+  const legacyExplicitTopic = topicPrefix
     ? contentTopic && !topicPrefix.includes(contentTopic)
       ? `${topicPrefix} ${contentTopic}`.trim()
       : topicPrefix
     : contentTopic;
+  const movementActivity = parsedSurveyContext.normalizedInput.match(
+    /(?:^|\s)(등하교|통학|출퇴근|이동)(?:\s*(?:경험|환경|과정))?(?:\s|$)/,
+  )?.[1];
+  const explicitTopic =
+    parsedSurveyContext.surveyArchetype === "mobility_experience" && movementActivity
+      ? `${parsedSurveyContext.primaryEntity} ${movementActivity} 경험`
+      : legacyExplicitTopic;
   const preliminaryDomain = inferDomain(
     respondentGroup,
     explicitTopic,
@@ -980,6 +1019,7 @@ export function parseSurveySemantics(rawPrompt: string): SurveySemantics {
       structuredIntent.requiresCreatorClarification,
     missingInformation: structuredIntent.missingInformation,
     assumptions,
+    parsedSurveyContext,
   };
 }
 
@@ -1299,7 +1339,14 @@ export function parseSurveyBrief(rawBrief: string): SurveyBrief {
         ? surveyIntent.constructs[0] ?? surveyIntent.surveyObject ?? researchSubject
         : surveyIntent.surveyObject ?? researchSubject;
   }
+  if (semantics.parsedSurveyContext.surveyArchetype === "mobility_experience") {
+    const movement = semantics.parsedSurveyContext.normalizedInput.match(
+      /(?:^|\s)(등하교|통학|출퇴근|이동)(?:\s*(?:경험|환경|과정))?(?=\s|에\s*(?:대한|관한)|$)/,
+    )?.[1] ?? "이동";
+    researchSubject = `${semantics.parsedSurveyContext.primaryEntity} ${movement} 경험`;
+  }
   let targetRespondents =
+    semantics.parsedSurveyContext.audience ??
     (preferSurveyIntent ? surveyIntent.targetPopulation : null) ??
     split.respondentGroup ??
     semantics.respondentGroup ??
@@ -1323,9 +1370,12 @@ export function parseSurveyBrief(rawBrief: string): SurveyBrief {
     throw new Error("조사 의뢰문에서 짧고 명확한 조사 대상을 분리하지 못했습니다.");
   }
 
-  const dimensions = preferSurveyIntent
-    ? dimensionsFromSurveyIntent(surveyIntent)
-    : briefDimensions(researchSubject, split.content, semantics);
+  const dimensions =
+    semantics.parsedSurveyContext.surveyArchetype === "mobility_experience"
+      ? semantics.parsedSurveyContext.researchConstructs
+      : preferSurveyIntent
+        ? dimensionsFromSurveyIntent(surveyIntent)
+        : briefDimensions(researchSubject, split.content, semantics);
   const recommendedTimeframe =
     surveyIntent.explicitTimeframe ??
     briefTimeframe(researchSubject, split.content);
@@ -1347,9 +1397,15 @@ export function parseSurveyBrief(rawBrief: string): SurveyBrief {
   const contextualSubject = researchContext
     ? `${researchContext} ${researchSubject}`
     : researchSubject;
-  const surveyTitle = preferSurveyIntent && /(?:조사|연구)$/.test(normalizedBrief)
-    ? normalizedBrief
-    : /팀플|팀\s*프로젝트|조별\s*과제/.test(normalizedBrief)
+  const surveyTitle = semantics.parsedSurveyContext.surveyArchetype === "mobility_experience"
+    ? /(?:에\s*대한|에\s*관한)\s*의견\s*(?:설문\s*)?조사/.test(
+        normalizedPrimaryRequest,
+      )
+      ? `${researchSubject.replace(/\s*경험$/, "")} 의견 조사`
+      : `${targetRespondents}의 ${researchSubject} 조사`
+    : preferSurveyIntent && /(?:조사|연구)$/.test(normalizedBrief)
+      ? normalizedBrief
+      : /팀플|팀\s*프로젝트|조별\s*과제/.test(normalizedBrief)
     ? `${researchSubject} 조사`
     : /학식|식당|급식/.test(researchSubject)
       ? `${researchSubject} 이용 경험 및 만족도 조사`
@@ -1395,6 +1451,7 @@ export function parseSurveyBrief(rawBrief: string): SurveyBrief {
       missingInformation: surveyIntent.missingInformation,
     },
     surveyIntent,
+    parsedSurveyContext: semantics.parsedSurveyContext,
   };
 }
 
@@ -1413,6 +1470,119 @@ const question = (
   options,
   required,
 });
+
+function mobilityExperienceBlueprint(brief: SurveyBrief): SurveyBlueprint {
+  const context = brief.parsedSurveyContext;
+  const place = context.primaryEntity;
+  const movement = context.normalizedInput.match(
+    /(?:^|\s)(등하교|통학|출퇴근|이동)(?:\s*(?:경험|환경|과정))?(?=\s|에\s*(?:대한|관한)|$)/,
+  )?.[1] ?? "이동";
+  const placeObject = labelWithParticle(place, "을", "를");
+  const destination = labelWithParticle(place, "으로", "로");
+  const movementLabel = place === "학교 통학" ? "통학" : `${place} ${movement}`;
+  const frequencyTitle =
+    movement === "등하교" && place !== "학교 통학"
+      ? `평소 ${destination} 등교하거나 ${place}에서 하교하는 빈도는 어느 정도인가요?`
+      : `평소 ${movementLabel} 빈도는 어느 정도인가요?`;
+  const plan = createSurveyPlan(brief.surveyIntent, 7);
+  const questions = [
+    question(
+      1,
+      frequencyTitle,
+      "실제 이동 빈도를 측정해 응답자의 경험 수준을 구분함.",
+      "single",
+      ["주 4회 이상", "주 2~3회", "주 1회", "월 1~3회", "해당 이동 경험 없음"],
+    ),
+    question(
+      2,
+      `${movementLabel} 때 주로 이용하는 이동 수단은 무엇인가요?`,
+      "주요 이동 수단을 구분해 접근 경로별 경험을 비교함.",
+      "single",
+      ["도보", "교내 셔틀", "버스", "지하철", "자전거·개인형 이동장치", "승용차·택시", "기타"],
+    ),
+    question(
+      3,
+      `${placeObject} 오가는 편도 이동 소요시간은 보통 얼마나 걸리나요?`,
+      "실제 이동 소요 시간을 겹치지 않는 구간으로 측정함.",
+      "single",
+      ["10분 미만", "10분 이상 20분 미만", "20분 이상 30분 미만", "30분 이상 45분 미만", "45분 이상"],
+    ),
+    question(
+      4,
+      `${movementLabel} 시간대의 보행로와 출입구 혼잡은 어느 정도인가요?`,
+      "이동 과정에서 체감하는 혼잡 수준을 측정함.",
+      "scale",
+    ),
+    question(
+      5,
+      `${movementLabel} 과정에서 이동 안전에 얼마나 만족하시나요?`,
+      "보행로·교통 동선의 안전 경험을 공통 척도로 측정함.",
+      "scale",
+    ),
+    question(
+      6,
+      `${movementLabel} 과정에서 겪은 불편을 모두 골라주세요.`,
+      "거리·경사·날씨·혼잡 등 구체적인 이동 장벽을 구분함.",
+      "multiple",
+      [
+        "이동 거리가 멂",
+        "오르막이나 계단이 부담됨",
+        "비·눈·더위 등 날씨 대응이 어려움",
+        "등하교 시간대가 혼잡함",
+        "보행로 또는 횡단 동선이 불안함",
+        "셔틀·대중교통 연계가 불편함",
+        "길 찾기나 안내가 부족함",
+        "특별한 불편 없음",
+        "기타",
+      ],
+    ),
+    question(
+      7,
+      `${movementLabel} 경험을 개선하기 위해 가장 먼저 필요한 변화는 무엇인가요?`,
+      "개선 수요의 우선순위를 한 가지로 확인함.",
+      "single",
+      [
+        "셔틀 운행 확대",
+        "보행로·계단 정비",
+        "비·눈·더위 대응 시설",
+        "혼잡 시간대 동선 개선",
+        "안전 시설과 조명 강화",
+        "대중교통 연계 개선",
+        "안내표지 보완",
+        "현재 상태로 충분함",
+        "기타",
+      ],
+    ),
+  ].map((item, index) =>
+    annotatePlannedQuestion(item, plan.blocks[index], brief.surveyIntent),
+  );
+
+  return {
+    kind: "satisfaction",
+    intentLabel: "이동 경험·개선",
+    subject: `${movementLabel} 경험`,
+    title: brief.surveyTitle,
+    description: `${brief.targetRespondents}이 ${placeObject} 오가는 빈도와 이동 수단, 소요 시간, 혼잡·안전·불편 및 개선 수요를 파악하는 설문입니다.`,
+    templateTitle: `${movementLabel} 핵심 문항`,
+    templateSummary: "장소 이용이 아니라 실제 이동 과정과 개선 수요를 측정함.",
+    detectedSignals: [
+      `응답 대상 · ${brief.targetRespondents}`,
+      `장소 · ${place}`,
+      `활동 · ${context.activity ?? movementLabel}`,
+      "유형 · 이동 경험",
+    ],
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
+    respondentGroup: brief.targetRespondents,
+    evaluationTarget: `${movementLabel} 경험`,
+    goal: context.researchGoal,
+    assumptions: [],
+    domain: brief.domain,
+    semanticPlan: plan,
+    parsedSurveyContext: context,
+    selectedTemplateKey: surveyTemplateKeyForContext(context),
+  };
+}
 
 const topicLabel = (subject: string) => `‘${subject}’`;
 
@@ -5309,26 +5479,52 @@ function semanticIntentBlueprint(brief: SurveyBrief) {
   }
 }
 
+function decorateBlueprint(
+  blueprint: SurveyBlueprint,
+  context: ParsedSurveyContext,
+  selectedTemplateKey = surveyTemplateKeyForContext(context),
+) {
+  return {
+    ...blueprint,
+    parsedSurveyContext: context,
+    selectedTemplateKey,
+  };
+}
+
 export function generateSurvey(brief: SurveyBrief): SurveyBlueprint {
   const normalized = brief.normalizedBrief;
   const semantics = brief.semantics;
   const subject = brief.researchSubject;
   let blueprint: SurveyBlueprint;
 
+  if (brief.parsedSurveyContext.surveyArchetype === "mobility_experience") {
+    return mobilityExperienceBlueprint(brief);
+  }
+
   const semanticBlueprint = semanticIntentBlueprint(brief);
-  if (semanticBlueprint) return semanticBlueprint;
+  if (semanticBlueprint) {
+    return decorateBlueprint(semanticBlueprint, brief.parsedSurveyContext);
+  }
 
   if (/팀플|팀\s*프로젝트|조별\s*과제/.test(normalized)) {
-    return collaborationBlueprint(brief);
+    return decorateBlueprint(
+      collaborationBlueprint(brief),
+      brief.parsedSurveyContext,
+      "collaboration_blueprint",
+    );
   }
   if (/학식|식당|급식|구내식당/.test(subject)) {
-    return cafeteriaBriefBlueprint(brief);
+    return decorateBlueprint(
+      cafeteriaBriefBlueprint(brief),
+      brief.parsedSurveyContext,
+      "cafeteria_blueprint",
+    );
   }
-  if (
-    semantics.kind === "usage" ||
-    /(?:이용|사용)\s*(?:빈도|현황|경험|행태|실태)/.test(normalized)
-  ) {
-    return usageBlueprint(subject, brief);
+  if (canUseUsageBlueprint(brief.parsedSurveyContext, subject)) {
+    return decorateBlueprint(
+      usageBlueprint(subject, brief),
+      brief.parsedSurveyContext,
+    );
   }
 
   if (sleepDurationCue.test(semantics.explicitTopic ?? "")) {
@@ -5370,19 +5566,42 @@ export function generateSurvey(brief: SurveyBrief): SurveyBlueprint {
     }
   }
 
-  return attachSemantics(blueprint, {
-    ...semantics,
-    respondentGroup: brief.targetRespondents,
-    evaluationTarget: brief.researchSubject,
-    explicitTopic: brief.researchSubject,
-    domain: brief.domain,
-    goalLabel: brief.researchGoal,
-  });
+  return decorateBlueprint(
+    attachSemantics(blueprint, {
+      ...semantics,
+      respondentGroup: brief.targetRespondents,
+      evaluationTarget: brief.researchSubject,
+      explicitTopic: brief.researchSubject,
+      domain: brief.domain,
+      goalLabel: brief.researchGoal,
+    }),
+    brief.parsedSurveyContext,
+  );
 }
 
 export function analyzeSurveyPrompt(rawPrompt: string): SurveyBlueprint {
+  const parsedSurveyContext = parseSurveyGenerationContext(rawPrompt);
   const directProportion = parseDirectProportionRequest(rawPrompt);
-  if (directProportion) return proportionBlueprint(directProportion);
+  if (directProportion) {
+    return decorateBlueprint(
+      proportionBlueprint(directProportion),
+      parsedSurveyContext,
+      "direct_proportion_blueprint",
+    );
+  }
+  if (parsedSurveyContext.surveyArchetype === "mobility_experience") {
+    return generateSurvey(parseSurveyBrief(rawPrompt));
+  }
+  const promptLines = rawPrompt
+    .split(/\r?\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (
+    promptLines.length > 1 &&
+    stripRequestWrapper(promptLines[0]) !== normalizePrompt(promptLines[0])
+  ) {
+    return generateSurvey(parseSurveyBrief(rawPrompt));
+  }
 
   const surveyIntent = parseSurveyIntent(rawPrompt);
   if (shouldPreferSurveyIntent(surveyIntent)) {
@@ -5439,7 +5658,10 @@ export function analyzeSurveyPrompt(rawPrompt: string): SurveyBlueprint {
     }
   }
 
-  return attachSemantics(blueprint, semantics);
+  return decorateBlueprint(
+    attachSemantics(blueprint, semantics),
+    parsedSurveyContext,
+  );
 }
 
 function normalizedSurveyText(value: string) {
@@ -5584,6 +5806,13 @@ export function validateSurvey(
   const issues: string[] = [];
   const normalizedRaw = normalizedSurveyText(rawBrief);
   const requestExpression = /(분석|조사|파악|확인|알아보)(?:해|하|고)?\s*싶(?:어|어요|습니다)/;
+  const hasRequestWrapper = rawBrief
+    .split(/\r?\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .some(
+      (line) => stripRequestWrapper(line) !== normalizePrompt(line),
+    );
   const titles = new Set<string>();
   const allText = [
     blueprint.title,
@@ -5603,10 +5832,14 @@ export function validateSurvey(
 
   for (const item of blueprint.aiQuestions) {
     const normalizedTitle = normalizedSurveyText(item.title);
+    const preservesMostOfRequest =
+      normalizedTitle.length >= normalizedRaw.length * 0.85;
     if (
+      hasRequestWrapper &&
       normalizedRaw.length >= 18 &&
       (normalizedTitle.includes(normalizedRaw) ||
-        bigramSimilarity(rawBrief, item.title) >= 0.72)
+        (preservesMostOfRequest &&
+          bigramSimilarity(rawBrief, item.title) >= 0.72))
     ) {
       issues.push(`문항 ${item.id}에 조사 의뢰문이 그대로 사용되었습니다.`);
     }
@@ -5689,6 +5922,7 @@ export function validateSurvey(
           id: item.id,
           title: item.title,
           options: item.options,
+          reason: item.reason,
         })),
       })
     : [];

@@ -1,8 +1,12 @@
 type ApiErrorPayload = {
   code?: unknown;
   error?: unknown;
+  fallbackReason?: unknown;
+  generationSource?: unknown;
   requestId?: unknown;
   stage?: unknown;
+  status?: unknown;
+  type?: unknown;
 };
 
 const koreanTextPattern = /[가-힣]/;
@@ -30,10 +34,23 @@ export class JsonResponseError extends Error {
   readonly status: number;
   readonly requestId: string | null;
   readonly stage: string | null;
+  readonly generationSource: string | null;
+  readonly fallbackReason: string | null;
+  readonly responseType: string | null;
+  readonly responseStatus: string | null;
 
   constructor(
     message: string,
-    options: { code: string; status: number; requestId?: string | null; stage?: string | null },
+    options: {
+      code: string;
+      status: number;
+      requestId?: string | null;
+      stage?: string | null;
+      generationSource?: string | null;
+      fallbackReason?: string | null;
+      responseType?: string | null;
+      responseStatus?: string | null;
+    },
   ) {
     super(message);
     this.name = "JsonResponseError";
@@ -41,6 +58,10 @@ export class JsonResponseError extends Error {
     this.status = options.status;
     this.requestId = options.requestId ?? null;
     this.stage = options.stage ?? null;
+    this.generationSource = options.generationSource ?? null;
+    this.fallbackReason = options.fallbackReason ?? null;
+    this.responseType = options.responseType ?? null;
+    this.responseStatus = options.responseStatus ?? null;
   }
 }
 
@@ -84,6 +105,18 @@ export async function readJsonResponse<T>(
   const code =
     typeof apiPayload?.code === "string" ? apiPayload.code : "SERVER_REQUEST_FAILED";
   const stage = typeof apiPayload?.stage === "string" ? apiPayload.stage : null;
+  const generationSource =
+    typeof apiPayload?.generationSource === "string"
+      ? apiPayload.generationSource
+      : response.headers.get("x-baroform-generation-source");
+  const fallbackReason =
+    typeof apiPayload?.fallbackReason === "string"
+      ? apiPayload.fallbackReason
+      : response.headers.get("x-baroform-ai-fallback");
+  const responseType =
+    typeof apiPayload?.type === "string" ? apiPayload.type : null;
+  const responseStatus =
+    typeof apiPayload?.status === "string" ? apiPayload.status : null;
 
   if (!response.ok) {
     throw new JsonResponseError(payloadErrorMessage(payload) ?? fallbackMessage, {
@@ -91,6 +124,10 @@ export async function readJsonResponse<T>(
       status: response.status,
       requestId,
       stage,
+      generationSource,
+      fallbackReason,
+      responseType,
+      responseStatus,
     });
   }
 

@@ -102,6 +102,12 @@ export const SURVEY_SYSTEM_PROMPT = `
 * 사용자가 명시한 기간(timeframe)
 * 응답 자격 조건(eligibility)
 
+함께 제공되는 실체·활동·조사목적 분리 컨텍스트의 audience, primaryEntity, activity, researchGoal, researchConstructs도 각각 독립된 역할로 유지한다. primaryEntity만 행동의 목적어 후보이며 researchGoal이나 사용자 요청문 전체를 행동 대상으로 사용하지 않는다.
+
+surveyArchetype과 isUsageObject를 서술어 선택의 제약으로 사용한다. service_usage, product_usage, platform_usage, facility_usage이면서 isUsageObject=true인 경우에만 범용 ‘이용하다/사용하다’ 문항을 허용한다. mobility_experience에서는 장소 자체를 서비스처럼 이용했다고 묻지 말고 방문 빈도, 이동 수단, 소요 시간, 혼잡, 안전, 이동 불편과 개선 수요를 ‘방문하다/이동하다/오가다/소요되다/경험하다/만족하다’로 측정한다.
+
+‘경험’이라는 단어 하나만으로 usage 유형을 선택하지 않는다. 이동 경험, 학습 경험, 관계 경험, 태도, 만족도와 수요는 각각의 실체와 활동 관계를 먼저 확인한 뒤 설계한다. 같은 건물도 ‘건물 내부 시설 이용’은 facility_usage일 수 있지만 ‘그 건물로 등하교하거나 오가는 경험’은 mobility_experience다.
+
 단어의 표면 형태만으로 역할을 고정하지 않는다. ‘설문’, ‘조사’, ‘연구’, ‘테스트’, ‘인터뷰’, ‘교육’, ‘프로그램’은 문맥에 따라 조사 제목일 수도 있고, 실제 도구·방법·활동 대상일 수도 있다.
 
 ‘온라인 설문을 제작하다’, ‘설문에 참여하다’, ‘사용자 조사를 수행하다’, ‘인터뷰를 진행하다’, ‘사용성 테스트에 참여하다’, ‘교육을 수강하다’처럼 사용자가 실제 행동 관계를 명시했다면 정상적인 활동으로 유지한다. 이 표현에 조사 관련 명사가 들어 있다는 이유만으로 거부하거나 다른 단어로 바꾸지 않는다.

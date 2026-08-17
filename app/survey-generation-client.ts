@@ -1,10 +1,168 @@
-import { JsonResponseError } from "./lib/http/json-response";
+import {
+  JsonResponseError,
+  readJsonResponse,
+} from "./lib/http/json-response";
+import {
+  isSurveyGenerationBackgroundStatus,
+  isSurveyGenerationResponseType,
+  isSurveyGenerationSurveyStatus,
+  type SurveyGenerationResponse,
+  type SurveyGenerationSource,
+} from "./survey-generation-response";
 import type { SurveyMode } from "./survey-mode";
 
 export type SurveyGenerationFailureStage =
   | "initial-request"
   | "background-poll"
   | "response-apply";
+
+type SurveyGenerationPayloadMetadata = {
+  requestId: string | null;
+  code: string | null;
+  stage: string | null;
+  generationSource: SurveyGenerationSource | null;
+  fallbackReason: string | null;
+  responseType: string | null;
+  responseStatus: string | null;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stringOrNull(value: unknown) {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function responseMetadata(
+  payload: Record<string, unknown>,
+  response: Response,
+): SurveyGenerationPayloadMetadata {
+  return {
+    requestId:
+      stringOrNull(payload.requestId) ??
+      stringOrNull(response.headers.get("x-baroform-request-id")),
+    code: stringOrNull(payload.code),
+    stage: stringOrNull(payload.stage),
+    generationSource: (stringOrNull(payload.generationSource) ??
+      stringOrNull(
+        response.headers.get("x-baroform-generation-source"),
+      )) as SurveyGenerationSource | null,
+    fallbackReason:
+      stringOrNull(payload.fallbackReason) ??
+      stringOrNull(response.headers.get("x-baroform-ai-fallback")),
+    responseType: stringOrNull(payload.type),
+    responseStatus: stringOrNull(payload.status),
+  };
+}
+
+function contractError(
+  message: string,
+  code: string,
+  response: Response,
+  metadata: SurveyGenerationPayloadMetadata,
+) {
+  return new JsonResponseError(message, {
+    code,
+    status: response.status,
+    requestId: metadata.requestId,
+    stage: metadata.stage ?? "client-response-validation",
+    generationSource: metadata.generationSource,
+    fallbackReason: metadata.fallbackReason,
+    responseType: metadata.responseType,
+    responseStatus: metadata.responseStatus,
+  });
+}
+
+export async function readSurveyGenerationResponse<
+  TSurvey extends object,
+  TClarification extends object,
+  TBackground extends object,
+>(
+  response: Response,
+  fallbackMessage = "AI 초안을 만들지 못했어요. 잠시 후 다시 시도해주세요.",
+): Promise<SurveyGenerationResponse<TSurvey, TClarification, TBackground>> {
+  const payload = await readJsonResponse<Record<string, unknown>>(
+    response,
+    fallbackMessage,
+  );
+  if (!isRecord(payload)) {
+    throw new JsonResponseError(
+      "설문 생성 응답 형식을 확인하지 못했어요.",
+      {
+        code: "CLIENT_RESPONSE_CONTRACT_INVALID",
+        status: response.status,
+        requestId: response.headers.get("x-baroform-request-id"),
+        stage: "client-response-validation",
+      },
+    );
+  }
+
+  const metadata = responseMetadata(payload, response);
+  if (!isSurveyGenerationResponseType(payload.type)) {
+    throw contractError(
+      "설문 생성 응답 종류를 확인하지 못했어요.",
+      "CLIENT_RESPONSE_CONTRACT_INVALID",
+      response,
+      metadata,
+    );
+  }
+
+  if (payload.type === "error") {
+    throw contractError(
+      stringOrNull(payload.error) ?? fallbackMessage,
+      metadata.code ?? "SERVER_REQUEST_FAILED",
+      response,
+      metadata,
+    );
+  }
+
+  if (
+    payload.type === "survey" &&
+    !isSurveyGenerationSurveyStatus(payload.status)
+  ) {
+    throw contractError(
+      `설문 생성 상태를 확인하지 못했어요: ${String(payload.status)}`,
+      "INVALID_SURVEY_STATUS",
+      response,
+      metadata,
+    );
+  }
+
+  if (
+    payload.type === "clarification" &&
+    payload.status !== "needs_clarification"
+  ) {
+    throw contractError(
+      `확인 질문 상태를 확인하지 못했어요: ${String(payload.status)}`,
+      "INVALID_SURVEY_STATUS",
+      response,
+      metadata,
+    );
+  }
+
+  if (
+    payload.type === "background" &&
+    !isSurveyGenerationBackgroundStatus(payload.status)
+  ) {
+    throw contractError(
+      `백그라운드 생성 상태를 확인하지 못했어요: ${String(payload.status)}`,
+      "INVALID_SURVEY_STATUS",
+      response,
+      metadata,
+    );
+  }
+
+  return {
+    ...payload,
+    requestId: metadata.requestId,
+    ok: true,
+    code: metadata.code,
+    stage: metadata.stage,
+    generationSource: metadata.generationSource,
+    fallbackReason: metadata.fallbackReason,
+  } as SurveyGenerationResponse<TSurvey, TClarification, TBackground>;
+}
 
 export function surveyGenerationErrorMessage(error: unknown) {
   if (error instanceof DOMException && error.name === "AbortError") {
@@ -76,8 +234,17 @@ export function surveyGenerationErrorMetadata(
           ? "NETWORK_ERROR"
           : "UNKNOWN_ERROR",
     requestId:
-      error instanceof JsonResponseError ? error.requestId : clientRequestId,
+      error instanceof JsonResponseError ? error.requestId : null,
+    clientRequestId,
+    responseType:
+      error instanceof JsonResponseError ? error.responseType : null,
+    responseStatus:
+      error instanceof JsonResponseError ? error.responseStatus : null,
+    generationSource:
+      error instanceof JsonResponseError ? error.generationSource : null,
+    fallbackReason:
+      error instanceof JsonResponseError ? error.fallbackReason : null,
     surveyMode,
-    stage,
+    stage: error instanceof JsonResponseError ? error.stage ?? stage : stage,
   };
 }
