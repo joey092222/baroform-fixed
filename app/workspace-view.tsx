@@ -23,6 +23,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
+import { surveySharePath } from "./survey-share";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   canApproveWorkspace,
@@ -648,7 +649,7 @@ export function WorkspaceReviewView({ token, onBack }: { token: string; onBack: 
               {review.projects.map((project) => (
                 <article key={project.id}>
                   <div><span className={`collab-status ${project.status}`}><i />{workspaceStatusLabel(project.status)}</span><h3>{project.title}</h3><p>{project.questionCount}문항 · 응답 {project.responseCount}개 · {project.assignmentLabel}</p></div>
-                  <a href={`/?survey=${project.surveySlug}`} target="_blank" rel="noreferrer">설문 보기 <ExternalLink size={15} /></a>
+                  <a href={surveySharePath(project.surveySlug)} target="_blank" rel="noreferrer">설문 보기 <ExternalLink size={15} /></a>
                 </article>
               ))}
               {review.projects.length === 0 && <div className="collab-review-empty">아직 검토할 설문이 연결되지 않았어요.</div>}

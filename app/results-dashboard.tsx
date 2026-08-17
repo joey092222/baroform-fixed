@@ -16,6 +16,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
+import { surveySharePath } from "./survey-share";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SurveyQuestion } from "./survey-intent";
 
@@ -1011,7 +1012,7 @@ export function ResultsDashboard({
         exportDisabled={responses.length === 0}
         shareDisabled={analysisResponses.length === 0}
         onBack={onHome}
-        onViewSurvey={() => window.open(`/?survey=${encodeURIComponent(slug)}`, "_blank", "noopener,noreferrer")}
+        onViewSurvey={() => window.open(surveySharePath(slug), "_blank", "noopener,noreferrer")}
         onExport={onExport}
         onShare={onOpenShare}
       />

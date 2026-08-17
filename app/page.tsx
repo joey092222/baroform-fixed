@@ -107,6 +107,8 @@ import {
   surveyGenerationErrorMetadata,
   type SurveyGenerationFailureStage,
 } from "./survey-generation-client";
+import { surveyAudienceLabel } from "./survey-grade";
+import { surveySharePath } from "./survey-share";
 
 type View =
   | "landing"
@@ -123,7 +125,7 @@ type View =
   | "survey"
   | "analytics";
 
-type PublicSurvey = {
+export type PublicSurvey = {
   source?: "internal" | "external";
   slug: string;
   title: string;
@@ -134,9 +136,11 @@ type PublicSurvey = {
   campus: string;
   durationMinutes: number;
   rewardCash: number;
+  targetAudience?: string;
   responseCount?: number;
   questionCount?: number;
   createdAt?: string;
+  updatedAt?: string;
   questions?: Question[];
   externalUrl?: string;
   platform?: string;
@@ -2484,7 +2488,7 @@ function MyPageView({
   const copySurveyLink = async (slug: string) => {
     try {
       await navigator.clipboard.writeText(
-        `${window.location.origin}/?survey=${slug}`,
+        new URL(surveySharePath(slug), window.location.origin).toString(),
       );
       setCopiedSlug(slug);
       window.setTimeout(() => setCopiedSlug(""), 1600);
@@ -4240,10 +4244,11 @@ function PublishedView({
   const [copied, setCopied] = useState(false);
   const [instagramSharing, setInstagramSharing] = useState(false);
   const [instagramStatus, setInstagramStatus] = useState(initialInstagramStatus);
+  const sharePath = surveySharePath(slug);
   const shareUrl =
     typeof window === "undefined"
-      ? `?survey=${slug}`
-      : `${window.location.origin}/?survey=${slug}`;
+      ? sharePath
+      : new URL(sharePath, window.location.origin).toString();
 
   const copyLink = async () => {
     try {
@@ -4931,7 +4936,10 @@ function AnalyticsView({
 
   const copySurveyLink = async () => {
     if (!survey) return;
-    const url = `${window.location.origin}/?survey=${survey.slug}`;
+    const url = new URL(
+      surveySharePath(survey.slug),
+      window.location.origin,
+    ).toString();
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
@@ -5693,7 +5701,7 @@ function RealAnalyticsView({
     shareSummary?.question.title ?? "우리 학교의 의견을 모으고 있어요.";
   const shareResult =
     shareSummary?.label ?? `${analysisResponses.length.toLocaleString("ko-KR")}개의 응답`;
-  const sharePath = slug ? `/?survey=${encodeURIComponent(slug)}` : "/";
+  const sharePath = slug ? surveySharePath(slug) : "/";
 
   const createResultShareFile = async () => {
     const surveyUrl = `${window.location.origin}${sharePath}`;
@@ -6049,8 +6057,12 @@ function GenerationOverlay({
   );
 }
 
-export default function Home() {
-  const [view, setView] = useState<View>("landing");
+export default function Home({
+  initialSurvey = null,
+}: {
+  initialSurvey?: PublicSurvey | null;
+} = {}) {
+  const [view, setView] = useState<View>(initialSurvey ? "survey" : "landing");
   const [prompt, setPrompt] = useState("");
   const [references, setReferencesState] = useState<SurveyReferences>({
     images: [],
@@ -6070,7 +6082,7 @@ export default function Home() {
   const [mySurveys, setMySurveys] = useState<OwnedSurvey[]>([]);
   const [loadingMySurveys, setLoadingMySurveys] = useState(false);
   const [mySurveysError, setMySurveysError] = useState("");
-  const [activeSurvey, setActiveSurvey] = useState<PublicSurvey | null>(null);
+  const [activeSurvey, setActiveSurvey] = useState<PublicSurvey | null>(initialSurvey);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [clarification, setClarification] =
     useState<ClarificationState | null>(null);
@@ -6265,7 +6277,14 @@ export default function Home() {
     const pageParams = new URLSearchParams(window.location.search);
     const directSlug = pageParams.get("survey");
     const directWorkspaceReview = pageParams.get("workspaceReview") ?? "";
-    if (/^[a-f0-9]{32}$/.test(directWorkspaceReview)) {
+    if (initialSurvey) {
+      window.queueMicrotask(() => {
+        if (cancelled) return;
+        setActiveSurvey(initialSurvey);
+        setView("survey");
+        window.scrollTo({ top: 0 });
+      });
+    } else if (/^[a-f0-9]{32}$/.test(directWorkspaceReview)) {
       window.queueMicrotask(() => {
         if (cancelled) return;
         setWorkspaceReviewToken(directWorkspaceReview);
@@ -6309,7 +6328,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [refreshPublicSurveys]);
+  }, [initialSurvey, refreshPublicSurveys]);
 
   useEffect(() => {
     const syncEntryView = () => {
@@ -6685,6 +6704,7 @@ export default function Home() {
           questions,
           listingRequested,
           category,
+          targetAudience: surveyAudienceLabel(targetGrade),
         }),
       });
       const result = (await response.json()) as {
@@ -6698,10 +6718,12 @@ export default function Home() {
           campus: string;
           durationMinutes: number;
           rewardCash: number;
+          targetAudience: string;
           listingRequested: boolean;
           isListed: boolean;
           manageToken: string;
           createdAt: string;
+          updatedAt: string;
         };
         error?: string;
       };
@@ -6724,7 +6746,10 @@ export default function Home() {
         campus: result.survey.campus,
         durationMinutes: result.survey.durationMinutes,
         rewardCash: result.survey.rewardCash ?? 30,
+        targetAudience:
+          result.survey.targetAudience || surveyAudienceLabel(targetGrade),
         createdAt: result.survey.createdAt,
+        updatedAt: result.survey.updatedAt,
         questions,
       };
       setActiveSurvey(savedSurvey);
@@ -6750,7 +6775,10 @@ export default function Home() {
       if (authToken) void refreshMySurveys(authToken);
       setPublishedInstagramStatus("");
       if (shareToInstagram) {
-        const surveyUrl = `${window.location.origin}/?survey=${result.survey.slug}`;
+        const surveyUrl = new URL(
+          surveySharePath(result.survey.slug),
+          window.location.origin,
+        ).toString();
         const shareStatus = await shareSurveyCardToInstagramApp({
           title: result.survey.title,
           surveyUrl,
@@ -7048,7 +7076,13 @@ export default function Home() {
       {view === "survey" && activeSurvey && (
         <SurveyView
           survey={activeSurvey}
-          onBack={() => navigate("home")}
+          onBack={() => {
+            if (initialSurvey) {
+              window.location.assign("/?app=1");
+              return;
+            }
+            navigate("home");
+          }}
           user={user}
           authToken={authToken}
           onAuth={() => setAuthOpen(true)}

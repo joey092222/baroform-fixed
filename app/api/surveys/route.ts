@@ -1,4 +1,5 @@
 import { and, desc, eq, sql } from "drizzle-orm";
+import { revalidateTag } from "next/cache";
 import {
   databaseErrorMessage,
   getDb,
@@ -13,6 +14,7 @@ import {
   surveyPublicationState,
 } from "@/app/survey-board";
 import { rewardCashForDuration } from "@/app/rewards";
+import { publicSurveyCacheTag } from "@/app/lib/public-survey";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -88,10 +90,12 @@ export async function GET(request: Request) {
           questionsJson: surveys.questionsJson,
           durationMinutes: surveys.durationMinutes,
           rewardCash: surveys.rewardCash,
+          targetAudience: surveys.targetAudience,
           listingRequested: surveys.listingRequested,
           isListed: surveys.isListed,
           manageToken: surveys.manageToken,
           createdAt: surveys.createdAt,
+          updatedAt: surveys.updatedAt,
           responseCount: sql<number>`(
             SELECT COUNT(*)::int
             FROM responses
@@ -129,7 +133,9 @@ export async function GET(request: Request) {
         campus: surveys.campus,
         durationMinutes: surveys.durationMinutes,
         rewardCash: surveys.rewardCash,
+        targetAudience: surveys.targetAudience,
         createdAt: surveys.createdAt,
+        updatedAt: surveys.updatedAt,
         questionsJson: surveys.questionsJson,
         responseCount: sql<number>`(
           SELECT COUNT(*)::int
@@ -191,6 +197,7 @@ export async function POST(request: Request) {
       questions?: IncomingQuestion[];
       listingRequested?: boolean;
       category?: string;
+      targetAudience?: string;
     };
 
     const title = payload.title?.trim() ?? "";
@@ -201,6 +208,7 @@ export async function POST(request: Request) {
       : [];
     const listingRequested = payload.listingRequested === true;
     const category = payload.category ?? "campus";
+    const targetAudience = payload.targetAudience?.trim() ?? "";
 
     if (title.length < 2 || title.length > 100) {
       return Response.json(
@@ -211,6 +219,12 @@ export async function POST(request: Request) {
     if (description.length > 600) {
       return Response.json(
         { error: "설문 안내문은 600자 이하로 입력해주세요." },
+        { status: 400 },
+      );
+    }
+    if (targetAudience.length > 100) {
+      return Response.json(
+        { error: "설문 대상은 100자 이하로 입력해주세요." },
         { status: 400 },
       );
     }
@@ -335,11 +349,14 @@ export async function POST(request: Request) {
       questionsJson: JSON.stringify(normalizedQuestions),
       durationMinutes,
       rewardCash,
+      targetAudience,
       isPublic: true,
       listingRequested: publication.listingRequested,
       isListed: publication.isListed,
       manageToken,
     });
+
+    revalidateTag(publicSurveyCacheTag, { expire: 0 });
 
     return Response.json(
       {
@@ -353,10 +370,12 @@ export async function POST(request: Request) {
           campus: schoolLabel(sessionUser?.schoolId ?? "yonsei"),
           durationMinutes,
           rewardCash,
+          targetAudience,
           listingRequested: publication.listingRequested,
           isListed: publication.isListed,
           manageToken,
           createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         },
       },
       { status: 201, headers: noStoreHeaders },

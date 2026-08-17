@@ -59,11 +59,13 @@ async function ensureSchema(database: Database) {
       questions_json TEXT NOT NULL,
       duration_minutes INTEGER NOT NULL DEFAULT 2,
       reward_cash INTEGER NOT NULL DEFAULT 30,
+      target_audience TEXT NOT NULL DEFAULT '',
       is_public BOOLEAN NOT NULL DEFAULT TRUE,
       listing_requested BOOLEAN NOT NULL DEFAULT FALSE,
       is_listed BOOLEAN NOT NULL DEFAULT FALSE,
       manage_token TEXT NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
   await database.execute(sql`
@@ -77,6 +79,12 @@ async function ensureSchema(database: Database) {
   `);
   await database.execute(sql`
     ALTER TABLE surveys ADD COLUMN IF NOT EXISTS reward_cash INTEGER NOT NULL DEFAULT 30
+  `);
+  await database.execute(sql`
+    ALTER TABLE surveys ADD COLUMN IF NOT EXISTS target_audience TEXT NOT NULL DEFAULT ''
+  `);
+  await database.execute(sql`
+    ALTER TABLE surveys ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   `);
   await database.execute(sql`
     CREATE INDEX IF NOT EXISTS surveys_owner_created_idx

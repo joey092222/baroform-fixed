@@ -25,11 +25,18 @@ export const surveys = pgTable(
     questionsJson: text("questions_json").notNull(),
     durationMinutes: integer("duration_minutes").notNull().default(2),
     rewardCash: integer("reward_cash").notNull().default(30),
+    targetAudience: text("target_audience").notNull().default(""),
     isPublic: boolean("is_public").notNull().default(true),
     listingRequested: boolean("listing_requested").notNull().default(false),
     isListed: boolean("is_listed").notNull().default(false),
     manageToken: text("manage_token").notNull(),
     createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", {
       withTimezone: true,
       mode: "string",
     })

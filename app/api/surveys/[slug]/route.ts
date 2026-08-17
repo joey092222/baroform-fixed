@@ -1,7 +1,13 @@
 import { and, eq } from "drizzle-orm";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { databaseErrorMessage, getDb } from "@/db";
 import { getSessionUser } from "@/db/auth";
 import { surveys } from "@/db/schema";
+import {
+  getPublicSurvey,
+  publicSurveyCacheTag,
+} from "@/app/lib/public-survey";
+import { surveySharePath } from "@/app/survey-share";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,25 +39,8 @@ export async function GET(
         { status: 404, headers: noStoreHeaders },
       );
     }
-    const db = await getDb();
-    const [row] = await db
-      .select({
-        slug: surveys.slug,
-        title: surveys.title,
-        description: surveys.description,
-        ownerName: surveys.ownerName,
-        schoolId: surveys.schoolId,
-        category: surveys.category,
-        campus: surveys.campus,
-        questionsJson: surveys.questionsJson,
-        durationMinutes: surveys.durationMinutes,
-        rewardCash: surveys.rewardCash,
-      })
-      .from(surveys)
-      .where(and(eq(surveys.slug, slug), eq(surveys.isPublic, true)))
-      .limit(1);
-
-    if (!row) {
+    const survey = await getPublicSurvey(slug);
+    if (!survey) {
       return Response.json(
         { error: "공개된 설문을 찾을 수 없어요." },
         { status: 404 },
@@ -60,11 +49,7 @@ export async function GET(
 
     return Response.json(
       {
-        survey: {
-          ...row,
-          questions: JSON.parse(row.questionsJson),
-          questionsJson: undefined,
-        },
+        survey,
       },
       { headers: noStoreHeaders },
     );
@@ -116,6 +101,10 @@ export async function DELETE(
         { status: 404, headers: noStoreHeaders },
       );
     }
+
+    revalidateTag(publicSurveyCacheTag, { expire: 0 });
+    revalidatePath(surveySharePath(slug));
+    revalidatePath(`${surveySharePath(slug)}/opengraph-image`);
 
     return Response.json(
       { deletedSlug: deleted[0].slug },

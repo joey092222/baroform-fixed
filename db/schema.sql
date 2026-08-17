@@ -11,11 +11,13 @@ CREATE TABLE IF NOT EXISTS surveys (
   questions_json TEXT NOT NULL,
   duration_minutes INTEGER NOT NULL DEFAULT 2,
   reward_cash INTEGER NOT NULL DEFAULT 30,
+  target_audience TEXT NOT NULL DEFAULT '',
   is_public BOOLEAN NOT NULL DEFAULT TRUE,
   listing_requested BOOLEAN NOT NULL DEFAULT FALSE,
   is_listed BOOLEAN NOT NULL DEFAULT FALSE,
   manage_token TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS surveys_owner_created_idx

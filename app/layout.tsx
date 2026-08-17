@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
 import "@fontsource-variable/noto-sans-kr";
+import {
+  defaultSiteDescription,
+  defaultSiteTitle,
+  getSiteUrl,
+} from "./survey-share";
 import "./design-tokens.css";
 import "./editorial-pages.css";
 import "./studio.css";
@@ -7,9 +12,21 @@ import "./secondary-pages.css";
 import "./results-dashboard.css";
 
 export const metadata: Metadata = {
-  title: "바로폼 | 우리 학교 설문 플랫폼",
-  description:
-    "학교 안의 설문을 발견하고, 한 문장으로 설문을 만들고, 결과까지 바로 분석하세요.",
+  metadataBase: getSiteUrl(),
+  title: defaultSiteTitle,
+  description: defaultSiteDescription,
+  openGraph: {
+    title: defaultSiteTitle,
+    description: defaultSiteDescription,
+    type: "website",
+    siteName: "바로폼",
+    url: "/",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: defaultSiteTitle,
+    description: defaultSiteDescription,
+  },
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
