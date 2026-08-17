@@ -155,7 +155,10 @@ export type SurveyIntentViolationCode =
   | "DERIVED_METRIC_ASKED_DIRECTLY"
   | "GENERIC_CONCRETIZATION_FALLBACK_USED"
   | "VARIABLE_COVERAGE_MISSING"
+  | "RELATION_COVERAGE_MISSING"
   | "ANALYSIS_GOAL_NOT_SUPPORTED"
+  | "ANALYSIS_FEASIBILITY_UNSUPPORTED"
+  | "DIRECT_RELATION_QUESTION_USED"
   | "INCOMPLETE_SURVEY_TITLE"
   | "GENERIC_DESCRIPTION_MISMATCH";
 
@@ -167,6 +170,7 @@ export type SurveyIntentViolation = {
   message: string;
   questionId?: string | number;
   evidence?: string;
+  origin?: "question" | "plan" | "schema" | "relation_mapping";
 };
 
 export type SurveyIntentQuestionCandidate = {
@@ -187,6 +191,7 @@ export type SurveyIntentQuestionCandidate = {
   decisionGoalIds?: string[];
   subjectRole?: SemanticRole;
   objectRole?: SemanticRole;
+  type?: string;
 };
 
 export type SurveyIntentCandidate = {
@@ -1532,15 +1537,15 @@ export function validateSurveyIntentCandidate(
   }
 
   if (relationalIntent) {
-    const questionCorpus = candidate.questions
-      .map((item) => candidateQuestionText(item))
-      .join(" ");
-    const metadataCorpus = candidate.questions
-      .flatMap((item) => [item.measuredVariable ?? "", item.measuredConstruct ?? ""])
-      .join(" ");
-    const variableCovered = (variable: SurveyResearchIntent["variables"][number]) => {
-      const compactQuestion = normalizeRoleText(questionCorpus);
-      const compactMetadata = normalizeRoleText(metadataCorpus);
+    const questionCoversVariable = (
+      variable: SurveyResearchIntent["variables"][number],
+      question: SurveyIntentQuestionCandidate,
+    ) => {
+      const questionText = candidateQuestionText(question);
+      const compactQuestion = normalizeRoleText(questionText);
+      const compactMetadata = normalizeRoleText(
+        `${question.measuredVariable ?? ""} ${question.measuredConstruct ?? ""}`,
+      );
       const label = normalizeRoleText(variable.name);
       const core = normalizeRoleText(
         variable.name
@@ -1556,38 +1561,47 @@ export function validateSurveyIntentCandidate(
         return true;
       }
       if (/현재\s*거주\s*형태|자취\s*여부/.test(variable.name)) {
-        return /거주\s*형태|자취\s*(?:중|여부|하고|하는)/.test(questionCorpus);
+        return /거주\s*형태|자취\s*(?:중|여부|하고|하는)/.test(questionText);
       }
       if (/사용\s*여부|이용\s*여부/.test(variable.name)) {
         return /(?:사용|이용)(?:한|해\s*본)?\s*(?:적|경험)?(?:이\s*)?(?:있|없)/.test(
-          questionCorpus,
+          questionText,
         );
       }
       if (/참여\s*여부/.test(variable.name)) {
         return /참여(?:한|해\s*본)?\s*(?:적|경험)?(?:이\s*)?(?:있|없)|현재\s*참여/.test(
-          questionCorpus,
+          questionText,
         );
       }
       if (/통학\s*시간/.test(variable.name)) {
         return /통학\s*시간|학교까지.*(?:걸리|소요)|편도.*(?:분|시간)/.test(
-          questionCorpus,
+          questionText,
         );
       }
+      if (/수면\s*시간|수면량/.test(variable.name)) {
+        return /수면\s*시간|몇\s*시간.*(?:자|수면)|하루.*(?:자|수면)/.test(questionText);
+      }
+      if (/^(?:나이|연령)$/.test(variable.name)) {
+        return /나이|연령대?/.test(questionText);
+      }
+      if (/지각\s*횟수/.test(variable.name)) {
+        return /지각.*(?:횟수|몇\s*회)|몇\s*회.*지각/.test(questionText);
+      }
       if (/공부\s*시간/.test(variable.name)) {
-        return /공부(?:하는)?\s*시간|학습\s*시간/.test(questionCorpus);
+        return /공부(?:하는)?\s*시간|학습\s*시간/.test(questionText);
       }
       if (/근무\s*시간/.test(variable.name)) {
-        return /근무\s*시간|하루.*근무/.test(questionCorpus);
+        return /근무\s*시간|하루.*근무/.test(questionText);
       }
       if (/거주\s*지역/.test(variable.name)) {
-        return /거주(?:하는)?\s*지역|현재\s*지역/.test(questionCorpus);
+        return /거주(?:하는)?\s*지역|현재\s*지역/.test(questionText);
       }
       if (/운동\s*빈도/.test(variable.name)) {
-        return /운동.*얼마나\s*자주|운동\s*빈도/.test(questionCorpus);
+        return /운동.*얼마나\s*자주|운동\s*빈도/.test(questionText);
       }
       if (/이용\s*빈도|사용\s*빈도/.test(variable.name)) {
         return /얼마나\s*자주\s*(?:이용|사용)|(?:이용|사용)\s*빈도/.test(
-          questionCorpus,
+          questionText,
         );
       }
       return false;
@@ -1595,8 +1609,16 @@ export function validateSurveyIntentCandidate(
     const requiredVariables = researchIntent.variables.filter(
       (item) => item.scope === "respondent_level" && item.directlyAskable,
     );
+    const variableQuestionIndexes = new Map(
+      requiredVariables.map((variable) => [
+        variable.id,
+        candidate.questions.flatMap((question, index) =>
+          questionCoversVariable(variable, question) ? [index] : [],
+        ),
+      ]),
+    );
     const missingVariables = requiredVariables.filter(
-      (item) => !variableCovered(item),
+      (item) => (variableQuestionIndexes.get(item.id)?.length ?? 0) === 0,
     );
     if (missingVariables.length > 0) {
       pushViolation(violations, {
@@ -1604,6 +1626,7 @@ export function validateSurveyIntentCandidate(
         severity: "repairable",
         message: "관계 분석에 필요한 응답자 수준 변수가 문항에서 측정되지 않음.",
         evidence: missingVariables.map((item) => item.name).join(", "),
+        origin: "question",
       });
     }
     if (requiredVariables.length - missingVariables.length < 2) {
@@ -1612,13 +1635,66 @@ export function validateSurveyIntentCandidate(
         severity: "repairable",
         message: "복수 변수 조사 요청이 하나의 주제로 평탄화됨.",
         evidence: researchIntent.relationExpression ?? undefined,
+        origin: "plan",
       });
       pushViolation(violations, {
         code: "ANALYSIS_GOAL_NOT_SUPPORTED",
         severity: "repairable",
         message: "생성된 문항으로 요청한 관계·집단 비교 분석을 수행할 수 없음.",
         evidence: researchIntent.analysisGoals.map((item) => item.description).join(", "),
+        origin: "relation_mapping",
       });
+    }
+    for (const relation of researchIntent.relations) {
+      const fromIndexes = variableQuestionIndexes.get(relation.fromVariableId) ?? [];
+      const toIndexes = variableQuestionIndexes.get(relation.toVariableId) ?? [];
+      if (fromIndexes.length === 0 || toIndexes.length === 0) {
+        pushViolation(violations, {
+          code: "RELATION_COVERAGE_MISSING",
+          severity: "repairable",
+          message: "분석 관계의 양쪽 변수가 각각 독립된 문항으로 측정되지 않음.",
+          evidence: relation.sourceExpression,
+          origin: "relation_mapping",
+        });
+        continue;
+      }
+      const usable = (variableId: string, indexes: number[]) =>
+        indexes.some((index) => {
+          const question = candidate.questions[index];
+          const optionCount = optionLabels(question).length;
+          const variable = requiredVariables.find((item) => item.id === variableId);
+          const textAnswerIsUsable =
+            variable?.measurementLevel === "nominal" ||
+            variable?.measurementLevel === "text";
+          return optionCount >= 2 || question.type === "scale" || textAnswerIsUsable;
+        });
+      if (
+        !usable(relation.fromVariableId, fromIndexes) ||
+        !usable(relation.toVariableId, toIndexes)
+      ) {
+        pushViolation(violations, {
+          code: "ANALYSIS_FEASIBILITY_UNSUPPORTED",
+          severity: "repairable",
+          message: "관계 분석에 필요한 변수가 비교 가능한 선택지·척도로 조작화되지 않음.",
+          evidence: relation.sourceExpression,
+          origin: "schema",
+        });
+      }
+    }
+    for (const [index, question] of candidate.questions.entries()) {
+      const text = candidateQuestionText(question);
+      if (
+        /(?:앞에서\s*답한\s*)?두\s*값.*(?:관계|함께\s*달라|관련)|(?:관계|영향).*어떻게\s*생각|관련(?:이\s*있다고)?\s*느끼는\s*정도/.test(text)
+      ) {
+        pushViolation(violations, {
+          code: "DIRECT_RELATION_QUESTION_USED",
+          severity: "repairable",
+          message: "두 변수의 관계를 분석하지 않고 응답자에게 주관적으로 직접 판단하게 함.",
+          questionId: question.id ?? index + 1,
+          evidence: text,
+          origin: "question",
+        });
+      }
     }
     const title = candidate.title?.trim() ?? "";
     if (

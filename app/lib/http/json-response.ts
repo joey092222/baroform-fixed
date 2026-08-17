@@ -2,6 +2,7 @@ type ApiErrorPayload = {
   code?: unknown;
   error?: unknown;
   requestId?: unknown;
+  stage?: unknown;
 };
 
 const koreanTextPattern = /[가-힣]/;
@@ -28,16 +29,18 @@ export class JsonResponseError extends Error {
   readonly code: string;
   readonly status: number;
   readonly requestId: string | null;
+  readonly stage: string | null;
 
   constructor(
     message: string,
-    options: { code: string; status: number; requestId?: string | null },
+    options: { code: string; status: number; requestId?: string | null; stage?: string | null },
   ) {
     super(message);
     this.name = "JsonResponseError";
     this.code = options.code;
     this.status = options.status;
     this.requestId = options.requestId ?? null;
+    this.stage = options.stage ?? null;
   }
 }
 
@@ -80,12 +83,14 @@ export async function readJsonResponse<T>(
       : headerRequestId;
   const code =
     typeof apiPayload?.code === "string" ? apiPayload.code : "SERVER_REQUEST_FAILED";
+  const stage = typeof apiPayload?.stage === "string" ? apiPayload.stage : null;
 
   if (!response.ok) {
     throw new JsonResponseError(payloadErrorMessage(payload) ?? fallbackMessage, {
       code,
       status: response.status,
       requestId,
+      stage,
     });
   }
 

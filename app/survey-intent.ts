@@ -4846,6 +4846,24 @@ function researchVariableQuestion(
       ["15분 미만", "15분 이상~30분 미만", "30분 이상~60분 미만", "60분 이상~90분 미만", "90분 이상"],
     );
   }
+  if (/수면\s*시간|수면량/.test(name)) {
+    return question(
+      id,
+      `${explicitTimeframe ? `${explicitTimeframe} 동안 ` : ""}평소 수업이 있는 날 하루에 몇 시간 정도 자나요?`,
+      "수업이 있는 날의 개인별 수면 시간을 겹치지 않는 시간 구간으로 측정함.",
+      "single",
+      ["4시간 미만", "4시간 이상~5시간 미만", "5시간 이상~6시간 미만", "6시간 이상~7시간 미만", "7시간 이상~8시간 미만", "8시간 이상"],
+    );
+  }
+  if (/지각\s*횟수/.test(name)) {
+    return question(
+      id,
+      `${explicitTimeframe ? `${explicitTimeframe}에 ` : ""}수업에 지각한 횟수는 몇 회인가요?`,
+      "개인별 지각 횟수를 겹치지 않는 구간으로 측정함.",
+      "single",
+      ["0회", "1~2회", "3~5회", "6~10회", "11회 이상"],
+    );
+  }
   if (/공부\s*시간/.test(name)) {
     return question(
       id,
@@ -4869,6 +4887,15 @@ function researchVariableQuestion(
       id,
       "연령대를 알려주세요.",
       "연령대별 결과를 비교하기 위한 집단 변수를 측정함.",
+      "single",
+      ["10대 이하", "20대", "30대", "40대", "50대", "60대 이상"],
+    );
+  }
+  if (/^(?:나이|연령)$/.test(name)) {
+    return question(
+      id,
+      "연령대를 알려주세요.",
+      "연령에 따른 결과 차이를 비교할 수 있도록 구간으로 측정함.",
       "single",
       ["10대 이하", "20대", "30대", "40대", "50대", "60대 이상"],
     );
@@ -5009,11 +5036,17 @@ function researchVariableQuestion(
     );
   }
   if (variable.measurementLevel === "numeric") {
+    const options = /시간/.test(name)
+      ? ["1시간 미만", "1시간 이상~2시간 미만", "2시간 이상~4시간 미만", "4시간 이상~6시간 미만", "6시간 이상"]
+      : /횟수|빈도/.test(name)
+        ? ["0회", "1~2회", "3~5회", "6~10회", "11회 이상"]
+        : ["매우 적음", "적은 편", "보통", "많은 편", "매우 많음"];
     return question(
       id,
       `${timeframe}${name}은 어느 정도인가요?`,
-      `${name}을(를) 분석 가능한 수치 또는 구간으로 측정함.`,
-      "shortText",
+      `${name}을(를) 겹치지 않는 순서형 구간으로 측정함.`,
+      "single",
+      options,
     );
   }
   return question(
@@ -5054,6 +5087,16 @@ function relationalIntentBlueprint(brief: SurveyBrief): SurveyBlueprint | null {
       question(6, "현재 거주 형태를 선택한 주된 이유를 모두 골라주세요.", "자취·기숙사·본가 통학을 선택한 요인을 구분함.", "multiple", ["통학 시간 단축", "주거비 부담", "가족과의 거주", "학업·생활 편의", "독립적인 생활", "기숙사 입주 가능 여부", "안전·생활환경", "기타"]),
       question(7, "통학 부담을 줄이기 위해 가장 필요한 지원이 있다면 적어주세요.", "통학과 거주 형태의 관계를 해석할 수 있는 지원 요구를 수집함.", "text", undefined, false),
     ];
+  } else if (/수면\s*시간.*지각\s*(?:횟수|빈도)|지각\s*(?:횟수|빈도).*수면\s*시간/.test(
+    directVariables.map((item) => item.name).join(" "),
+  )) {
+    questions.push(
+      question(questions.length + 1, "이번 학기에 일주일 평균 수업이 있는 날은 며칠인가요?", "수면 시간과 지각 횟수의 노출 기회를 보정할 수 있도록 수업일 수를 측정함.", "single", ["1일", "2일", "3일", "4일", "5일 이상"]),
+      question(questions.length + 2, "이번 학기에 오전 10시 이전에 시작하는 수업은 일주일에 며칠인가요?", "이른 수업 일정이 수면과 지각에 미치는 맥락을 구분함.", "single", ["없음", "1일", "2일", "3일", "4일 이상"]),
+      question(questions.length + 3, "평소 등교할 때 편도 통학 시간은 어느 정도인가요?", "수면 시간 외에 지각 횟수와 관련될 수 있는 통학 여건을 측정함.", "single", ["15분 미만", "15분 이상~30분 미만", "30분 이상~60분 미만", "60분 이상~90분 미만", "90분 이상"]),
+      question(questions.length + 4, "이번 학기에 수업에 지각한 주된 이유를 모두 골라주세요.", "지각 횟수의 차이를 설명할 수 있는 원인을 구분함.", "multiple", ["늦게 잠들거나 수면이 부족해서", "알람을 듣지 못해서", "등교 준비가 늦어져서", "대중교통 지연·도로 정체 때문에", "이전 일정이 늦게 끝나서", "지각한 적 없음", "기타"]),
+      question(questions.length + 5, "수면이나 등교 준비와 관련해 덧붙이고 싶은 상황이 있다면 적어주세요.", "선택지에서 놓친 수면 및 등교 상황을 수집함.", "text", undefined, false),
+    );
   } else {
     const predictor = directVariables.find((item) => ["predictor", "grouping"].includes(item.role));
     const outcome = directVariables.find((item) => item.role === "outcome");
@@ -5062,9 +5105,9 @@ function relationalIntentBlueprint(brief: SurveyBrief): SurveyBlueprint | null {
     questions.push(
       question(questions.length + 1, "앞에서 답한 첫 번째 값이 달라지는 주된 상황을 모두 골라주세요.", `${predictorName}의 차이를 설명할 수 있는 상황 변수를 수집함.`, "multiple", ["평일", "주말·공휴일", "학업·업무가 많은 시기", "개인 일정이 많은 시기", "특별한 상황 없음", "기타"]),
       question(questions.length + 2, `${outcomeName}에 가장 큰 영향을 준 요인은 무엇인가요?`, `${outcomeName}의 차이를 해석할 수 있는 주요 요인을 확인함.`, "single", ["시간", "비용", "접근성", "개인 선호", "주변 환경", "가족·지인의 영향", "기타"]),
-      question(questions.length + 3, "앞에서 답한 두 값이 함께 달라진다고 느끼는 정도는 어느 수준인가요?", "직접 측정한 두 변수와 별도로 응답자가 체감한 연결 정도를 보조적으로 확인함.", "single", ["전혀 관련 없음", "별로 관련 없음", "보통", "관련 있는 편", "매우 관련 있음"]),
-      question(questions.length + 4, `${outcomeName}이 달라졌던 가장 최근의 상황을 적어주세요.`, "관계 분석 결과를 해석할 수 있는 실제 맥락을 수집함.", "shortText", undefined, false),
-      question(questions.length + 5, "앞에서 답한 두 값의 관계에 대해 덧붙이고 싶은 경험이 있다면 적어주세요.", "정형 선택지에서 놓친 관계의 근거를 수집함.", "text", undefined, false),
+      question(questions.length + 3, "앞에서 답한 값들이 평소와 달라지는 빈도는 어느 정도인가요?", "일시적 사건과 평소 경향을 구분함.", "single", ["거의 달라지지 않음", "드물게 달라짐", "가끔 달라짐", "자주 달라짐", "거의 항상 달라짐"]),
+      question(questions.length + 4, `${labelWithParticle(outcomeName, "이", "가")} 달라졌던 가장 최근의 상황을 적어주세요.`, "분석 결과를 해석할 수 있는 실제 맥락을 수집함.", "shortText", undefined, false),
+      question(questions.length + 5, "앞의 응답을 해석할 때 참고할 상황이 있다면 적어주세요.", "정형 문항에서 놓친 응답 맥락을 수집함.", "text", undefined, false),
     );
   }
   questions = questions.slice(0, 7).map((item, index) => {

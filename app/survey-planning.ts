@@ -8,6 +8,7 @@ import type {
 import {
   hasRelationalResearchIntent,
   type ResearchMeasurementLevel,
+  type ResearchRelation,
   type ResearchVariable,
 } from "./survey-research-intent";
 
@@ -22,11 +23,24 @@ export type SurveyVariableType =
   | "preference"
   | "open_text";
 
+export type SurveyPlanBlockKind = "measurement" | "analysis" | "instruction";
+
+export type SurveyPlanQuestionType =
+  | "single_choice"
+  | "multiple_choice"
+  | "scale"
+  | "short_text"
+  | "long_text";
+
 export type SurveyPlanBlock = {
   id: string;
+  kind: SurveyPlanBlockKind;
   variable: string;
+  variableIds: string[];
   role: SemanticRole;
   variableType: SurveyVariableType;
+  questionType?: SurveyPlanQuestionType;
+  analysisType?: ResearchRelation["type"] | "cross_tabulation";
   purpose: string;
   questionCount: number;
   sourceEntityIds: string[];
@@ -34,7 +48,7 @@ export type SurveyPlanBlock = {
   required: boolean;
   researchVariableId?: string;
   variableScope?: ResearchVariable["scope"];
-  directlyAskable?: boolean;
+  directlyAskable: boolean;
   analysisUsage?: string;
   relationIds?: string[];
 };
@@ -76,14 +90,25 @@ const makeBlock = (
   >,
 ): SurveyPlanBlock => ({
   id,
+  kind: "measurement",
   variable,
+  variableIds: sourceEntityIds,
   role,
   variableType,
+  questionType:
+    variableType === "open_text"
+      ? "long_text"
+      : variableType === "scale"
+        ? "scale"
+        : variableType === "numeric"
+          ? "single_choice"
+          : "single_choice",
   purpose,
   questionCount: 1,
   sourceEntityIds,
   decisionGoalIds,
   required: true,
+  directlyAskable: true,
   ...research,
 });
 
@@ -130,7 +155,7 @@ function createRelationalSurveyPlan(
 ): SurveyPlan {
   const research = intent.researchIntent;
   const relationIds = research.relations.map((item) => item.id);
-  const blocks = research.variables
+  const measurementBlocks = research.variables
     .filter(
       (variable) =>
         variable.scope === "respondent_level" && variable.directlyAskable,
@@ -167,17 +192,24 @@ function createRelationalSurveyPlan(
         ["housing-choice-reason", "현재 거주 형태 선택 이유", "construct", "nominal", "자취·기숙사·본가 통학 선택의 주요 이유를 구분함."],
         ["commute-support", "통학 부담 완화 지원", "unmet_need", "open_text", "관계 분석을 해석할 수 있는 지원 요구를 수집함."],
       ] as const
+    : /수면\s*시간.*지각\s*(?:횟수|빈도)|지각\s*(?:횟수|빈도).*수면\s*시간/.test(corpus)
+      ? [
+          ["class-days", "주당 수업일 수", "context", "ordinal", "수면 시간과 지각 횟수의 노출 기회를 보정할 수 있도록 수업일 수를 측정함."],
+          ["early-class-days", "주당 이른 수업일 수", "context", "ordinal", "이른 수업 일정이 수면과 지각에 미치는 맥락을 구분함."],
+          ["commute-duration", "등교 편도 통학 시간", "context", "ordinal", "수면 시간 외에 지각 횟수와 관련될 수 있는 통학 여건을 측정함."],
+          ["tardiness-reasons", "지각의 주된 이유", "context", "nominal", "지각 횟수의 차이를 설명할 수 있는 원인을 구분함."],
+          ["sleep-schedule-context", "수면·등교 준비의 추가 맥락", "context", "open_text", "선택지에서 놓친 수면 및 등교 상황을 수집함."],
+        ] as const
     : [
         ["predictor-context", "선행 변수의 발생 상황", "context", "nominal", "선행 변수가 달라지는 주요 상황을 구분함."],
         ["outcome-driver", "결과 변수에 영향을 주는 요인", "construct", "nominal", "두 변수 관계를 해석할 보조 요인을 수집함."],
-        ["perceived-link", "두 변수의 체감 연결 정도", "construct", "scale", "응답자가 경험한 관계의 방향과 강도를 보조적으로 측정함."],
+        ["measurement-regularity", "측정값의 평소 변동 정도", "context", "ordinal", "일시적 사건과 평소 경향을 구분함."],
         ["barrier-context", "관계 해석에 필요한 제약 조건", "context", "nominal", "집단 차이를 설명할 수 있는 맥락을 구분함."],
-        ["open-evidence", "관계에 대한 구체적인 경험", "construct", "open_text", "정형 문항에서 놓친 관계의 근거를 수집함."],
+        ["open-evidence", "분석에 참고할 추가 상황", "context", "open_text", "정형 문항에서 놓친 응답 맥락을 수집함."],
       ] as const;
   for (const [id, variable, role, variableType, purpose] of supplemental) {
-    if (blocks.length >= requestedQuestionCount) break;
-    blocks.push(
-      makeBlock(
+    if (measurementBlocks.length >= requestedQuestionCount) break;
+    const block = makeBlock(
         id,
         variable,
         role,
@@ -191,9 +223,40 @@ function createRelationalSurveyPlan(
           analysisUsage: research.analysisGoals.map((item) => item.description).join("; "),
           relationIds,
         },
-      ),
-    );
+      );
+    if (["predictor-context", "housing-choice-reason", "tardiness-reasons"].includes(id)) {
+      block.questionType = "multiple_choice";
+    }
+    measurementBlocks.push(block);
   }
+  const analysisBlocks: SurveyPlanBlock[] = research.relations.map((relation) => ({
+    id: `analyze-${relation.id}`,
+    kind: "analysis",
+    variable: relation.sourceExpression,
+    variableIds: [relation.fromVariableId, relation.toVariableId],
+    role: "construct",
+    variableType: "numeric",
+    analysisType: relation.type,
+    purpose: `${relation.sourceExpression}은(는) 두 응답자 수준 변수의 응답값을 교차 분석해 계산함. 관계 자체를 응답자에게 직접 묻지 않음.`,
+    questionCount: 0,
+    sourceEntityIds: [relation.fromVariableId, relation.toVariableId],
+    decisionGoalIds: research.analysisGoals
+      .filter((goal) =>
+        goal.variableIds.includes(relation.fromVariableId) &&
+        goal.variableIds.includes(relation.toVariableId),
+      )
+      .map((goal) => goal.id),
+    required: true,
+    directlyAskable: false,
+    analysisUsage: research.analysisGoals
+      .filter((goal) =>
+        goal.variableIds.includes(relation.fromVariableId) &&
+        goal.variableIds.includes(relation.toVariableId),
+      )
+      .map((goal) => goal.description)
+      .join("; "),
+    relationIds: [relation.id],
+  }));
   return {
     intentKind: intent.objectKind,
     targetPopulation: intent.targetPopulation,
@@ -208,7 +271,10 @@ function createRelationalSurveyPlan(
     primaryPurpose:
       research.analysisGoals[0]?.description ?? intent.studyPurpose?.text ?? intent.purpose,
     decisionGoals: research.analysisGoals.map((item) => item.description),
-    blocks: blocks.slice(0, requestedQuestionCount),
+    blocks: [
+      ...measurementBlocks.slice(0, requestedQuestionCount),
+      ...analysisBlocks,
+    ],
     requestedQuestionCount,
   };
 }
@@ -485,9 +551,13 @@ export function compactSurveyPlanForPrompt(plan: SurveyPlan) {
     requestedQuestionCount: plan.requestedQuestionCount,
     blocks: plan.blocks.map((block) => ({
       id: block.id,
+      kind: block.kind,
       variable: block.variable,
+      variableIds: block.variableIds,
       role: block.role,
       variableType: block.variableType,
+      questionType: block.questionType,
+      analysisType: block.analysisType,
       purpose: block.purpose,
       decisionGoalIds: block.decisionGoalIds,
       researchVariableId: block.researchVariableId,

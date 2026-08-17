@@ -46,6 +46,7 @@ import type { Response as OpenAIResponse } from "openai/resources/responses/resp
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { parseSurveyIntent } from "../../survey-semantic-intent";
+import { createSurveyPlan } from "../../survey-planning";
 import {
   createSurveyGenerationTrace,
   failSurveyGenerationTrace,
@@ -54,6 +55,7 @@ import {
   recordSurveyFallback,
   recordSurveyGenerationSource,
   recordSurveyIntentTrace,
+  recordSurveyPlanTrace,
   recordSurveyValidation,
   surveyGenerationTraceSnapshot,
   type GenerationSource,
@@ -994,6 +996,14 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         targetGrade !== "전학년"
       ? Math.max(2, requestedQuestionCount)
       : requestedQuestionCount;
+  const surveyPlan = createSurveyPlan(intent, questionCount);
+  recordSurveyPlanTrace(trace, {
+    intentKind: intent.objectKind,
+    blocks: surveyPlan.blocks.map(
+      (block) =>
+        `${block.id}:${block.kind}:askable=${block.directlyAskable}:variables=${block.variableIds.join("+")}:question=${block.questionType ?? "none"}:analysis=${block.analysisType ?? "none"}`,
+    ),
+  });
 
   if (enteredPrompt && intent.requiresCreatorClarification) {
     const clarification = creatorClarificationResult(prompt, intent);

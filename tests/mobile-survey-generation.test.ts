@@ -58,4 +58,16 @@ test("구조화된 서버 오류는 모바일 사용자 메시지와 추적 정�
     surveyGenerationErrorMessage(new TypeError("Failed to fetch")),
     "서버에 연결하지 못했어요. 인터넷 연결을 확인해주세요.",
   );
+
+  const repairFailure = new JsonResponseError("internal", {
+    code: "REPAIR_EXHAUSTED",
+    status: 422,
+    requestId: "server-repair-42",
+    stage: "repair-validation",
+  });
+  const repairMessage = surveyGenerationErrorMessage(repairFailure);
+  assert.match(repairMessage, /요청 ID: server-repair-42/);
+  if (process.env.NODE_ENV !== "production") {
+    assert.match(repairMessage, /REPAIR_EXHAUSTED.*repair-validation/);
+  }
 });

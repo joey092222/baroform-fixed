@@ -71,6 +71,14 @@ export type SurveyGenerationTrace = {
   extractedTopic: string | null;
   extractedVariables: string[];
   extractedRelations: string[];
+  detectedIntentKind: string | null;
+  generatedPlanBlocks: string[];
+  originalQuestions: string[];
+  semanticViolationCodes: string[];
+  semanticViolationQuestionIds: string[];
+  violationOrigins: string[];
+  repairedQuestions: string[];
+  secondValidationIssues: string[];
   generationSource: GenerationSource | null;
   fallbackUsed: boolean;
   fallbackReason: string | null;
@@ -100,6 +108,14 @@ export function createSurveyGenerationTrace(
     extractedTopic: null,
     extractedVariables: [],
     extractedRelations: [],
+    detectedIntentKind: null,
+    generatedPlanBlocks: [],
+    originalQuestions: [],
+    semanticViolationCodes: [],
+    semanticViolationQuestionIds: [],
+    violationOrigins: [],
+    repairedQuestions: [],
+    secondValidationIssues: [],
     generationSource: null,
     fallbackUsed: false,
     fallbackReason: null,
@@ -144,6 +160,43 @@ export function recordSurveyIntentTrace(
   trace.extractedTopic = details.topic?.slice(0, 120) ?? null;
   trace.extractedVariables = details.variables.slice(0, 20).map((item) => item.slice(0, 120));
   trace.extractedRelations = details.relations.slice(0, 20).map((item) => item.slice(0, 160));
+}
+
+export function recordSurveyPlanTrace(
+  trace: SurveyGenerationTrace | undefined,
+  details: { intentKind: string; blocks: string[] },
+) {
+  if (!trace || process.env.NODE_ENV === "production") return;
+  trace.detectedIntentKind = details.intentKind.slice(0, 80);
+  trace.generatedPlanBlocks = details.blocks.slice(0, 40).map((item) => item.slice(0, 240));
+}
+
+export function recordSurveySemanticDiagnostics(
+  trace: SurveyGenerationTrace | undefined,
+  details: {
+    originalQuestions?: string[];
+    violationCodes?: string[];
+    violationQuestionIds?: Array<string | number>;
+    violationOrigins?: string[];
+    repairedQuestions?: string[];
+    secondValidationIssues?: string[];
+  },
+) {
+  if (!trace || process.env.NODE_ENV === "production") return;
+  if (details.originalQuestions) {
+    trace.originalQuestions = details.originalQuestions.slice(0, 30).map((item) => item.slice(0, 240));
+  }
+  if (details.violationCodes) trace.semanticViolationCodes = [...details.violationCodes];
+  if (details.violationQuestionIds) {
+    trace.semanticViolationQuestionIds = details.violationQuestionIds.map(String);
+  }
+  if (details.violationOrigins) trace.violationOrigins = [...details.violationOrigins];
+  if (details.repairedQuestions) {
+    trace.repairedQuestions = details.repairedQuestions.slice(0, 30).map((item) => item.slice(0, 240));
+  }
+  if (details.secondValidationIssues) {
+    trace.secondValidationIssues = details.secondValidationIssues.slice(0, 30).map((item) => item.slice(0, 240));
+  }
 }
 
 export function recordSurveyFallback(
@@ -233,6 +286,14 @@ export function surveyGenerationTraceSnapshot(trace: SurveyGenerationTrace) {
     extractedTopic: trace.extractedTopic,
     extractedVariables: [...trace.extractedVariables],
     extractedRelations: [...trace.extractedRelations],
+    detectedIntentKind: trace.detectedIntentKind,
+    generatedPlanBlocks: [...trace.generatedPlanBlocks],
+    originalQuestions: [...trace.originalQuestions],
+    semanticViolationCodes: [...trace.semanticViolationCodes],
+    semanticViolationQuestionIds: [...trace.semanticViolationQuestionIds],
+    violationOrigins: [...trace.violationOrigins],
+    repairedQuestions: [...trace.repairedQuestions],
+    secondValidationIssues: [...trace.secondValidationIssues],
     generationSource: trace.generationSource,
     fallbackUsed: trace.fallbackUsed,
     fallbackReason: trace.fallbackReason,

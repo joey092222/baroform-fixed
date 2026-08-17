@@ -43,8 +43,14 @@ export function surveyGenerationErrorMessage(error: unknown) {
         return "완전한 설문 응답을 받지 못해 적용하지 않았어요. 다시 시도해주세요.";
       case "SEMANTIC_VALIDATION_FAILED":
       case "REPAIR_FAILED":
-      case "REPAIR_EXHAUSTED":
-        return "설문 내용을 안전하게 다듬지 못했어요. 요청 ID와 함께 다시 문의해주세요.";
+      case "REPAIR_EXHAUSTED": {
+        const requestId = error.requestId ?? "확인 불가";
+        const debug =
+          process.env.NODE_ENV === "production"
+            ? ""
+            : ` · 코드 ${error.code} · 단계 ${error.stage ?? "unknown"}`;
+        return `설문 내용을 안전하게 다듬지 못했어요. 요청 ID: ${requestId}${debug}`;
+      }
       default:
         return "설문을 만드는 중 문제가 발생했어요. 잠시 후 다시 시도해 주세요.";
     }

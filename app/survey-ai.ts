@@ -56,6 +56,7 @@ import {
   recordSurveyGenerationSource,
   recordSurveyQuestionOutcome,
   recordSurveyRepair,
+  recordSurveySemanticDiagnostics,
   recordSurveyValidation,
   type SurveyGenerationTrace,
 } from "./survey-generation-trace";
@@ -1211,12 +1212,26 @@ function questionIndexesFromViolations(
       continue;
     }
     const evidence = violation.evidence ?? "";
-    const planIndex = plan.blocks.findIndex(
-      (block) =>
-        evidence.includes(block.variable) || block.variable.includes(evidence),
+    const askableBlocks = plan.blocks.filter((block) => block.directlyAskable);
+    const matchingPlanIndexes = askableBlocks.flatMap((block, index) =>
+      evidence.includes(block.variable) || block.variable.includes(evidence)
+        ? [index]
+        : [],
     );
-    if (planIndex >= 0 && planIndex < questionCount) {
-      indexes.add(planIndex);
+    if (matchingPlanIndexes.length > 0) {
+      matchingPlanIndexes
+        .filter((index) => index < questionCount)
+        .forEach((index) => indexes.add(index));
+    } else if (
+      violation.code === "RELATION_COVERAGE_MISSING" ||
+      violation.code === "ANALYSIS_GOAL_NOT_SUPPORTED" ||
+      violation.code === "ANALYSIS_FEASIBILITY_UNSUPPORTED" ||
+      violation.code === "MULTI_VARIABLE_INTENT_FLATTENED"
+    ) {
+      plan.blocks
+        .filter((block) => block.kind === "measurement" && block.directlyAskable)
+        .slice(0, questionCount)
+        .forEach((_, index) => indexes.add(index));
     } else if (violation.code === "DECISION_GOAL_DROPPED") {
       indexes.add(Math.max(0, questionCount - 1));
     } else {
@@ -1247,7 +1262,8 @@ function planBasedReplacement(
   intent: SurveyIntent,
   index: number,
 ): SurveyQuestion {
-  const block = plan.blocks[index] ?? plan.blocks.at(-1);
+  const askableBlocks = plan.blocks.filter((item) => item.directlyAskable);
+  const block = askableBlocks[index] ?? askableBlocks.at(-1);
   return {
     ...fallbackQuestion,
     id: original.id,
@@ -1490,9 +1506,10 @@ export function parseSurveyDraftResponse(
         questions: structuredGeneration
           ? structuredGeneration.survey.questions
           : normalizedAiQuestions.map((item) => ({
-              id: item.id,
-              title: item.title,
-              options: item.options,
+               id: item.id,
+               title: item.title,
+               type: item.type,
+               options: item.options,
               measuredConstruct: item.measuredConstruct,
               measuredVariable: item.measuredVariable,
               measuredRole: item.measuredRole,
@@ -1501,6 +1518,14 @@ export function parseSurveyDraftResponse(
             })),
       })
     : [];
+  recordSurveySemanticDiagnostics(trace, {
+    originalQuestions: normalizedAiQuestions.map((item) => item.title),
+    violationCodes: semanticViolations.map((item) => item.code),
+    violationQuestionIds: semanticViolations.flatMap((item) =>
+      item.questionId === undefined ? [] : [item.questionId],
+    ),
+    violationOrigins: semanticViolations.map((item) => item.origin ?? "question"),
+  });
   assertQuestionQuality(normalizedAiQuestions, questionCount);
   assertSurveyDepth(
     result.designPlan,
@@ -1671,6 +1696,9 @@ export function parseSurveyDraftResponse(
       getFallback: getPlanBasedFallback,
     });
     blueprint = repair.survey;
+    recordSurveySemanticDiagnostics(trace, {
+      repairedQuestions: blueprint.aiQuestions.map((item) => item.title),
+    });
     recordSurveyRepair(
       trace,
       repair.repairedQuestionIds,
@@ -1684,6 +1712,9 @@ export function parseSurveyDraftResponse(
     recordSurveyGenerationSource(trace, "openai_partial_repair");
     recordSurveyValidation(trace, "repair-validation");
     validationIssues = validateSurvey(prompt, brief, blueprint);
+    recordSurveySemanticDiagnostics(trace, {
+      secondValidationIssues: validationIssues,
+    });
     if (process.env.NODE_ENV !== "production") {
       console.info("survey-generation-partial-repair", {
         trigger:
@@ -1856,7 +1887,9 @@ export function buildSurveyAiRequest(
       targetListSource: surveyIntent.targetListSource,
       unitOfAnalysis: surveyIntent.unitOfAnalysis,
       measurementMode: surveyIntent.measurementMode,
-      measuredVariables: surveyPlan.blocks.map((block) => block.variable),
+      measuredVariables: surveyPlan.blocks
+        .filter((block) => block.kind === "measurement" && block.directlyAskable)
+        .map((block) => block.variable),
       screeningRequired: surveyIntent.screeningRequired,
       screeningReason: surveyIntent.screeningReason,
       decisionGoals: surveyPlan.decisionGoals,
@@ -1867,10 +1900,13 @@ export function buildSurveyAiRequest(
     "구조화된 설문 의도에서 대상, 조사 대상물, 측정 개념, 목적, 기간, 응답 자격을 서로 다른 역할로 유지한다.",
     "researchIntent.variables는 각각 독립된 분석 변수다. 복수 변수를 하나의 topic 문자열이나 서비스명으로 다시 합치지 않는다.",
     "researchIntent.relations와 analysisGoals가 있으면 모든 directlyAskable respondent_level 변수를 각각 문항으로 측정한다.",
+    "SurveyPlan의 kind가 analysis인 block은 질문이 아니다. variableIds의 측정값을 결과 단계에서 분석하며, analysis block 자체를 응답자 문항으로 변환하지 않는다.",
+    "관계·영향·차이는 두 변수의 실제 응답값으로 분석한다. '두 값이 관련 있다고 느끼나요'처럼 관계 자체를 응답자에게 주관적으로 판단시키는 문항은 만들지 않는다.",
+    "numeric 변수는 현재 지원되는 설문 스키마에 맞춰 서로 겹치지 않는 순서형 single_choice 구간으로 측정한다. 단순 short_text로 내보내지 않는다.",
     "aggregate_derived 변수와 derivedMetrics(비율·평균·분포·이용률·참여율)는 응답자에게 직접 묻지 않는다. sourceVariableIds의 개인별 기초 변수를 질문하고 결과 분석에서 계산한다.",
     "관계 표현(~에 따른, ~별, ~와의 관계, ~가 ~에 미치는 영향)은 predictor/grouping 변수와 outcome 변수를 분리하고 교차 분석 또는 집단 비교가 가능하도록 설계한다.",
     "통학 시간·수면 시간·공부 시간·지출 금액·이용 빈도·만족도·스트레스·거주 형태·여부처럼 측정 가능한 변수에는 구체적인 대상을 다시 적으라는 주관식 문항을 만들지 않는다.",
-    "설문 계획의 각 block은 실제 문항으로 측정하고, decisionGoals가 있으면 모든 핵심 문항이 그 결정에 필요한 근거가 되도록 설계한다.",
+    "설문 계획의 measurement block만 실제 문항으로 측정한다. analysis block은 문항으로 만들지 않고 측정된 variableIds의 분석 명세로 유지한다.",
     "category_set은 제품명이 아니다. 관련성·직접 경험·전반 평가를 묻지 말고 구체적인 범주 선택, 빈도, 비중, 우선순위로 조작화한다.",
     "evidence_for 관계로 연결된 뒤쪽 목적을 버리지 말고, 현재 행동 → 미충족 수요 → 대안 선호 → 이용 의향의 인과 흐름을 유지한다.",
     "조사·실태조사·만족도 조사·인식 조사·수요 조사는 서비스명이나 이용 대상이 아니다.",

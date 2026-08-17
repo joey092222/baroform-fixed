@@ -16,6 +16,7 @@ import {
   parseSurveyResearchIntent,
 } from "../app/survey-research-intent";
 import { createSurveyPlan } from "../app/survey-planning";
+import { repairInvalidQuestions } from "../app/survey-ai";
 
 const forbiddenGeneric =
   /실제로 경험하거나 선택한 구체적인 대상을 적어주세요|추상적인 조사 주제를 응답자가 답할 수 있는 구체적인 대상으로 확인함|현재 얼마나 관련이 있나요|직접 경험 중|과거에 경험함|알고 있지만 경험 없음|주제에 대한 전체 평가를 공통 척도로 확인함/;
@@ -275,4 +276,229 @@ test("실제 API route의 모델 없는 경로도 관계형 설문을 200으로 
     if (previousKey) process.env.OPENAI_API_KEY = previousKey;
     else delete process.env.OPENAI_API_KEY;
   }
+});
+
+const sleepTardinessPrompt =
+  "대학생들의 평소 수업이 있는 날 하루 수면 시간과 이번 학기 지각 횟수의 관계를 조사해줘";
+
+test("수면 시간·지각 횟수 계획은 측정 문항과 비문항 분석 블록을 분리한다", () => {
+  const intent = parseSurveyIntent(sleepTardinessPrompt);
+  const plan = createSurveyPlan(intent, 7);
+  const measurementBlocks = plan.blocks.filter((item) => item.kind === "measurement");
+  const analysisBlocks = plan.blocks.filter((item) => item.kind === "analysis");
+
+  assert.equal(measurementBlocks.length, 7);
+  assert.equal(analysisBlocks.length, 1);
+  assert.equal(analysisBlocks[0]?.directlyAskable, false);
+  assert.equal(analysisBlocks[0]?.questionCount, 0);
+  assert.equal(analysisBlocks[0]?.analysisType, "association");
+  assert.deepEqual(
+    analysisBlocks[0]?.variableIds,
+    intent.researchIntent.relations[0]
+      ? [
+          intent.researchIntent.relations[0].fromVariableId,
+          intent.researchIntent.relations[0].toVariableId,
+        ]
+      : [],
+  );
+});
+
+test("수면 시간·지각 횟수 fallback은 7개 분석 가능 문항을 만들고 관계 자체는 묻지 않는다", () => {
+  const blueprint = analyzeSurveyPrompt(sleepTardinessPrompt);
+  const questions = blueprint.aiQuestions;
+  const text = questions.map((item) => item.title).join(" ");
+
+  assert.equal(questions.length, 7);
+  assert.deepEqual(questions.slice(0, 2).map((item) => item.type), ["single", "single"]);
+  assert.match(questions[0]?.title ?? "", /수업이 있는 날.*몇 시간/);
+  assert.match(questions[1]?.title ?? "", /지각한 횟수.*몇 회/);
+  assert.deepEqual(questions[0]?.options, [
+    "4시간 미만",
+    "4시간 이상~5시간 미만",
+    "5시간 이상~6시간 미만",
+    "6시간 이상~7시간 미만",
+    "7시간 이상~8시간 미만",
+    "8시간 이상",
+  ]);
+  assert.deepEqual(questions[1]?.options, ["0회", "1~2회", "3~5회", "6~10회", "11회 이상"]);
+  assert.doesNotMatch(text, /두 값.*(?:관계|함께 달라)|관련 있다고 느끼|영향이 있다고 생각/);
+  assert.deepEqual(
+    validateSurvey(sleepTardinessPrompt, parseSurveyBrief(sleepTardinessPrompt), blueprint),
+    [],
+  );
+});
+
+test("관계형 의미 검증은 변수·관계·분석 가능성을 서로 다른 오류로 보고한다", () => {
+  const intent = parseSurveyIntent(sleepTardinessPrompt);
+  const violations = validateSurveyIntentCandidate(intent, {
+    title: "대학생 수면과 지각 조사",
+    description: "수면과 지각을 알아보는 설문입니다.",
+    questions: [
+      {
+        id: "q1",
+        title: "앞에서 답한 두 값이 함께 달라진다고 느끼는 정도는 어느 수준인가요?",
+        type: "scale",
+        options: ["전혀 아님", "매우 그러함"],
+      },
+    ],
+  });
+  const codes = new Set(violations.map((item) => item.code));
+  assert.ok(codes.has("VARIABLE_COVERAGE_MISSING"));
+  assert.ok(codes.has("RELATION_COVERAGE_MISSING"));
+  assert.ok(codes.has("ANALYSIS_GOAL_NOT_SUPPORTED"));
+  assert.ok(codes.has("DIRECT_RELATION_QUESTION_USED"));
+  assert.ok(violations.some((item) => item.origin === "relation_mapping"));
+});
+
+test("관계형 핵심 10개 입력은 두 기초 변수를 유지하고 분석 블록을 질문으로 만들지 않는다", () => {
+  const cases = [
+    [sleepTardinessPrompt, /수면 시간/, /지각 횟수/],
+    ["대학생들의 평균 수면 시간과 지각 비율의 관계", /수면 시간/, /지각 여부/],
+    ["공부 시간과 성적의 관계", /공부 시간/, /성적/],
+    ["운동 빈도에 따른 수면의 질 차이", /운동 빈도/, /수면의 질/],
+    ["통학 시간과 지각 횟수의 관계", /통학 시간/, /지각 횟수/],
+    ["학년별 동아리 참여 비율", /학년/, /동아리 참여 여부/],
+    ["지역별 배달앱 이용률", /거주 지역/, /배달 앱 이용 여부/],
+    ["나이와 AI 사용 여부의 관계", /나이/, /AI 사용 여부/],
+    ["근무 시간과 이직 의향의 관계", /근무 시간/, /이직 의향/],
+    ["네이버 웹툰 이용 빈도에 따른 만족도 차이", /이용 빈도/, /만족도/],
+  ] as const;
+
+  for (const [prompt, firstVariable, secondVariable] of cases) {
+    const intent = parseSurveyIntent(prompt);
+    const plan = createSurveyPlan(intent, 7);
+    const blueprint = analyzeSurveyPrompt(prompt);
+    const variables = intent.researchIntent.variables
+      .filter((item) => item.scope === "respondent_level" && item.directlyAskable)
+      .map((item) => item.name)
+      .join(" ");
+    const corpus = blueprint.aiQuestions.map((item) => item.title).join(" ");
+
+    assert.match(variables, firstVariable, prompt);
+    assert.match(variables, secondVariable, prompt);
+    assert.ok(plan.blocks.some((item) => item.kind === "analysis" && !item.directlyAskable), prompt);
+    assert.equal(blueprint.aiQuestions.length, 7, prompt);
+    assert.doesNotMatch(corpus, /두 값.*(?:관계|함께 달라)|관련 있다고 느끼/, prompt);
+    assert.deepEqual(validateSurvey(prompt, parseSurveyBrief(prompt), blueprint), [], prompt);
+  }
+});
+
+test("실제 standard route는 수면 시간·지각 횟수 입력을 fallback에서도 200으로 완료한다", async () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+  try {
+    const response = await createSurveyDraft(
+      new Request("http://localhost/api/survey-draft", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost",
+          "user-agent": "baroform-sleep-tardiness-regression",
+        },
+        body: JSON.stringify({
+          prompt: sleepTardinessPrompt,
+          surveyMode: "standard",
+          targetGrade: "전학년",
+          questionCount: 7,
+          references: { images: [], files: [], links: [] },
+        }),
+      }),
+    );
+    const body = (await response.json()) as {
+      requestId?: string;
+      blueprint?: ReturnType<typeof analyzeSurveyPrompt>;
+    };
+    assert.equal(response.status, 200, JSON.stringify(body));
+    assert.equal(body.requestId, response.headers.get("x-baroform-request-id"));
+    assert.equal(body.blueprint?.aiQuestions.length, 7);
+    assert.match(body.blueprint?.aiQuestions[0]?.title ?? "", /몇 시간/);
+    assert.match(body.blueprint?.aiQuestions[1]?.title ?? "", /몇 회/);
+  } finally {
+    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
+    else delete process.env.OPENAI_API_KEY;
+  }
+});
+
+test("모델이 analysis block을 직접 관계 문항으로 오해해도 해당 문항만 복구한다", () => {
+  const intent = parseSurveyIntent(sleepTardinessPrompt);
+  const plan = createSurveyPlan(intent, 7);
+  const fallback = analyzeSurveyPrompt(sleepTardinessPrompt);
+  const broken = {
+    ...fallback,
+    aiQuestions: fallback.aiQuestions.map((item, index) =>
+      index === 6
+        ? {
+            ...item,
+            title: "앞에서 답한 두 값이 서로 관련 있다고 느끼는 정도는 어느 수준인가요?",
+            type: "single" as const,
+            options: ["전혀 관련 없음", "매우 관련 있음"],
+          }
+        : item,
+    ),
+  };
+  const violations = validateSurveyIntentCandidate(intent, {
+    title: broken.title,
+    description: broken.description,
+    questions: broken.aiQuestions.map((item) => ({
+      id: item.id,
+      title: item.title,
+      type: item.type,
+      options: item.options,
+      measuredVariable: item.measuredVariable,
+      measuredConstruct: item.measuredConstruct,
+    })),
+  });
+  assert.ok(violations.some((item) => item.code === "DIRECT_RELATION_QUESTION_USED"));
+  const repair = repairInvalidQuestions({
+    survey: broken,
+    intent,
+    plan,
+    violations,
+    getFallback: () => fallback,
+  });
+  assert.deepEqual(repair.repairedQuestionIds, [7]);
+  assert.deepEqual(repair.preservedQuestionIds, [1, 2, 3, 4, 5, 6]);
+  assert.doesNotMatch(repair.survey.aiQuestions[6]?.title ?? "", /두 값.*관련/);
+});
+
+test("numeric 변수를 자유입력으로 내보낸 schema mismatch는 순서형 선택지 문항으로 복구한다", () => {
+  const intent = parseSurveyIntent(sleepTardinessPrompt);
+  const plan = createSurveyPlan(intent, 7);
+  const fallback = analyzeSurveyPrompt(sleepTardinessPrompt);
+  const broken = {
+    ...fallback,
+    aiQuestions: fallback.aiQuestions.map((item, index) =>
+      index < 2 ? { ...item, type: "shortText" as const, options: undefined } : item,
+    ),
+  };
+  const violations = validateSurveyIntentCandidate(intent, {
+    title: broken.title,
+    description: broken.description,
+    questions: broken.aiQuestions.map((item) => ({
+      id: item.id,
+      title: item.title,
+      type: item.type,
+      options: item.options,
+      measuredVariable: item.measuredVariable,
+      measuredConstruct: item.measuredConstruct,
+    })),
+  });
+  assert.ok(
+    violations.some((item) => item.code === "ANALYSIS_FEASIBILITY_UNSUPPORTED"),
+  );
+  const repair = repairInvalidQuestions({
+    survey: broken,
+    intent,
+    plan,
+    violations,
+    getFallback: () => fallback,
+  });
+  assert.equal(repair.survey.aiQuestions[0]?.type, "single");
+  assert.equal(repair.survey.aiQuestions[1]?.type, "single");
+  assert.ok((repair.survey.aiQuestions[0]?.options?.length ?? 0) >= 5);
+  assert.ok((repair.survey.aiQuestions[1]?.options?.length ?? 0) >= 5);
+  assert.deepEqual(
+    validateSurvey(sleepTardinessPrompt, parseSurveyBrief(sleepTardinessPrompt), repair.survey),
+    [],
+  );
 });

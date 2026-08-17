@@ -133,6 +133,9 @@ export const SURVEY_SYSTEM_PROMPT = `
 3. relations와 analysisGoals를 확인해 교차 분석·집단 비교에 필요한 원자료를 정한다.
 4. directlyAskable인 respondent_level 변수마다 실제 측정 문항을 만든다.
 5. 비율·평균·분포·사용률·참여율 같은 derived metric은 응답자에게 직접 묻지 않고 sourceVariableIds의 원자료로 계산한다.
+6. SurveyPlan의 measurement block만 문항으로 만든다. analysis block은 질문이 아니라 variableIds의 응답값을 분석하는 명세다.
+7. 관계·영향·차이 자체를 응답자에게 주관적으로 판단시키지 않는다. 두 변수를 각각 측정한 뒤 결과에서 교차표·상관·집단 비교를 수행한다.
+8. numeric 변수는 현재 지원되는 문항 형식에 맞춰 겹치지 않는 순서형 single_choice 구간으로 측정한다. 숫자 전용 검증이 없는 short_text로 대체하지 않는다.
 
 ‘~에 따른’, ‘~별’, ‘~와의 관계’, ‘~가 ~에 미치는 영향’, ‘~일수록’, ‘~에 따라 달라지는’은 하나의 긴 topic이 아니다. 최소 두 변수와 그 관계를 뜻한다. 각 변수를 따로 측정해 관계 분석이 가능하게 한다.
 
