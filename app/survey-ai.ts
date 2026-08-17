@@ -53,14 +53,19 @@ import {
 import {
   compactSurveyPlanForPrompt,
   createSurveyPlan,
+  evaluateSurveyPlanCoverage,
+  questionCoversSurveyPlanBlock,
   type SurveyPlan,
+  type SurveyPlanBlock,
 } from "./survey-planning";
 import {
   markSurveyGenerationStage,
   recordSurveyGenerationSource,
   recordSurveyQuestionOutcome,
   recordSurveyPostprocessTrace,
+  recordSurveyPlanCoverageTrace,
   recordSurveyRepair,
+  recordSurveySchemaDiagnostics,
   recordSurveySemanticDiagnostics,
   recordSurveyValidation,
   type SurveyGenerationTrace,
@@ -217,6 +222,25 @@ export class SurveyGenerationResponseError extends Error {
 export const surveyAiInstructions = buildSurveyAiInstructions();
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function valueAtSchemaPath(
+  value: unknown,
+  path: ReadonlyArray<PropertyKey>,
+): unknown {
+  let current = value;
+  for (const segment of path) {
+    if (!isRecord(current) && !Array.isArray(current)) return undefined;
+    current = (current as Record<PropertyKey, unknown>)[segment];
+  }
+  return current;
+}
+
+function schemaValueType(value: unknown) {
+  if (value === undefined) return "undefined";
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "array";
+  return typeof value;
 }
 
 function cleanText(value: unknown, maximum: number) {
@@ -1386,6 +1410,132 @@ export function repairInvalidQuestions({
   };
 }
 
+function replacementForPlanBlock(
+  original: SurveyQuestion,
+  fallbackQuestion: SurveyQuestion,
+  block: SurveyPlanBlock,
+  intent: SurveyIntent,
+): SurveyQuestion {
+  return {
+    ...fallbackQuestion,
+    id: original.id,
+    reason: formatQuestionReason(fallbackQuestion.reason),
+    planBlockId: block.id,
+    purposeBlockId: block.purposeBlockId ?? fallbackQuestion.purposeBlockId,
+    measuredEntityIds:
+      block.measuredEntityIds ?? fallbackQuestion.measuredEntityIds,
+    measuredConstruct: block.variable,
+    measuredVariable: block.variable,
+    measuredRole: block.role,
+    questionPurpose: block.purpose,
+    decisionGoalIds: block.decisionGoalIds,
+    unitOfAnalysis: fallbackQuestion.unitOfAnalysis ?? intent.unitOfAnalysis,
+    subjectRole: fallbackQuestion.subjectRole ?? "target_population",
+    objectRole:
+      fallbackQuestion.objectRole ?? intent.objects[0]?.role ?? "real_world_object",
+    explicitTimeframe:
+      fallbackQuestion.explicitTimeframe ?? intent.explicitTimeframe,
+  };
+}
+
+export function restoreMissingRequiredPlanBlocks({
+  survey,
+  intent,
+  plan,
+  getFallback,
+}: {
+  survey: SurveyBlueprint;
+  intent: SurveyIntent;
+  plan: SurveyPlan;
+  getFallback: () => SurveyBlueprint;
+}) {
+  const initialCoverage = evaluateSurveyPlanCoverage(plan, survey.aiQuestions);
+  if (initialCoverage.missingRequiredBlockIds.length === 0) {
+    return {
+      survey,
+      initialCoverage,
+      finalCoverage: initialCoverage,
+      repairedQuestionIds: [] as number[],
+      preservedQuestionIds: survey.aiQuestions.map((item) => item.id),
+    };
+  }
+
+  const fallbackQuestions = resizeSurveyQuestions(
+    getFallback().aiQuestions,
+    survey.aiQuestions.length,
+  );
+  const requiredBlocks = plan.blocks.filter(
+    (block) =>
+      block.kind === "measurement" && block.directlyAskable && block.required,
+  );
+  const optionalBlocks = plan.blocks.filter(
+    (block) =>
+      block.kind === "measurement" && block.directlyAskable && !block.required,
+  );
+  const repairedQuestionIds: number[] = [];
+  const questions = survey.aiQuestions.map((item) => ({ ...item }));
+
+  for (const blockId of initialCoverage.missingRequiredBlockIds) {
+    const block = requiredBlocks.find((item) => item.id === blockId);
+    if (!block) continue;
+    const fallbackQuestion = fallbackQuestions.find((question) =>
+      questionCoversSurveyPlanBlock(question, block),
+    );
+    if (!fallbackQuestion) continue;
+
+    const protectedIndexes = new Set(
+      questions.flatMap((question, index) =>
+        requiredBlocks.some((requiredBlock) =>
+          questionCoversSurveyPlanBlock(question, requiredBlock),
+        )
+          ? [index]
+          : [],
+      ),
+    );
+    const unplannedIndex = questions.findLastIndex(
+      (question, index) =>
+        !protectedIndexes.has(index) &&
+        !plan.blocks.some((planBlock) =>
+          questionCoversSurveyPlanBlock(question, planBlock),
+        ),
+    );
+    const optionalIndex = questions.findLastIndex(
+      (question, index) =>
+        !protectedIndexes.has(index) &&
+        optionalBlocks.some((optionalBlock) =>
+          questionCoversSurveyPlanBlock(question, optionalBlock),
+        ),
+    );
+    const replacementIndex = unplannedIndex >= 0 ? unplannedIndex : optionalIndex;
+    if (replacementIndex < 0) continue;
+    const original = questions[replacementIndex];
+    questions[replacementIndex] = replacementForPlanBlock(
+      original,
+      fallbackQuestion,
+      block,
+      intent,
+    );
+    repairedQuestionIds.push(original.id);
+  }
+
+  const finalCoverage = evaluateSurveyPlanCoverage(plan, questions);
+  const repairedSet = new Set(repairedQuestionIds);
+  return {
+    survey: {
+      ...survey,
+      templateQuestions: questions.slice(0, 5),
+      aiQuestions: questions,
+      semanticPlan: plan,
+    },
+    initialCoverage,
+    finalCoverage,
+    repairedQuestionIds,
+    preservedQuestionIds: questions
+      .filter((item) => !repairedSet.has(item.id))
+      .map((item) => item.id),
+  };
+}
+
 export function parseSurveyDraftResponse(
   rawPayload: unknown,
   prompt: string,
@@ -1406,6 +1556,9 @@ export function parseSurveyDraftResponse(
   );
   let decoded: unknown = rawPayload.output_parsed;
   if (decoded === undefined || decoded === null) {
+    recordSurveySchemaDiagnostics(trace, {
+      stage: "output_parsed_missing",
+    });
     throw new SurveyGenerationResponseError(
       "SURVEY_GENERATION_OUTPUT_MISSING",
       "생성된 설문 구조를 확인하지 못했어요. 다시 시도해주세요.",
@@ -1422,6 +1575,13 @@ export function parseSurveyDraftResponse(
       questionCount,
     );
     if (integrityIssues.length > 0) {
+      recordSurveySchemaDiagnostics(trace, {
+        stage: "generation_integrity_validation",
+        issues: integrityIssues.map((_, index) => ({
+          path: ["integrity", index],
+          code: "custom",
+        })),
+      });
       throw new SurveyValidationError(integrityIssues, "schema");
     }
     const copyIssues = respondentCopyIssues(structuredGeneration);
@@ -1431,6 +1591,17 @@ export function parseSurveyDraftResponse(
     decoded = structuredGenerationToLegacy(structuredGeneration, prompt);
   }
   if (!isRecord(decoded) || !isRecord(decoded.result)) {
+    if (!structuredResult.success) {
+      recordSurveySchemaDiagnostics(trace, {
+        stage: "structured_output_schema_validation",
+        issues: structuredResult.error.issues.map((issue) => ({
+          path: issue.path,
+          code: issue.code,
+          expected: "expected" in issue ? issue.expected : undefined,
+          received: schemaValueType(valueAtSchemaPath(decoded, issue.path)),
+        })),
+      });
+    }
     const schemaIssues = structuredResult.success
       ? []
       : structuredResult.error.issues
@@ -1714,6 +1885,8 @@ export function parseSurveyDraftResponse(
     semanticViolations.length > 0 ||
     (validationIssues.length > 0 &&
       shouldEnforceSurveyIntentValidation(brief.surveyIntent));
+  let repairedQuestionIds: number[] = [];
+  let preservedQuestionIds = blueprint.aiQuestions.map((item) => item.id);
   if (shouldRepair) {
     const repair = repairInvalidQuestions({
       survey: blueprint,
@@ -1728,29 +1901,8 @@ export function parseSurveyDraftResponse(
     recordSurveySemanticDiagnostics(trace, {
       repairedQuestions: blueprint.aiQuestions.map((item) => item.title),
     });
-    recordSurveyRepair(
-      trace,
-      repair.repairedQuestionIds,
-      repair.preservedQuestionIds,
-    );
-    recordSurveyQuestionOutcome(trace, {
-      originalQuestionCount: aiQuestions.length,
-      repairedQuestionIds: repair.repairedQuestionIds,
-      preservedQuestionIds: repair.preservedQuestionIds,
-    });
-    recordSurveyGenerationSource(trace, "openai_partial_repair");
-    recordSurveyValidation(trace, "repair-validation");
-    validationIssues = validateSurvey(prompt, brief, blueprint);
-    const finalSemanticIssues = lintSurveyQuestionSemantics(
-      brief.parsedSurveyContext,
-      blueprint.aiQuestions,
-    );
-    validationIssues.push(
-      ...finalSemanticIssues.map((item) => `${item.code}: ${item.message}`),
-    );
-    recordSurveySemanticDiagnostics(trace, {
-      secondValidationIssues: validationIssues,
-    });
+    repairedQuestionIds = repair.repairedQuestionIds;
+    preservedQuestionIds = repair.preservedQuestionIds;
     if (process.env.NODE_ENV !== "production") {
       console.info("survey-generation-partial-repair", {
         trigger:
@@ -1766,6 +1918,59 @@ export function parseSurveyDraftResponse(
       });
     }
   }
+
+  const requiredCoverageRepair = restoreMissingRequiredPlanBlocks({
+    survey: blueprint,
+    intent: brief.surveyIntent,
+    plan: rolePlan,
+    getFallback: getPlanBasedFallback,
+  });
+  blueprint = requiredCoverageRepair.survey;
+  recordSurveyPlanCoverageTrace(trace, {
+    initial: requiredCoverageRepair.initialCoverage,
+    final: requiredCoverageRepair.finalCoverage,
+  });
+  if (requiredCoverageRepair.repairedQuestionIds.length > 0) {
+    repairedQuestionIds = [
+      ...new Set([
+        ...repairedQuestionIds,
+        ...requiredCoverageRepair.repairedQuestionIds,
+      ]),
+    ];
+    const repairedSet = new Set(repairedQuestionIds);
+    preservedQuestionIds = blueprint.aiQuestions
+      .filter((item) => !repairedSet.has(item.id))
+      .map((item) => item.id);
+  }
+  if (repairedQuestionIds.length > 0) {
+    recordSurveyRepair(trace, repairedQuestionIds, preservedQuestionIds);
+    recordSurveyQuestionOutcome(trace, {
+      originalQuestionCount: aiQuestions.length,
+      repairedQuestionIds,
+      preservedQuestionIds,
+    });
+    recordSurveyGenerationSource(trace, "openai_partial_repair");
+    recordSurveyValidation(trace, "repair-validation");
+  }
+  if (repairedQuestionIds.length > 0) {
+    validationIssues = validateSurvey(prompt, brief, blueprint);
+    const finalSemanticIssues = lintSurveyQuestionSemantics(
+      brief.parsedSurveyContext,
+      blueprint.aiQuestions,
+    );
+    validationIssues.push(
+      ...finalSemanticIssues.map((item) => `${item.code}: ${item.message}`),
+    );
+  }
+  validationIssues.push(
+    ...requiredCoverageRepair.finalCoverage.missingRequiredBlockIds.map(
+      (blockId) => `PLAN_REQUIRED_BLOCK_MISSING: ${blockId}`,
+    ),
+  );
+  recordSurveySemanticDiagnostics(trace, {
+    secondValidationIssues: validationIssues,
+    repairedQuestions: blueprint.aiQuestions.map((item) => item.title),
+  });
   if (validationIssues.length > 0) {
     throw new SurveyValidationError(validationIssues);
   }

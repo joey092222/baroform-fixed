@@ -1,4 +1,5 @@
 import type { ParsedSurveyContext } from "./survey-context";
+import type { PlanCoverageResult } from "./survey-planning";
 import type { SurveyGenerationSource } from "./survey-generation-response";
 import {
   currentBuildDiagnostics,
@@ -133,6 +134,18 @@ export type SurveyGenerationTrace = {
   responseIncompleteReason: string | null;
   outputParsedPresent: boolean;
   outputItemTypes: string[];
+  modelOutputTopLevelKeys: string[];
+  modelReturnedQuestionCount: number | null;
+  schemaIssuePaths: string[];
+  schemaIssueCodes: string[];
+  schemaExpectedTypes: string[];
+  schemaReceivedTypes: string[];
+  parseFailureStage: string | null;
+  initialCoveredRequiredBlockIds: string[];
+  initialMissingRequiredBlockIds: string[];
+  finalCoveredRequiredBlockIds: string[];
+  finalMissingRequiredBlockIds: string[];
+  optionalPlanBlockIds: string[];
   questionsBeforePostprocessCount: number;
   finalQuestionCount: number;
   questionsBeforePostprocess: string[];
@@ -202,6 +215,18 @@ export function createSurveyGenerationTrace(
     responseIncompleteReason: null,
     outputParsedPresent: false,
     outputItemTypes: [],
+    modelOutputTopLevelKeys: [],
+    modelReturnedQuestionCount: null,
+    schemaIssuePaths: [],
+    schemaIssueCodes: [],
+    schemaExpectedTypes: [],
+    schemaReceivedTypes: [],
+    parseFailureStage: null,
+    initialCoveredRequiredBlockIds: [],
+    initialMissingRequiredBlockIds: [],
+    finalCoveredRequiredBlockIds: [],
+    finalMissingRequiredBlockIds: [],
+    optionalPlanBlockIds: [],
     questionsBeforePostprocessCount: 0,
     finalQuestionCount: 0,
     questionsBeforePostprocess: [],
@@ -277,6 +302,21 @@ export function recordSurveyModelResponseTrace(
       typeof incompleteReason === "string" ? incompleteReason.slice(0, 120) : null;
     trace.outputParsedPresent =
       payload.output_parsed !== null && payload.output_parsed !== undefined;
+    if (payload.output_parsed && typeof payload.output_parsed === "object") {
+      const parsed = payload.output_parsed as Record<string, unknown>;
+      trace.modelOutputTopLevelKeys = Object.keys(parsed).slice(0, 30);
+      const survey = parsed.survey;
+      const result = parsed.result;
+      const questions =
+        survey && typeof survey === "object"
+          ? (survey as { questions?: unknown }).questions
+          : result && typeof result === "object"
+            ? (result as { aiQuestions?: unknown }).aiQuestions
+            : null;
+      trace.modelReturnedQuestionCount = Array.isArray(questions)
+        ? questions.length
+        : null;
+    }
     trace.outputItemTypes = Array.isArray(payload.output)
       ? payload.output
           .map((item) =>
@@ -294,6 +334,51 @@ export function recordSurveyModelResponseTrace(
   } catch {
     trace.rawModelResponse = "[unserializable model response]";
   }
+}
+
+export function recordSurveySchemaDiagnostics(
+  trace: SurveyGenerationTrace | undefined,
+  details: {
+    stage: string;
+    issues?: Array<{
+      path?: ReadonlyArray<PropertyKey>;
+      code?: string;
+      expected?: unknown;
+      received?: unknown;
+    }>;
+  },
+) {
+  if (!trace) return;
+  trace.parseFailureStage = details.stage.slice(0, 120);
+  const issues = details.issues ?? [];
+  trace.schemaIssuePaths = issues
+    .slice(0, 12)
+    .map((issue) => (issue.path ?? []).map(String).join(".").slice(0, 200));
+  trace.schemaIssueCodes = issues
+    .slice(0, 12)
+    .map((issue) => String(issue.code ?? "unknown").slice(0, 80));
+  trace.schemaExpectedTypes = issues
+    .slice(0, 12)
+    .map((issue) => String(issue.expected ?? "unknown").slice(0, 80));
+  trace.schemaReceivedTypes = issues
+    .slice(0, 12)
+    .map((issue) => String(issue.received ?? "unknown").slice(0, 80));
+}
+
+export function recordSurveyPlanCoverageTrace(
+  trace: SurveyGenerationTrace | undefined,
+  details: { initial: PlanCoverageResult; final: PlanCoverageResult },
+) {
+  if (!trace) return;
+  trace.initialCoveredRequiredBlockIds = [
+    ...details.initial.coveredRequiredBlockIds,
+  ];
+  trace.initialMissingRequiredBlockIds = [
+    ...details.initial.missingRequiredBlockIds,
+  ];
+  trace.finalCoveredRequiredBlockIds = [...details.final.coveredRequiredBlockIds];
+  trace.finalMissingRequiredBlockIds = [...details.final.missingRequiredBlockIds];
+  trace.optionalPlanBlockIds = [...details.final.optionalBlockIds];
 }
 
 export function recordSurveyPostprocessTrace(
@@ -545,6 +630,18 @@ export function surveyGenerationTraceSnapshot(trace: SurveyGenerationTrace) {
     responseIncompleteReason: trace.responseIncompleteReason,
     outputParsedPresent: trace.outputParsedPresent,
     outputItemTypes: [...trace.outputItemTypes],
+    modelOutputTopLevelKeys: [...trace.modelOutputTopLevelKeys],
+    modelReturnedQuestionCount: trace.modelReturnedQuestionCount,
+    schemaIssuePaths: [...trace.schemaIssuePaths],
+    schemaIssueCodes: [...trace.schemaIssueCodes],
+    schemaExpectedTypes: [...trace.schemaExpectedTypes],
+    schemaReceivedTypes: [...trace.schemaReceivedTypes],
+    parseFailureStage: trace.parseFailureStage,
+    initialCoveredRequiredBlockIds: [...trace.initialCoveredRequiredBlockIds],
+    initialMissingRequiredBlockIds: [...trace.initialMissingRequiredBlockIds],
+    finalCoveredRequiredBlockIds: [...trace.finalCoveredRequiredBlockIds],
+    finalMissingRequiredBlockIds: [...trace.finalMissingRequiredBlockIds],
+    optionalPlanBlockIds: [...trace.optionalPlanBlockIds],
     questionsBeforePostprocessCount: trace.questionsBeforePostprocessCount,
     finalQuestionCount: trace.finalQuestionCount,
     questionsBeforePostprocess: [...trace.questionsBeforePostprocess],
@@ -595,6 +692,15 @@ export function surveyGenerationLogSnapshot(trace: SurveyGenerationTrace) {
     responseIncompleteReason: snapshot.responseIncompleteReason,
     outputParsedPresent: snapshot.outputParsedPresent,
     outputItemTypes: snapshot.outputItemTypes,
+    modelOutputTopLevelKeys: snapshot.modelOutputTopLevelKeys,
+    modelReturnedQuestionCount: snapshot.modelReturnedQuestionCount,
+    schemaIssuePaths: snapshot.schemaIssuePaths,
+    schemaIssueCodes: snapshot.schemaIssueCodes,
+    schemaExpectedTypes: snapshot.schemaExpectedTypes,
+    schemaReceivedTypes: snapshot.schemaReceivedTypes,
+    parseFailureStage: snapshot.parseFailureStage,
+    initialMissingRequiredBlockIds: snapshot.initialMissingRequiredBlockIds,
+    finalMissingRequiredBlockIds: snapshot.finalMissingRequiredBlockIds,
     totalElapsedMs: snapshot.totalElapsedMs,
   };
 }
