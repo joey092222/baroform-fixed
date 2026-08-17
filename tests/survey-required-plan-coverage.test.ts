@@ -13,6 +13,7 @@ import {
   compactSurveyPlanForPrompt,
   createSurveyPlan,
   evaluateSurveyPlanCoverage,
+  inferExplicitUsageQuestionRole,
 } from "../app/survey-planning";
 
 const usagePrompt = "대학생의 네이버 웹툰 이용 경험을 조사하고 싶다";
@@ -143,4 +144,90 @@ test("부분 복구 뒤 빈도 문항이 사라져도 최종 coverage 검사에�
     restored.survey.aiQuestions.map((item) => item.title).join(" "),
     /얼마나 자주|이용 빈도/,
   );
+});
+
+test("빈도 metadata를 단 이용 여부 문항은 역할 불일치이며 coverage에 포함하지 않는다", () => {
+  const intent = parseSurveyIntent(usagePrompt);
+  const plan = createSurveyPlan(intent, 7);
+  const fallback = analyzeSurveyPrompt(usagePrompt);
+  const questions = fallback.aiQuestions.slice(0, 7).map((item) => ({ ...item }));
+  const frequencyIndex = questions.findIndex((item) => /얼마나 자주|이용 빈도/.test(item.title));
+  assert.ok(frequencyIndex >= 0);
+  questions[frequencyIndex] = {
+    ...question(questions[frequencyIndex]!.id, "네이버 웹툰을 이용한 적이 있나요?"),
+    planBlockId: "usage-frequency",
+    measuredVariable: "네이버 웹툰 이용 빈도",
+  };
+  const coverage = evaluateSurveyPlanCoverage(plan, questions);
+
+  assert.equal(inferExplicitUsageQuestionRole(questions[frequencyIndex]!), "usage-status");
+  assert.ok(coverage.missingRequiredBlockIds.includes("usage-frequency"));
+  assert.ok(
+    coverage.incompatibleQuestionIds.includes(String(questions[frequencyIndex]!.id)),
+  );
+});
+
+test("의미가 같은 이용 여부 문항 하나를 누락된 빈도 문항으로 우선 교체한다", () => {
+  const intent = parseSurveyIntent(usagePrompt);
+  const plan = createSurveyPlan(intent, 7);
+  const fallback = analyzeSurveyPrompt(usagePrompt);
+  const titles = [
+    "네이버 웹툰을 이용해 본 적이 있나요?",
+    "네이버 웹툰을 이용한 적이 있나요?",
+    "네이버 웹툰을 주로 언제 보나요?",
+    "네이버 웹툰을 보는 이유는 무엇인가요?",
+    "주로 어떤 장르의 웹툰을 보나요?",
+    "네이버 웹툰 이용 경험에 얼마나 만족하나요?",
+    "네이버 웹툰에서 불편한 점은 무엇인가요?",
+  ];
+  const questions = titles.map((title, index) => ({
+    ...question(index + 1, title),
+    ...(index === 1
+      ? {
+          planBlockId: "usage-frequency",
+          measuredVariable: "네이버 웹툰 이용 빈도",
+        }
+      : {}),
+  }));
+  const survey = {
+    ...fallback,
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
+    semanticPlan: plan,
+  };
+  const initial = evaluateSurveyPlanCoverage(plan, questions);
+  assert.deepEqual(initial.semanticDuplicateGroups, [["1", "2"]]);
+  assert.ok(initial.missingRequiredBlockIds.includes("usage-frequency"));
+
+  const restored = restoreMissingRequiredPlanBlocks({
+    survey,
+    intent,
+    plan,
+    getFallback: () => fallback,
+  });
+  const finalTitles = restored.survey.aiQuestions.map((item) => item.title);
+
+  assert.deepEqual(restored.repairedQuestionIds, [2]);
+  assert.deepEqual(restored.roleMismatchQuestionIds, ["2"]);
+  assert.deepEqual(restored.finalCoverage.missingRequiredBlockIds, []);
+  assert.deepEqual(restored.finalCoverage.semanticDuplicateGroups, []);
+  assert.equal(
+    finalTitles.filter((title) => /이용해?\s*본\s*적|이용한\s*적/.test(title)).length,
+    1,
+  );
+  assert.equal(
+    finalTitles.filter((title) => /얼마나\s*자주|이용\s*빈도/.test(title)).length,
+    1,
+  );
+});
+
+test("시간대 선택지는 선언 metadata가 빈도여도 usage-time-context로 분류한다", () => {
+  const timeQuestion: SurveyQuestion = {
+    ...question(3, "주로 언제 네이버 웹툰을 보나요?"),
+    options: ["아침", "점심", "저녁", "취침 전"],
+    planBlockId: "usage-frequency",
+    measuredVariable: "네이버 웹툰 이용 빈도",
+  };
+
+  assert.equal(inferExplicitUsageQuestionRole(timeQuestion), "usage-time-context");
 });
