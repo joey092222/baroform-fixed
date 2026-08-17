@@ -70,7 +70,6 @@ import {
 } from "./survey-export";
 import {
   JsonResponseError,
-  readJsonResponse,
 } from "./lib/http/json-response";
 import { ResultsDashboard } from "./results-dashboard";
 import {
@@ -103,6 +102,7 @@ import {
   getSurveyGenerationTiming,
 } from "./survey-generation-time";
 import {
+  readSurveyGenerationResponse,
   surveyGenerationErrorMessage,
   surveyGenerationErrorMetadata,
   type SurveyGenerationFailureStage,
@@ -5849,34 +5849,22 @@ function RealAnalyticsView({
   );
 }
 
-type SurveyGenerationReadyResult = {
-  type: "survey";
-  status: "ready" | "ready_with_caution";
+type SurveyGenerationReadyPayload = {
   prompt: string;
   blueprint: SurveyBlueprint;
   research: SurveyResearch;
 };
 
-type SurveyGenerationClarificationResult = {
-  type: "clarification";
-  status: "needs_clarification";
+type SurveyGenerationClarificationPayload = {
   prompt: string;
   clarification: SurveyClarification;
   research: SurveyResearch;
 };
 
-type SurveyGenerationBackgroundResult = {
-  type: "background";
-  status: "queued" | "in_progress";
+type SurveyGenerationBackgroundPayload = {
   responseId: string;
   jobToken?: string;
 };
-
-type SurveyGenerationResult =
-  | SurveyGenerationReadyResult
-  | SurveyGenerationClarificationResult
-  | SurveyGenerationBackgroundResult
-  | { type: "error"; status?: never; error?: string; code?: string; stage?: string };
 
 const surveyGenerationDurationStorageKey =
   "baroform-survey-generation-duration-v1";
@@ -6497,7 +6485,11 @@ export default function Home({
           },
         }),
       });
-      let result = await readJsonResponse<SurveyGenerationResult>(
+      let result = await readSurveyGenerationResponse<
+        SurveyGenerationReadyPayload,
+        SurveyGenerationClarificationPayload,
+        SurveyGenerationBackgroundPayload
+      >(
         response,
         "AI 초안을 만들지 못했어요. 잠시 후 다시 시도해주세요.",
       );
@@ -6512,7 +6504,10 @@ export default function Home({
           jobToken: backgroundJob.jobToken,
         };
         failureStage = "background-poll";
-        while (result.type === "background") {
+        while (
+          result.type === "background" &&
+          (result.status === "queued" || result.status === "in_progress")
+        ) {
           await waitForBackgroundPoll(controller.signal);
           const statusUrl = new URL("/api/survey-draft", window.location.origin);
           statusUrl.searchParams.set("responseId", backgroundJob.responseId);
@@ -6522,7 +6517,11 @@ export default function Home({
             signal: controller.signal,
             cache: "no-store",
           });
-          result = await readJsonResponse<SurveyGenerationResult>(
+          result = await readSurveyGenerationResponse<
+            SurveyGenerationReadyPayload,
+            SurveyGenerationClarificationPayload,
+            SurveyGenerationBackgroundPayload
+          >(
             statusResponse,
             "정밀·연구 설문 상태를 확인하지 못했어요.",
           );
@@ -6531,15 +6530,18 @@ export default function Home({
       }
 
       if (analysisRequestRef.current !== requestId) return;
-      if (result.type === "error" || !("status" in result)) {
+      if (result.type === "error") {
         throw new JsonResponseError(
-          "error" in result && result.error
-            ? result.error
-            : "AI 초안을 만들지 못했어요.",
+          result.error || "AI 초안을 만들지 못했어요.",
           {
-            code: "SERVER_RESPONSE_INVALID",
+            code: result.code ?? "SERVER_REQUEST_FAILED",
             status: 502,
-            requestId: clientRequestId,
+            requestId: result.requestId,
+            stage: result.stage,
+            generationSource: result.generationSource,
+            fallbackReason: result.fallbackReason,
+            responseType: result.type,
+            responseStatus: result.status,
           },
         );
       }
@@ -6553,13 +6555,19 @@ export default function Home({
         return;
       }
 
-      if (
-        result.type !== "survey" ||
-        (result.status !== "ready" && result.status !== "ready_with_caution")
-      ) {
+      if (result.type === "background") {
         throw new JsonResponseError(
-          "완전한 설문 응답을 받지 못했어요.",
-          { code: "SURVEY_GENERATION_INCOMPLETE", status: 502 },
+          `백그라운드 설문 생성 상태를 적용할 수 없어요: ${result.status}`,
+          {
+            code: "BACKGROUND_RESPONSE_UNRESOLVED",
+            status: 502,
+            requestId: result.requestId,
+            stage: result.stage,
+            generationSource: result.generationSource,
+            fallbackReason: result.fallbackReason,
+            responseType: result.type,
+            responseStatus: result.status,
+          },
         );
       }
 

@@ -59,11 +59,13 @@ import {
   markSurveyGenerationStage,
   recordSurveyGenerationSource,
   recordSurveyQuestionOutcome,
+  recordSurveyPostprocessTrace,
   recordSurveyRepair,
   recordSurveySemanticDiagnostics,
   recordSurveyValidation,
   type SurveyGenerationTrace,
 } from "./survey-generation-trace";
+import { lintSurveyQuestionSemantics } from "./survey-context";
 
 export class SurveyValidationError extends Error {
   readonly issues: string[];
@@ -1510,6 +1512,9 @@ export function parseSurveyDraftResponse(
   const normalizedAiQuestions = Array.isArray(result.aiQuestions)
     ? result.aiQuestions.map((item, index) => normalizeQuestion(item, index + 1))
     : [];
+  recordSurveyPostprocessTrace(trace, {
+    before: normalizedAiQuestions.map((item) => item.title),
+  });
   const brief = parseSurveyBrief(prompt);
   recordSurveyValidation(trace, "semantic-validation");
   const semanticViolations = shouldEnforceSurveyIntentValidation(
@@ -1531,9 +1536,10 @@ export function parseSurveyDraftResponse(
               measuredRole: item.measuredRole,
               planBlockId: item.planBlockId,
               purposeBlockId: item.purposeBlockId,
-              measuredEntityIds: item.measuredEntityIds,
-              questionPurpose: item.questionPurpose,
-            })),
+               measuredEntityIds: item.measuredEntityIds,
+               questionPurpose: item.questionPurpose,
+               reason: item.reason,
+             })),
       })
     : [];
   recordSurveySemanticDiagnostics(trace, {
@@ -1699,6 +1705,11 @@ export function parseSurveyDraftResponse(
     semanticViolations.length === 0
       ? validateSurvey(prompt, brief, blueprint)
       : [];
+  recordSurveySemanticDiagnostics(trace, {
+    qualityViolationCodes: validationIssues.map((item) =>
+      item.includes(":") ? item.slice(0, item.indexOf(":")) : item,
+    ),
+  });
   const shouldRepair =
     semanticViolations.length > 0 ||
     (validationIssues.length > 0 &&
@@ -1730,6 +1741,13 @@ export function parseSurveyDraftResponse(
     recordSurveyGenerationSource(trace, "openai_partial_repair");
     recordSurveyValidation(trace, "repair-validation");
     validationIssues = validateSurvey(prompt, brief, blueprint);
+    const finalSemanticIssues = lintSurveyQuestionSemantics(
+      brief.parsedSurveyContext,
+      blueprint.aiQuestions,
+    );
+    validationIssues.push(
+      ...finalSemanticIssues.map((item) => `${item.code}: ${item.message}`),
+    );
     recordSurveySemanticDiagnostics(trace, {
       secondValidationIssues: validationIssues,
     });
@@ -1751,6 +1769,9 @@ export function parseSurveyDraftResponse(
   if (validationIssues.length > 0) {
     throw new SurveyValidationError(validationIssues);
   }
+  recordSurveyPostprocessTrace(trace, {
+    final: blueprint.aiQuestions.map((item) => item.title),
+  });
 
   const researchLimitations = Array.isArray(result.researchLimitations)
     ? result.researchLimitations
@@ -1898,6 +1919,9 @@ export function buildSurveyAiRequest(
     "[구조화된 설문 의도]",
     JSON.stringify(compactSurveyIntentForPrompt(surveyIntent)),
     "",
+    "[실체·활동·조사목적 분리 컨텍스트]",
+    JSON.stringify(parsedBrief.parsedSurveyContext),
+    "",
     "[역할 기반 설문 계획]",
     JSON.stringify(compactSurveyPlanForPrompt(surveyPlan)),
     "",
@@ -1919,6 +1943,8 @@ export function buildSurveyAiRequest(
     "복합 목적은 현재 행동·경험을 먼저 측정하고 미충족 수요·대안 의향을 뒤에 측정하며 어느 목적도 버리지 않는다.",
     "기간이 없으면 기간을 만들지 않고, screeningRequired=false이면 탈락형 스크리너를 만들지 않는다.",
     "조사 유형을 서비스명으로 취급하지 말고, 관계는 각 변수를 따로 측정해 결과에서 분석한다.",
+    "primaryEntity, activity, researchGoal은 서로 다른 역할이다. 조사 의뢰문 전체를 이용·사용·방문 대상의 목적어로 쓰지 않는다.",
+    "isUsageObject=false이면 generic usage 문항을 금지한다. mobility_experience에는 이동하다·오가다·소요되다·불편을 경험하다·만족하다를 사용한다.",
     "수치 변수는 겹치지 않는 구간 선택지로 측정하고, 한 문항에는 한 변수만 묻는다.",
     "",
     "[설문 제작 방식]",

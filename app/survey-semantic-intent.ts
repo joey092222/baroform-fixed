@@ -4,6 +4,12 @@ import {
   parseSurveyResearchIntent,
   type SurveyResearchIntent,
 } from "./survey-research-intent";
+import {
+  lintSurveyQuestionSemantics,
+  normalizeSurveyRequest,
+  parseSurveyGenerationContext,
+  type ParsedSurveyContext,
+} from "./survey-context";
 
 export type SurveyIntentStudyType = "general" | "research";
 
@@ -44,7 +50,8 @@ export type SurveyActivityKind =
   | "conduct"
   | "use"
   | "purchase"
-  | "attend";
+  | "attend"
+  | "move";
 
 export type IntentEntity = {
   id: string;
@@ -175,6 +182,7 @@ export type SurveyIntent = {
   studyType: SurveyIntentStudyType;
   ambiguityLevel: "low" | "medium" | "high";
   objectKind: SurveyIntentObjectKind;
+  semanticContext: ParsedSurveyContext;
   researchIntent: SurveyResearchIntent;
 };
 
@@ -212,7 +220,10 @@ export type SurveyIntentViolationCode =
   | "PROPOSED_SOLUTION_NOT_SEPARATED"
   | "EXISTING_CONTEXT_NOT_MEASURED"
   | "GENERIC_NEEDS_TEMPLATE_ROLE_MISMATCH"
-  | "LEGACY_BLUEPRINT_USED_FOR_COMPOSITE_INTENT";
+  | "LEGACY_BLUEPRINT_USED_FOR_COMPOSITE_INTENT"
+  | "MALFORMED_TOPIC_PARTICLE"
+  | "PREDICATE_ENTITY_MISMATCH"
+  | "REQUEST_META_USED_AS_OBJECT";
 
 export type ValidationSeverity = "fatal" | "repairable" | "warning";
 
@@ -246,6 +257,8 @@ export type SurveyIntentQuestionCandidate = {
   subjectRole?: SemanticRole;
   objectRole?: SemanticRole;
   type?: string;
+  reason?: string;
+  analysis?: { purpose?: string } | null;
 };
 
 export type SurveyIntentCandidate = {
@@ -1024,6 +1037,7 @@ function buildCompositeSurveyIntent(options: {
   segments: SurveyPurposeSegment[];
   studyType: SurveyIntentStudyType;
   researchIntent: SurveyResearchIntent;
+  semanticContext: ParsedSurveyContext;
 }): SurveyIntent {
   const first = options.segments[0];
   const second = options.segments[1];
@@ -1182,6 +1196,7 @@ function buildCompositeSurveyIntent(options: {
     studyType: options.studyType,
     ambiguityLevel: "low",
     objectKind: "composite",
+    semanticContext: options.semanticContext,
     researchIntent: options.researchIntent,
   };
 }
@@ -1191,11 +1206,8 @@ export function parseSurveyIntent(
   studyType: SurveyIntentStudyType = "general",
 ): SurveyIntent {
   const raw = normalize(rawInput);
-  const requestStripped = raw
-    .replace(
-      /(?:을|를)?\s*(?:분석|조사|파악|확인|알아보)(?:(?:하|해)(?:고|서)?|고)?\s*싶(?:어|어요|습니다)\s*$/,
-      "",
-    )
+  const semanticContext = parseSurveyGenerationContext(rawInput);
+  const requestStripped = normalizeSurveyRequest(raw)
     .replace(
       /(?:을|를)?\s*(?:분석|조사|파악|확인|알아보)(?:하라|해\s*(?:줘|주세요|봐|보세요)|해주세요|해줘|해봐|해보세요)\s*$/,
       "",
@@ -1224,6 +1236,7 @@ export function parseSurveyIntent(
       segments: purposeSegments,
       studyType,
       researchIntent,
+      semanticContext,
     });
   }
   const purposeChain = splitPurposeChain(working);
@@ -1239,7 +1252,10 @@ export function parseSurveyIntent(
         : null),
   );
   const activityRelations = extractActivityRelations(primaryClause);
-  let kind = classifyIntent(primaryClause);
+  let kind =
+    semanticContext.surveyArchetype === "mobility_experience"
+      ? "behavior_usage"
+      : classifyIntent(primaryClause);
   if (decisionOption) kind = "decision_support";
   else if (categorySet) kind = "category_set";
   if (
@@ -1263,7 +1279,7 @@ export function parseSurveyIntent(
           /^(.{1,60}?)(?:\s*(?:빈도|횟수|패턴|현황|습관|과정에서))/,
         )?.[1]?.trim() ?? null
       : null;
-  const activities = inferredActivityLabel
+  let activities = inferredActivityLabel
     ? [
         entity(inferredActivityLabel, "activity", {
           source: "inferred",
@@ -1273,8 +1289,21 @@ export function parseSurveyIntent(
             : "use",
         }),
       ]
-    : activityRelations.activities;
+      : activityRelations.activities;
   const parts = constructAndObject(primaryClause, kind);
+  if (semanticContext.surveyArchetype === "mobility_experience") {
+    parts.surveyObject = semanticContext.primaryEntity;
+    parts.constructs = semanticContext.researchConstructs;
+    activities = semanticContext.activity
+      ? [
+          entity(semanticContext.activity, "activity", {
+            source: "explicit",
+            confidence: 0.98,
+            activityKind: "move",
+          }),
+        ]
+      : [];
+  }
   if (kind === "satisfaction_evaluation" && parts.surveyObject) {
     parts.surveyObject = parts.surveyObject.replace(/\s*의$/, "").trim();
   }
@@ -1570,6 +1599,7 @@ export function parseSurveyIntent(
     studyType,
     ambiguityLevel,
     objectKind: kind,
+    semanticContext,
     researchIntent,
   };
 }
@@ -1687,6 +1717,20 @@ export function validateSurveyIntentCandidate(
   let decisionGoalCovered = intent.decisionGoals.length === 0;
   let unmetNeedCovered = intent.decisionGoals.length === 0;
   const coveredPurposeBlockIds = new Set<string>();
+
+  for (const issue of lintSurveyQuestionSemantics(
+    intent.semanticContext,
+    candidate.questions,
+  )) {
+    pushViolation(violations, {
+      code: issue.code,
+      severity: "repairable",
+      message: issue.message,
+      questionId: issue.questionId,
+      evidence: issue.evidence,
+      origin: "question",
+    });
+  }
 
   if (intent.intentMode === "composite") {
     if (intent.surveyObject || intent.legacyEvaluationTarget) {
@@ -2317,6 +2361,7 @@ export function compactSurveyIntentForPrompt(intent: SurveyIntent) {
     studyType: intent.studyType,
     ambiguityLevel: intent.ambiguityLevel,
     objectKind: intent.objectKind,
+    semanticContext: intent.semanticContext,
     researchIntent: compactResearchIntentForPrompt(intent.researchIntent),
   };
 }

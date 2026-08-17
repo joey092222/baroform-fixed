@@ -886,10 +886,26 @@ test("완료된 모델 결과가 의미 검수에서 거부되면 검증된 초�
         }),
       }),
     );
-    const result = (await response.json()) as { status?: string };
+    const result = (await response.json()) as {
+      status?: string;
+      requestId?: string;
+      type?: string;
+      ok?: boolean;
+      code?: string | null;
+      stage?: string | null;
+      generationSource?: string | null;
+      fallbackReason?: string | null;
+    };
 
     assert.equal(response.status, 200);
     assert.equal(result.status, "ready_with_caution");
+    assert.equal(result.type, "survey");
+    assert.equal(result.ok, true);
+    assert.equal(result.code, null);
+    assert.equal(typeof result.requestId, "string");
+    assert.equal(typeof result.stage, "string");
+    assert.equal(typeof result.generationSource, "string");
+    assert.equal(result.fallbackReason, "model-output-rejected");
     assert.equal(response.headers.get("x-baroform-ai-mode"), "verified-fallback");
     assert.equal(
       response.headers.get("x-baroform-ai-fallback"),
@@ -1039,14 +1055,14 @@ test("userInput만 보내는 오래된 모바일 요청도 일반 설문으로 �
     const body = (await response.json()) as {
       status?: string;
       prompt?: string;
-      code?: string;
+      code?: string | null;
     };
 
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("x-baroform-survey-mode"), "standard");
     assert.match(body.status ?? "", /^ready/);
     assert.equal(body.prompt, "대학생의 대학생활 만족도 설문");
-    assert.equal(body.code, undefined);
+    assert.equal(body.code, null);
   } finally {
     if (previousKey) process.env.OPENAI_API_KEY = previousKey;
   }
@@ -1069,9 +1085,14 @@ test("잘못된 설문 제작 모드는 구조화된 400 JSON으로 거부한다
   );
   const body = (await response.json()) as {
     ok?: boolean;
+    type?: string;
+    status?: string;
     code?: string;
     error?: string;
     requestId?: string;
+    stage?: string | null;
+    generationSource?: string | null;
+    fallbackReason?: string | null;
   };
 
   assert.equal(response.status, 400);
@@ -2844,7 +2865,7 @@ test("단일 AI 결과에 최종 메시지가 없으면 두 번째 호출 없이
 
     assert.equal(response.status, 502);
     assert.equal(body.ok, false);
-    assert.equal(body.code, "EMPTY_MODEL_RESPONSE");
+    assert.equal(body.code, "SURVEY_GENERATION_MESSAGE_MISSING");
     assert.match(body.error ?? "", /결과|응답/);
     assert.equal(typeof body.requestId, "string");
     assert.equal(fetchCalls, 1);
@@ -2980,16 +3001,26 @@ test("잘못된 JSON 요청도 요청 ID가 포함된 JSON 오류로 응답한�
   );
   const body = (await response.json()) as {
     ok?: boolean;
+    type?: string;
+    status?: string;
     code?: string;
     error?: string;
     requestId?: string;
+    stage?: string | null;
+    generationSource?: string | null;
+    fallbackReason?: string | null;
   };
 
   assert.equal(response.status, 400);
   assert.equal(body.ok, false);
+  assert.equal(body.type, "error");
+  assert.equal(body.status, "error");
   assert.equal(body.code, "INVALID_JSON");
   assert.match(body.error ?? "", /읽지 못했어요/);
   assert.equal(body.requestId, response.headers.get("x-baroform-request-id"));
+  assert.equal(typeof body.stage, "string");
+  assert.equal(body.generationSource, null);
+  assert.equal(body.fallbackReason, null);
 });
 
 for (const surveyMode of ["standard", "research"] as const) {
@@ -3186,7 +3217,7 @@ for (const apiCase of [
       output: [],
     },
     status: 502,
-    code: "EMPTY_MODEL_RESPONSE",
+    code: "SURVEY_GENERATION_INCOMPLETE",
     reason: "max_output_tokens",
   },
   {
@@ -3203,7 +3234,7 @@ for (const apiCase of [
       ],
     },
     status: 422,
-    code: "MODEL_REQUEST_FAILED",
+    code: "SURVEY_GENERATION_REFUSED",
     reason: null,
   },
   {
@@ -3257,16 +3288,26 @@ for (const apiCase of [
       const raw = await response.text();
       const body = JSON.parse(raw) as {
         ok?: boolean;
+        type?: string;
+        status?: string;
         code?: string;
         error?: string;
         requestId?: string;
+        stage?: string | null;
+        generationSource?: string | null;
+        fallbackReason?: string | null;
       };
 
       assert.equal(response.status, apiCase.status);
       assert.equal(body.ok, false);
+      assert.equal(body.type, "error");
+      assert.equal(body.status, "error");
       assert.equal(body.code, apiCase.code);
       assert.equal(typeof body.error, "string");
       assert.equal(typeof body.requestId, "string");
+      assert.equal(typeof body.stage, "string");
+      assert.ok("generationSource" in body);
+      assert.ok("fallbackReason" in body);
       assert.equal(
         response.headers.get("content-type")?.startsWith("application/json"),
         true,

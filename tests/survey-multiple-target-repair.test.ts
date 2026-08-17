@@ -134,7 +134,7 @@ test("운영 route는 복수 수업 목록 부족을 응답자 문항이 아닌 
     assert.equal(body.clarification?.options?.length, 3);
     assert.equal(
       response.headers.get("x-baroform-generation-source"),
-      "intent_clarification",
+      "clarification",
     );
     assert.equal(response.headers.get("x-baroform-model-calls"), "0");
   } finally {
