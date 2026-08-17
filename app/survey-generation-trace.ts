@@ -13,6 +13,7 @@ export type GenerationSource =
   | "quality_repair_fallback"
   | "fast_draft_fallback"
   | "resilient_fallback"
+  | "composite_plan_fallback"
   | "intent_clarification";
 
 export type GenerationDiagnostics = {
@@ -25,6 +26,9 @@ export type GenerationDiagnostics = {
   originalQuestionCount: number | null;
   repairedQuestionIds: string[];
   preservedQuestionIds: string[];
+  intentMode: "single" | "composite" | null;
+  purposeKinds: string[];
+  purposeBlockCount: number;
   totalElapsedMs: number;
 };
 
@@ -72,6 +76,9 @@ export type SurveyGenerationTrace = {
   extractedVariables: string[];
   extractedRelations: string[];
   detectedIntentKind: string | null;
+  intentMode: "single" | "composite" | null;
+  purposeKinds: string[];
+  purposeBlockCount: number;
   generatedPlanBlocks: string[];
   originalQuestions: string[];
   semanticViolationCodes: string[];
@@ -109,6 +116,9 @@ export function createSurveyGenerationTrace(
     extractedVariables: [],
     extractedRelations: [],
     detectedIntentKind: null,
+    intentMode: null,
+    purposeKinds: [],
+    purposeBlockCount: 0,
     generatedPlanBlocks: [],
     originalQuestions: [],
     semanticViolationCodes: [],
@@ -164,10 +174,19 @@ export function recordSurveyIntentTrace(
 
 export function recordSurveyPlanTrace(
   trace: SurveyGenerationTrace | undefined,
-  details: { intentKind: string; blocks: string[] },
+  details: {
+    intentKind: string;
+    intentMode?: "single" | "composite";
+    purposeKinds?: string[];
+    purposeBlockCount?: number;
+    blocks: string[];
+  },
 ) {
-  if (!trace || process.env.NODE_ENV === "production") return;
+  if (!trace) return;
   trace.detectedIntentKind = details.intentKind.slice(0, 80);
+  trace.intentMode = details.intentMode ?? null;
+  trace.purposeKinds = (details.purposeKinds ?? []).slice(0, 12);
+  trace.purposeBlockCount = details.purposeBlockCount ?? 0;
   trace.generatedPlanBlocks = details.blocks.slice(0, 40).map((item) => item.slice(0, 240));
 }
 
@@ -287,6 +306,9 @@ export function surveyGenerationTraceSnapshot(trace: SurveyGenerationTrace) {
     extractedVariables: [...trace.extractedVariables],
     extractedRelations: [...trace.extractedRelations],
     detectedIntentKind: trace.detectedIntentKind,
+    intentMode: trace.intentMode,
+    purposeKinds: [...trace.purposeKinds],
+    purposeBlockCount: trace.purposeBlockCount,
     generatedPlanBlocks: [...trace.generatedPlanBlocks],
     originalQuestions: [...trace.originalQuestions],
     semanticViolationCodes: [...trace.semanticViolationCodes],

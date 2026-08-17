@@ -1,6 +1,7 @@
 import { lookupVerifiedSurveyKnowledge } from "./survey-knowledge";
 import {
   parseSurveyIntent,
+  parsePurposeSegments,
   shouldEnforceSurveyIntentValidation,
   validateSurveyIntentCandidate,
   type MeasurementMode,
@@ -49,6 +50,8 @@ export type SurveyQuestion = {
   measuredVariable?: string;
   measuredRole?: SemanticRole;
   planBlockId?: string;
+  purposeBlockId?: string;
+  measuredEntityIds?: string[];
   questionPurpose?: string;
   decisionGoalIds?: string[];
   unitOfAnalysis?: string;
@@ -1166,6 +1169,7 @@ function briefTimeframe(subject: string, content: string) {
 }
 
 function shouldPreferSurveyIntent(intent: SurveyIntent) {
+  if (intent.intentMode === "composite") return true;
   if (hasRelationalResearchIntent(intent.researchIntent)) return true;
   if (intent.ambiguityLevel !== "low") return false;
   return (
@@ -1289,7 +1293,9 @@ export function parseSurveyBrief(rawBrief: string): SurveyBrief {
   }
   if (preferSurveyIntent) {
     researchSubject =
-      surveyIntent.objectKind === "ability_skill"
+      surveyIntent.intentMode === "composite"
+        ? surveyIntent.purposeBlocks.map((block) => block.target).join(" 및 ")
+        : surveyIntent.objectKind === "ability_skill"
         ? surveyIntent.constructs[0] ?? surveyIntent.surveyObject ?? researchSubject
         : surveyIntent.surveyObject ?? researchSubject;
   }
@@ -2996,7 +3002,15 @@ function cafeteriaBriefBlueprint(brief: SurveyBrief): SurveyBlueprint {
   };
 }
 
-function needsBlueprint(subject: string): SurveyBlueprint {
+type NeedDemandPlan = {
+  targetEntity: string;
+};
+
+function needsBlueprint(plan: NeedDemandPlan): SurveyBlueprint {
+  const subject = plan.targetEntity.trim();
+  if (!subject || parsePurposeSegments(subject).length > 1 || /(?:설문\s*)?조사(?:와|과|및)/.test(subject)) {
+    throw new Error("복합 조사 목적은 단일 수요 대상 템플릿으로 생성할 수 없습니다.");
+  }
   const topic = topicLabel(subject);
   const templateQuestions = [
     question(
@@ -5145,7 +5159,132 @@ function relationalIntentBlueprint(brief: SurveyBrief): SurveyBlueprint | null {
   };
 }
 
+function compositeUsagePurposeOptions(existingTarget: string) {
+  if (/카페/.test(existingTarget)) {
+    return ["공부·업무", "휴식", "친구·동료와 대화", "음료·식사", "기타"];
+  }
+  if (/도서관|스터디|학습\s*공간/.test(existingTarget)) {
+    return ["개인 학습", "자료 열람", "팀 활동", "시험 준비", "휴식", "기타"];
+  }
+  if (/식당|급식|학식/.test(existingTarget)) {
+    return ["정규 식사", "간단한 식사", "친구·동료와 식사", "시간 절약", "기타"];
+  }
+  return ["일상적인 필요", "학업·업무", "시간 절약", "사람들과 함께 이용", "기타"];
+}
+
+function compositePainLabel(existingTarget: string, proposedTarget: string) {
+  const corpus = `${existingTarget} ${proposedTarget}`;
+  if (/좌석|빈\s*자리|빈\s*좌석/.test(corpus)) return "좌석을 찾거나 확인하기 어려운 경우";
+  if (/주문/.test(corpus)) return "주문하거나 기다리는 과정에서 불편한 경우";
+  if (/셔틀|통학/.test(corpus)) return "통학 과정에서 이동이 불편한 경우";
+  if (/예약/.test(corpus)) return "공간을 예약하거나 이용 시간을 맞추기 어려운 경우";
+  if (/구독/.test(corpus)) return "비용이나 이용 조건 때문에 불편한 경우";
+  return "이용 과정에서 불편을 겪는 경우";
+}
+
+function compositePainOptions(existingTarget: string, proposedTarget: string) {
+  const corpus = `${existingTarget} ${proposedTarget}`;
+  if (/좌석|빈\s*자리|빈\s*좌석/.test(corpus)) {
+    return ["빈 좌석을 찾기 어려움", "도착 전 혼잡도를 알기 어려움", "좌석 상태가 실제와 다름", "원하는 구역을 찾기 어려움", "특별한 불편 없음", "기타"];
+  }
+  if (/주문/.test(corpus)) {
+    return ["대기 시간이 김", "혼잡도를 알기 어려움", "메뉴 정보를 확인하기 어려움", "주문 과정이 번거로움", "특별한 불편 없음", "기타"];
+  }
+  return ["정보를 미리 알기 어려움", "대기 시간이 김", "이용 절차가 번거로움", "원하는 시간에 이용하기 어려움", "특별한 불편 없음", "기타"];
+}
+
+function compositePreferenceOptions(proposedTarget: string) {
+  if (/좌석|빈\s*자리|빈\s*좌석/.test(proposedTarget)) {
+    return ["실시간 빈 좌석 수", "구역별 좌석 현황", "혼잡 시간대 안내", "좌석 상태의 정확도", "알림 받을 시간 설정", "기타"];
+  }
+  if (/주문/.test(proposedTarget)) {
+    return ["실시간 메뉴 확인", "예상 준비 시간", "간편 결제", "픽업 알림", "품절 안내", "기타"];
+  }
+  if (/예약/.test(proposedTarget)) {
+    return ["실시간 이용 가능 시간", "간편 예약·취소", "이용 시간 알림", "공간별 상세 정보", "대기 신청", "기타"];
+  }
+  if (/셔틀/.test(proposedTarget)) {
+    return ["실시간 위치", "노선별 도착 시간", "혼잡도", "운행 시간 알림", "정류장 정보", "기타"];
+  }
+  return ["정보의 정확성", "이용 절차의 간편함", "실시간 알림", "개인별 설정", "접근성", "기타"];
+}
+
+function compositeFrequencyQuestion(existingTarget: string) {
+  if (/통학|등하교|공부|학습|운동/.test(existingTarget)) {
+    return `평소 ${existingTarget}을 얼마나 자주 하시나요?`;
+  }
+  return `평소 ${labelWithParticle(existingTarget, "을", "를")} 얼마나 자주 이용하시나요?`;
+}
+
+function compositeContextQuestion(existingTarget: string) {
+  if (/통학|등하교/.test(existingTarget)) return "주로 어떤 방법으로 통학하시나요?";
+  return `${labelWithParticle(existingTarget, "을", "를")} 주로 어떤 목적으로 이용하시나요?`;
+}
+
+function compositePurposeBlueprint(brief: SurveyBrief): SurveyBlueprint {
+  const intent = brief.surveyIntent;
+  const plan = createSurveyPlan(intent, 7);
+  const firstPurpose = intent.purposeBlocks[0];
+  const secondPurpose = intent.purposeBlocks[1];
+  const existingTarget = firstPurpose.target;
+  const proposedTarget = secondPurpose.target;
+  const painLabel = compositePainLabel(existingTarget, proposedTarget);
+  const satisfactionFirstPurpose = firstPurpose.kind === "satisfaction";
+  const rawQuestions = [
+    question(1, compositeFrequencyQuestion(existingTarget), "현재 이용 빈도를 측정함.", "single", ["거의 매일", "주 3~4회", "주 1~2회", "월 1~3회", "거의 이용하지 않음", "이용한 적 없음"]),
+    satisfactionFirstPurpose
+      ? question(2, `${existingTarget} 이용 경험에 전반적으로 얼마나 만족하시나요?`, "현재 경험의 전반적 만족도를 측정함.", "scale")
+      : question(2, compositeContextQuestion(existingTarget), "현재 이용 목적과 상황을 구분함.", "multiple", compositeUsagePurposeOptions(existingTarget)),
+    question(3, `평소 ${labelWithParticle(existingTarget, "을", "를")} 이용하면서 ${painLabel}가 얼마나 자주 있나요?`, "제안 기능이 해결하려는 문제의 발생 빈도를 측정함.", "single", ["거의 매번", "자주", "가끔", "드물게", "전혀 없음", "이용한 적 없음"]),
+    question(4, `${existingTarget} 이용에서 불편한 점을 모두 골라주세요.`, "현재 경험에서 해결할 문제를 구체적으로 구분함.", "multiple", compositePainOptions(existingTarget, proposedTarget)),
+    question(5, `${topicWithParticle(proposedTarget, "이", "가")} 얼마나 필요하다고 생각하시나요?`, "현재 불편 경험을 전제로 제안 기능의 필요 수준을 측정함.", "scale"),
+    question(6, `${topicWithParticle(proposedTarget, "이", "가")} 제공된다면 이용할 의향이 어느 정도인가요?`, "필요성 평가와 실제 이용 의향을 분리해 측정함.", "scale"),
+    question(7, `${proposedTarget}에서 중요하게 생각하는 기능이나 조건을 모두 골라주세요.`, "도입 시 우선해야 할 구체적인 운영 조건을 파악함.", "multiple", compositePreferenceOptions(proposedTarget)),
+  ];
+  const questions = rawQuestions.map((item, index) => {
+    const block = plan.blocks[index];
+    if (!block) return item;
+    return {
+      ...item,
+      measuredConstruct: block.variable,
+      measuredVariable: block.variable,
+      measuredRole: block.role,
+      planBlockId: block.id,
+      purposeBlockId: block.purposeBlockId,
+      measuredEntityIds: block.measuredEntityIds,
+      questionPurpose: block.purpose,
+      decisionGoalIds: block.decisionGoalIds,
+      unitOfAnalysis: plan.unitOfAnalysis,
+    };
+  });
+  const subject = `${existingTarget} 이용 경험과 ${proposedTarget} 수요`;
+  return {
+    kind: "needs",
+    intentLabel: "이용 경험·도입 수요",
+    subject,
+    title: intent.studyTitle?.text ?? `${subject} 조사`,
+    description: `${existingTarget}의 현재 이용 경험과 불편을 파악하고, 이를 바탕으로 ${proposedTarget}의 필요성과 이용 의향을 확인하는 설문입니다.`,
+    templateTitle: `${existingTarget} 경험 및 ${proposedTarget} 수요`,
+    templateSummary: "현재 경험과 문제를 먼저 확인한 뒤 제안 기능의 필요성과 이용 의향을 측정함.",
+    detectedSignals: [
+      `현재 경험 · ${existingTarget}`,
+      `해결할 문제 · ${intent.entities.find((item) => item.role === "pain_point")?.text ?? "이용 불편"}`,
+      `제안 기능 · ${proposedTarget}`,
+    ],
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
+    respondentGroup: brief.targetRespondents,
+    goal: brief.researchGoal,
+    assumptions: [],
+    domain: brief.domain,
+    semanticPlan: plan,
+  };
+}
+
 function semanticIntentBlueprint(brief: SurveyBrief) {
+  if (brief.surveyIntent.intentMode === "composite") {
+    return compositePurposeBlueprint(brief);
+  }
   const relational = relationalIntentBlueprint(brief);
   if (relational) return relational;
   if (!shouldPreferSurveyIntent(brief.surveyIntent)) return null;
@@ -5218,7 +5357,7 @@ export function generateSurvey(brief: SurveyBrief): SurveyBlueprint {
         blueprint = adoptionBlueprint(subject);
         break;
       case "needs":
-        blueprint = needsBlueprint(subject);
+        blueprint = needsBlueprint({ targetEntity: subject });
         break;
       case "awareness":
         blueprint = awarenessBlueprint(subject);
@@ -5287,7 +5426,7 @@ export function analyzeSurveyPrompt(rawPrompt: string): SurveyBlueprint {
       case "usage":
         return generateSurvey(parseSurveyBrief(rawPrompt));
       case "needs":
-        blueprint = needsBlueprint(subject);
+        blueprint = needsBlueprint({ targetEntity: subject });
         break;
       case "awareness":
         blueprint = awarenessBlueprint(subject);

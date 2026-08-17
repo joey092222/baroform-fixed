@@ -2,6 +2,7 @@ import type {
   MeasurementMode,
   SemanticRole,
   SurveyIntent,
+  SurveyPurposeBlock,
   TargetCardinality,
   TargetListSource,
 } from "./survey-semantic-intent";
@@ -51,9 +52,18 @@ export type SurveyPlanBlock = {
   directlyAskable: boolean;
   analysisUsage?: string;
   relationIds?: string[];
+  purposeBlockId?: string;
+  measuredEntityIds?: string[];
+};
+
+export type SurveyPlanPurposeCoverage = {
+  purposeBlockId: string;
+  purposeKind: SurveyPurposeBlock["kind"];
+  plannedQuestionCount: number;
 };
 
 export type SurveyPlan = {
+  intentMode: SurveyIntent["intentMode"];
   intentKind: SurveyIntent["objectKind"];
   targetPopulation: string | null;
   evaluationTargets: string[];
@@ -66,6 +76,8 @@ export type SurveyPlan = {
   missingInformation: string[];
   primaryPurpose: string | null;
   decisionGoals: string[];
+  purposeBlocks: SurveyPurposeBlock[];
+  purposeCoverage: SurveyPlanPurposeCoverage[];
   blocks: SurveyPlanBlock[];
   requestedQuestionCount: number;
 };
@@ -147,6 +159,174 @@ function objectParticle(value: string) {
   const hasBatchim =
     code >= 0xac00 && code <= 0xd7a3 ? (code - 0xac00) % 28 !== 0 : false;
   return hasBatchim ? "을" : "를";
+}
+
+function createCompositeSurveyPlan(
+  intent: SurveyIntent,
+  requestedQuestionCount: number,
+): SurveyPlan {
+  const existing = intent.entities.find((item) =>
+    ["existing_context", "existing_service"].includes(item.role),
+  );
+  const activity = intent.entities.find((item) => item.role === "current_activity");
+  const painPoint = intent.entities.find((item) => item.role === "pain_point");
+  const proposed = intent.entities.find((item) => item.role === "proposed_solution");
+  const demand = intent.entities.find((item) => item.role === "demand_target");
+  const firstPurpose = intent.purposeBlocks[0];
+  const secondPurpose = intent.purposeBlocks[1];
+  const firstEntityIds = [existing?.id, activity?.id, painPoint?.id].filter(
+    (item): item is string => Boolean(item),
+  );
+  const secondEntityIds = [proposed?.id, demand?.id].filter(
+    (item): item is string => Boolean(item),
+  );
+  const withPurpose = (
+    block: SurveyPlanBlock,
+    purposeBlock: SurveyPurposeBlock,
+    measuredEntityIds: string[],
+  ) => ({
+    ...block,
+    purposeBlockId: purposeBlock.id,
+    measuredEntityIds,
+  });
+  const firstBlocks = [
+    withPurpose(
+      makeBlock(
+        "existing-frequency",
+        `${existing?.text ?? firstPurpose.target} 이용 빈도`,
+        "current_activity",
+        "frequency",
+        "현재 이용 정도를 측정해 제안 기능의 수요를 해석할 기준을 만듦.",
+        firstEntityIds,
+        [],
+      ),
+      firstPurpose,
+      firstEntityIds,
+    ),
+    withPurpose(
+      makeBlock(
+        firstPurpose.kind === "satisfaction" ? "existing-satisfaction" : "existing-purpose",
+        firstPurpose.kind === "satisfaction"
+          ? `${existing?.text ?? firstPurpose.target} 전반적 만족도`
+          : `${existing?.text ?? firstPurpose.target} 이용 목적과 상황`,
+        firstPurpose.kind === "satisfaction" ? "construct" : "current_activity",
+        firstPurpose.kind === "satisfaction" ? "scale" : "nominal",
+        firstPurpose.kind === "satisfaction"
+          ? "현재 경험의 전반적 만족도를 측정함."
+          : "현재 이용 목적과 상황을 구분함.",
+        firstEntityIds,
+        [],
+      ),
+      firstPurpose,
+      firstEntityIds,
+    ),
+    withPurpose(
+      makeBlock(
+        "pain-frequency",
+        painPoint?.text ?? `${firstPurpose.target} 이용 불편 빈도`,
+        "pain_point",
+        "frequency",
+        "제안 기능이 해결하려는 문제가 실제로 얼마나 자주 발생하는지 측정함.",
+        firstEntityIds,
+        [],
+      ),
+      firstPurpose,
+      firstEntityIds,
+    ),
+    withPurpose(
+      makeBlock(
+        "pain-detail",
+        painPoint?.text ?? `${firstPurpose.target} 이용 불편`,
+        "pain_point",
+        "nominal",
+        "현재 이용에서 구체적으로 개선할 문제를 구분함.",
+        firstEntityIds,
+        [],
+      ),
+      firstPurpose,
+      firstEntityIds,
+    ),
+  ];
+  firstBlocks[3].questionType = "multiple_choice";
+  const secondBlocks = [
+    withPurpose(
+      makeBlock(
+        "demand-need",
+        demand?.text ?? `${secondPurpose.target} 필요성`,
+        "demand_target",
+        "scale",
+        "현재 문제를 전제로 제안 기능의 필요 수준을 측정함.",
+        secondEntityIds,
+        [],
+      ),
+      secondPurpose,
+      secondEntityIds,
+    ),
+    withPurpose(
+      makeBlock(
+        "demand-intent",
+        `${proposed?.text ?? secondPurpose.target} 이용 의향`,
+        "proposed_solution",
+        "preference",
+        "제안 기능이 제공될 때 실제 이용 의향을 측정함.",
+        secondEntityIds,
+        [],
+      ),
+      secondPurpose,
+      secondEntityIds,
+    ),
+    withPurpose(
+      makeBlock(
+        "demand-preferences",
+        `${proposed?.text ?? secondPurpose.target} 선호 조건`,
+        "proposed_solution",
+        "nominal",
+        "제안 기능의 구체적인 운영 방식과 선호 조건을 파악함.",
+        secondEntityIds,
+        [],
+      ),
+      secondPurpose,
+      secondEntityIds,
+    ),
+  ];
+  secondBlocks[2].questionType = "multiple_choice";
+  const canonical = [...firstBlocks, ...secondBlocks];
+  const count = Math.max(1, requestedQuestionCount);
+  const selected =
+    count >= canonical.length
+      ? canonical
+      : count === 1
+        ? [canonical[0]]
+        : [canonical[0], canonical[4], ...canonical.slice(1, 4), ...canonical.slice(5)].slice(
+            0,
+            count,
+          );
+
+  return {
+    intentMode: "composite",
+    intentKind: intent.objectKind,
+    targetPopulation: intent.targetPopulation,
+    evaluationTargets: intent.evaluationTargets,
+    targetCardinality: intent.targetCardinality,
+    targetListSource: intent.targetListSource,
+    unitOfAnalysis: intent.unitOfAnalysis,
+    measurementMode: intent.measurementMode,
+    screeningRequired: intent.screeningRequired,
+    screeningReason: intent.screeningReason,
+    missingInformation: intent.missingInformation,
+    primaryPurpose: intent.purpose,
+    decisionGoals: intent.decisionGoals.map((item) => item.text),
+    purposeBlocks: intent.purposeBlocks,
+    purposeCoverage: intent.purposeBlocks.map((purposeBlock) => ({
+      purposeBlockId: purposeBlock.id,
+      purposeKind: purposeBlock.kind,
+      plannedQuestionCount: selected.filter(
+        (block) => block.purposeBlockId === purposeBlock.id,
+      ).length,
+    })),
+    blocks: selected,
+    requestedQuestionCount,
+  };
 }
 
 function createRelationalSurveyPlan(
@@ -258,6 +438,7 @@ function createRelationalSurveyPlan(
     relationIds: [relation.id],
   }));
   return {
+    intentMode: intent.intentMode,
     intentKind: intent.objectKind,
     targetPopulation: intent.targetPopulation,
     evaluationTargets: intent.evaluationTargets,
@@ -271,6 +452,14 @@ function createRelationalSurveyPlan(
     primaryPurpose:
       research.analysisGoals[0]?.description ?? intent.studyPurpose?.text ?? intent.purpose,
     decisionGoals: research.analysisGoals.map((item) => item.description),
+    purposeBlocks: intent.purposeBlocks,
+    purposeCoverage: intent.purposeBlocks.map((purposeBlock) => ({
+      purposeBlockId: purposeBlock.id,
+      purposeKind: purposeBlock.kind,
+      plannedQuestionCount: measurementBlocks.filter((block) =>
+        purposeBlock.constructEntityIds.some((id) => block.sourceEntityIds.includes(id)),
+      ).length,
+    })),
     blocks: [
       ...measurementBlocks.slice(0, requestedQuestionCount),
       ...analysisBlocks,
@@ -283,6 +472,9 @@ export function createSurveyPlan(
   intent: SurveyIntent,
   requestedQuestionCount = 7,
 ): SurveyPlan {
+  if (intent.intentMode === "composite") {
+    return createCompositeSurveyPlan(intent, requestedQuestionCount);
+  }
   if (hasRelationalResearchIntent(intent.researchIntent)) {
     return createRelationalSurveyPlan(intent, requestedQuestionCount);
   }
@@ -517,6 +709,7 @@ export function createSurveyPlan(
   }
 
   return {
+    intentMode: intent.intentMode,
     intentKind: intent.objectKind,
     targetPopulation: intent.targetPopulation,
     evaluationTargets: intent.evaluationTargets,
@@ -529,6 +722,14 @@ export function createSurveyPlan(
     missingInformation: intent.missingInformation,
     primaryPurpose: intent.studyPurpose?.text ?? intent.purpose,
     decisionGoals: intent.decisionGoals.map((item) => item.text),
+    purposeBlocks: intent.purposeBlocks,
+    purposeCoverage: intent.purposeBlocks.map((purposeBlock) => ({
+      purposeBlockId: purposeBlock.id,
+      purposeKind: purposeBlock.kind,
+      plannedQuestionCount: blocks.filter((block) =>
+        purposeBlock.constructEntityIds.some((id) => block.sourceEntityIds.includes(id)),
+      ).length,
+    })),
     blocks: blocks.slice(0, requestedQuestionCount),
     requestedQuestionCount,
   };
@@ -536,6 +737,7 @@ export function createSurveyPlan(
 
 export function compactSurveyPlanForPrompt(plan: SurveyPlan) {
   return {
+    intentMode: plan.intentMode,
     intentKind: plan.intentKind,
     targetPopulation: plan.targetPopulation,
     evaluationTargets: plan.evaluationTargets,
@@ -548,6 +750,8 @@ export function compactSurveyPlanForPrompt(plan: SurveyPlan) {
     missingInformation: plan.missingInformation,
     primaryPurpose: plan.primaryPurpose,
     decisionGoals: plan.decisionGoals,
+    purposeBlocks: plan.purposeBlocks,
+    purposeCoverage: plan.purposeCoverage,
     requestedQuestionCount: plan.requestedQuestionCount,
     blocks: plan.blocks.map((block) => ({
       id: block.id,
@@ -565,6 +769,8 @@ export function compactSurveyPlanForPrompt(plan: SurveyPlan) {
       directlyAskable: block.directlyAskable,
       analysisUsage: block.analysisUsage,
       relationIds: block.relationIds,
+      purposeBlockId: block.purposeBlockId,
+      measuredEntityIds: block.measuredEntityIds,
     })),
   };
 }

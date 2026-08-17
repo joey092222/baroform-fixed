@@ -494,6 +494,8 @@ function structuredGenerationToLegacy(
       fallback.aiQuestions[index]?.measuredVariable,
     measuredRole: fallback.aiQuestions[index]?.measuredRole,
     planBlockId: fallback.aiQuestions[index]?.planBlockId,
+    purposeBlockId: fallback.aiQuestions[index]?.purposeBlockId,
+    measuredEntityIds: fallback.aiQuestions[index]?.measuredEntityIds,
     questionPurpose:
       question.analysis.purpose ||
       fallback.aiQuestions[index]?.questionPurpose,
@@ -806,6 +808,13 @@ function normalizeQuestion(value: unknown, id: number): SurveyQuestion {
         ? (value.measuredRole as SurveyQuestion["measuredRole"])
         : undefined,
     planBlockId: cleanText(value.planBlockId, 80) || undefined,
+    purposeBlockId: cleanText(value.purposeBlockId, 80) || undefined,
+    measuredEntityIds: Array.isArray(value.measuredEntityIds)
+      ? value.measuredEntityIds
+          .map((item) => cleanText(item, 80))
+          .filter(Boolean)
+          .slice(0, 16)
+      : undefined,
     questionPurpose: cleanText(value.questionPurpose, 240) || undefined,
     decisionGoalIds: Array.isArray(value.decisionGoalIds)
       ? value.decisionGoalIds
@@ -1269,6 +1278,9 @@ function planBasedReplacement(
     id: original.id,
     reason: formatQuestionReason(fallbackQuestion.reason),
     planBlockId: block?.id ?? fallbackQuestion.planBlockId,
+    purposeBlockId: block?.purposeBlockId ?? fallbackQuestion.purposeBlockId,
+    measuredEntityIds:
+      block?.measuredEntityIds ?? fallbackQuestion.measuredEntityIds,
     measuredConstruct:
       fallbackQuestion.measuredConstruct ?? block?.variable,
     measuredVariable: fallbackQuestion.measuredVariable ?? block?.variable,
@@ -1514,6 +1526,8 @@ export function parseSurveyDraftResponse(
               measuredVariable: item.measuredVariable,
               measuredRole: item.measuredRole,
               planBlockId: item.planBlockId,
+              purposeBlockId: item.purposeBlockId,
+              measuredEntityIds: item.measuredEntityIds,
               questionPurpose: item.questionPurpose,
             })),
       })
@@ -1782,7 +1796,7 @@ export function parseSurveyDraftResponse(
 
 export function buildSurveyAiRequest(
   prompt: string,
-  fallback: SurveyBlueprint,
+  fallbackHint: SurveyBlueprint | null,
   model: string,
   options?: {
     surveyMode?: SurveyMode;
@@ -1832,7 +1846,9 @@ export function buildSurveyAiRequest(
   try {
     parsedBrief = parseSurveyBrief(prompt);
   } catch {
-    parsedBrief = parseSurveyBrief(fallback.title);
+    parsedBrief = parseSurveyBrief(
+      fallbackHint?.title ?? "사용자 입력을 바탕으로 한 설문 조사",
+    );
   }
   const surveyIntent = parseSurveyIntent(
     prompt,
@@ -1895,6 +1911,12 @@ export function buildSurveyAiRequest(
       decisionGoals: surveyPlan.decisionGoals,
       missingInformation: surveyIntent.missingInformation,
       surveyPlan: compactSurveyPlanForPrompt(surveyPlan),
+      policies: {
+        preserveAllPurposeBlocks: true,
+        doNotFlattenCompositeIntent: true,
+        doNotUseStudyPurposeAsQuestionTarget: true,
+        orderCurrentExperienceBeforeProposedSolutionDemand: true,
+      },
     }),
     "",
     "구조화된 설문 의도에서 대상, 조사 대상물, 측정 개념, 목적, 기간, 응답 자격을 서로 다른 역할로 유지한다.",
@@ -1914,6 +1936,10 @@ export function buildSurveyAiRequest(
     "screeningRequired가 false이면 첫 문항을 탈락형 이용 여부 스크리너로 만들지 않는다.",
     "satisfaction_evaluation이라는 이유만으로 스크리너를 만들지 않는다. 스크리너는 screeningRequired와 screeningReason이 명시된 경우에만 만든다.",
     "targetCardinality가 multiple이면 evaluationTargets의 각 항목을 unitOfAnalysis 단위로 반복 측정하거나 비교한다. 여러 대상을 하나의 합성 대상명으로 평탄화하지 않는다.",
+    "intentMode가 composite이면 purposeBlocks를 순서대로 모두 측정한다. 각 문항은 하나의 purposeBlockId와 실제 measuredEntityIds에 연결한다.",
+    "composite 의도에서는 studyPurposes 전체나 사용자 원문 전체를 evaluationTarget 또는 서비스명으로 사용하지 않는다.",
+    "problem_solution 관계에서는 기존 이용 경험과 불편을 먼저 측정한 뒤 proposed_solution의 필요성, 이용 의향, 선호 조건을 측정한다.",
+    "composite 의도는 legacyEvaluationTarget과 일반 needs 템플릿을 사용하지 않는다. existing_context와 proposed_solution을 별도 대상으로 유지한다.",
     "targetListSource가 creator_required이면 응답자용 질문으로 목록 부족을 숨기지 말고 제작자 확인이 먼저 필요하다고 판단한다.",
     "사용자가 기간을 명시하지 않았다면 현재·최근·과거 같은 임의 시간 구간을 만들지 않는다.",
     "각 문항의 analysis.construct, analysis.variable_name, analysis.purpose는 SurveyPlan block의 변수·목적과 연결한다.",
@@ -1959,8 +1985,12 @@ export function buildSurveyAiRequest(
       recommendedTimeframe: parsedBrief.recommendedTimeframe,
       surveyIntent: compactSurveyIntentForPrompt(surveyIntent),
       dimensions: parsedBrief.dimensions,
-      fallbackKind: fallback.kind,
-      fallbackDomain: fallback.domain ?? null,
+      fallbackKind:
+        fallbackHint?.kind ??
+        (surveyIntent.intentMode === "composite"
+          ? "composite"
+          : surveyIntent.objectKind),
+      fallbackDomain: fallbackHint?.domain ?? null,
       evaluationTargets: surveyIntent.evaluationTargets,
       targetCardinality: surveyIntent.targetCardinality,
       targetListSource: surveyIntent.targetListSource,

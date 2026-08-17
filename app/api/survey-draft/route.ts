@@ -206,6 +206,9 @@ function traceHeaders(trace: SurveyGenerationTrace) {
     "x-baroform-regeneration-count": String(snapshot.regenerationCount),
     "x-baroform-generation-ms": String(snapshot.elapsedMs),
     "x-baroform-generation-source": snapshot.generationSource ?? "unknown",
+    "x-baroform-intent-mode": snapshot.intentMode ?? "unknown",
+    "x-baroform-purpose-kinds": snapshot.purposeKinds.join(","),
+    "x-baroform-purpose-block-count": String(snapshot.purposeBlockCount),
     "x-baroform-fallback-count": String(snapshot.fallbackCount),
     "x-baroform-original-question-count": String(
       snapshot.originalQuestionCount ?? 0,
@@ -999,6 +1002,9 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
   const surveyPlan = createSurveyPlan(intent, questionCount);
   recordSurveyPlanTrace(trace, {
     intentKind: intent.objectKind,
+    intentMode: intent.intentMode,
+    purposeKinds: intent.purposeBlocks.map((block) => block.kind),
+    purposeBlockCount: intent.purposeBlocks.length,
     blocks: surveyPlan.blocks.map(
       (block) =>
         `${block.id}:${block.kind}:askable=${block.directlyAskable}:variables=${block.variableIds.join("+")}:question=${block.questionType ?? "none"}:analysis=${block.analysisType ?? "none"}`,
@@ -1132,7 +1138,9 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       surveyMode,
       requestId,
       trace,
-      "resilient_fallback",
+      intent.intentMode === "composite"
+        ? "composite_plan_fallback"
+        : "resilient_fallback",
     );
     if (response.ok) {
       cacheResult(
@@ -1141,7 +1149,9 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         resilientFallback,
         "verified-fallback",
         "api-key-missing",
-        "resilient_fallback",
+        intent.intentMode === "composite"
+          ? "composite_plan_fallback"
+          : "resilient_fallback",
       );
     }
     logGenerationMetric({
@@ -1158,12 +1168,49 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
 
   const model = process.env.OPENAI_SURVEY_MODEL?.trim() || "gpt-5.6";
   markSurveyGenerationStage(trace, "survey-planning");
-  const fallback = applyDraftSettings(
-    analyzeSurveyPrompt(prompt),
-    targetGrade,
-    questionCount,
-  );
   markSurveyGenerationStage(trace, "question-generation");
+  let planBasedFallback: SurveyDraftResult | null = null;
+  const getPlanBasedFallback = () => {
+    if (planBasedFallback) return planBasedFallback;
+    planBasedFallback =
+      verifiedResearchFallback(prompt, targetGrade, questionCount) ??
+      resilientDraftFallback(prompt, targetGrade, questionCount);
+    return planBasedFallback;
+  };
+  const respondWithPlanBasedFallback = (
+    reason: string,
+    generationSource: GenerationSource,
+  ) => {
+    const result = getPlanBasedFallback();
+    const response = fallbackResponse(
+      result,
+      reason,
+      surveyMode,
+      requestId,
+      trace,
+      generationSource,
+    );
+    if (response.ok) {
+      cacheResult(
+        cacheKey,
+        now,
+        result,
+        "verified-fallback",
+        reason,
+        generationSource,
+      );
+    }
+    logGenerationMetric({
+      surveyMode,
+      startedAt: generationStartedAt,
+      success: response.ok,
+      questionCount: generatedQuestionCount(result),
+      searchUsed: false,
+      outcome: "verified-fallback",
+    });
+    logTrace(trace);
+    return response;
+  };
   let organizationLocationContext: string | null = null;
   try {
     const sessionUser = await getSessionUser(request);
@@ -1176,7 +1223,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
 
   const lifecycle = combineRequestAndDeadlineSignals(request);
   const openai = createOpenAiClient(apiKey);
-  const modelRequest = buildSurveyAiRequest(prompt, fallback, model, {
+  const modelRequest = buildSurveyAiRequest(prompt, null, model, {
     surveyMode,
     targetGrade,
     questionCount,
@@ -1252,6 +1299,15 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         error instanceof OpenAI.APIError &&
         !(error instanceof OpenAI.APIConnectionError);
 
+      if (isInvalidStructuredOutput && intent.intentMode === "composite") {
+        return respondWithPlanBasedFallback(
+          "model-output-rejected",
+          intent.intentMode === "composite"
+            ? "composite_plan_fallback"
+            : "parse_failure_fallback",
+        );
+      }
+
       if (isTimeout || isInvalidStructuredOutput || isHttpFailure) {
         throw error;
       }
@@ -1260,42 +1316,12 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         requestId,
         name: error instanceof Error ? error.name : "UnknownError",
       });
-      const verifiedFallback = verifiedResearchFallback(
-        prompt,
-        targetGrade,
-        questionCount,
-      );
-      const resilientFallback =
-        verifiedFallback ??
-        resilientDraftFallback(prompt, targetGrade, questionCount);
-      const fallbackApiResponse = fallbackResponse(
-        resilientFallback,
+      return respondWithPlanBasedFallback(
         "responses-api-error",
-        surveyMode,
-        requestId,
-        trace,
-        "openai_failure_fallback",
+        intent.intentMode === "composite"
+          ? "composite_plan_fallback"
+          : "openai_failure_fallback",
       );
-      if (fallbackApiResponse.ok) {
-        cacheResult(
-          cacheKey,
-          now,
-          resilientFallback,
-          "verified-fallback",
-          "responses-api-error",
-          "openai_failure_fallback",
-        );
-      }
-      logGenerationMetric({
-        surveyMode,
-        startedAt: generationStartedAt,
-        success: fallbackApiResponse.ok,
-        questionCount: generatedQuestionCount(resilientFallback),
-        searchUsed: false,
-        outcome: "verified-fallback",
-      });
-      logTrace(trace);
-      return fallbackApiResponse;
     }
     console.info("survey-generation-upstream", {
       requestId,
@@ -1385,6 +1411,32 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         trace.failureStage ?? trace.stage,
       );
     };
+    if (
+      upstreamCompleted &&
+      intent.intentMode === "composite" &&
+      (error instanceof SurveyValidationError ||
+        error instanceof SurveyGenerationResponseError ||
+        error instanceof SyntaxError ||
+        (error instanceof Error && error.name === "ZodError"))
+    ) {
+      console.warn("survey-generation-output-fallback", {
+        requestId,
+        name: error instanceof Error ? error.name : "UnknownError",
+        issues:
+          error instanceof SurveyValidationError
+            ? error.issues.slice(0, 8)
+            : undefined,
+      });
+      return respondWithPlanBasedFallback(
+        "model-output-rejected",
+        intent.intentMode === "composite"
+          ? "composite_plan_fallback"
+          : error instanceof SurveyValidationError && error.category === "semantic"
+            ? "semantic_repair_fallback"
+            : "parse_failure_fallback",
+      );
+    }
+
     if (error instanceof SurveyValidationError) {
       logGenerationMetric({
         surveyMode,
@@ -1500,46 +1552,12 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         requestId,
         name: error.name,
       });
-      const verifiedFallback = verifiedResearchFallback(
-        prompt,
-        targetGrade,
-        questionCount,
-      );
-      const resilientFallback =
-        verifiedFallback ??
-        resilientDraftFallback(prompt, targetGrade, questionCount);
-      const outputFallbackResponse = fallbackResponse(
-        resilientFallback,
+      return respondWithPlanBasedFallback(
         "model-output-rejected",
-        surveyMode,
-        requestId,
-        trace,
         error instanceof SurveyValidationError && error.category === "semantic"
           ? "semantic_repair_fallback"
           : "parse_failure_fallback",
       );
-      if (outputFallbackResponse.ok) {
-        cacheResult(
-          cacheKey,
-          now,
-          resilientFallback,
-          "verified-fallback",
-          "model-output-rejected",
-          error instanceof SurveyValidationError && error.category === "semantic"
-            ? "semantic_repair_fallback"
-            : "parse_failure_fallback",
-        );
-      }
-      logGenerationMetric({
-        surveyMode,
-        startedAt: generationStartedAt,
-        success: outputFallbackResponse.ok,
-        questionCount: generatedQuestionCount(resilientFallback),
-        searchUsed: false,
-        outcome: "verified-fallback",
-      });
-      logTrace(trace);
-      return outputFallbackResponse;
     }
 
     return tracedError(
@@ -1666,12 +1684,7 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
       );
     }
     const model = process.env.OPENAI_SURVEY_MODEL?.trim() || "gpt-5.6";
-    const fallback = applyDraftSettings(
-      analyzeSurveyPrompt(context.prompt),
-      context.targetGrade,
-      context.questionCount,
-    );
-    const parseParams = buildSurveyAiRequest(context.prompt, fallback, model, {
+    const parseParams = buildSurveyAiRequest(context.prompt, null, model, {
       surveyMode: "research",
       targetGrade: context.targetGrade,
       questionCount: context.questionCount,

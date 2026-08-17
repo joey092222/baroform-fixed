@@ -26,6 +26,11 @@ export type SemanticRole =
   | "preference"
   | "pain_point"
   | "unmet_need"
+  | "existing_context"
+  | "existing_service"
+  | "current_activity"
+  | "proposed_solution"
+  | "demand_target"
   | "decision_option"
   | "timeframe"
   | "eligibility"
@@ -81,7 +86,41 @@ export type SurveyIntentObjectKind =
   | "event_program"
   | "academic_construct"
   | "category_set"
-  | "decision_support";
+  | "decision_support"
+  | "composite";
+
+export type SurveyIntentMode = "single" | "composite";
+
+export type SurveyPurposeKind =
+  | "usage_experience"
+  | "satisfaction"
+  | "need_demand"
+  | "behavior_usage"
+  | "attitude_perception"
+  | "ability_skill"
+  | "decision_support"
+  | "relationship_analysis";
+
+export type SurveyPurposeRelation =
+  | "independent"
+  | "precondition"
+  | "evidence_for"
+  | "problem_solution"
+  | null;
+
+export type SurveyPurposeSegment = {
+  id: string;
+  text: string;
+  kind: SurveyPurposeKind;
+  target: string;
+  order: number;
+  relationToPrevious: SurveyPurposeRelation;
+};
+
+export type SurveyPurposeBlock = SurveyPurposeSegment & {
+  targetEntityIds: string[];
+  constructEntityIds: string[];
+};
 
 export type TargetCardinality = "single" | "multiple";
 
@@ -95,9 +134,11 @@ export type MeasurementMode =
   | "single_evaluation"
   | "matrix_evaluation"
   | "repeated_evaluation"
-  | "comparison";
+  | "comparison"
+  | "composite";
 
 export type SurveyIntent = {
+  intentMode: SurveyIntentMode;
   rawInput: string;
   entities: IntentEntity[];
   targetPopulation: string | null;
@@ -105,8 +146,11 @@ export type SurveyIntent = {
   studyTitle: IntentEntity | null;
   studyPurpose: IntentEntity | null;
   studyPurposes: IntentEntity[];
+  purposeBlocks: SurveyPurposeBlock[];
   decisionGoals: IntentEntity[];
   surveyObject: string | null;
+  /** Only populated for legacy single-purpose consumers. Composite intent must not use it. */
+  legacyEvaluationTarget: string | null;
   objects: IntentEntity[];
   activities: IntentEntity[];
   constructs: string[];
@@ -160,7 +204,15 @@ export type SurveyIntentViolationCode =
   | "ANALYSIS_FEASIBILITY_UNSUPPORTED"
   | "DIRECT_RELATION_QUESTION_USED"
   | "INCOMPLETE_SURVEY_TITLE"
-  | "GENERIC_DESCRIPTION_MISMATCH";
+  | "GENERIC_DESCRIPTION_MISMATCH"
+  | "COMPOSITE_PURPOSE_FLATTENED"
+  | "STUDY_PURPOSE_USED_AS_EVALUATION_TARGET"
+  | "MULTIPLE_TARGETS_STORED_AS_SINGLE_STRING"
+  | "PURPOSE_BLOCK_DROPPED"
+  | "PROPOSED_SOLUTION_NOT_SEPARATED"
+  | "EXISTING_CONTEXT_NOT_MEASURED"
+  | "GENERIC_NEEDS_TEMPLATE_ROLE_MISMATCH"
+  | "LEGACY_BLUEPRINT_USED_FOR_COMPOSITE_INTENT";
 
 export type ValidationSeverity = "fatal" | "repairable" | "warning";
 
@@ -187,6 +239,8 @@ export type SurveyIntentQuestionCandidate = {
   measuredVariable?: string;
   measuredRole?: SemanticRole;
   planBlockId?: string;
+  purposeBlockId?: string;
+  measuredEntityIds?: string[];
   questionPurpose?: string;
   decisionGoalIds?: string[];
   subjectRole?: SemanticRole;
@@ -502,6 +556,42 @@ function purposeFor(value: string, kind: SurveyIntentObjectKind) {
   return "현재 경험과 의견 파악";
 }
 
+function purposeKindForObjectKind(kind: SurveyIntentObjectKind): SurveyPurposeKind {
+  switch (kind) {
+    case "behavior_usage":
+      return "behavior_usage";
+    case "satisfaction_evaluation":
+      return "satisfaction";
+    case "need_demand":
+      return "need_demand";
+    case "attitude_perception":
+      return "attitude_perception";
+    case "ability_skill":
+      return "ability_skill";
+    case "decision_support":
+      return "decision_support";
+    default:
+      return "usage_experience";
+  }
+}
+
+export function toLegacyIntentKind(kind: SurveyIntentObjectKind) {
+  switch (kind) {
+    case "composite":
+      return null;
+    case "need_demand":
+      return "needs" as const;
+    case "satisfaction_evaluation":
+      return "satisfaction" as const;
+    case "behavior_usage":
+      return "usage" as const;
+    case "event_program":
+      return "event" as const;
+    default:
+      return "general" as const;
+  }
+}
+
 function classifyIntent(value: string): SurveyIntentObjectKind {
   if (categorySetFromClause(value)) return "category_set";
   if (/(?:사용|활용)\s*능력|역량|숙련도|자기효능감|이해도|수행\s*능력/.test(value)) {
@@ -636,6 +726,106 @@ function splitPurposeChain(value: string) {
     decisionClause: cleanIntentClause(value.slice(match.index + match[0].length)),
     connector: match[1].replace(/\s+/g, " ").trim(),
   };
+}
+
+function purposeKindFromClause(value: string): SurveyPurposeKind | null {
+  if (/만족도|전반적\s*평가/.test(value)) return "satisfaction";
+  if (/수요|필요(?:성|한지|한가)?|요구|도입\s*(?:의향|여부)|이용\s*의향/.test(value)) {
+    return "need_demand";
+  }
+  if (/(?:사용|이용|구매|방문|참여)\s*(?:경험|현황|실태)/.test(value)) {
+    return "usage_experience";
+  }
+  if (/(?:사용|이용|구매|방문|참여)(?:\s|$)|불편|빈도|현황/.test(value)) {
+    return "behavior_usage";
+  }
+  if (/인식|인지도|태도|신뢰|우려/.test(value)) return "attitude_perception";
+  if (/능력|역량|숙련도|이해도/.test(value)) return "ability_skill";
+  if (/관계|영향|따른|연관/.test(value)) return "relationship_analysis";
+  return null;
+}
+
+function cleanPurposeTarget(value: string, kind: SurveyPurposeKind) {
+  let target = normalize(value)
+    .replace(/(?:을|를)?\s*(?:조사|파악|확인|분석)(?:하고|한\s*뒤|하여|해)?\s*$/g, "")
+    .replace(/\s*(?:설문\s*)?조사\s*$/g, "")
+    .trim();
+
+  if (kind === "usage_experience" || kind === "behavior_usage") {
+    target = target
+      .replace(
+        /\s*(?:의\s*)?(?:사용|이용|구매|방문|참여)\s*(?:경험|현황|실태|빈도)?\s*$/,
+        "",
+      )
+      .replace(/\s*(?:의\s*)?(?:이용\s*)?불편(?:\s*사항)?\s*$/, "")
+      .trim();
+  } else if (kind === "satisfaction") {
+    target = target.replace(/\s*(?:의\s*)?(?:이용\s*)?만족도\s*$/, "").trim();
+  } else if (kind === "need_demand") {
+    target = target
+      .replace(/(?:이|가)?\s*(?:필요한지|필요한가|필요합니다|필요함)\s*$/, "")
+      .replace(/\s*도입\s*의향\s*$/, "")
+      .replace(/\s*도입(?:에\s*대한)?\s*(?:수요|필요성)\s*$/, "")
+      .replace(/\s*(?:수요|필요성|요구)\s*$/, "")
+      .replace(/\s*도입\s*$/, "")
+      .replace(/\s*에\s*대한\s*$/, "")
+      .trim();
+  }
+
+  return normalizedObjectLabel(target || value);
+}
+
+/**
+ * 목적 표지가 양쪽에 독립적으로 있을 때만 복수 목적을 분리한다.
+ * 따라서 "가격과 품질 만족도"처럼 하나의 만족도 목적 안에 있는 병렬 명사는
+ * 분리되지 않는다.
+ */
+export function parsePurposeSegments(value: string): SurveyPurposeSegment[] {
+  const normalized = normalize(value)
+    .replace(
+      /(?:을|를)?\s*(?:분석|조사|파악|확인|알아보)(?:(?:하|해)(?:고|서)?|고)?\s*싶(?:어|어요|습니다)\s*$/,
+      "",
+    )
+    .trim();
+  const connectorMatch = normalized.match(
+    /^(.+?(?:(?:사용|이용|구매|방문|참여)\s*(?:경험|현황|실태|빈도)?|만족도|불편(?:\s*사항)?)(?:\s*조사)?)\s*(?:와|과|및)\s*(.+)$/,
+  );
+  const sequentialMatch = normalized.match(
+    /^(.+?)\s*(?:을|를)?\s*(?:파악|확인|분석)하고\s+(.+)$/,
+  );
+  const match = connectorMatch ?? sequentialMatch;
+  if (!match) return [];
+
+  const clauses = [match[1], match[2]].map((item) => normalize(item));
+  const kinds = clauses.map(purposeKindFromClause);
+  if (!kinds[0] || !kinds[1] || kinds[0] === kinds[1]) return [];
+  const firstKind = kinds[0];
+  const secondKind = kinds[1];
+  // "이용 경험과 불편 사항", "현황 및 만족도"는 하나의 현재 경험을
+  // 여러 차원에서 보는 단일 목적이다. 별도 제안 대상의 수요·도입 의향이
+  // 뒤따르는 경우에만 문제-해결형 복합 의도로 승격한다.
+  if (secondKind !== "need_demand") return [];
+  const proposedTarget = cleanPurposeTarget(clauses[1], secondKind);
+  if (/^(?:불편(?:\s*사항)?|개선(?:\s*요구)?|필요(?:성)?|수요)$/.test(proposedTarget)) {
+    return [];
+  }
+  const relation: SurveyPurposeRelation =
+    secondKind === "need_demand" &&
+    ["usage_experience", "behavior_usage", "satisfaction"].includes(firstKind)
+      ? "problem_solution"
+      : "independent";
+
+  return clauses.map((clause, index) => ({
+    id: `purpose-${index + 1}`,
+    text: clause,
+    kind: kinds[index] as SurveyPurposeKind,
+    target:
+      index === 1
+        ? proposedTarget
+        : cleanPurposeTarget(clause, kinds[index] as SurveyPurposeKind),
+    order: index + 1,
+    relationToPrevious: index === 0 ? null : relation,
+  }));
 }
 
 function extractContextEntities(value: string) {
@@ -814,6 +1004,188 @@ function evaluationDesignFromPrompt(
   };
 }
 
+function compositePainPoint(existingTarget: string, proposedTarget: string) {
+  const corpus = `${existingTarget} ${proposedTarget}`;
+  if (/좌석|빈\s*자리|빈\s*좌석/.test(corpus)) {
+    return `${existingTarget} 좌석 확인과 이용 과정의 불편`;
+  }
+  if (/주문/.test(corpus)) return `${existingTarget} 주문 과정의 불편`;
+  if (/셔틀|통학/.test(corpus)) return "통학 과정의 불편";
+  if (/예약/.test(corpus)) return `${existingTarget} 예약 과정의 불편`;
+  if (/구독/.test(corpus)) return `${existingTarget} 비용과 이용 과정의 불편`;
+  return `${existingTarget} 이용 과정의 불편`;
+}
+
+function buildCompositeSurveyIntent(options: {
+  raw: string;
+  requestStripped: string;
+  targetPopulation: string | null;
+  explicitTimeframe: string | null;
+  segments: SurveyPurposeSegment[];
+  studyType: SurveyIntentStudyType;
+  researchIntent: SurveyResearchIntent;
+}): SurveyIntent {
+  const first = options.segments[0];
+  const second = options.segments[1];
+  const existingTarget = first.target;
+  const proposedTarget = second.target;
+  const targetPopulationEntity = options.targetPopulation
+    ? entity(options.targetPopulation, "target_population")
+    : null;
+  const existingEntity = entity(
+    existingTarget,
+    /시설|도서관|식당|카페|건물|기숙사|생활관|캠퍼스|공간/.test(existingTarget)
+      ? "existing_context"
+      : "existing_service",
+  );
+  const activityEntity = entity(`${existingTarget} 이용`, "current_activity", {
+    source: "inferred",
+    confidence: 0.94,
+    activityKind: "use",
+  });
+  const painEntity = entity(
+    compositePainPoint(existingTarget, proposedTarget),
+    "pain_point",
+    { source: "inferred", confidence: 0.86 },
+  );
+  const proposedEntity = entity(proposedTarget, "proposed_solution");
+  const demandEntity = entity(`${proposedTarget} 수요`, "demand_target", {
+    source: "explicit",
+    confidence: 0.96,
+  });
+  const firstPurposeText =
+    first.kind === "satisfaction"
+      ? `${existingTarget} 만족도와 불편 파악`
+      : `${existingTarget} 이용 경험과 불편 파악`;
+  const secondPurposeText = `${proposedTarget} 필요와 도입 의향 파악`;
+  const firstPurpose = entity(firstPurposeText, "study_purpose");
+  const secondPurpose = entity(secondPurposeText, "study_purpose");
+  const purposeBlocks: SurveyPurposeBlock[] = [
+    {
+      ...first,
+      targetEntityIds: [existingEntity.id],
+      constructEntityIds: [activityEntity.id, painEntity.id],
+    },
+    {
+      ...second,
+      targetEntityIds: [proposedEntity.id],
+      constructEntityIds: [demandEntity.id],
+    },
+  ];
+  const contexts = extractContextEntities(existingTarget);
+  const timeframeEntity = options.explicitTimeframe
+    ? entity(options.explicitTimeframe, "timeframe")
+    : null;
+  const studyTitle = entity(
+    `${existingTarget} 이용 경험 및 ${proposedTarget} 수요 조사`,
+    "study_title",
+    { source: "inferred", confidence: 0.92 },
+  );
+  const relations: IntentRelation[] = [
+    {
+      type: "performed_on",
+      fromEntityId: activityEntity.id,
+      toEntityId: existingEntity.id,
+      source: "explicit",
+    },
+    {
+      type: "measures",
+      fromEntityId: firstPurpose.id,
+      toEntityId: activityEntity.id,
+      source: "explicit",
+    },
+    {
+      type: "measures",
+      fromEntityId: firstPurpose.id,
+      toEntityId: painEntity.id,
+      source: "inferred",
+    },
+    {
+      type: "measures",
+      fromEntityId: secondPurpose.id,
+      toEntityId: demandEntity.id,
+      source: "explicit",
+    },
+    {
+      type: "evidence_for",
+      fromEntityId: firstPurpose.id,
+      toEntityId: secondPurpose.id,
+      source: "inferred",
+    },
+  ];
+  if (targetPopulationEntity) {
+    relations.push({
+      type: "performed_by",
+      fromEntityId: activityEntity.id,
+      toEntityId: targetPopulationEntity.id,
+      source: "explicit",
+    });
+  }
+  if (contexts[0]) {
+    relations.push({
+      type: "occurs_in",
+      fromEntityId: activityEntity.id,
+      toEntityId: contexts[0].id,
+      source: "explicit",
+    });
+  }
+  const entities = [
+    ...(targetPopulationEntity ? [targetPopulationEntity] : []),
+    studyTitle,
+    firstPurpose,
+    secondPurpose,
+    existingEntity,
+    activityEntity,
+    painEntity,
+    proposedEntity,
+    demandEntity,
+    ...contexts,
+    ...(timeframeEntity ? [timeframeEntity] : []),
+  ].filter(
+    (item, index, items) => items.findIndex((other) => other.id === item.id) === index,
+  );
+
+  return {
+    intentMode: "composite",
+    rawInput: options.raw,
+    entities,
+    targetPopulation: options.targetPopulation,
+    targetPopulationEntities: targetPopulationEntity ? [targetPopulationEntity] : [],
+    studyTitle,
+    studyPurpose: firstPurpose,
+    studyPurposes: [firstPurpose, secondPurpose],
+    purposeBlocks,
+    decisionGoals: [],
+    surveyObject: null,
+    legacyEvaluationTarget: null,
+    objects: [existingEntity, proposedEntity],
+    activities: [activityEntity],
+    constructs: [activityEntity.text, painEntity.text, demandEntity.text],
+    constructEntities: [activityEntity, painEntity, demandEntity],
+    purpose: `${firstPurpose.text} → ${secondPurpose.text}`,
+    explicitTimeframe: options.explicitTimeframe,
+    explicitTimeframeEntity: timeframeEntity,
+    eligibilityCondition: null,
+    eligibilityEntity: null,
+    evaluationTargets: [existingTarget, proposedTarget],
+    targetCardinality: "multiple",
+    targetListSource: "explicit_in_prompt",
+    unitOfAnalysis: "개별 응답자",
+    measurementMode: "composite",
+    contexts,
+    relations,
+    screeningRequired: false,
+    screeningReason: null,
+    requiresCreatorClarification: false,
+    missingInformation: [],
+    includesNonUsers: true,
+    studyType: options.studyType,
+    ambiguityLevel: "low",
+    objectKind: "composite",
+    researchIntent: options.researchIntent,
+  };
+}
+
 export function parseSurveyIntent(
   rawInput: string,
   studyType: SurveyIntentStudyType = "general",
@@ -842,6 +1214,18 @@ export function parseSurveyIntent(
     targetPopulation: target.targetPopulation,
     explicitTimeframe,
   });
+  const purposeSegments = parsePurposeSegments(working);
+  if (purposeSegments.length >= 2) {
+    return buildCompositeSurveyIntent({
+      raw,
+      requestStripped,
+      targetPopulation: target.targetPopulation,
+      explicitTimeframe,
+      segments: purposeSegments,
+      studyType,
+      researchIntent,
+    });
+  }
   const purposeChain = splitPurposeChain(working);
   const primaryClause = purposeChain.primaryClause || working;
   const contexts = extractContextEntities(
@@ -1145,6 +1529,7 @@ export function parseSurveyIntent(
   );
 
   return {
+    intentMode: "single",
     rawInput: raw,
     entities,
     targetPopulation: target.targetPopulation,
@@ -1152,8 +1537,21 @@ export function parseSurveyIntent(
     studyTitle,
     studyPurpose,
     studyPurposes,
+    purposeBlocks: [
+      {
+        id: "purpose-1",
+        text: primaryPurposeText,
+        kind: purposeKindForObjectKind(kind),
+        target: parts.surveyObject ?? primaryClause,
+        targetEntityIds: explicitObjectEntities.map((item) => item.id),
+        constructEntityIds: constructEntities.map((item) => item.id),
+        order: 1,
+        relationToPrevious: null,
+      },
+    ],
     decisionGoals,
     surveyObject: parts.surveyObject || null,
+    legacyEvaluationTarget: parts.surveyObject || null,
     objects: explicitObjectEntities,
     activities,
     constructs: constructEntities.map((item) => item.text),
@@ -1288,6 +1686,27 @@ export function validateSurveyIntentCandidate(
   let categoryOperationalized = categoryEntities.length === 0;
   let decisionGoalCovered = intent.decisionGoals.length === 0;
   let unmetNeedCovered = intent.decisionGoals.length === 0;
+  const coveredPurposeBlockIds = new Set<string>();
+
+  if (intent.intentMode === "composite") {
+    if (intent.surveyObject || intent.legacyEvaluationTarget) {
+      pushViolation(violations, {
+        code: "MULTIPLE_TARGETS_STORED_AS_SINGLE_STRING",
+        severity: "fatal",
+        message: "복수 조사 대상이 단일 레거시 평가 대상 문자열에 저장됨.",
+        evidence: intent.surveyObject ?? intent.legacyEvaluationTarget ?? undefined,
+        origin: "schema",
+      });
+    }
+    if (!intent.entities.some((item) => item.role === "proposed_solution")) {
+      pushViolation(violations, {
+        code: "PROPOSED_SOLUTION_NOT_SEPARATED",
+        severity: "fatal",
+        message: "도입을 검토하는 제안 기능이 현재 이용 대상과 분리되지 않음.",
+        origin: "schema",
+      });
+    }
+  }
 
   for (const [index, question] of candidate.questions.entries()) {
     const text = candidateQuestionText(question);
@@ -1297,6 +1716,70 @@ export function validateSurveyIntentCandidate(
       question.referencePeriod ?? question.reference_period ?? "";
     const combined = `${text} ${referencePeriod}`.trim();
     const normalizedQuestion = normalizeRoleText(text);
+    if (intent.intentMode === "composite") {
+      if (question.purposeBlockId) coveredPurposeBlockIds.add(question.purposeBlockId);
+      for (const purposeBlock of intent.purposeBlocks) {
+        const targetMentioned = normalizedQuestion.includes(
+          normalizeRoleText(purposeBlock.target),
+        );
+        const measuredEntity = (question.measuredEntityIds ?? []).some((id) =>
+          [...purposeBlock.targetEntityIds, ...purposeBlock.constructEntityIds].includes(id),
+        );
+        if (targetMentioned || measuredEntity) coveredPurposeBlockIds.add(purposeBlock.id);
+      }
+      const targetMentions = intent.purposeBlocks.filter((purposeBlock) =>
+        normalizedQuestion.includes(normalizeRoleText(purposeBlock.target)),
+      );
+      const flattenedPurpose =
+        targetMentions.length >= 2 &&
+        /(?:설문\s*)?조사(?:와|과|및)|수요\s*조사(?:를|가|은|는)?\s*(?:이용|사용|필요)/.test(
+          text,
+        );
+      if (flattenedPurpose) {
+        // 한 문장에 두 대상이 함께 언급된 것만으로 두 목적을 각각 측정했다고
+        // 간주하지 않는다. 명시적인 목적/엔터티 매핑이 없는 평탄화 문항은
+        // 각 목적 블록의 coverage에서 제외한다.
+        if (!question.purposeBlockId && !(question.measuredEntityIds?.length)) {
+          for (const purposeBlock of targetMentions) {
+            coveredPurposeBlockIds.delete(purposeBlock.id);
+          }
+        }
+        pushViolation(violations, {
+          code: "COMPOSITE_PURPOSE_FLATTENED",
+          severity: "repairable",
+          message: "서로 다른 조사 목적과 대상을 하나의 질문 대상으로 평탄화함.",
+          questionId,
+          evidence: text,
+          origin: "question",
+        });
+        pushViolation(violations, {
+          code: "STUDY_PURPOSE_USED_AS_EVALUATION_TARGET",
+          severity: "repairable",
+          message: "조사 목적 문구를 응답자가 평가할 실제 대상으로 사용함.",
+          questionId,
+          evidence: text,
+          origin: "question",
+        });
+        pushViolation(violations, {
+          code: "LEGACY_BLUEPRINT_USED_FOR_COMPOSITE_INTENT",
+          severity: "repairable",
+          message: "복합 의도에 단일 대상 레거시 설문 템플릿이 사용됨.",
+          questionId,
+          evidence: text,
+          origin: "plan",
+        });
+        if (/현재\s*얼마나\s*필요|필요한\s*가장\s*큰\s*이유/.test(text)) {
+          pushViolation(violations, {
+            code: "GENERIC_NEEDS_TEMPLATE_ROLE_MISMATCH",
+            severity: "repairable",
+            message: "현재 이용 경험과 제안 기능 수요를 일반 수요 템플릿 하나로 처리함.",
+            questionId,
+            evidence: text,
+            origin: "plan",
+          });
+        }
+      }
+    }
     const concreteObjectMatches = text.match(
       /[가-힣A-Za-z0-9·-]*(?:웹툰|앱|어플|플랫폼|브랜드|제품|서비스)/g,
     ) ?? [];
@@ -1516,6 +1999,30 @@ export function validateSurveyIntentCandidate(
           evidence: text,
         });
       }
+    }
+  }
+
+  if (intent.intentMode === "composite") {
+    for (const purposeBlock of intent.purposeBlocks) {
+      if (!coveredPurposeBlockIds.has(purposeBlock.id)) {
+        pushViolation(violations, {
+          code: "PURPOSE_BLOCK_DROPPED",
+          severity: "repairable",
+          message: `복합 조사 목적 '${purposeBlock.text}'을 측정하는 문항이 없음.`,
+          evidence: purposeBlock.id,
+          origin: "plan",
+        });
+      }
+    }
+    const firstPurpose = intent.purposeBlocks[0];
+    if (firstPurpose && !coveredPurposeBlockIds.has(firstPurpose.id)) {
+      pushViolation(violations, {
+        code: "EXISTING_CONTEXT_NOT_MEASURED",
+        severity: "repairable",
+        message: "제안 기능의 필요성을 해석할 현재 이용 경험이 측정되지 않음.",
+        evidence: firstPurpose.target,
+        origin: "plan",
+      });
     }
   }
 
@@ -1754,6 +2261,7 @@ export function validateSurveyIntentCandidate(
 
 export function compactSurveyIntentForPrompt(intent: SurveyIntent) {
   return {
+    intentMode: intent.intentMode,
     targetPopulation: intent.targetPopulation,
     semanticRoles: intent.entities.map((item) => ({
       id: item.id,
@@ -1769,11 +2277,22 @@ export function compactSurveyIntentForPrompt(intent: SurveyIntent) {
       id: item.id,
       text: item.text,
     })),
+    purposeBlocks: intent.purposeBlocks.map((block) => ({
+      id: block.id,
+      text: block.text,
+      kind: block.kind,
+      target: block.target,
+      targetEntityIds: block.targetEntityIds,
+      constructEntityIds: block.constructEntityIds,
+      order: block.order,
+      relationToPrevious: block.relationToPrevious,
+    })),
     decisionGoals: intent.decisionGoals.map((item) => ({
       id: item.id,
       text: item.text,
     })),
     surveyObject: intent.surveyObject,
+    legacyEvaluationTarget: intent.legacyEvaluationTarget,
     objects: intent.objects.map((item) => ({ text: item.text, role: item.role })),
     activities: intent.activities.map((item) => ({
       text: item.text,
