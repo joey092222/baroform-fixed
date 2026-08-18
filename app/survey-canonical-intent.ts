@@ -230,12 +230,20 @@ type ResolvedAcademicSatisfaction = {
 function resolveAcademicSatisfaction(
   normalizedInput: string,
 ): ResolvedAcademicSatisfaction | null {
-  const match = normalizedInput.match(
+  const aboutMatch = normalizedInput.match(
     /^(.+?)에\s*대한\s+(.+?(?:대생|학과생|전공생|학생|학부생|재학생))(?:들)?(?:의)?\s+(?:전반적\s*)?만족도(?:\s*조사)?$/,
   );
-  if (!match) return null;
-  const primaryText = normalize(match[1]);
-  const audience = normalize(match[2]);
+  const possessiveMatch = normalizedInput.match(
+    /^(.+?(?:대생|학과생|전공생|학생|학부생|재학생))(?:들)?의\s+(.+?)\s+(?:전반적\s*)?만족도(?:\s*조사)?$/,
+  );
+  if (!aboutMatch && !possessiveMatch) return null;
+  const primaryText = normalize(
+    aboutMatch?.[1] ?? possessiveMatch?.[2] ?? "",
+  );
+  const audience = normalize(
+    aboutMatch?.[2] ?? possessiveMatch?.[1] ?? "",
+  );
+  const matchedExpression = aboutMatch?.[0] ?? possessiveMatch?.[0] ?? "";
   const facilityCue = /(?:시설|건물|강의동|공간|캠퍼스|관)(?:\s|$)/.test(primaryText);
   const organizationCue = /(?:대학|학부|학과|전공|단과대|대)$/.test(primaryText);
   const audienceOrganization = audience.match(/(?:^|\s)([가-힣A-Za-z0-9·-]+(?:대|학과|전공))생/)?.[1] ?? null;
@@ -245,7 +253,7 @@ function resolveAcademicSatisfaction(
       text: primaryText,
       kind: /시설|공간/.test(primaryText) ? "facility" : "university_building",
       confidence: 0.99,
-      evidence: ["시설·건물·공간 명시", match[0]],
+      evidence: ["시설·건물·공간 명시", matchedExpression],
     });
   } else if (organizationCue) {
     candidates.push({

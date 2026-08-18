@@ -1,5 +1,6 @@
 import {
   analyzeSurveyPrompt,
+  isSimpleProportionSurveyRequest,
   parseSurveyBrief,
   parseExplicitSurveyMeasurement,
   resizeSurveyQuestions,
@@ -17,10 +18,14 @@ import {
 import {
   applyTargetGradeToQuestions,
   isTargetGrade,
-  respondentGroupForGrade,
-  surveyDescriptionForGrade,
   type TargetGrade,
 } from "./survey-grade";
+import {
+  audienceGroupMentionedInText,
+  audienceMentionedInText,
+  ensureAudienceInDescription,
+  resolveFinalRespondentGroup,
+} from "./survey-audience";
 import { zodTextFormat } from "openai/helpers/zod";
 import {
   createSurveyGenerationSchema,
@@ -1722,6 +1727,32 @@ export function restoreMissingRequiredPlanBlocks({
   };
 }
 
+function descriptionWithPreservedAudience({
+  description,
+  respondentGroup,
+  questions,
+}: {
+  description: string;
+  respondentGroup: string;
+  questions: SurveyQuestion[];
+}) {
+  const audienceGuidanceText = [
+    description,
+    ...questions
+      .filter((item) =>
+        /(?:입니까|인가요|해당하나요|자격|이용한\s*적|사용한\s*적|참여한\s*적|방문한\s*적|경험이\s*있)/.test(
+          item.title,
+        ),
+      )
+      .map((item) => item.title),
+  ].join(" ");
+  return audienceMentionedInText(respondentGroup, description) ||
+    (audienceGroupMentionedInText(respondentGroup, description) &&
+      audienceMentionedInText(respondentGroup, audienceGuidanceText))
+    ? description
+    : ensureAudienceInDescription(description, respondentGroup);
+}
+
 export function parseSurveyDraftResponse(
   rawPayload: unknown,
   prompt: string,
@@ -1938,6 +1969,28 @@ export function parseSurveyDraftResponse(
     before: normalizedAiQuestions.map((item) => item.title),
   });
   const brief = parseSurveyBrief(prompt, canonicalIntent);
+  const targetGrade = isTargetGrade(requestedTargetGrade)
+    ? requestedTargetGrade
+    : "전학년";
+  const respondentWithGrade = resolveFinalRespondentGroup({
+    explicitTarget: isSimpleProportionSurveyRequest(prompt)
+      ? canonicalFallback.respondentGroup
+      : canonicalIntent.surveyIntent.targetPopulation ??
+        canonicalFallback.respondentGroup ??
+        brief.targetRespondents,
+    explicitTargetEvidence: canonicalIntent.audience?.evidence,
+    modelTarget: respondentGroup,
+    targetGrade,
+  });
+  if (structuredGeneration) {
+    structuredGeneration = {
+      ...structuredGeneration,
+      survey_plan: {
+        ...structuredGeneration.survey_plan,
+        target: respondentWithGrade,
+      },
+    };
+  }
   recordSurveyValidation(trace, "semantic-validation");
   const semanticViolations = shouldEnforceSurveyIntentValidation(
     brief.surveyIntent,
@@ -2021,14 +2074,18 @@ export function parseSurveyDraftResponse(
           questionCount,
           canonicalFallback,
         );
-  const targetGrade = isTargetGrade(requestedTargetGrade)
-    ? requestedTargetGrade
-    : "전학년";
   const aiQuestions = applyTargetGradeToQuestions(
     coverage.aiQuestions,
     targetGrade,
     questionCount,
+    respondentWithGrade,
   );
+  const modelDescription = cleanText(result.description, 500);
+  const descriptionWithAudience = descriptionWithPreservedAudience({
+    description: modelDescription,
+    respondentGroup: respondentWithGrade,
+    questions: aiQuestions,
+  });
 
   const reportedClassification = cleanText(
     result.researchClassification,
@@ -2061,24 +2118,12 @@ export function parseSurveyDraftResponse(
     }
     return [fact];
   });
-  const preserveExplicitAudience =
-    targetGrade === "전학년" &&
-    Boolean(brief.targetRespondents) &&
-    !/(?:연세대|연세대학교)/.test(brief.targetRespondents) &&
-    /(?:전\s*연령대|모든\s*연령대|일반인|\d{1,2}대|대학생|대학원생|중학생|고등학생|청년|직장인|학부모|교사|사용자|이용자|소비자|고객)/.test(
-      brief.targetRespondents,
-    );
-  const respondentWithGrade = preserveExplicitAudience
-    ? brief.targetRespondents
-    : respondentGroupForGrade(respondentGroup, targetGrade);
   let blueprint: SurveyBlueprint = {
     kind,
     intentLabel: cleanText(interpretation.intentLabel, 30) || "맞춤 설문",
     subject: evaluationTarget,
     title: cleanText(result.title, 100),
-    description: preserveExplicitAudience
-      ? cleanText(result.description, 500)
-      : surveyDescriptionForGrade(cleanText(result.description, 500), targetGrade),
+    description: descriptionWithAudience,
     templateTitle: cleanText(result.aiTitle, 100) || cleanText(result.title, 100),
     templateSummary: "AI가 설계한 문항 초안",
     detectedSignals: [
@@ -2114,18 +2159,19 @@ export function parseSurveyDraftResponse(
       resizeSurveyQuestions(rawFallback.aiQuestions, questionCount),
       targetGrade,
       questionCount,
+      respondentWithGrade,
     ).map((item) => ({
       ...item,
       reason: formatQuestionReason(item.reason),
     }));
     localFallback = {
       ...rawFallback,
-      description: preserveExplicitAudience
-        ? rawFallback.description
-        : surveyDescriptionForGrade(rawFallback.description, targetGrade),
-      respondentGroup: preserveExplicitAudience
-        ? rawFallback.respondentGroup
-        : respondentGroupForGrade(rawFallback.respondentGroup, targetGrade),
+      description: descriptionWithPreservedAudience({
+        description: rawFallback.description,
+        respondentGroup: respondentWithGrade,
+        questions: fallbackQuestions,
+      }),
+      respondentGroup: respondentWithGrade,
       templateQuestions: fallbackQuestions.slice(0, 5),
       aiQuestions: fallbackQuestions,
       semanticPlan: rolePlan,
@@ -2158,7 +2204,15 @@ export function parseSurveyDraftResponse(
       structuredGeneration,
       getFallback: getPlanBasedFallback,
     });
-    blueprint = repair.survey;
+    blueprint = {
+      ...repair.survey,
+      respondentGroup: respondentWithGrade,
+      description: descriptionWithPreservedAudience({
+        description: repair.survey.description,
+        respondentGroup: respondentWithGrade,
+        questions: repair.survey.aiQuestions,
+      }),
+    };
     recordSurveySemanticDiagnostics(trace, {
       repairedQuestions: blueprint.aiQuestions.map((item) => item.title),
     });
@@ -2186,7 +2240,15 @@ export function parseSurveyDraftResponse(
     plan: rolePlan,
     getFallback: getPlanBasedFallback,
   });
-  blueprint = requiredCoverageRepair.survey;
+  blueprint = {
+    ...requiredCoverageRepair.survey,
+    respondentGroup: respondentWithGrade,
+    description: descriptionWithPreservedAudience({
+      description: requiredCoverageRepair.survey.description,
+      respondentGroup: respondentWithGrade,
+      questions: requiredCoverageRepair.survey.aiQuestions,
+    }),
+  };
   recordSurveyPlanCoverageTrace(trace, {
     initial: requiredCoverageRepair.initialCoverage,
     final: requiredCoverageRepair.finalCoverage,

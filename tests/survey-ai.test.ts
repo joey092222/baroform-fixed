@@ -26,9 +26,17 @@ import {
   isSleepDurationSurveyRequest,
   isSimpleProportionSurveyRequest,
   parseExplicitSurveyMeasurement,
+  parseSurveyBrief,
   parseSurveySemantics,
+  validateSurvey,
 } from "../app/survey-intent";
 import { applyTargetGradeToQuestions } from "../app/survey-grade";
+import {
+  audienceIncludesRequiredQualifiers,
+  audiencesAreEquivalent,
+  ensureAudienceInDescription,
+  resolveFinalRespondentGroup,
+} from "../app/survey-audience";
 import {
   maxReferenceFileBytes,
   maxReferenceFilesTotalBytes,
@@ -2590,6 +2598,171 @@ test("전학년 선택은 자연스러운 재학생 표현으로 정리한다", 
     questions.map((item) => item.title).join(" "),
     /전학년 재학생/,
   );
+});
+
+test("축약 대학명과 단과대 학생 표현을 같은 응답 대상으로 비교한다", () => {
+  assert.equal(
+    audiencesAreEquivalent(
+      "새봄대 경영대생",
+      "새봄대학교 경영대학 재학생",
+    ),
+    true,
+  );
+  assert.equal(
+    audiencesAreEquivalent("재학생", "현재 재학 중인 학생"),
+    true,
+  );
+});
+
+test("사용자가 지정한 단과대 대상은 더 넓은 전체 학생 대상으로 대체되지 않는다", () => {
+  assert.equal(
+    audienceIncludesRequiredQualifiers(
+      "새봄대학교 경영대생",
+      "새봄대학교 전체 학생",
+    ),
+    false,
+  );
+  assert.equal(
+    resolveFinalRespondentGroup({
+      explicitTarget: "새봄대학교 경영대생",
+      explicitTargetEvidence: ["응답 대상 표현"],
+      modelTarget: "새봄대학교 전체 학생",
+      targetGrade: "전학년",
+    }),
+    "새봄대학교 경영대학 재학생",
+  );
+});
+
+test("학년 조건은 명시된 단과대 대상과 교집합으로 합성한다", () => {
+  assert.equal(
+    resolveFinalRespondentGroup({
+      explicitTarget: "새봄대학교 경영대생",
+      explicitTargetEvidence: ["응답 대상 표현"],
+      modelTarget: "새봄대학교 전체 학생",
+      targetGrade: "1학년",
+    }),
+    "새봄대학교 경영대학 1학년 재학생",
+  );
+  assert.equal(
+    resolveFinalRespondentGroup({
+      explicitTarget: "새봄대학교 경영대생",
+      explicitTargetEvidence: ["응답 대상 표현"],
+      modelTarget: "새봄대학교 전체 학생",
+      targetGrade: "전학년",
+    }),
+    "새봄대학교 경영대학 재학생",
+  );
+});
+
+test("서비스 이용자와 비이용자 조건의 극성을 끝까지 구분한다", () => {
+  assert.equal(
+    audienceIncludesRequiredQualifiers(
+      "별마루 서비스를 이용하는 학생",
+      "별마루 서비스 이용 학생",
+    ),
+    true,
+  );
+  assert.equal(
+    audienceIncludesRequiredQualifiers(
+      "별마루 서비스를 이용하지 않는 학생",
+      "별마루 서비스 이용 학생",
+    ),
+    false,
+  );
+  assert.equal(
+    resolveFinalRespondentGroup({
+      explicitTarget: "별마루 서비스를 이용하지 않는 학생",
+      explicitTargetEvidence: ["응답 대상 표현"],
+      modelTarget: "별마루 서비스 이용 학생",
+      targetGrade: "전학년",
+    }),
+    "별마루 서비스를 이용하지 않는 학생",
+  );
+});
+
+test("응답 대상이 빠진 안내문만 결정적으로 보정하고 문항은 건드리지 않는다", () => {
+  const description = ensureAudienceInDescription(
+    "경영대 만족도와 개선 요구를 파악하기 위한 설문입니다.",
+    "새봄대학교 경영대학 재학생",
+  );
+  assert.equal(
+    description,
+    "새봄대학교 경영대학 재학생을 대상으로, 경영대 만족도와 개선 요구를 파악하기 위한 설문입니다.",
+  );
+});
+
+test("최종 의미 검증은 respondentGroup의 좁은 범위와 응답자 안내를 각각 검사한다", () => {
+  const prompt = "새봄대학교 경영대생의 단과대 만족도";
+  const brief = parseSurveyBrief(prompt);
+  const valid = analyzeSurveyPrompt(prompt);
+  const wrongAudience = {
+    ...valid,
+    respondentGroup: "새봄대학교 전체 학생",
+    description: "단과대 만족도와 개선 요구를 파악하기 위한 설문입니다.",
+  };
+  const issues = validateSurvey(prompt, brief, wrongAudience);
+  assert.match(issues.join(" "), /응답 대상 메타데이터/);
+  assert.match(issues.join(" "), /안내문 또는 적격성 문항/);
+});
+
+test("모델의 넓은 target과 대상 없는 안내문은 canonical audience로 보정한다", () => {
+  const prompt = "경영대에 대한 연세대 경영대생들 만족도";
+  const questions = [
+    question(1, "경영대에 전반적으로 얼마나 만족하시나요?"),
+    question(2, "수업과 학업 경험에 얼마나 만족하시나요?"),
+    question(3, "학습 지원에 얼마나 만족하시나요?"),
+    question(4, "학생 지원에 얼마나 만족하시나요?"),
+    question(5, "개선이 필요한 영역을 골라주세요.", "multiple", [
+      "교육과정",
+      "학습 지원",
+      "시설",
+      "학생 활동",
+      "기타",
+    ]),
+    question(6, "경영대에 어느 정도 소속감을 느끼시나요?"),
+    question(7, "가장 먼저 개선되기를 바라는 점을 적어주세요.", "text"),
+  ];
+  const payload = readyPayload({
+    prompt,
+    evaluationTarget: "경영대",
+    respondentGroup: "연세대학교 전체 학생",
+    entityType: "other",
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
+    sourceUrls: ["https://example.com/academic-organization"],
+  });
+  payload.output_parsed.result.description =
+    "경영대 만족도와 개선 요구를 파악하기 위한 설문입니다.";
+  const trace = createSurveyGenerationTrace("preserve-explicit-audience");
+
+  const result = parseSurveyDraftResponse(
+    payload,
+    prompt,
+    7,
+    "전학년",
+    false,
+    trace,
+  );
+  const diagnostics = surveyGenerationTraceSnapshot(trace);
+  assert.match(result.status, /^ready/);
+  if (result.status !== "ready" && result.status !== "ready_with_caution") {
+    assert.fail("완성된 설문 결과가 필요합니다.");
+  }
+  assert.equal(
+    result.blueprint.respondentGroup,
+    "연세대학교 경영대학 재학생",
+  );
+  assert.match(
+    result.blueprint.description,
+    /^연세대학교 경영대학 재학생을 대상으로,/,
+  );
+  assert.equal(result.blueprint.aiQuestions.length, 7);
+  assert.deepEqual(
+    result.blueprint.aiQuestions.map((item) => item.title.replace(/[.!?]+$/g, "")),
+    questions.map((item) => item.title.replace(/[.!?]+$/g, "")),
+  );
+  assert.equal(diagnostics.modelCallCount, 0);
+  assert.equal(diagnostics.repairCount, 0);
 });
 
 test("AI 수정 요청은 현재 설문 전체를 보존 가능한 구조로 전달한다", () => {

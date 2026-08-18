@@ -19,11 +19,15 @@ import {
 import {
   applyTargetGradeToQuestions,
   isTargetGrade,
-  respondentGroupForGrade,
-  surveyDescriptionForGrade,
   targetGradeValues,
   type TargetGrade,
 } from "../../survey-grade";
+import {
+  audienceGroupMentionedInText,
+  audienceMentionedInText,
+  ensureAudienceInDescription,
+  resolveFinalRespondentGroup,
+} from "../../survey-audience";
 import { lookupVerifiedSurveyKnowledge } from "../../survey-knowledge";
 import {
   maxReferenceFilesTotalBytes,
@@ -671,34 +675,57 @@ function logGenerationMetric({
 }
 
 function applyDraftSettings(
+  prompt: string,
   blueprint: SurveyBlueprint,
   targetGrade: TargetGrade,
   questionCount: number,
+  canonicalIntent?: CanonicalSurveyIntent,
 ): SurveyBlueprint {
-  const preserveExplicitAudience =
-    targetGrade === "전학년" &&
-    Boolean(blueprint.respondentGroup) &&
-    !/(?:연세대|연세대학교)/.test(blueprint.respondentGroup ?? "") &&
-    /(?:전\s*연령대|모든\s*연령대|일반인|\d{1,2}대|대학생|대학원생|중학생|고등학생|청년|직장인|학부모|교사|사용자|이용자|소비자|고객)/.test(
-      blueprint.respondentGroup ?? "",
-    );
+  const finalRespondentGroup = resolveFinalRespondentGroup({
+    explicitTarget: isSimpleProportionSurveyRequest(prompt)
+      ? blueprint.respondentGroup
+      : canonicalIntent?.surveyIntent.targetPopulation ?? blueprint.respondentGroup,
+    explicitTargetEvidence: canonicalIntent?.audience?.evidence,
+    modelTarget: blueprint.respondentGroup,
+    targetGrade,
+  });
   const templateCount = Math.min(5, questionCount);
   const aiQuestions = applyTargetGradeToQuestions(
     resizeSurveyQuestions(blueprint.aiQuestions, questionCount),
     targetGrade,
     questionCount,
+    finalRespondentGroup,
   ).map((question) => ({
     ...question,
     reason: formatQuestionReason(question.reason),
   }));
+  const audienceGuidanceText = [
+    blueprint.description,
+    ...aiQuestions
+      .filter((item) =>
+        /(?:입니까|인가요|해당하나요|자격|이용한\s*적|사용한\s*적|참여한\s*적|방문한\s*적|경험이\s*있)/.test(
+          item.title,
+        ),
+      )
+      .map((item) => item.title),
+  ].join(" ");
   return {
     ...blueprint,
-    description: preserveExplicitAudience
+    description: audienceMentionedInText(
+      finalRespondentGroup,
+      blueprint.description,
+    ) ||
+      (audienceGroupMentionedInText(
+        finalRespondentGroup,
+        blueprint.description,
+      ) &&
+        audienceMentionedInText(finalRespondentGroup, audienceGuidanceText))
       ? blueprint.description
-      : surveyDescriptionForGrade(blueprint.description, targetGrade),
-    respondentGroup: preserveExplicitAudience
-      ? blueprint.respondentGroup
-      : respondentGroupForGrade(blueprint.respondentGroup, targetGrade),
+      : ensureAudienceInDescription(
+          blueprint.description,
+          finalRespondentGroup,
+        ),
+    respondentGroup: finalRespondentGroup,
     detectedSignals: [
       ...(blueprint.detectedSignals ?? []).filter(
         (signal) => !signal.startsWith("응답 학년 ·"),
@@ -709,6 +736,7 @@ function applyDraftSettings(
       resizeSurveyQuestions(blueprint.templateQuestions, templateCount),
       targetGrade,
       templateCount,
+      finalRespondentGroup,
     ).map((question) => ({
       ...question,
       reason: formatQuestionReason(question.reason),
@@ -726,9 +754,11 @@ function verifiedResearchFallback(
   const knowledge = lookupVerifiedSurveyKnowledge(prompt);
   if (!knowledge) return null;
   const blueprint = applyDraftSettings(
+    prompt,
     analyzeSurveyPrompt(prompt, canonicalIntent),
     targetGrade,
     questionCount,
+    canonicalIntent,
   );
   const normalizedTarget = (blueprint.evaluationTarget ?? blueprint.subject)
     .replace(/\s+/g, "")
@@ -767,9 +797,11 @@ function fastDraftFallback(
   canonicalIntent?: CanonicalSurveyIntent,
 ): ReadySurveyDraftResult {
   const blueprint = applyDraftSettings(
+    prompt,
     analyzeSurveyPrompt(prompt, canonicalIntent),
     targetGrade,
     questionCount,
+    canonicalIntent,
   );
   return {
     status: "ready_with_caution",

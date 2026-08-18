@@ -28,6 +28,10 @@ import {
   surveyTemplateKeyForContext,
   type ParsedSurveyContext,
 } from "./survey-context";
+import {
+  audienceIncludesRequiredQualifiers,
+  audienceMentionedInText,
+} from "./survey-audience";
 
 export type SurveyQuestionType =
   | "scale"
@@ -1414,8 +1418,9 @@ export function parseSurveyBrief(
     researchSubject = `${semantics.parsedSurveyContext.primaryEntity} ${movement} 경험`;
   }
   let targetRespondents =
+    surveyIntent.targetPopulation ??
+    canonicalIntent.audience?.text ??
     semantics.parsedSurveyContext.audience ??
-    (preferSurveyIntent ? surveyIntent.targetPopulation : null) ??
     split.respondentGroup ??
     semantics.respondentGroup ??
     (researchContext
@@ -5932,17 +5937,39 @@ export function validateSurvey(
     issues.push("콘텐츠 서비스 설문에 범용 업무용 선택지가 사용되었습니다.");
   }
 
-  const targetToken = brief.targetRespondents
-    .replace(/^(?:팀플\s*경험이\s*있는)\s*/, "")
-    .replace(/(?:들)?$/, "")
-    .trim();
+  // A simple proportion survey samples the denominator population and measures
+  // whether each respondent belongs to the numerator group. Requiring the
+  // numerator condition in respondent metadata would exclude the comparison
+  // population before the survey begins.
+  const targetToken = isSimpleProportionSurveyRequest(rawBrief)
+    ? blueprint.respondentGroup?.trim() ?? ""
+    : brief.targetRespondents.trim();
   if (
     targetToken &&
     brief.targetRespondents !== "관련 경험이 있는 응답자" &&
-    !allText.includes(targetToken) &&
-    !(/학생/.test(targetToken) && /학생/.test(allText))
+    !audienceIncludesRequiredQualifiers(
+      targetToken,
+      blueprint.respondentGroup,
+    )
   ) {
-    issues.push("응답 대상 정보가 제목, 안내문과 문항에서 누락되었습니다.");
+    issues.push("응답 대상 메타데이터가 사용자가 지정한 범위를 유지하지 않습니다.");
+  }
+  const audienceGuidanceText = [
+    blueprint.description,
+    ...blueprint.aiQuestions
+      .filter((item) =>
+        /(?:입니까|인가요|해당하나요|자격|이용한\s*적|사용한\s*적|참여한\s*적|방문한\s*적|경험이\s*있)/.test(
+          item.title,
+        ),
+      )
+      .map((item) => item.title),
+  ].join(" ");
+  if (
+    targetToken &&
+    brief.targetRespondents !== "관련 경험이 있는 응답자" &&
+    !audienceMentionedInText(targetToken, audienceGuidanceText)
+  ) {
+    issues.push("응답 대상이 안내문 또는 적격성 문항에 표시되지 않았습니다.");
   }
 
   const intentViolations = shouldEnforceSurveyIntentValidation(

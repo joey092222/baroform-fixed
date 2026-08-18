@@ -1,4 +1,8 @@
 import type { SurveyQuestion } from "./survey-intent";
+import {
+  ensureAudienceInDescription,
+  resolveFinalRespondentGroup,
+} from "./survey-audience";
 
 export const targetGradeValues = [
   "1학년",
@@ -41,16 +45,11 @@ export function respondentGroupForGrade(
   respondentGroup: string | null | undefined,
   targetGrade: TargetGrade,
 ) {
-  const audience = surveyAudienceLabel(targetGrade);
-  const detail = (respondentGroup ?? "")
-    .replace(leadingGradeAudience, "")
-    .replace(
-      /^(?:연세대학교(?:\s*신촌캠퍼스)?\s*)?(?:재학생|대학생|학생)(?:들)?(?=\s|$)\s*(?:중|가운데)?\s*/,
-      "",
-    )
-    .replace(/^(?:대학생|학생|재학생)(?:들)?$/, "")
-    .trim();
-  return detail ? `${audience} 중 ${detail}`.slice(0, 80) : audience;
+  const cleaned = (respondentGroup ?? "").replace(leadingGradeAudience, "").trim();
+  return resolveFinalRespondentGroup({
+    modelTarget: cleaned,
+    targetGrade,
+  });
 }
 
 const leadingAudienceDescription =
@@ -59,12 +58,12 @@ const leadingAudienceDescription =
 export function surveyDescriptionForGrade(
   description: string,
   targetGrade: TargetGrade,
+  respondentGroup?: string | null,
 ) {
-  const audience = surveyAudienceLabel(targetGrade);
+  const audience =
+    respondentGroup ?? respondentGroupForGrade(null, targetGrade);
   const detail = description.replace(leadingAudienceDescription, "").trim();
-  return detail
-    ? `${audience}을 대상으로, ${detail}`.slice(0, 500)
-    : `${audience}을 대상으로 한 설문입니다.`;
+  return ensureAudienceInDescription(detail, audience);
 }
 
 const combinedGradeClause =
@@ -111,6 +110,7 @@ export function applyTargetGradeToQuestions(
   questions: SurveyQuestion[],
   targetGrade: TargetGrade,
   requestedCount: number,
+  respondentGroup?: string | null,
 ) {
   const cleaned = questions.map((question) => ({
     ...question,
@@ -126,7 +126,9 @@ export function applyTargetGradeToQuestions(
 
   const eligibilityQuestion: SurveyQuestion = {
     id: 1,
-    title: gradeEligibilityTitle(targetGrade) ?? "",
+    title: respondentGroup
+      ? `귀하는 현재 ${respondentGroup}입니까?`
+      : gradeEligibilityTitle(targetGrade) ?? "",
     reason: "선택한 학년 조건에 맞는 응답자인지 먼저 확인합니다.",
     type: "single",
     options: ["예", "아니요"],
