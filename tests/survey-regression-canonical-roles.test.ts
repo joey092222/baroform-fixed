@@ -107,3 +107,31 @@ test("반대 조건: 전체 학생 조사와 실제 이용자 조사를 같은 �
   assert.doesNotMatch(allStudents.surveyIntent.targetPopulation ?? "", /이용하는/);
   assert.match(users.surveyIntent.targetPopulation ?? "", /네이버 웹툰.*이용하는 대학생/);
 });
+
+test("행동의 측정 기준을 별도 서비스 이용 대상으로 승격하지 않는다", () => {
+  const intent = parseCanonicalSurveyIntent("대학생들의 카공 빈도를 조사하라");
+
+  assert.equal(intent.objectKind, "behavior_usage");
+  assert.equal(intent.generationContext.isUsageObject, false);
+  assert.match(intent.surveyIntent.surveyObject ?? "", /카공/);
+  assert.doesNotMatch(intent.surveyIntent.surveyObject ?? "", /빈도.*이용/);
+});
+
+test("이용자 조건과 그 이용자가 평가하는 별도 대상을 분리한다", () => {
+  const intent = parseCanonicalSurveyIntent("새봄 서비스 이용자들의 학교생활 만족도");
+
+  assert.match(intent.surveyIntent.targetPopulation ?? "", /새봄 서비스 이용자/);
+  assert.equal(intent.surveyIntent.surveyObject, "학교생활");
+  assert.equal(intent.generationContext.isUsageObject, false);
+});
+
+test("응답자 조건의 기준 기간과 조사 대상 서비스명을 분리한다", () => {
+  const intent = parseCanonicalSurveyIntent(
+    "최근 6주 동안 다온 플랫폼을 이용한 청년 대상 다온 플랫폼 이용 현황 조사",
+  );
+
+  assert.match(intent.surveyIntent.targetPopulation ?? "", /최근 6주.*다온 플랫폼.*청년/);
+  assert.equal(intent.surveyIntent.surveyObject, "다온 플랫폼");
+  assert.equal(intent.surveyIntent.explicitTimeframe, "최근 6주 동안");
+  assert.doesNotMatch(intent.surveyIntent.surveyObject ?? "", /최근 6주/);
+});

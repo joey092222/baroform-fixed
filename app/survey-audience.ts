@@ -308,7 +308,13 @@ export function ensureAudienceInDescription(
     .replace(/^본\s*조사는\s*/, "")
     .replace(/^.{1,100}?(?:을|를)\s*대상으로(?:\s*한)?\s*,?\s*/, "")
     .trim();
-  return detail
-    ? `${withObjectParticle(audience)} 대상으로, ${detail}`.slice(0, 500)
+  const audienceHead = normalizedSpaces(audience).match(
+    /(?:^|\s)(학부생|대학원생|재학생|휴학생|대학생|학생|일반인|직장인|청년|성인|교직원|교수|교사|이용자|사용자|소비자|고객|주민|구성원|팀원|참가자|참여자|가입자|학부모)$/,
+  )?.[1];
+  const deduplicatedDetail = audienceHead
+    ? detail.replace(new RegExp(`^${audienceHead}(?:들)?(?:의|을|를)\\s+`), "")
+    : detail;
+  return deduplicatedDetail
+    ? `${withObjectParticle(audience)} 대상으로, ${deduplicatedDetail}`.slice(0, 500)
     : `${withObjectParticle(audience)} 대상으로 한 설문입니다.`;
 }

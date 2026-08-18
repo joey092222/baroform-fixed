@@ -490,6 +490,12 @@ function generationIntegrityIssues(
   return [...new Set(issues)];
 }
 
+function isRecoverableQuestionIntegrityIssue(issue: string) {
+  return /^질문\s+.+?(?:선택지가 2개보다 적습니다|유형에는 선택지를 둘 수 없습니다|척도 설정이 없습니다|지원되지 않는 척도 설정이 있습니다|최소·최대 선택 개수가 올바르지 않습니다)/.test(
+    issue,
+  );
+}
+
 function structuredGenerationToLegacy(
   generation: SurveyGeneration,
   fallback: SurveyBlueprint,
@@ -1008,7 +1014,14 @@ export function normalizeModelGeneratedSurveyMetadata(
         `survey.questions.${questionIndex}.analysis.variable_name`,
       );
     }
-    const options = question.options.map((option, optionIndex) => {
+    const isChoiceQuestion = ["single_choice", "multiple_choice", "dropdown"].includes(
+      question.type,
+    );
+    const rawOptions = isChoiceQuestion ? question.options : [];
+    if (!isChoiceQuestion && question.options.length > 0) {
+      normalizedPaths.push(`survey.questions.${questionIndex}.options`);
+    }
+    const options = rawOptions.map((option, optionIndex) => {
       const optionId = `${id}-option-${optionIndex + 1}`;
       if (option.id !== optionId) {
         normalizedPaths.push(
@@ -1029,11 +1042,52 @@ export function normalizeModelGeneratedSurveyMetadata(
         `survey.questions.${questionIndex}.grounding.uses_external_fact`,
       );
     }
+    const scale =
+      question.type === "scale"
+        ? question.scale ?? {
+            min: 1,
+            max: 5,
+            min_label: "전혀 그렇지 않음",
+            max_label: "매우 그러함",
+          }
+        : null;
+    if (question.type === "scale" && question.scale === null) {
+      normalizedPaths.push(`survey.questions.${questionIndex}.scale`);
+    }
+    if (question.type !== "scale" && question.scale !== null) {
+      normalizedPaths.push(`survey.questions.${questionIndex}.scale`);
+    }
+    const maximumSelections = Math.max(1, options.length);
+    const validation = {
+      ...question.validation,
+      min_selections:
+        question.type === "multiple_choice"
+          ? Math.min(question.validation.min_selections ?? 1, maximumSelections)
+          : null,
+      max_selections:
+        question.type === "multiple_choice"
+          ? Math.min(
+              Math.max(
+                question.validation.max_selections ?? maximumSelections,
+                question.validation.min_selections ?? 1,
+              ),
+              maximumSelections,
+            )
+          : null,
+    };
+    if (
+      validation.min_selections !== question.validation.min_selections ||
+      validation.max_selections !== question.validation.max_selections
+    ) {
+      normalizedPaths.push(`survey.questions.${questionIndex}.validation`);
+    }
     return {
       ...question,
       id,
       section_id,
       options,
+      scale,
+      validation,
       analysis: { ...question.analysis, variable_name },
       grounding: { uses_external_fact, source_ids },
     };
@@ -1160,33 +1214,38 @@ function assertExplicitMeasurementCoverage(
   }
 }
 
-function assertQuestionQuality(questions: SurveyQuestion[], expected: number) {
+function modelQuestionQualityIssues(
+  questions: SurveyQuestion[],
+  expected: number,
+) {
+  const issues: string[] = [];
   if (questions.length !== expected) {
-    throw new Error("AI 설문 문항 수가 올바르지 않습니다.");
+    issues.push("AI 설문 문항 수가 올바르지 않습니다.");
   }
 
-  const titles = new Set<string>();
+  const titles = new Map<string, number>();
   for (const question of questions) {
     if (/(이용|사용|수강|참여|경험)(?:을|를)\s*(?:직접\s*)?\1/.test(question.title)) {
-      throw new Error("AI 설문에 같은 행동을 반복한 어색한 질문이 있습니다.");
+      issues.push(`문항 ${question.id}에 같은 행동을 반복한 어색한 질문이 있습니다.`);
     }
     const normalizedTitle = question.title
       .replace(/[\s?!.,'\"“”‘’]/g, "")
       .toLocaleLowerCase("ko-KR");
     if (titles.has(normalizedTitle)) {
-      throw new Error("AI 설문에 중복 질문이 있습니다.");
+      issues.push(`문항 ${question.id}가 앞선 문항과 중복됩니다.`);
     }
-    titles.add(normalizedTitle);
+    titles.set(normalizedTitle, question.id);
 
     if (question.options) {
       const normalizedOptions = question.options.map((option) =>
         option.replace(/\s+/g, "").toLocaleLowerCase("ko-KR"),
       );
       if (new Set(normalizedOptions).size !== normalizedOptions.length) {
-        throw new Error("AI 설문에 중복 선택지가 있습니다.");
+        issues.push(`문항 ${question.id}에 중복 선택지가 있습니다.`);
       }
     }
   }
+  return issues;
 }
 
 function assertSurveyDepth(
@@ -1496,7 +1555,7 @@ function questionIndexesFromQualityIssues(
 ) {
   const indexes = new Set<number>();
   for (const issue of issues) {
-    const match = issue.match(/문항\s+(\d+)/);
+    const match = issue.match(/(?:문항|질문)\s+(?:question-)?(\d+)/);
     if (!match) continue;
     const index = Number(match[1]) - 1;
     if (index >= 0 && index < questionCount) indexes.add(index);
@@ -1871,6 +1930,7 @@ export function parseSurveyDraftResponse(
   let structuredGeneration: SurveyGeneration | null = null;
   let structuredTargetResolution: CanonicalEvaluationTargetResolution | null =
     null;
+  const recoverableModelIssues: string[] = [];
   recordSurveyValidation(trace, "output-schema-validation");
   const decodedSurvey = isRecord(decoded) && isRecord(decoded.survey)
     ? decoded.survey
@@ -1908,10 +1968,17 @@ export function parseSurveyDraftResponse(
       questionCount,
       { webSearchRequested },
     );
-    if (integrityIssues.length > 0) {
+    const recoverableIntegrityIssues = integrityIssues.filter(
+      isRecoverableQuestionIntegrityIssue,
+    );
+    const fatalIntegrityIssues = integrityIssues.filter(
+      (issue) => !isRecoverableQuestionIntegrityIssue(issue),
+    );
+    recoverableModelIssues.push(...recoverableIntegrityIssues);
+    if (fatalIntegrityIssues.length > 0) {
       recordSurveySchemaDiagnostics(trace, {
         stage: "generation_integrity_validation",
-        issues: integrityIssues.map((_, index) => ({
+        issues: fatalIntegrityIssues.map((_, index) => ({
           path: ["integrity", index],
           code: "custom",
         })),
@@ -1919,19 +1986,26 @@ export function parseSurveyDraftResponse(
       recordSurveyModelOutputRejection(trace, {
         at: "generation_integrity_validation",
         code: "MODEL_OUTPUT_INTEGRITY_INVALID",
-        issues: integrityIssues,
-        issuePaths: integrityIssues.map((_, index) => `integrity.${index}`),
+        issues: fatalIntegrityIssues,
+        issuePaths: fatalIntegrityIssues.map((_, index) => `integrity.${index}`),
       });
-      throw new SurveyValidationError(integrityIssues, "schema");
+      throw new SurveyValidationError(fatalIntegrityIssues, "schema");
     }
     const copyIssues = respondentCopyIssues(structuredGeneration);
-    if (copyIssues.length > 0) {
+    const questionCopyIssues = copyIssues.filter((issue) =>
+      /^질문\s+question-\d+/.test(issue),
+    );
+    const fatalCopyIssues = copyIssues.filter(
+      (issue) => !/^질문\s+question-\d+/.test(issue),
+    );
+    recoverableModelIssues.push(...questionCopyIssues);
+    if (fatalCopyIssues.length > 0) {
       recordSurveyModelOutputRejection(trace, {
         at: "respondent_copy_validation",
         code: "MODEL_RESPONDENT_COPY_INVALID",
-        issues: copyIssues,
+        issues: fatalCopyIssues,
       });
-      throw new SurveyValidationError(copyIssues);
+      throw new SurveyValidationError(fatalCopyIssues);
     }
     structuredTargetResolution = resolveCanonicalEvaluationTarget({
       canonicalEvaluationTarget,
@@ -2121,8 +2195,10 @@ export function parseSurveyDraftResponse(
     ),
     violationOrigins: semanticViolations.map((item) => item.origin ?? "question"),
   });
-  try {
-    assertQuestionQuality(normalizedAiQuestions, questionCount);
+  recoverableModelIssues.push(
+    ...modelQuestionQualityIssues(normalizedAiQuestions, questionCount),
+  );
+  if (!structuredGeneration) {
     assertSurveyDepth(
       result.designPlan,
       normalizedAiQuestions,
@@ -2130,15 +2206,16 @@ export function parseSurveyDraftResponse(
       expectsReferences,
     );
     assertExplicitMeasurementCoverage(prompt, normalizedAiQuestions);
-  } catch (error) {
-    const issue =
-      error instanceof Error ? error.message : "모델 문항 검증에 실패했습니다.";
-    recordSurveyModelOutputRejection(trace, {
-      at: "question_quality_validation",
-      code: "MODEL_QUESTION_VALIDATION_FAILED",
-      issues: [issue],
-    });
-    throw error;
+  } else {
+    try {
+      assertExplicitMeasurementCoverage(prompt, normalizedAiQuestions);
+    } catch (error) {
+      recoverableModelIssues.push(
+        error instanceof Error
+          ? error.message
+          : "모델 문항이 명시된 측정 내용을 반영하지 못했습니다.",
+      );
+    }
   }
 
   const normalizedRespondent = respondentGroup
@@ -2154,14 +2231,25 @@ export function parseSurveyDraftResponse(
     throw new Error("응답 대상과 평가 대상이 올바르게 분리되지 않았습니다.");
   }
 
-  const coverage =
-    semanticViolations.length > 0
-      ? {
-          aiQuestions: normalizedAiQuestions,
-          entityType: reportedEntityType,
-          fallback: canonicalFallback,
-        }
-      : enforceContextualCoverage(
+  let coverage = {
+    aiQuestions: normalizedAiQuestions,
+    entityType: reportedEntityType,
+    fallback: canonicalFallback,
+  };
+  if (semanticViolations.length === 0) {
+    if (!structuredGeneration) {
+      coverage = enforceContextualCoverage(
+        prompt,
+        kind,
+        reportedEntityType,
+        evaluationTarget,
+        normalizedAiQuestions,
+        questionCount,
+        canonicalFallback,
+      );
+    } else {
+      try {
+        coverage = enforceContextualCoverage(
           prompt,
           kind,
           reportedEntityType,
@@ -2170,6 +2258,19 @@ export function parseSurveyDraftResponse(
           questionCount,
           canonicalFallback,
         );
+      } catch (error) {
+        recoverableModelIssues.push(
+          ...(error instanceof SurveyValidationError
+            ? error.issues
+            : [
+                error instanceof Error
+                  ? error.message
+                  : "모델 문항의 조사 맥락 coverage가 부족합니다.",
+              ]),
+        );
+      }
+    }
+  }
   const aiQuestions = applyTargetGradeToQuestions(
     canonicalizeQuestionReferencePeriods(coverage.aiQuestions, brief),
     targetGrade,
@@ -2282,6 +2383,7 @@ export function parseSurveyDraftResponse(
     semanticViolations.length === 0
       ? validateSurvey(prompt, brief, blueprint, evaluationTarget)
       : [];
+  validationIssues.push(...recoverableModelIssues);
   recordSurveySemanticDiagnostics(trace, {
     qualityViolationCodes: validationIssues.map((item) =>
       item.includes(":") ? item.slice(0, item.indexOf(":")) : item,

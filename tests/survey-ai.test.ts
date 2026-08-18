@@ -12,6 +12,7 @@ import {
   buildSurveyAiRequest,
   parseSurveyDraftResponse,
   SurveyGenerationResponseError,
+  SurveyValidationError,
 } from "../app/survey-ai";
 import { formatQuestionReason } from "../app/question-reason";
 import {
@@ -28,6 +29,7 @@ import {
   parseExplicitSurveyMeasurement,
   parseSurveyBrief,
   parseSurveySemantics,
+  resizeSurveyQuestions,
   validateSurvey,
 } from "../app/survey-intent";
 import { applyTargetGradeToQuestions } from "../app/survey-grade";
@@ -1457,14 +1459,20 @@ test("검색 기반 구조화 결과를 기존 설문 편집 형식으로 연결
   );
   const diagnostics = surveyGenerationTraceSnapshot(trace);
 
-  assert.equal(result.status, "ready");
+  assert.match(result.status, /^ready/);
   if (result.status !== "ready" && result.status !== "ready_with_caution") {
     assert.fail("완성된 설문 결과가 필요합니다.");
   }
   assert.equal(result.blueprint.aiQuestions.length, 7);
   assert.equal(result.blueprint.title, "대학생 네이버웹툰 이용 현황 조사");
-  assert.equal(result.blueprint.description, "대학생의 네이버웹툰 이용 방식과 경험을 알아보기 위한 설문입니다.");
-  assert.equal(result.blueprint.aiQuestions[0]?.title, "네이버웹툰을 이용한 적이 있나요?");
+  assert.equal(
+    result.blueprint.description,
+    "최근 4주 동안 네이버웹툰을 이용한 대학생을 대상으로, 네이버웹툰 이용 방식과 경험을 알아보기 위한 설문입니다.",
+  );
+  assert.equal(
+    result.blueprint.aiQuestions[0]?.title,
+    "최근 4주 동안 네이버웹툰을 이용한 적이 있나요?",
+  );
   assert.equal(result.blueprint.aiQuestions[1]?.type, "single");
   assert.equal(
     result.blueprint.aiQuestions[1]?.title,
@@ -1476,10 +1484,10 @@ test("검색 기반 구조화 결과를 기존 설문 편집 형식으로 연결
   assert.equal(result.surveyPlan?.requested_question_count, 7);
   assert.equal(result.qualityCheck?.question_count_valid, true);
   assert.equal(result.completionMessage, "응답해주셔서 감사합니다.");
-  assert.equal(diagnostics.generationSource, "openai");
+  assert.equal(diagnostics.generationSource, "openai_partial_repair");
   assert.equal(diagnostics.fallbackCount, 0);
-  assert.deepEqual(diagnostics.repairedQuestionIds, []);
-  assert.deepEqual(diagnostics.preservedQuestionIds, ["1", "2", "3", "4", "5", "6", "7"]);
+  assert.deepEqual(diagnostics.repairedQuestionIds, ["1"]);
+  assert.deepEqual(diagnostics.preservedQuestionIds, ["2", "3", "4", "5", "6", "7"]);
 });
 
 test("기관 entity가 먼저여도 솔빛관 대상과 모델 문항을 보존한다", () => {
@@ -3952,5 +3960,265 @@ test("AI가 이용 시간을 서비스처럼 해석한 결과는 폐기한다", 
         "연세대학교 재학생 SNS 이용 시간 조사",
       ),
     /측정 기준|측정 내용/,
+  );
+});
+
+function structuredPayloadForRegressionPrompt(prompt: string) {
+  const blueprint = analyzeSurveyPrompt(prompt);
+  const payload = structuredReadyPayload();
+  const questions = resizeSurveyQuestions(blueprint.aiQuestions, 7).map((item, index) => {
+    const type =
+      item.type === "multiple"
+        ? "multiple_choice"
+        : item.type === "scale"
+          ? "scale"
+          : item.type === "text" || item.type === "shortText"
+            ? "long_text"
+            : "single_choice";
+    const role: Parameters<typeof structuredQuestion>[1] =
+      type === "long_text"
+        ? "open"
+        : type === "scale"
+          ? "evaluation"
+          : index < 2
+              ? "behavior"
+              : index === 5
+                ? "barrier"
+                : "experience";
+    const question = structuredQuestion(
+      index + 1,
+      role,
+      type,
+      item.title,
+      item.options ?? [],
+    );
+    question.reference_period = item.explicitTimeframe ?? null;
+    question.grounding = { uses_external_fact: false, source_ids: [] };
+    question.analysis = {
+      construct: role,
+      purpose: item.questionPurpose ?? item.reason,
+      variable_name: `regression_${index + 1}`,
+      coding_notes: null,
+    };
+    return question;
+  });
+  payload.output_parsed.status = "ready_with_caution";
+  payload.output_parsed.research = {
+    search_status: "failed",
+    entities: [],
+    sources: [],
+    limitations: ["외부 사실을 사용하지 않은 일반 설문입니다."],
+  };
+  payload.output_parsed.survey_plan.target =
+    blueprint.respondentGroup ?? "관련 응답자";
+  payload.output_parsed.survey_plan.eligibility =
+    blueprint.respondentGroup ?? "관련 응답자";
+  payload.output_parsed.survey_plan.primary_objective = blueprint.goal ?? prompt;
+  payload.output_parsed.survey_plan.constructs = questions.map((item) => ({
+    name: item.analysis.construct,
+    reason: item.analysis.purpose,
+  }));
+  payload.output_parsed.survey.title = blueprint.title;
+  payload.output_parsed.survey.intro = blueprint.description;
+  payload.output_parsed.survey.questions = questions;
+  payload.output_parsed.survey.sections = [
+    { id: "S1", title: blueprint.evaluationTarget ?? blueprint.subject, description: null },
+  ];
+  payload.output_parsed.quality_check.all_named_entities_searched = false;
+  payload.output = payload.output.filter((item) => item.type !== "web_search_call");
+  return payload;
+}
+
+test("복구 가능한 중복 문항은 배달 앱 복합 목적 설문 전체를 hard fallback으로 만들지 않는다", () => {
+  const prompt = "배달 앱 한 개를 이용하는 1인 가구의 주문 습관과 지출, 구독 혜택 수요";
+  const payload = structuredPayloadForRegressionPrompt(prompt);
+  payload.output_parsed.survey.questions[4]!.text =
+    payload.output_parsed.survey.questions[3]!.text;
+  const trace = createSurveyGenerationTrace("recover-duplicate-delivery-question");
+
+  const result = parseSurveyDraftResponse(
+    payload,
+    prompt,
+    7,
+    "전학년",
+    false,
+    trace,
+  );
+  const diagnostics = surveyGenerationTraceSnapshot(trace);
+
+  assert.match(result.status, /^ready/);
+  assert.equal(diagnostics.fallbackCount, 0);
+  assert.equal(diagnostics.generationSource, "openai_partial_repair");
+  assert.ok(diagnostics.preservedQuestionIds.length > 0);
+});
+
+test("복구 가능한 문항 보조 설명은 다중 플랫폼 비교 설문을 부분 수리한다", () => {
+  const prompt = "온새미 플랫폼과 별마루 서비스 사용자의 편의성 및 신뢰도 차이";
+  const payload = structuredPayloadForRegressionPrompt(prompt);
+  payload.output_parsed.survey.questions[2]!.helper_text =
+    "첫 번째 선택지를 골라주세요.";
+  const trace = createSurveyGenerationTrace("recover-platform-copy");
+
+  const result = parseSurveyDraftResponse(
+    payload,
+    prompt,
+    7,
+    "전학년",
+    false,
+    trace,
+  );
+  const diagnostics = surveyGenerationTraceSnapshot(trace);
+
+  assert.match(result.status, /^ready/);
+  assert.equal(diagnostics.fallbackCount, 0);
+  assert.ok(diagnostics.repairedQuestionIds.length > 0);
+  assert.ok(diagnostics.preservedQuestionIds.length > 0);
+});
+
+test("복구 가능한 척도 metadata는 이동 비교 설문의 정상 문항을 보존한다", () => {
+  const prompt = "버스 통근자와 지하철 통근자의 소요 시간·혼잡·피로 비교";
+  const payload = structuredPayloadForRegressionPrompt(prompt);
+  const scaleQuestion = payload.output_parsed.survey.questions[4]!;
+  scaleQuestion.type = "scale";
+  scaleQuestion.role = "evaluation";
+  scaleQuestion.options = [];
+  scaleQuestion.scale = null;
+  const trace = createSurveyGenerationTrace("recover-mobility-scale");
+
+  const result = parseSurveyDraftResponse(
+    payload,
+    prompt,
+    7,
+    "전학년",
+    false,
+    trace,
+  );
+  const diagnostics = surveyGenerationTraceSnapshot(trace);
+
+  assert.match(result.status, /^ready/);
+  assert.equal(diagnostics.fallbackCount, 0);
+  assert.ok(diagnostics.preservedQuestionIds.length > 0);
+});
+
+test("처음 보는 서비스 설문의 중복 선택지는 해당 문항만 부분 수리한다", () => {
+  const prompt = "다온 학습 플랫폼을 사용하는 푸른대학교 학생의 이용 빈도와 개선 수요";
+  const payload = structuredPayloadForRegressionPrompt(prompt);
+  const choiceQuestion = payload.output_parsed.survey.questions.findLast(
+    (question) => question.options.length >= 2,
+  );
+  assert.ok(choiceQuestion);
+  choiceQuestion.options[1]!.label = choiceQuestion.options[0]!.label;
+  const trace = createSurveyGenerationTrace("recover-unseen-option-copy");
+
+  const result = parseSurveyDraftResponse(
+    payload,
+    prompt,
+    7,
+    "전학년",
+    false,
+    trace,
+  );
+  const diagnostics = surveyGenerationTraceSnapshot(trace);
+
+  assert.match(result.status, /^ready/);
+  assert.equal(diagnostics.fallbackCount, 0);
+  assert.ok(diagnostics.repairedQuestionIds.length > 0);
+  assert.ok(diagnostics.preservedQuestionIds.length > 0);
+});
+
+test("처음 보는 시설 설문의 비선택형 잔여 선택지는 결정적으로 정규화한다", () => {
+  const prompt = "해솔문화관 방문자의 공간 경험과 재방문 의향";
+  const payload = structuredPayloadForRegressionPrompt(prompt);
+  const textQuestion = payload.output_parsed.survey.questions.find(
+    (question) => question.type === "long_text",
+  );
+  assert.ok(textQuestion);
+  textQuestion.options = [
+    {
+      id: "stale-option",
+      label: "잔여 선택지",
+      exclusive: false,
+      fixed_position: false,
+      allows_text: false,
+    },
+  ];
+  const trace = createSurveyGenerationTrace("recover-unseen-stale-options");
+
+  const result = parseSurveyDraftResponse(
+    payload,
+    prompt,
+    7,
+    "전학년",
+    false,
+    trace,
+  );
+  const diagnostics = surveyGenerationTraceSnapshot(trace);
+
+  assert.match(result.status, /^ready/);
+  assert.equal(diagnostics.fallbackCount, 0);
+  assert.ok(
+    diagnostics.normalizedInternalMetadataPaths.some((path) =>
+      path.endsWith(".options"),
+    ),
+  );
+});
+
+test("control: 완전한 구조화 출력은 모델 문항을 보존하고 hard fallback하지 않는다", () => {
+  const prompt =
+    "최근 4주 동안 네이버웹툰을 이용한 대학생 대상 네이버웹툰 이용 현황 조사";
+  const payload = structuredReadyPayload();
+  payload.output_parsed.survey.questions[0] = structuredQuestion(
+    1,
+    "behavior",
+    "single_choice",
+    "네이버웹툰을 주로 어떤 기기에서 이용하나요?",
+    ["스마트폰", "태블릿", "PC", "기타"],
+  );
+  const trace = createSurveyGenerationTrace("complete-output-control");
+  const result = parseSurveyDraftResponse(
+    payload,
+    prompt,
+    7,
+    "전학년",
+    false,
+    trace,
+  );
+  const diagnostics = surveyGenerationTraceSnapshot(trace);
+
+  assert.match(result.status, /^ready/);
+  assert.match(diagnostics.generationSource ?? "", /^openai(?:_partial_repair)?$/);
+  assert.equal(diagnostics.fallbackCount, 0);
+  assert.ok(diagnostics.preservedQuestionIds.length > 0);
+});
+
+test("control: 질문 핵심 구조가 빠진 출력은 복구 가능 metadata로 오인하지 않는다", () => {
+  const payload = structuredClone(structuredReadyPayload());
+  delete (payload.output_parsed.survey.questions[0] as Partial<
+    typeof payload.output_parsed.survey.questions[number]
+  >).analysis;
+
+  assert.throws(
+    () =>
+      parseSurveyDraftResponse(
+        payload,
+        "대학생 네이버웹툰 이용 현황 조사",
+      ),
+    SurveyValidationError,
+  );
+});
+
+test("반대 조건: output_parsed가 없는 응답은 문항 복구 대상으로 승격하지 않는다", () => {
+  const payload = structuredReadyPayload();
+  payload.output_parsed = null as never;
+
+  assert.throws(
+    () =>
+      parseSurveyDraftResponse(
+        payload,
+        "대학생 네이버웹툰 이용 현황 조사",
+      ),
+    (error: unknown) =>
+      error instanceof SurveyGenerationResponseError &&
+      error.code === "SURVEY_GENERATION_OUTPUT_MISSING",
   );
 });

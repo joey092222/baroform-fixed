@@ -179,7 +179,9 @@ function reconcileCanonicalLabels(
   context: ParsedSurveyContext,
 ): { intent: SurveyIntent; context: ParsedSurveyContext } {
   const previous = intent.surveyObject?.trim() ?? "";
-  const next = stripCanonicalRequestMeta(previous);
+  const next = stripCanonicalRequestMeta(
+    stripRelationalEntityDescriptor(previous.replace(/^현재\s+/, "")),
+  );
   if (!previous || !next || previous === next) return { intent, context };
 
   const mapText = (value: string) => replaceCanonicalLabel(value, previous, next);
@@ -419,6 +421,13 @@ function stripRelationalEntityDescriptor(value: string) {
   return normalize(descriptor?.[1] ?? normalized);
 }
 
+function stripLeadingRelationalTimeframe(value: string) {
+  return normalize(value).replace(
+    /^(?:(?:최근|지난)\s+(?:\d+|한|두|세|네)\s*(?:일|주|주일|개월|달|학기|년)|(?:이번|지난)\s*(?:주|달|월|학기|학년도|연도))(?:\s*(?:간|동안))?\s+/,
+    "",
+  );
+}
+
 function relationalObjectKind(
   entityType: SurveyContextEntityType,
 ): SurveyIntentObjectKind {
@@ -452,19 +461,23 @@ function resolveQualifiedAudienceClause(
   );
   if (!qualified) return null;
 
-  const object = normalize(qualified[1]);
+  const qualifiedObject = normalize(qualified[1]);
+  const object = stripLeadingRelationalTimeframe(qualifiedObject);
   const particle = normalize(qualified[2]);
   const qualifier = normalize(qualified[3]);
   const audienceGroup = normalize(qualified[4]);
   const negative = /(?:모르|알지\s*못하|지\s*않)/.test(qualifier);
-  const constructs = splitRelationalConstructs(qualified[5]).map((construct) =>
+  const constructPhrase = normalize(qualified[5])
+    .replace(/^대상\s+/, "")
+    .replace(new RegExp(`^${object.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*`), "");
+  const constructs = splitRelationalConstructs(constructPhrase).map((construct) =>
     negative && /(?:이용|사용|방문|참여)하지\s*않는\s*(?:이유|원인|장벽|요인)|비사용\s*이유/.test(construct)
       ? "비이용 이유"
       : construct,
   );
   const entityType = inferRelationalEntityType(object, qualifier);
   const resolvedEntityType = entityType === "unknown" ? "service" : entityType;
-  const qualifiedAudience = `${object}${particle} ${qualifier} ${audienceGroup}`;
+  const qualifiedAudience = `${qualifiedObject}${particle} ${qualifier} ${audienceGroup}`;
   const satisfaction = constructs.some((item) => /만족|평가/.test(item));
 
   return {
@@ -528,11 +541,37 @@ function resolveAudiencePossessiveClause(
 
   const audience = normalize(match[1]);
   const embeddedObject = objectFromQualifiedAudience(audience);
-  const object = embeddedObject || normalize(match[2]);
+  const statedObject = normalize(match[2]);
   const constructs = splitRelationalConstructs(match[3]);
-  const entityType = inferRelationalEntityType(object, match[3]);
-  const resolvedEntityType = entityType === "unknown" ? "construct" : entityType;
   const satisfaction = constructs.some((item) => /만족|평가/.test(item));
+  const genericEvaluationObject = /^(?:서비스|제품|상품|시설|공간|플랫폼|프로그램|앱|이용|사용|방문)$/.test(
+    statedObject,
+  );
+  const object =
+    satisfaction && !genericEvaluationObject
+      ? statedObject
+      : embeddedObject || statedObject;
+  const hasExplicitUsagePredicate = /이용|사용|방문|참여|구매|주문/.test(match[3]);
+  const entityType = inferRelationalEntityType(
+    object,
+    hasExplicitUsagePredicate ? "이용" : "",
+  );
+  const resolvedEntityType = entityType === "unknown" ? "construct" : entityType;
+
+  // A possessive audience phrase does not by itself make the following noun
+  // an independently usable object. For example, in "대학생의 카공 빈도"
+  // the measured behavior is 카공 and "빈도" is its metric. Let the general
+  // behavior parser handle these construct-like phrases instead of promoting
+  // them to a service-usage intent. Concrete entities and explicit usage
+  // predicates still take this relational path.
+  if (
+    !embeddedObject &&
+    resolvedEntityType === "construct" &&
+    !satisfaction &&
+    !hasExplicitUsagePredicate
+  ) {
+    return null;
+  }
 
   return {
     audience,
@@ -547,10 +586,10 @@ function resolveAudiencePossessiveClause(
     objectKind: satisfaction
       ? "satisfaction_evaluation"
       : relationalObjectKind(resolvedEntityType),
-    activity: /이용|사용|방문|구매|주문/.test(match[3])
+    activity: hasExplicitUsagePredicate
       ? `${object} 이용`
       : null,
-    activityKind: /이용|사용|방문|구매|주문/.test(match[3])
+    activityKind: hasExplicitUsagePredicate
       ? "use"
       : null,
     researchGoal: `${object}의 ${constructs.join(", ")} 파악`,
@@ -654,22 +693,49 @@ function resolveObjectAudienceClause(
   );
   if (!objectAudience) return null;
 
-  const object = normalize(objectAudience[1]);
+  const qualifiedObject = normalize(objectAudience[1]);
   if (
     /(?:을|를)\s*(?:오가는|왕래하는|이동하는|통학하는|이용하는|사용하는|방문하는|참여하는)$/.test(
-      object,
+      qualifiedObject,
     )
   ) {
     return null;
   }
   const audienceHead = normalize(objectAudience[2]);
   const constructs = splitRelationalConstructs(objectAudience[3]);
-  const entityType = inferRelationalEntityType(object, audienceHead);
-  const resolvedEntityType = entityType === "unknown" ? "service" : entityType;
   const satisfaction = constructs.some((item) => /만족|평가/.test(item));
+  const evaluationSubject = normalize(
+    constructs.find((item) => /(?:만족도|평가)$/.test(item))?.replace(
+      /\s*(?:만족도|평가)$/,
+      "",
+    ) ?? "",
+  );
+  const object =
+    satisfaction &&
+    evaluationSubject &&
+    !/^(?:서비스|제품|상품|시설|공간|플랫폼|프로그램|앱|이용|사용|방문)$/.test(
+      evaluationSubject,
+    )
+      ? evaluationSubject
+      : qualifiedObject;
+  const entityType = inferRelationalEntityType(
+    object,
+    object === qualifiedObject ? audienceHead : "",
+  );
+  const resolvedEntityType =
+    entityType === "unknown"
+      ? object === qualifiedObject
+        ? "service"
+        : "construct"
+      : entityType;
+  const resolvedConstructs = constructs.map((item) =>
+    satisfaction && evaluationSubject === object && item.startsWith(object)
+      ? normalize(item.slice(object.length)) || "전반적 만족도"
+      : item,
+  );
 
   return {
-    audience: `${object} ${audienceHead}`,
+    audience: `${qualifiedObject} ${audienceHead}`,
     audienceEvidence: normalize(`${objectAudience[1]} ${objectAudience[2]}`),
     primaryEntity: canonicalEntity(
       object,
@@ -681,10 +747,10 @@ function resolveObjectAudienceClause(
     objectKind: satisfaction
       ? "satisfaction_evaluation"
       : relationalObjectKind(resolvedEntityType),
-    activity: `${object} 이용`,
-    activityKind: "use",
-    researchGoal: `${object}의 ${constructs.join(", ")} 파악`,
-    researchConstructs: constructs,
+    activity: satisfaction ? null : `${object} 이용`,
+    activityKind: satisfaction ? null : "use",
+    researchGoal: `${object}의 ${resolvedConstructs.join(", ")} 파악`,
+    researchConstructs: resolvedConstructs,
     surveyArchetype: satisfaction
       ? "satisfaction"
       : usageArchetype(resolvedEntityType),
