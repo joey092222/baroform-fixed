@@ -35,6 +35,10 @@ import {
   questionReferencePeriodConflicts,
 } from "./survey-reference-period";
 import {
+  evaluationTargetsSemanticallyMatch,
+  isGenericEvaluationTargetLabel,
+} from "./survey-evaluation-target";
+import {
   audienceIncludesRequiredQualifiers,
   audienceMentionedInText,
 } from "./survey-audience";
@@ -5914,6 +5918,7 @@ export function validateSurvey(
   rawBrief: string,
   brief: SurveyBrief,
   blueprint: SurveyBlueprint,
+  expectedEvaluationTarget?: string | null,
 ) {
   const issues: string[] = [];
   const normalizedRaw = normalizedSurveyText(rawBrief);
@@ -5932,6 +5937,19 @@ export function validateSurvey(
     blueprint.respondentGroup ?? "",
     ...blueprint.aiQuestions.flatMap((item) => [item.title, ...(item.options ?? [])]),
   ].join(" ");
+  const canonicalEvaluationTarget = expectedEvaluationTarget?.trim() ?? "";
+  if (
+    canonicalEvaluationTarget &&
+    !isGenericEvaluationTargetLabel(canonicalEvaluationTarget) &&
+    !evaluationTargetsSemanticallyMatch(
+      canonicalEvaluationTarget,
+      blueprint.evaluationTarget,
+    )
+  ) {
+    issues.push(
+      `EVALUATION_TARGET_MISMATCH: 최종 조사 대상 '${blueprint.evaluationTarget ?? "없음"}'이 canonical 조사 대상 '${canonicalEvaluationTarget}'과 일치하지 않습니다.`,
+    );
+  }
 
   if (
     brief.researchSubject.length < 2 ||

@@ -86,6 +86,11 @@ import {
   ensureVisibleReferencePeriod,
   isRecurringFrequencyQuestion,
 } from "./survey-reference-period";
+import {
+  evaluationTargetsSemanticallyMatch,
+  resolveCanonicalEvaluationTarget,
+  type CanonicalEvaluationTargetResolution,
+} from "./survey-evaluation-target";
 
 export class SurveyValidationError extends Error {
   readonly issues: string[];
@@ -300,19 +305,6 @@ function legacyQuestionRole(
   }
 }
 
-function entityTypeFromResolvedAs(value: string | null): SurveyEntityType {
-  const label = value ?? "";
-  if (/건물|관|시설/.test(label)) return "building";
-  if (/식당|카페|급식/.test(label)) return "cafeteria";
-  if (/동아리|학회/.test(label)) return "club";
-  if (/행사|프로그램|축제/.test(label)) return "event";
-  if (/수업|강의|과목/.test(label)) return "course";
-  if (/도서관/.test(label)) return "library";
-  if (/기숙사|생활관/.test(label)) return "dormitory";
-  if (/서비스|앱|브랜드|플랫폼|제품/.test(label)) return "service";
-  return "other";
-}
-
 function generationIntegrityIssues(
   generation: SurveyGeneration,
   expectedQuestionCount: number,
@@ -501,8 +493,9 @@ function generationIntegrityIssues(
 function structuredGenerationToLegacy(
   generation: SurveyGeneration,
   fallback: SurveyBlueprint,
+  targetResolution: CanonicalEvaluationTargetResolution,
 ) {
-  const firstEntity = generation.research.entities[0] ?? null;
+  const matchedEntity = targetResolution.matchedResearchEntity;
   const sourceById = new Map(
     generation.research.sources.map((source) => [source.id, source.url]),
   );
@@ -514,7 +507,6 @@ function structuredGenerationToLegacy(
       return sourceUrl ? [{ fact: fact.fact, sourceUrl }] : [];
     }),
   );
-  const entityType = entityTypeFromResolvedAs(firstEntity?.resolved_as ?? null);
   const assumptions = [...(fallback.assumptions ?? []), ...generation.research.limitations]
     .filter(Boolean)
     .slice(0, 4);
@@ -572,38 +564,23 @@ function structuredGenerationToLegacy(
         kind: fallback.kind,
         intentLabel: generation.survey_plan.survey_type,
         respondentGroup: generation.survey_plan.target,
-        evaluationTarget:
-          firstEntity?.resolved_name ??
-          firstEntity?.input_name ??
-          fallback.evaluationTarget ??
-          fallback.subject,
+        evaluationTarget: targetResolution.evaluationTarget,
         goal: generation.survey_plan.primary_objective,
-        recognizedEntity:
-          firstEntity?.resolved_name ?? firstEntity?.input_name ?? fallback.subject,
-        entityType,
+        recognizedEntity: targetResolution.recognizedEntity,
+        entityType: targetResolution.entityType,
         searchRequired: true,
-        confidence:
-          firstEntity?.confidence === "verified"
-            ? "high"
-            : firstEntity?.confidence === "probable"
-              ? "medium"
-              : "low",
+        confidence: targetResolution.confidence,
         assumptions,
       },
       title: generation.survey.title,
       description: generation.survey.intro,
       aiTitle: generation.survey.title,
       researchSummary:
-        firstEntity?.resolved_name
-          ? `${firstEntity.resolved_name} 관련 공개 자료를 확인해 설문 맥락을 구성했습니다.`
+        matchedEntity
+          ? `${matchedEntity.resolved_name ?? matchedEntity.input_name} 관련 공개 자료를 확인해 설문 맥락을 구성했습니다.`
           : "공개 자료 확인 결과와 사용자 입력을 함께 반영했습니다.",
       researchClassification:
-        firstEntity?.confidence ??
-        (generation.research.search_status === "verified"
-          ? "verified"
-          : generation.research.search_status === "partial"
-            ? "probable"
-            : "unresolved"),
+        matchedEntity?.confidence ?? "unresolved",
       researchLimitations: generation.research.limitations,
       verifiedFacts,
       designPlan: {
@@ -890,6 +867,39 @@ function normalizeQuestion(value: unknown, id: number): SurveyQuestion {
   };
 }
 
+function canonicalEvaluationTargetFromIntent(
+  canonicalIntent: CanonicalSurveyIntent,
+  fallback: SurveyBlueprint,
+) {
+  const normalizedFallbackTarget = fallback.evaluationTarget?.trim() ?? "";
+  const surveyObject = canonicalIntent.surveyIntent.surveyObject?.trim() ?? "";
+  const intentTargets = canonicalIntent.surveyIntent.evaluationTargets
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (
+    surveyObject &&
+    (!normalizedFallbackTarget ||
+      evaluationTargetsSemanticallyMatch(
+        surveyObject,
+        normalizedFallbackTarget,
+      ))
+  ) {
+    return surveyObject;
+  }
+  if (intentTargets.length > 1) {
+    return (
+      normalizedFallbackTarget ||
+      intentTargets.join(" 및 ")
+    );
+  }
+  return (
+    normalizedFallbackTarget ||
+    intentTargets[0] ||
+    surveyObject ||
+    fallback.subject.trim()
+  );
+}
+
 function canonicalizeQuestionReferencePeriods(
   questions: SurveyQuestion[],
   brief: SurveyBrief,
@@ -901,6 +911,25 @@ function canonicalizeQuestionReferencePeriods(
       recommendedTimeframe: brief.recommendedTimeframe,
     }),
   );
+}
+
+function preserveCanonicalEvaluationTargetMetadata(
+  blueprint: SurveyBlueprint,
+  canonicalEvaluationTarget: string,
+): SurveyBlueprint {
+  const evaluationTarget = canonicalEvaluationTarget.trim();
+  if (!evaluationTarget) return blueprint;
+  const detectedSignals = blueprint.detectedSignals.map((signal) =>
+    signal.startsWith("조사 내용 ·")
+      ? `조사 내용 · ${evaluationTarget}`
+      : signal,
+  );
+  return {
+    ...blueprint,
+    subject: evaluationTarget,
+    evaluationTarget,
+    detectedSignals,
+  };
 }
 
 /**
@@ -1819,6 +1848,10 @@ export function parseSurveyDraftResponse(
     generationContext?.canonicalIntent ??
     parseCanonicalSurveyIntent(prompt);
   const canonicalFallback = analyzeSurveyPrompt(prompt, canonicalIntent);
+  const canonicalEvaluationTarget = canonicalEvaluationTargetFromIntent(
+    canonicalIntent,
+    canonicalFallback,
+  );
   const canonicalPlan =
     generationContext?.surveyPlan ??
     createSurveyPlan(canonicalIntent.surveyIntent, questionCount);
@@ -1836,6 +1869,8 @@ export function parseSurveyDraftResponse(
   }
 
   let structuredGeneration: SurveyGeneration | null = null;
+  let structuredTargetResolution: CanonicalEvaluationTargetResolution | null =
+    null;
   recordSurveyValidation(trace, "output-schema-validation");
   const decodedSurvey = isRecord(decoded) && isRecord(decoded.survey)
     ? decoded.survey
@@ -1898,9 +1933,17 @@ export function parseSurveyDraftResponse(
       });
       throw new SurveyValidationError(copyIssues);
     }
+    structuredTargetResolution = resolveCanonicalEvaluationTarget({
+      canonicalEvaluationTarget,
+      canonicalSubject: canonicalFallback.subject,
+      researchEntities: structuredGeneration.research.entities,
+      surveyPlanTarget: structuredGeneration.survey_plan.target,
+      fallbackEntityType: entityTypeFromDomain(canonicalFallback.domain),
+    });
     decoded = structuredGenerationToLegacy(
       structuredGeneration,
       canonicalFallback,
+      structuredTargetResolution,
     );
   }
   if (!isRecord(decoded) || !isRecord(decoded.result)) {
@@ -1953,7 +1996,6 @@ export function parseSurveyDraftResponse(
     throw new Error("AI 설문 상태가 올바르지 않습니다.");
   }
 
-  const recognizedEntity = cleanText(interpretation.recognizedEntity, 80);
   const researchCompleted = completedSearch && sources.length > 0;
 
   const quality = isRecord(result.qualityCheck) ? result.qualityCheck : {};
@@ -1981,16 +2023,31 @@ export function parseSurveyDraftResponse(
 
   const kindValue = cleanText(interpretation.kind, 30) as SurveyIntentKind;
   const kind = intentKinds.includes(kindValue) ? kindValue : "general";
+  const targetResolution =
+    structuredTargetResolution ??
+    resolveCanonicalEvaluationTarget({
+      canonicalEvaluationTarget,
+      canonicalSubject: canonicalFallback.subject,
+      researchEntities: [],
+      surveyPlanTarget: cleanText(interpretation.respondentGroup, 80),
+      fallbackEntityType: entityTypeFromDomain(canonicalFallback.domain),
+    });
+  const recognizedEntity =
+    cleanText(interpretation.recognizedEntity, 80) ||
+    targetResolution.recognizedEntity ||
+    "";
   const reportedEntityTypeValue = cleanText(
     interpretation.entityType,
     40,
   ) as SurveyEntityType;
-  const reportedEntityType = entityTypes.includes(reportedEntityTypeValue)
-    ? reportedEntityTypeValue
-    : "other";
+  const reportedEntityType = structuredGeneration
+    ? targetResolution.entityType
+    : entityTypes.includes(reportedEntityTypeValue)
+      ? reportedEntityTypeValue
+      : targetResolution.entityType;
   const respondentGroup = cleanText(interpretation.respondentGroup, 80);
   const evaluationTarget = cleanText(
-    interpretation.evaluationTarget,
+    targetResolution.evaluationTarget || interpretation.evaluationTarget,
     100,
   );
   const goal = cleanText(interpretation.goal, 80);
@@ -2223,7 +2280,7 @@ export function parseSurveyDraftResponse(
 
   let validationIssues =
     semanticViolations.length === 0
-      ? validateSurvey(prompt, brief, blueprint)
+      ? validateSurvey(prompt, brief, blueprint, evaluationTarget)
       : [];
   recordSurveySemanticDiagnostics(trace, {
     qualityViolationCodes: validationIssues.map((item) =>
@@ -2295,11 +2352,14 @@ export function parseSurveyDraftResponse(
     blueprint.aiQuestions,
     brief,
   );
-  blueprint = {
-    ...blueprint,
-    templateQuestions: finalQuestionsWithReferencePeriods.slice(0, 5),
-    aiQuestions: finalQuestionsWithReferencePeriods,
-  };
+  blueprint = preserveCanonicalEvaluationTargetMetadata(
+    {
+      ...blueprint,
+      templateQuestions: finalQuestionsWithReferencePeriods.slice(0, 5),
+      aiQuestions: finalQuestionsWithReferencePeriods,
+    },
+    evaluationTarget,
+  );
   recordSurveyPlanCoverageTrace(trace, {
     initial: requiredCoverageRepair.initialCoverage,
     final: requiredCoverageRepair.finalCoverage,
@@ -2338,7 +2398,12 @@ export function parseSurveyDraftResponse(
     recordSurveyValidation(trace, "repair-validation");
   }
   if (repairedQuestionIds.length > 0) {
-    validationIssues = validateSurvey(prompt, brief, blueprint);
+    validationIssues = validateSurvey(
+      prompt,
+      brief,
+      blueprint,
+      evaluationTarget,
+    );
     const finalSemanticIssues = lintSurveyQuestionSemantics(
       brief.parsedSurveyContext,
       blueprint.aiQuestions,

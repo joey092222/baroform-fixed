@@ -872,7 +872,7 @@ test("설문 생성 API는 연구 모드를 단일 background 요청으로 전�
   }
 });
 
-test("완료된 모델 결과가 의미 검수에서 거부되면 검증된 초안으로 복구한다", async () => {
+test("완료된 모델 결과의 조사 대상 메타데이터만 canonical 값으로 보정한다", async () => {
   const previousKey = process.env.OPENAI_API_KEY;
   const previousFetch = globalThis.fetch;
   const prompt = "대학생 대상 교내 생활 의견 조사 출력 복구 확인";
@@ -918,6 +918,10 @@ test("완료된 모델 결과가 의미 검수에서 거부되면 검증된 초�
       stage?: string | null;
       generationSource?: string | null;
       fallbackReason?: string | null;
+      blueprint?: {
+        evaluationTarget?: string;
+        aiQuestions?: Array<{ title: string }>;
+      };
     };
 
     assert.equal(response.status, 200);
@@ -928,12 +932,11 @@ test("완료된 모델 결과가 의미 검수에서 거부되면 검증된 초�
     assert.equal(typeof result.requestId, "string");
     assert.equal(typeof result.stage, "string");
     assert.equal(typeof result.generationSource, "string");
-    assert.equal(result.fallbackReason, "model-output-rejected");
-    assert.equal(response.headers.get("x-baroform-ai-mode"), "verified-fallback");
-    assert.equal(
-      response.headers.get("x-baroform-ai-fallback"),
-      "model-output-rejected",
-    );
+    assert.equal(result.fallbackReason, null);
+    assert.equal(response.headers.get("x-baroform-ai-mode"), "model");
+    assert.ok(!response.headers.get("x-baroform-ai-fallback"));
+    assert.notEqual(result.blueprint?.evaluationTarget, "대학생");
+    assert.equal(result.blueprint?.aiQuestions?.length, questions.length);
   } finally {
     globalThis.fetch = previousFetch;
     if (previousKey) process.env.OPENAI_API_KEY = previousKey;
@@ -1479,6 +1482,77 @@ test("검색 기반 구조화 결과를 기존 설문 편집 형식으로 연결
   assert.deepEqual(diagnostics.preservedQuestionIds, ["1", "2", "3", "4", "5", "6", "7"]);
 });
 
+test("기관 entity가 먼저여도 솔빛관 대상과 모델 문항을 보존한다", () => {
+  const prompt = "새봄대학교 학생들의 솔빛관 이용 경험과 개선 의견";
+  const createPayload = () => {
+    const payload = structuredClone(structuredReadyPayload());
+    payload.output_parsed.research.entities = [
+      {
+        input_name: "솔빛관",
+        resolved_name: "새봄대학교 솔빛관",
+        resolved_as: "대학교 건물",
+        affiliation_or_location: "새봄대학교",
+        confidence: "verified",
+        verified_facts: [],
+      },
+    ];
+    payload.output_parsed.survey_plan.target =
+      "솔빛관을 이용하거나 방문한 새봄대학교 재학생";
+    payload.output_parsed.survey_plan.eligibility = "새봄대학교 재학생";
+    payload.output_parsed.survey.title = "새봄대학교 솔빛관 이용 경험 조사";
+    payload.output_parsed.survey.intro =
+      "새봄대학교 재학생의 솔빛관 이용 경험과 개선 의견을 알아보기 위한 설문입니다.";
+    payload.output_parsed.survey.questions = [
+      structuredQuestion(1, "behavior", "single_choice", "최근 한 달 동안 솔빛관을 얼마나 자주 방문했나요?", ["방문하지 않음", "월 1~3회", "주 1~2회", "주 3회 이상"]),
+      structuredQuestion(2, "experience", "multiple_choice", "솔빛관을 주로 어떤 목적으로 방문했나요?", ["수업", "학습", "모임", "행정 업무", "기타"]),
+      structuredQuestion(3, "evaluation", "scale", "솔빛관 내부 환경에 전반적으로 얼마나 만족하나요?"),
+      structuredQuestion(4, "barrier", "multiple_choice", "솔빛관을 이용하며 겪은 불편을 골라주세요.", ["혼잡", "이동 동선", "휴게 공간", "안내 부족", "특별히 없음"]),
+      structuredQuestion(5, "experience", "single_choice", "솔빛관 시설 안내를 찾기 쉬웠나요?", ["매우 어려웠음", "어려웠음", "보통", "쉬웠음", "매우 쉬웠음"]),
+      structuredQuestion(6, "barrier", "multiple_choice", "솔빛관에서 우선 개선되어야 할 부분을 골라주세요.", ["강의실", "휴게 공간", "이동 편의", "안내 체계", "기타"]),
+      structuredQuestion(7, "open", "long_text", "솔빛관 이용 환경을 개선하기 위한 의견을 적어주세요."),
+    ];
+    return payload;
+  };
+  const baseline = parseSurveyDraftResponse(
+    createPayload(),
+    prompt,
+    7,
+    "전학년",
+    false,
+  );
+  const payload = createPayload();
+  payload.output_parsed.research.entities.unshift({
+    input_name: "새봄대학교",
+    resolved_name: "새봄대학교",
+    resolved_as: "대학교",
+    affiliation_or_location: null,
+    confidence: "verified",
+    verified_facts: [],
+  });
+  const result = parseSurveyDraftResponse(
+    payload,
+    prompt,
+    7,
+    "전학년",
+    false,
+  );
+
+  assert.match(baseline.status, /^ready/);
+  assert.match(result.status, /^ready/);
+  if (
+    (baseline.status !== "ready" && baseline.status !== "ready_with_caution") ||
+    (result.status !== "ready" && result.status !== "ready_with_caution")
+  ) {
+    assert.fail("완성된 설문 결과가 필요합니다.");
+  }
+  assert.equal(result.blueprint.evaluationTarget, baseline.blueprint.evaluationTarget);
+  assert.equal(result.blueprint.evaluationTarget, "솔빛관");
+  assert.notEqual(result.blueprint.evaluationTarget, "새봄대학교");
+  assert.equal(result.blueprint.title, baseline.blueprint.title);
+  assert.equal(result.blueprint.description, baseline.blueprint.description);
+  assert.deepEqual(result.blueprint.aiQuestions, baseline.blueprint.aiQuestions);
+});
+
 test("모델이 조사 제목을 서비스처럼 질문하면 생성 후 의미 검증이 안전한 초안으로 복구한다", () => {
   const prompt = "전 연령대 AI 사용능력 실태조사";
   const payload = structuredReadyPayload();
@@ -1671,7 +1745,7 @@ test("검색 신뢰도가 미확정이면 설문은 유지하고 검증 사실�
   assert.deepEqual(result.research.facts, []);
 });
 
-test("research background 완료 결과가 의미 검수에서 거부되면 같은 작업에서 복구한다", async () => {
+test("research background 완료 결과도 조사 대상 메타데이터만 보정한다", async () => {
   const previousKey = process.env.OPENAI_API_KEY;
   const previousFetch = globalThis.fetch;
   const prompt = "대학생 연구 설문 background 출력 복구 확인";
@@ -1745,16 +1819,23 @@ test("research background 완료 결과가 의미 검수에서 거부되면 같�
         },
       }),
     );
-    const completed = (await completedResponse.json()) as { status?: string };
+    const completed = (await completedResponse.json()) as {
+      status?: string;
+      fallbackReason?: string | null;
+      blueprint?: {
+        evaluationTarget?: string;
+        aiQuestions?: Array<{ title: string }>;
+      };
+    };
 
     assert.equal(startResponse.status, 202);
     assert.equal(completedResponse.status, 200);
     assert.equal(completed.status, "ready_with_caution");
     assert.equal(fetchCalls, 2);
-    assert.equal(
-      completedResponse.headers.get("x-baroform-ai-fallback"),
-      "model-output-rejected",
-    );
+    assert.ok(!completed.fallbackReason);
+    assert.ok(!completedResponse.headers.get("x-baroform-ai-fallback"));
+    assert.notEqual(completed.blueprint?.evaluationTarget, "대학생");
+    assert.equal(completed.blueprint?.aiQuestions?.length, questions.length);
   } finally {
     globalThis.fetch = previousFetch;
     if (previousKey) process.env.OPENAI_API_KEY = previousKey;
@@ -2774,6 +2855,25 @@ test("최종 의미 검증은 respondentGroup의 좁은 범위와 응답자 안�
   const issues = validateSurvey(prompt, brief, wrongAudience);
   assert.match(issues.join(" "), /응답 대상 메타데이터/);
   assert.match(issues.join(" "), /안내문 또는 적격성 문항/);
+});
+
+test("최종 의미 검증은 상위 기관이 canonical 조사 대상을 덮으면 거부한다", () => {
+  const prompt = "새봄대학교 학생들의 솔빛관 이용 경험 조사";
+  const brief = parseSurveyBrief(prompt);
+  const blueprint = analyzeSurveyPrompt(prompt);
+  const issues = validateSurvey(
+    prompt,
+    brief,
+    {
+      ...blueprint,
+      evaluationTarget: "새봄대학교",
+    },
+    "솔빛관",
+  );
+
+  assert.ok(
+    issues.some((issue) => issue.startsWith("EVALUATION_TARGET_MISMATCH:")),
+  );
 });
 
 test("모델의 넓은 target과 대상 없는 안내문은 canonical audience로 보정한다", () => {
