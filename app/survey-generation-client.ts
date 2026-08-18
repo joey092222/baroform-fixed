@@ -59,6 +59,7 @@ type SurveyGenerationPayloadMetadata = {
   fallbackReason: string | null;
   responseType: string | null;
   responseStatus: string | null;
+  deploymentEnvironment: string | null;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -88,6 +89,9 @@ function responseMetadata(
       stringOrNull(response.headers.get("x-baroform-ai-fallback")),
     responseType: stringOrNull(payload.type),
     responseStatus: stringOrNull(payload.status),
+    deploymentEnvironment: stringOrNull(
+      response.headers.get("x-baroform-environment"),
+    ),
   };
 }
 
@@ -106,6 +110,7 @@ function contractError(
     fallbackReason: metadata.fallbackReason,
     responseType: metadata.responseType,
     responseStatus: metadata.responseStatus,
+    deploymentEnvironment: metadata.deploymentEnvironment,
   });
 }
 
@@ -232,8 +237,15 @@ export function surveyGenerationErrorMessage(error: unknown) {
       case "SURVEY_GENERATION_OUTPUT_MISSING":
       case "SURVEY_GENERATION_OUTPUT_INVALID":
       case "OUTPUT_JSON_INVALID":
-      case "OUTPUT_SCHEMA_INVALID":
-        return "완전한 설문 응답을 받지 못해 적용하지 않았어요. 다시 시도해주세요.";
+      case "OUTPUT_SCHEMA_INVALID": {
+        const message =
+          "완전한 설문 응답을 받지 못해 적용하지 않았어요. 다시 시도해주세요.";
+        const showDiagnostics = error.deploymentEnvironment
+          ? error.deploymentEnvironment === "preview"
+          : process.env.NODE_ENV !== "production";
+        if (!showDiagnostics) return message;
+        return `${message} 코드: ${error.code} · 단계: ${error.stage ?? "unknown"} · 요청 ID: ${error.requestId ?? "확인 불가"}`;
+      }
       case "SEMANTIC_VALIDATION_FAILED":
       case "REPAIR_FAILED":
       case "REPAIR_EXHAUSTED": {

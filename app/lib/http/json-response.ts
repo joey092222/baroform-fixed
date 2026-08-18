@@ -38,6 +38,7 @@ export class JsonResponseError extends Error {
   readonly fallbackReason: string | null;
   readonly responseType: string | null;
   readonly responseStatus: string | null;
+  readonly deploymentEnvironment: string | null;
 
   constructor(
     message: string,
@@ -50,6 +51,7 @@ export class JsonResponseError extends Error {
       fallbackReason?: string | null;
       responseType?: string | null;
       responseStatus?: string | null;
+      deploymentEnvironment?: string | null;
     },
   ) {
     super(message);
@@ -62,6 +64,7 @@ export class JsonResponseError extends Error {
     this.fallbackReason = options.fallbackReason ?? null;
     this.responseType = options.responseType ?? null;
     this.responseStatus = options.responseStatus ?? null;
+    this.deploymentEnvironment = options.deploymentEnvironment ?? null;
   }
 }
 
@@ -71,6 +74,7 @@ export async function readJsonResponse<T>(
 ): Promise<T> {
   const raw = await response.text();
   const headerRequestId = response.headers.get("x-baroform-request-id");
+  const deploymentEnvironment = response.headers.get("x-baroform-environment");
 
   if (!raw.trim()) {
     throw new JsonResponseError(
@@ -79,6 +83,7 @@ export async function readJsonResponse<T>(
         code: "SERVER_RESPONSE_EMPTY",
         status: response.status,
         requestId: headerRequestId,
+        deploymentEnvironment,
       },
     );
   }
@@ -93,6 +98,7 @@ export async function readJsonResponse<T>(
         code: "SERVER_RESPONSE_INVALID",
         status: response.status,
         requestId: headerRequestId,
+        deploymentEnvironment,
       },
     );
   }
@@ -128,6 +134,7 @@ export async function readJsonResponse<T>(
       fallbackReason,
       responseType,
       responseStatus,
+      deploymentEnvironment,
     });
   }
 
@@ -138,6 +145,7 @@ export async function readJsonResponse<T>(
         code: "SERVER_RESPONSE_INVALID",
         status: response.status,
         requestId,
+        deploymentEnvironment,
       },
     );
   }

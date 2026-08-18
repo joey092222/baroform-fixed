@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { JsonResponseError } from "../app/lib/http/json-response";
-import { readSurveyGenerationResponse } from "../app/survey-generation-client";
+import {
+  readSurveyGenerationResponse,
+  surveyGenerationErrorMessage,
+} from "../app/survey-generation-client";
 import {
   createSurveyGenerationTrace,
   recordSurveyContextTrace,
@@ -283,6 +286,66 @@ test("성공·실패 분석에 필요한 생성 trace 필드를 requestId 단위
   assert.ok(snapshot.totalElapsedMs >= 0);
   if (previousTraceFlag === undefined) delete mutableEnv.BAROFORM_AI_TRACE;
   else mutableEnv.BAROFORM_AI_TRACE = previousTraceFlag;
+});
+
+test("Preview의 불완전 출력 오류는 code, stage, requestId를 사용자 진단에 포함한다", async () => {
+  const response = Response.json(
+    {
+      requestId: "request-preview-schema",
+      type: "error",
+      ok: false,
+      status: "error",
+      code: "OUTPUT_SCHEMA_INVALID",
+      stage: "structured-output-schema-validation",
+      generationSource: "openai",
+      fallbackReason: null,
+      error: "생성된 설문 구조를 확인하지 못했어요.",
+    },
+    {
+      status: 422,
+      headers: { "x-baroform-environment": "preview" },
+    },
+  );
+
+  await assert.rejects(readResponse(response), (error: unknown) => {
+    assert.ok(error instanceof JsonResponseError);
+    assert.equal(error.deploymentEnvironment, "preview");
+    const message = surveyGenerationErrorMessage(error);
+    assert.match(message, /코드: OUTPUT_SCHEMA_INVALID/);
+    assert.match(message, /단계: structured-output-schema-validation/);
+    assert.match(message, /요청 ID: request-preview-schema/);
+    return true;
+  });
+});
+
+test("Production의 불완전 출력 오류는 기존 친절한 문구만 표시한다", async () => {
+  const response = Response.json(
+    {
+      requestId: "request-production-schema",
+      type: "error",
+      ok: false,
+      status: "error",
+      code: "OUTPUT_SCHEMA_INVALID",
+      stage: "structured-output-schema-validation",
+      generationSource: "openai",
+      fallbackReason: null,
+      error: "생성된 설문 구조를 확인하지 못했어요.",
+    },
+    {
+      status: 422,
+      headers: { "x-baroform-environment": "production" },
+    },
+  );
+
+  await assert.rejects(readResponse(response), (error: unknown) => {
+    assert.ok(error instanceof JsonResponseError);
+    assert.equal(error.deploymentEnvironment, "production");
+    assert.equal(
+      surveyGenerationErrorMessage(error),
+      "완전한 설문 응답을 받지 못해 적용하지 않았어요. 다시 시도해주세요.",
+    );
+    return true;
+  });
 });
 
 test("OpenAI parse failure fallback의 경로와 실제 원인을 구분한다", () => {
