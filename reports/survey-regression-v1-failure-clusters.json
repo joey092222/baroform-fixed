@@ -1,0 +1,1599 @@
+{
+  "baselineSha": "b2c52ca82af1c5c16fae3fb72af20bf34436f8c7",
+  "actualFailureCount": 92,
+  "ambiguousSpecificationCount": 3,
+  "topThreeCount": 77,
+  "topThreeCoverage": 0.8369565217391305,
+  "clusters": [
+    {
+      "key": "canonical_role_preservation",
+      "title": "Canonical intent role preservation",
+      "severity": 5,
+      "generalizationCoefficient": 1,
+      "firstFailureStage": "canonical intent parsing and role extraction",
+      "relatedCode": "app/survey-canonical-intent.ts::parseCanonicalSurveyIntent -> app/survey-context-core.ts::parseSurveyGenerationContextCore / app/survey-semantic-intent-core.ts::parseSurveyIntentFromCanonicalSource",
+      "hypothesis": "응답 대상, 조사 대상, 활동, 부정 조건, 관계 목적을 분리하기 전에 자유 입력의 일부 또는 전체를 targetPopulation/evaluationTarget으로 재사용하여 이후 plan과 model prompt가 이미 왜곡된 의미를 전달함.",
+      "traceEvidence": [
+        "dev-complex-001은 OpenAI 호출 전 canonical surveyObject가 중앙도서관이라는 단일 시설이 아니라 만족도·혼잡·예약 기능까지 합친 긴 목적어로 저장됨.",
+        "dev-complex-009는 canonical evaluationTarget에 '에게 ... 묻고 싶어'라는 요청 문장 조각이 남고 mobility 입력이 attitude로 분류됨.",
+        "dev-general-013은 canonical surveyObject가 실제 플랫폼 온새미가 아니라 기관인 새봄대학교로 축약됨.",
+        "dev-past-004와 dev-past-009는 각각 비이용 조건 또는 전체 대학생 범위가 canonical targetPopulation 단계에서 유실·축소됨."
+      ],
+      "generalRule": "사용자 원문을 역할별 구조로 분리하고 canonical respondent, object, activity, purpose, negation을 단일 권한으로 유지하며 하위 parser와 plan은 이를 재해석하지 않고 파생만 함.",
+      "regressionRisk": "기존 service/facility usage 입력에서 정상적으로 좁혀진 이용자 조건까지 과도하게 넓힐 수 있으므로 이용자·비이용자·전체 집단 control이 필요함.",
+      "caseCount": 43,
+      "devCount": 33,
+      "seenHoldoutCount": 10,
+      "domainCount": 14,
+      "domains": [
+        "academic_course",
+        "academic_satisfaction",
+        "consumer_behavior",
+        "digital_service",
+        "event_program",
+        "facility_mobility",
+        "food_service",
+        "lifestyle_behavior",
+        "multiple_target_comparison",
+        "noisy_input",
+        "relationship_research",
+        "reversed_roles",
+        "single_multi_purpose",
+        "teamwork_school_life"
+      ],
+      "representativeCaseIds": [
+        "dev-complex-001",
+        "dev-complex-003",
+        "dev-complex-004",
+        "dev-complex-005",
+        "dev-complex-009"
+      ],
+      "generationPaths": {
+        "deterministic_metadata_normalization": 31,
+        "partial_repair": 12
+      },
+      "expectedResolvedCount": 43,
+      "priorityScore": 215
+    },
+    {
+      "key": "model_output_rejection_fallback",
+      "title": "Model-output rejection and hard fallback",
+      "severity": 5,
+      "generalizationCoefficient": 0.95,
+      "firstFailureStage": "model output parse, semantic/quality validation, and fallback selection",
+      "relatedCode": "app/survey-ai.ts::parseSurveyDraftResponse and app/api/survey-draft/route.ts::respondWithPlanBasedFallback / fallbackResponse / outputRejectionFallbackSource",
+      "hypothesis": "복구 가능한 모델 출력과 치명적 출력이 같은 거절 경로로 합쳐지고 validator 또는 required-block 복구가 실패하면 정상 질문까지 폐기한 뒤 범용 blueprint 설문으로 교체함.",
+      "traceEvidence": [
+        "19개 hard fallback 중 17개가 fallbackReason=model-output-rejected 및 generationSource=openai_question_validation_fallback으로 수렴함.",
+        "같은 경로가 음식, 관계, 디지털 서비스, 이동, 다중 대상 비교 등 서로 다른 도메인에서 반복됨.",
+        "fallback 결과는 질문 수를 채우더라도 원래 목적 coverage와 역할 정보를 잃어 경로 기준과 의미 기준을 모두 실패함."
+      ],
+      "generalRule": "parse/semantic/quality issue를 복구 가능성과 치명도로 구분하고, 결정적 metadata만 정규화하며 정상 질문은 보존하고 hard fallback은 최후 수단으로 제한함.",
+      "regressionRisk": "validator 완화가 실제 의미 오류를 통과시킬 수 있으므로 복구 가능한 metadata와 질문·선택지의 치명적 오류 경계를 회귀 테스트로 고정해야 함.",
+      "caseCount": 19,
+      "devCount": 16,
+      "seenHoldoutCount": 3,
+      "domainCount": 8,
+      "domains": [
+        "consumer_behavior",
+        "digital_service",
+        "facility_mobility",
+        "food_service",
+        "lifestyle_behavior",
+        "multiple_target_comparison",
+        "relationship_research",
+        "single_multi_purpose"
+      ],
+      "representativeCaseIds": [
+        "dev-complex-002",
+        "dev-complex-006",
+        "dev-complex-007",
+        "dev-complex-008",
+        "dev-complex-013"
+      ],
+      "generationPaths": {
+        "hard_fallback": 19
+      },
+      "expectedResolvedCount": 19,
+      "priorityScore": 90.25
+    },
+    {
+      "key": "request_execution_contract",
+      "title": "Request execution and response contract failure",
+      "severity": 5,
+      "generalizationCoefficient": 0.9,
+      "firstFailureStage": "route-level parse/repair/fallback response validation",
+      "relatedCode": "app/api/survey-draft/route.ts::fallbackResponse and POST /api/survey-draft error/contract branches",
+      "hypothesis": "Responses API가 completed이고 output_parsed가 존재하는 경우에도 parse·repair·fallback 검증 뒤 422로 종료되며, fallback 자체가 schema/semantic 검사를 통과하지 못하면 구조화된 survey 대신 request failure를 반환함.",
+      "traceEvidence": [
+        "15개 request failure 중 13개가 HTTP 422이고 2개가 HTTP 500임.",
+        "대부분의 422 사례에서 upstream response.status=completed이며 output_parsed도 존재해 네트워크나 모델 timeout보다 서버 후처리 계약이 최초 실패 지점임.",
+        "route의 fallbackResponse는 대체 설문 validation issue가 남으면 REPAIR_EXHAUSTED 422를 반환하므로 fallback이 실패를 흡수하지 못하고 요청 전체 실패로 승격됨."
+      ],
+      "generalRule": "OpenAI 결과, repair, fallback, 최종 response contract를 같은 SurveyPlan과 검증 계약으로 연결하고 각 실패 stage를 보존하며, 정상 입력은 유효한 survey 또는 명시적 clarification으로만 종료함.",
+      "regressionRisk": "422를 단순 200으로 바꾸면 불완전 설문을 노출할 수 있으므로 최종 schema·semantic·question-count gate는 유지해야 함.",
+      "caseCount": 15,
+      "devCount": 12,
+      "seenHoldoutCount": 3,
+      "domainCount": 9,
+      "domains": [
+        "clarification",
+        "consumer_behavior",
+        "digital_service",
+        "event_program",
+        "facility_mobility",
+        "lifestyle_behavior",
+        "relationship_research",
+        "reversed_roles",
+        "teamwork_school_life"
+      ],
+      "representativeCaseIds": [
+        "dev-clarify-002",
+        "dev-complex-010",
+        "dev-complex-014",
+        "dev-general-015",
+        "dev-general-016"
+      ],
+      "generationPaths": {
+        "request_failure": 15
+      },
+      "expectedResolvedCount": 15,
+      "priorityScore": 67.5
+    },
+    {
+      "key": "clarification_policy",
+      "title": "Clarification policy mismatch",
+      "severity": 4,
+      "generalizationCoefficient": 0.8,
+      "firstFailureStage": "ambiguity detection before generation",
+      "relatedCode": "canonical intent completeness checks and POST /api/survey-draft clarification branch",
+      "hypothesis": "대상 또는 목적이 실제로 모호한 입력과 짧지만 충분히 명확한 입력을 같은 완성도 규칙으로 처리하여 불필요한 설문 생성 또는 불필요한 clarification을 만듦.",
+      "traceEvidence": [
+        "dev-clarify-001, dev-clarify-003, holdout-clarify-001처럼 필수 역할이 없는 입력에도 임의 설문이 생성됨.",
+        "dev-clarify-006처럼 생성 가능한 입력에는 반대로 clarification이 반환됨.",
+        "clarification 기대·비기대 사례가 모두 실패해 단일 문장 표현보다 completeness policy 결함을 가리킴."
+      ],
+      "generalRule": "canonical role completeness와 후보 신뢰도를 기준으로 clarification을 결정하고, 질문은 실제로 빠진 역할 하나를 해소하도록 만듦.",
+      "regressionRisk": "threshold 조정으로 명확한 입력을 막거나 모호한 입력을 억지 생성할 수 있으므로 양방향 control이 필요함.",
+      "caseCount": 8,
+      "devCount": 6,
+      "seenHoldoutCount": 2,
+      "domainCount": 2,
+      "domains": [
+        "academic_course",
+        "clarification"
+      ],
+      "representativeCaseIds": [
+        "dev-clarify-001",
+        "dev-clarify-003",
+        "dev-clarify-004",
+        "dev-clarify-005",
+        "dev-clarify-006"
+      ],
+      "generationPaths": {
+        "clarification": 1,
+        "deterministic_metadata_normalization": 7
+      },
+      "expectedResolvedCount": 8,
+      "priorityScore": 25.6
+    },
+    {
+      "key": "question_plan_quality",
+      "title": "Question-plan coverage and quality",
+      "severity": 4,
+      "generalizationCoefficient": 0.8,
+      "firstFailureStage": "SurveyPlan block coverage and final question quality validation",
+      "relatedCode": "app/survey-planning.ts::createSurveyPlan and app/survey-intent.ts::validateSurvey",
+      "hypothesis": "canonical 역할이 비교적 보존되고 요청이 성공해도 복수 목적의 required block, 직접 만족도, 문항 수, screener 위치와 중복 construct가 최종 질문에 일관되게 연결되지 않음.",
+      "traceEvidence": [
+        "dev-general-017과 dev-past-012 등은 필요한 결과 구조 또는 직접 측정 block이 빠져 request/quality issue로 이어짐.",
+        "dev-general-028은 이용 여부 screener가 경험 문항 뒤에 배치되고 dev-past-017은 불편 construct가 중복되는 반면 전반 만족도는 누락됨.",
+        "서로 다른 목적·문항 유형에서 required concept와 실제 질문 역할 연결이 끊김."
+      ],
+      "generalRule": "SurveyPlan block ID를 최종 질문 역할과 연결하고 문항 수·순서·직접 측정·중복 방지를 동일한 plan-aware validator로 검증함.",
+      "regressionRisk": "필수 block을 기계적으로 추가하면 문항 수 초과나 중복이 생길 수 있으므로 교체 우선순위와 requestedQuestionCount를 단일 source로 유지해야 함.",
+      "caseCount": 7,
+      "devCount": 6,
+      "seenHoldoutCount": 1,
+      "domainCount": 4,
+      "domains": [
+        "academic_course",
+        "consumer_behavior",
+        "facility_mobility",
+        "food_service"
+      ],
+      "representativeCaseIds": [
+        "dev-general-002",
+        "dev-general-006",
+        "dev-general-011",
+        "dev-general-028",
+        "dev-past-007"
+      ],
+      "generationPaths": {
+        "deterministic_metadata_normalization": 1,
+        "partial_repair": 6
+      },
+      "expectedResolvedCount": 7,
+      "priorityScore": 22.400000000000002
+    }
+  ],
+  "assignments": [
+    {
+      "caseId": "dev-clarify-001",
+      "split": "dev",
+      "category": "clarification",
+      "input": "학교 만족도",
+      "cluster": "clarification_policy",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "EXPECTED_CLARIFICATION_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-clarify-002",
+      "split": "dev",
+      "category": "clarification",
+      "input": "앱 조사",
+      "cluster": "request_execution_contract",
+      "classification": "request_failure",
+      "generationSource": "unknown",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "EXPECTED_CLARIFICATION_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-clarify-003",
+      "split": "dev",
+      "category": "clarification",
+      "input": "시설 이용",
+      "cluster": "clarification_policy",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "EXPECTED_CLARIFICATION_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-clarify-004",
+      "split": "dev",
+      "category": "clarification",
+      "input": "학생들 생각",
+      "cluster": "clarification_policy",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "EXPECTED_CLARIFICATION_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-clarify-005",
+      "split": "dev",
+      "category": "clarification",
+      "input": "서비스 개선",
+      "cluster": "clarification_policy",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "EXPECTED_CLARIFICATION_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-clarify-006",
+      "split": "dev",
+      "category": "clarification",
+      "input": "두 개 비교",
+      "cluster": "clarification_policy",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "EXPECTED_CLARIFICATION_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-complex-001",
+      "split": "dev",
+      "category": "single_multi_purpose",
+      "input": "새봄대학교 중앙도서관 한 곳의 좌석 만족도, 혼잡 경험, 예약 기능 수요",
+      "cluster": "canonical_role_preservation",
+      "classification": "partial_repair",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-complex-002",
+      "split": "dev",
+      "category": "single_multi_purpose",
+      "input": "배달 앱 한 개를 이용하는 1인 가구의 주문 습관과 지출, 구독 혜택 수요",
+      "cluster": "model_output_rejection_fallback",
+      "classification": "hard_fallback",
+      "generationSource": "openai_question_validation_fallback",
+      "fallbackReason": "model-output-rejected",
+      "fatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "NAMED_TERM_LOST",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-complex-003",
+      "split": "dev",
+      "category": "single_multi_purpose",
+      "input": "학생상담 프로그램을 모르는 재학생의 인지도, 비이용 이유, 이용 의향",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-complex-004",
+      "split": "dev",
+      "category": "single_multi_purpose",
+      "input": "지역 체육관을 다니는 주민의 이용 패턴, 불편, 재등록 의향",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-complex-005",
+      "split": "dev",
+      "category": "multiple_target_comparison",
+      "input": "새봄대학교 솔빛관과 별마루관의 접근성·혼잡·안전 비교",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ]
+    },
+    {
+      "caseId": "dev-complex-006",
+      "split": "dev",
+      "category": "multiple_target_comparison",
+      "input": "온새미 플랫폼과 별마루 서비스 사용자의 편의성 및 신뢰도 차이",
+      "cluster": "model_output_rejection_fallback",
+      "classification": "hard_fallback",
+      "generationSource": "openai_question_validation_fallback",
+      "fallbackReason": "model-output-rejected",
+      "fatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "SURVEY_OBJECT_MISMATCH"
+      ]
+    },
+    {
+      "caseId": "dev-complex-007",
+      "split": "dev",
+      "category": "multiple_target_comparison",
+      "input": "버스 통근자와 지하철 통근자의 소요 시간·혼잡·피로 비교",
+      "cluster": "model_output_rejection_fallback",
+      "classification": "hard_fallback",
+      "generationSource": "openai_question_validation_fallback",
+      "fallbackReason": "model-output-rejected",
+      "fatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "GENERIC_FILLER"
+      ]
+    },
+    {
+      "caseId": "dev-complex-008",
+      "split": "dev",
+      "category": "multiple_target_comparison",
+      "input": "온라인 멘토링과 대면 멘토링에 참여한 청년의 도움 정도와 지속 참여 의향 비교",
+      "cluster": "model_output_rejection_fallback",
+      "classification": "hard_fallback",
+      "generationSource": "openai_question_validation_fallback",
+      "fallbackReason": "model-output-rejected",
+      "fatalCodes": [
+        "HARD_FALLBACK",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-complex-009",
+      "split": "dev",
+      "category": "reversed_roles",
+      "input": "새봄대학교 학생에게 솔빛관을 오갈 때 느끼는 혼잡과 안전을 묻고 싶어",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "SURVEY_OBJECT_MISMATCH",
+        "MALFORMED_SEMANTIC_PHRASE"
+      ]
+    },
+    {
+      "caseId": "dev-complex-010",
+      "split": "dev",
+      "category": "reversed_roles",
+      "input": "별마루 서비스를 안 쓰는 직장인 대상으로 서비스가 어려운 이유랑 필요한 기능",
+      "cluster": "request_execution_contract",
+      "classification": "request_failure",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "REQUEST_FAILURE",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ]
+    },
+    {
+      "caseId": "dev-complex-011",
+      "split": "dev",
+      "category": "reversed_roles",
+      "input": "새 메뉴 만족도는 별마루 카페를 최근 한 달 이용한 주민한테 조사",
+      "cluster": "canonical_role_preservation",
+      "classification": "partial_repair",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-complex-012",
+      "split": "dev",
+      "category": "reversed_roles",
+      "input": "동아리 안 한 신입생한테 학교 적응이랑 가입 안 한 이유 물어보기",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-complex-013",
+      "split": "dev",
+      "category": "relationship_research",
+      "input": "대학생의 월 용돈 규모가 외식 빈도와 충동구매에 미치는 영향",
+      "cluster": "model_output_rejection_fallback",
+      "classification": "hard_fallback",
+      "generationSource": "openai_question_validation_fallback",
+      "fallbackReason": "model-output-rejected",
+      "fatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-complex-014",
+      "split": "dev",
+      "category": "relationship_research",
+      "input": "직장인의 평일 수면 시간과 지각 빈도의 상관관계",
+      "cluster": "request_execution_contract",
+      "classification": "request_failure",
+      "generationSource": "openai_question_validation_fallback",
+      "fallbackReason": "model-output-rejected",
+      "fatalCodes": [
+        "REQUEST_FAILURE",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ]
+    },
+    {
+      "caseId": "dev-complex-015",
+      "split": "dev",
+      "category": "relationship_research",
+      "input": "통학 시간이 대학생의 학교생활 만족도에 미치는 영향과 교통수단별 차이",
+      "cluster": "canonical_role_preservation",
+      "classification": "partial_repair",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "MALFORMED_SEMANTIC_PHRASE"
+      ]
+    },
+    {
+      "caseId": "dev-complex-016",
+      "split": "dev",
+      "category": "relationship_research",
+      "input": "청소년의 하루 화면 이용 시간이 학습 집중도와 수면 만족도에 미치는 관계",
+      "cluster": "model_output_rejection_fallback",
+      "classification": "hard_fallback",
+      "generationSource": "openai_question_validation_fallback",
+      "fallbackReason": "model-output-rejected",
+      "fatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "MALFORMED_SEMANTIC_PHRASE",
+        "OVERALL_SATISFACTION_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-general-001",
+      "split": "dev",
+      "category": "academic_course",
+      "input": "새봄대학교 심리학과 1학년의 이번 학기 온라인 강의 만족도",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ]
+    },
+    {
+      "caseId": "dev-general-002",
+      "split": "dev",
+      "category": "academic_course",
+      "input": "직장인이 퇴근 후 듣는 야간 강좌의 학습 효과와 어려움",
+      "cluster": "question_plan_quality",
+      "classification": "partial_repair",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "GENERIC_FILLER"
+      ]
+    },
+    {
+      "caseId": "dev-general-003",
+      "split": "dev",
+      "category": "academic_course",
+      "input": "진로 특강에 참여하지 않은 대학생의 불참 이유와 향후 참여 의향",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-general-004",
+      "split": "dev",
+      "category": "academic_course",
+      "input": "통계학 강의와 프로그래밍 강의가 데이터 분석 자신감에 미치는 영향을 비교",
+      "cluster": "clarification_policy",
+      "classification": "clarification",
+      "generationSource": "clarification",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "UNEXPECTED_CLARIFICATION"
+      ]
+    },
+    {
+      "caseId": "dev-general-006",
+      "split": "dev",
+      "category": "facility_mobility",
+      "input": "출근하는 직장인의 환승역 혼잡과 이동 안전 체감",
+      "cluster": "question_plan_quality",
+      "classification": "partial_repair",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "REQUIRED_CONCEPT_MISSING",
+        "GENERIC_FILLER"
+      ]
+    },
+    {
+      "caseId": "dev-general-007",
+      "split": "dev",
+      "category": "facility_mobility",
+      "input": "휠체어 이용자가 공공도서관에 방문할 때 겪는 접근성 문제",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-general-008",
+      "split": "dev",
+      "category": "facility_mobility",
+      "input": "자전거와 전동킥보드로 출퇴근하는 사람들의 이동 시간과 안전 경험 비교",
+      "cluster": "canonical_role_preservation",
+      "classification": "partial_repair",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "GENERIC_FILLER"
+      ]
+    },
+    {
+      "caseId": "dev-general-009",
+      "split": "dev",
+      "category": "food_service",
+      "input": "새봄대학교 학생이 별마루 카페를 이용하는 빈도와 메뉴 만족도",
+      "cluster": "model_output_rejection_fallback",
+      "classification": "hard_fallback",
+      "generationSource": "openai_question_validation_fallback",
+      "fallbackReason": "model-output-rejected",
+      "fatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_CONCEPT_MISSING",
+        "FORBIDDEN_CONCEPT_PRESENT",
+        "GENERIC_FILLER"
+      ]
+    },
+    {
+      "caseId": "dev-general-010",
+      "split": "dev",
+      "category": "food_service",
+      "input": "재택근무자의 배달음식 주문 빈도와 지출 부담",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ]
+    },
+    {
+      "caseId": "dev-general-011",
+      "split": "dev",
+      "category": "food_service",
+      "input": "편의점 간편식을 구매하지 않는 20대의 미구매 이유",
+      "cluster": "question_plan_quality",
+      "classification": "partial_repair",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "GENERIC_FILLER"
+      ]
+    },
+    {
+      "caseId": "dev-general-012",
+      "split": "dev",
+      "category": "food_service",
+      "input": "새봄대학교 별마루 식당과 해오름 식당의 가격·맛·대기시간 비교",
+      "cluster": "model_output_rejection_fallback",
+      "classification": "hard_fallback",
+      "generationSource": "openai_question_validation_fallback",
+      "fallbackReason": "model-output-rejected",
+      "fatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "GENERIC_FILLER",
+        "OVERALL_SATISFACTION_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-general-013",
+      "split": "dev",
+      "category": "digital_service",
+      "input": "새봄대학교 구성원의 온새미 플랫폼 사용성과 오류 경험",
+      "cluster": "canonical_role_preservation",
+      "classification": "partial_repair",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-general-014",
+      "split": "dev",
+      "category": "digital_service",
+      "input": "동네 주민의 당근 앱 이용 목적과 거래 만족도",
+      "cluster": "model_output_rejection_fallback",
+      "classification": "hard_fallback",
+      "generationSource": "openai_question_validation_fallback",
+      "fallbackReason": "model-output-rejected",
+      "fatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "GENERIC_FILLER",
+        "OVERALL_SATISFACTION_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-general-015",
+      "split": "dev",
+      "category": "digital_service",
+      "input": "모바일 뱅킹을 사용하지 않는 고령층의 디지털 장벽",
+      "cluster": "request_execution_contract",
+      "classification": "request_failure",
+      "generationSource": "unknown",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "REQUEST_FAILURE",
+        "TARGET_POPULATION_MISMATCH",
+        "NAMED_TERM_LOST",
+        "NEGATION_LOST",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH",
+        "SCHEMA_ISSUES"
+      ]
+    },
+    {
+      "caseId": "dev-general-016",
+      "split": "dev",
+      "category": "digital_service",
+      "input": "iOS용 공부 앱과 안드로이드용 공부 앱의 사용성 및 지속 사용 의향 비교",
+      "cluster": "request_execution_contract",
+      "classification": "request_failure",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "REQUEST_FAILURE",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH",
+        "SEMANTIC_ISSUES"
+      ]
+    },
+    {
+      "caseId": "dev-general-017",
+      "split": "dev",
+      "category": "event_program",
+      "input": "새봄대학교 축제 참가자의 프로그램 만족도와 재참여 의향",
+      "cluster": "request_execution_contract",
+      "classification": "request_failure",
+      "generationSource": "unknown",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "REQUEST_FAILURE",
+        "SURVEY_OBJECT_MISMATCH",
+        "NAMED_TERM_LOST",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "OVERALL_SATISFACTION_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ]
+    },
+    {
+      "caseId": "dev-general-018",
+      "split": "dev",
+      "category": "event_program",
+      "input": "동아리에 가입하지 않은 학생의 미가입 이유와 관심 활동",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-general-019",
+      "split": "dev",
+      "category": "event_program",
+      "input": "지역 주민이 봄꽃 축제에 참여한 경험과 지역 상권 효과에 대한 인식",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-general-021",
+      "split": "dev",
+      "category": "teamwork_school_life",
+      "input": "대학생 팀플에서 역할 분담 공정성과 의사소통 만족도",
+      "cluster": "request_execution_contract",
+      "classification": "request_failure",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "REQUEST_FAILURE",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "OVERALL_SATISFACTION_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ]
+    },
+    {
+      "caseId": "dev-general-022",
+      "split": "dev",
+      "category": "teamwork_school_life",
+      "input": "교내 상담센터를 이용하지 않은 학생의 인지도와 이용 장벽",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-general-023",
+      "split": "dev",
+      "category": "teamwork_school_life",
+      "input": "원격근무 팀원의 협업 도구 피로와 소속감",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-general-025",
+      "split": "dev",
+      "category": "consumer_behavior",
+      "input": "최근 3개월 1인 가구의 장보기 빈도와 물가 부담",
+      "cluster": "model_output_rejection_fallback",
+      "classification": "hard_fallback",
+      "generationSource": "openai_question_validation_fallback",
+      "fallbackReason": "model-output-rejected",
+      "fatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "GENERIC_FILLER"
+      ]
+    },
+    {
+      "caseId": "dev-general-027",
+      "split": "dev",
+      "category": "consumer_behavior",
+      "input": "넷플릭스와 티빙 구독자의 이용 빈도·콘텐츠 만족도 비교",
+      "cluster": "request_execution_contract",
+      "classification": "request_failure",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "REQUEST_FAILURE",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "OVERALL_SATISFACTION_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ]
+    },
+    {
+      "caseId": "dev-general-028",
+      "split": "dev",
+      "category": "consumer_behavior",
+      "input": "지역 주민의 공공자전거 이용 경험과 요금 만족도",
+      "cluster": "question_plan_quality",
+      "classification": "partial_repair",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "MISPLACED_SCREENING_QUESTION"
+      ]
+    },
+    {
+      "caseId": "dev-general-029",
+      "split": "dev",
+      "category": "lifestyle_behavior",
+      "input": "대학생의 평일 수면 시간과 수업 집중도의 관계",
+      "cluster": "model_output_rejection_fallback",
+      "classification": "hard_fallback",
+      "generationSource": "fast_draft_fallback",
+      "fallbackReason": "deterministic-direct-measurement",
+      "fatalCodes": [
+        "HARD_FALLBACK"
+      ]
+    },
+    {
+      "caseId": "dev-general-030",
+      "split": "dev",
+      "category": "lifestyle_behavior",
+      "input": "최근 한 달 직장인의 SNS 하루 이용 시간과 피로감",
+      "cluster": "model_output_rejection_fallback",
+      "classification": "hard_fallback",
+      "generationSource": "openai_question_validation_fallback",
+      "fallbackReason": "model-output-rejected",
+      "fatalCodes": [
+        "HARD_FALLBACK",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "GENERIC_FILLER"
+      ]
+    },
+    {
+      "caseId": "dev-general-031",
+      "split": "dev",
+      "category": "lifestyle_behavior",
+      "input": "주 1회도 운동하지 않는 성인의 운동 방해 요인",
+      "cluster": "canonical_role_preservation",
+      "classification": "partial_repair",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-general-032",
+      "split": "dev",
+      "category": "lifestyle_behavior",
+      "input": "독서와 팟캐스트 청취를 여가로 즐기는 사람들의 시간 사용과 만족도 비교",
+      "cluster": "request_execution_contract",
+      "classification": "request_failure",
+      "generationSource": "openai_question_validation_fallback",
+      "fallbackReason": "model-output-rejected",
+      "fatalCodes": [
+        "REQUEST_FAILURE",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "OVERALL_SATISFACTION_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ]
+    },
+    {
+      "caseId": "dev-noisy-001",
+      "split": "dev",
+      "category": "noisy_input",
+      "input": "새봄대 솔빛관 이동 불편 뭐가 젤 큰지",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ]
+    },
+    {
+      "caseId": "dev-noisy-003",
+      "split": "dev",
+      "category": "noisy_input",
+      "input": "동아리 안함 이유 이유랑 가입생각",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-noisy-004",
+      "split": "dev",
+      "category": "noisy_input",
+      "input": "온새미앱 써본사람 불편 만족",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-noisy-005",
+      "split": "dev",
+      "category": "noisy_input",
+      "input": "최근3달 배달 안시킨 1인가구 왜",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-noisy-006",
+      "split": "dev",
+      "category": "noisy_input",
+      "input": "팀플 팀플 갈등 해결 어케하는지 조사좀",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ]
+    },
+    {
+      "caseId": "dev-past-002",
+      "split": "dev",
+      "category": "academic_satisfaction",
+      "input": "최근 한 학기 동안 연세대 경영대생이 느낀 경영대 시설 만족도와 개선점을 조사해줘",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ]
+    },
+    {
+      "caseId": "dev-past-003",
+      "split": "dev",
+      "category": "academic_satisfaction",
+      "input": "경영대생들 경영대 시설 괜찮았는지랑 불편했던 점 조사",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ]
+    },
+    {
+      "caseId": "dev-past-004",
+      "split": "dev",
+      "category": "academic_satisfaction",
+      "input": "경영대 시설을 이용하지 않는 연세대 경영대생의 비이용 이유와 학교 이미지",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ]
+    },
+    {
+      "caseId": "dev-past-005",
+      "split": "dev",
+      "category": "facility_mobility",
+      "input": "연세대학교 학생들의 대우관 등하교 경험",
+      "cluster": "model_output_rejection_fallback",
+      "classification": "hard_fallback",
+      "generationSource": "openai_question_validation_fallback",
+      "fallbackReason": "model-output-rejected",
+      "fatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-past-006",
+      "split": "dev",
+      "category": "facility_mobility",
+      "input": "대우관 오갈 때 학생들 이동수단이랑 얼마나 걸리는지, 뭐가 불편한지",
+      "cluster": "request_execution_contract",
+      "classification": "request_failure",
+      "generationSource": "openai_question_validation_fallback",
+      "fallbackReason": "model-output-rejected",
+      "fatalCodes": [
+        "REQUEST_FAILURE",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ]
+    },
+    {
+      "caseId": "dev-past-007",
+      "split": "dev",
+      "category": "facility_mobility",
+      "input": "지난달 연세대 재학생이 대우관을 방문한 빈도와 혼잡·안전 경험 조사",
+      "cluster": "question_plan_quality",
+      "classification": "partial_repair",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-past-008",
+      "split": "dev",
+      "category": "facility_mobility",
+      "input": "대우관에 가지 않는 연세대 학생이 방문하지 않는 이유",
+      "cluster": "request_execution_contract",
+      "classification": "request_failure",
+      "generationSource": "unknown",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "REQUEST_FAILURE",
+        "NEGATION_LOST",
+        "REQUIRED_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH",
+        "SCHEMA_ISSUES"
+      ]
+    },
+    {
+      "caseId": "dev-past-009",
+      "split": "dev",
+      "category": "digital_service",
+      "input": "국내 최대 웹툰 플랫폼인 네이버 웹툰의 대학생들의 이용 현황과 경험",
+      "cluster": "canonical_role_preservation",
+      "classification": "partial_repair",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ]
+    },
+    {
+      "caseId": "dev-past-010",
+      "split": "dev",
+      "category": "digital_service",
+      "input": "네웹 안 쓰는 대학생들 왜 안 쓰는지랑 앞으로 쓸 생각 있는지",
+      "cluster": "canonical_role_preservation",
+      "classification": "partial_repair",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "SURVEY_OBJECT_MISMATCH",
+        "GENERIC_FILLER"
+      ]
+    },
+    {
+      "caseId": "dev-past-011",
+      "split": "dev",
+      "category": "digital_service",
+      "input": "최근 3개월 대학생의 네이버 웹툰 이용 빈도와 이용 시간 조사",
+      "cluster": "model_output_rejection_fallback",
+      "classification": "hard_fallback",
+      "generationSource": "openai_question_validation_fallback",
+      "fallbackReason": "model-output-rejected",
+      "fatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-past-012",
+      "split": "dev",
+      "category": "digital_service",
+      "input": "대학생이 네이버 웹툰과 카카오페이지를 이용하는 빈도와 만족도를 비교",
+      "cluster": "request_execution_contract",
+      "classification": "request_failure",
+      "generationSource": "unknown",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "REQUEST_FAILURE",
+        "NAMED_TERM_LOST",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "OVERALL_SATISFACTION_MISSING",
+        "QUESTION_COUNT_MISMATCH",
+        "SCHEMA_ISSUES"
+      ]
+    },
+    {
+      "caseId": "dev-past-013",
+      "split": "dev",
+      "category": "food_service",
+      "input": "연세대학교 학생들의 한경관 학식 이용 경험",
+      "cluster": "canonical_role_preservation",
+      "classification": "partial_repair",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ]
+    },
+    {
+      "caseId": "dev-past-015",
+      "split": "dev",
+      "category": "food_service",
+      "input": "이번 학기 연세대생 한경관 학식 얼마나 자주 먹고 메뉴에는 만족하는지",
+      "cluster": "model_output_rejection_fallback",
+      "classification": "hard_fallback",
+      "generationSource": "openai_question_validation_fallback",
+      "fallbackReason": "model-output-rejected",
+      "fatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "GENERIC_FILLER",
+        "OVERALL_SATISFACTION_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-past-016",
+      "split": "dev",
+      "category": "food_service",
+      "input": "연세대 학생이 한경관 학식과 고를샘 식당을 선택하는 이유와 만족도 비교",
+      "cluster": "model_output_rejection_fallback",
+      "classification": "hard_fallback",
+      "generationSource": "openai_question_validation_fallback",
+      "fallbackReason": "model-output-rejected",
+      "fatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_CONCEPT_MISSING",
+        "FORBIDDEN_CONCEPT_PRESENT",
+        "GENERIC_FILLER"
+      ]
+    },
+    {
+      "caseId": "dev-past-017",
+      "split": "dev",
+      "category": "food_service",
+      "input": "맛나샘을 이용하는 학생들의 만족도와 개선 의견",
+      "cluster": "question_plan_quality",
+      "classification": "partial_repair",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "DUPLICATE_CONSTRUCT",
+        "OVERALL_SATISFACTION_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-past-018",
+      "split": "dev",
+      "category": "food_service",
+      "input": "맛나샘 안 가는 학생들 이유 조사해줘",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "dev-past-019",
+      "split": "dev",
+      "category": "food_service",
+      "input": "최근 한 달 맛나샘 이용 학생의 방문 빈도와 음식 만족도",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "SURVEY_OBJECT_MISMATCH"
+      ]
+    },
+    {
+      "caseId": "dev-past-020",
+      "split": "dev",
+      "category": "food_service",
+      "input": "맛나샘 학생들 맛 서비스 둘다 어떤지 불편도",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "OVERALL_SATISFACTION_MISSING"
+      ]
+    },
+    {
+      "caseId": "holdout-clarify-001",
+      "split": "holdout",
+      "category": "clarification",
+      "input": "공간 평가",
+      "cluster": "clarification_policy",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "EXPECTED_CLARIFICATION_MISSING"
+      ]
+    },
+    {
+      "caseId": "holdout-clarify-002",
+      "split": "holdout",
+      "category": "clarification",
+      "input": "둘 중 뭐가 나은지",
+      "cluster": "clarification_policy",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "EXPECTED_CLARIFICATION_MISSING"
+      ]
+    },
+    {
+      "caseId": "holdout-complex-001",
+      "split": "holdout",
+      "category": "single_multi_purpose",
+      "input": "한울대학교 늘봄관 한 곳의 학습 공간 만족도와 예약 좌석 기능 수요",
+      "cluster": "model_output_rejection_fallback",
+      "classification": "hard_fallback",
+      "generationSource": "semantic_validation_fallback",
+      "fallbackReason": "model-output-rejected",
+      "fatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "holdout-complex-002",
+      "split": "holdout",
+      "category": "multiple_target_comparison",
+      "input": "도보 통근과 자가용 통근의 이동 시간, 비용, 스트레스 차이",
+      "cluster": "model_output_rejection_fallback",
+      "classification": "hard_fallback",
+      "generationSource": "openai_question_validation_fallback",
+      "fallbackReason": "model-output-rejected",
+      "fatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "holdout-complex-003",
+      "split": "holdout",
+      "category": "relationship_research",
+      "input": "청년의 월세 부담이 외식 횟수와 저축 비율에 미치는 영향",
+      "cluster": "model_output_rejection_fallback",
+      "classification": "hard_fallback",
+      "generationSource": "openai_question_validation_fallback",
+      "fallbackReason": "model-output-rejected",
+      "fatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "holdout-complex-004",
+      "split": "holdout",
+      "category": "reversed_roles",
+      "input": "최근 한 달 해든 서비스 알림을 받았지만 클릭하지 않은 이용자에게 이유와 개선점을 묻기",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "holdout-general-001",
+      "split": "holdout",
+      "category": "academic_course",
+      "input": "한울대학교 교양 수업 수강생의 토론 참여 경험과 만족도",
+      "cluster": "question_plan_quality",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "holdout-general-002",
+      "split": "holdout",
+      "category": "facility_mobility",
+      "input": "늘봄관에 방문하지 않는 한울대 학생의 접근 장벽",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "holdout-general-003",
+      "split": "holdout",
+      "category": "food_service",
+      "input": "최근 2주 해든 푸드트럭 이용자의 방문 빈도와 대기 만족도",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "holdout-general-004",
+      "split": "holdout",
+      "category": "digital_service",
+      "input": "다온 플랫폼과 해든 서비스의 고객 지원 만족도 비교",
+      "cluster": "request_execution_contract",
+      "classification": "request_failure",
+      "generationSource": "unknown",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "REQUEST_FAILURE",
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "OVERALL_SATISFACTION_MISSING",
+        "QUESTION_COUNT_MISMATCH",
+        "SCHEMA_ISSUES"
+      ]
+    },
+    {
+      "caseId": "holdout-general-005",
+      "split": "holdout",
+      "category": "event_program",
+      "input": "지역 독서모임에 참가하지 않은 주민의 불참 이유와 관심 주제",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "holdout-general-006",
+      "split": "holdout",
+      "category": "teamwork_school_life",
+      "input": "프로젝트 팀원이 회의에 참여하지 못한 이유와 비동기 협업 수요",
+      "cluster": "canonical_role_preservation",
+      "classification": "partial_repair",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "holdout-general-007",
+      "split": "holdout",
+      "category": "consumer_behavior",
+      "input": "지난 6개월 반려동물 가구의 온라인 사료 구매 빈도와 가격 민감도",
+      "cluster": "canonical_role_preservation",
+      "classification": "partial_repair",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "holdout-general-008",
+      "split": "holdout",
+      "category": "lifestyle_behavior",
+      "input": "주말에 영상 콘텐츠를 보지 않는 성인의 여가 선택 이유",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "holdout-noisy-001",
+      "split": "holdout",
+      "category": "noisy_input",
+      "input": "한울대 늘봄관 안감 왜 불편",
+      "cluster": "canonical_role_preservation",
+      "classification": "partial_repair",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "NEGATION_LOST",
+        "REQUIRED_CONCEPT_MISSING",
+        "GENERIC_FILLER"
+      ]
+    },
+    {
+      "caseId": "holdout-noisy-002",
+      "split": "holdout",
+      "category": "noisy_input",
+      "input": "다온앱 요즘 안씀 이유 다시쓸지",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "holdout-past-002",
+      "split": "holdout",
+      "category": "facility_mobility",
+      "input": "한울대학교 재학생의 늘봄관 통학 및 이동 경험",
+      "cluster": "canonical_role_preservation",
+      "classification": "deterministic_metadata_normalization",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ]
+    },
+    {
+      "caseId": "holdout-past-003",
+      "split": "holdout",
+      "category": "digital_service",
+      "input": "다온 플랫폼을 쓰는 취업준비생의 이용 현황과 경험",
+      "cluster": "request_execution_contract",
+      "classification": "request_failure",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "REQUEST_FAILURE",
+        "NAMED_TERM_LOST",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "OVERALL_SATISFACTION_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ]
+    },
+    {
+      "caseId": "holdout-past-004",
+      "split": "holdout",
+      "category": "digital_service",
+      "input": "해든 서비스를 이용하지 않는 청년의 비이용 이유와 필요한 지원",
+      "cluster": "request_execution_contract",
+      "classification": "request_failure",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "fatalCodes": [
+        "REQUEST_FAILURE",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ]
+    }
+  ]
+}

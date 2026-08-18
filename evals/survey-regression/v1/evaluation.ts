@@ -9,6 +9,8 @@ const normalize = (value: string) =>
   value
     .normalize("NFKC")
     .toLocaleLowerCase("ko-KR")
+    .replace(/([가-힣]+)대학\s*재학생/gu, "$1대생")
+    .replace(/([가-힣]{2,})대학교/gu, "$1대")
     .replace(/[\s\p{P}\p{S}]+/gu, "")
     .trim();
 
@@ -25,16 +27,16 @@ const conceptPatterns: Record<string, RegExp[]> = {
   안전: [/안전/, /위험/],
   접근성: [/접근성/, /접근.*어려/],
   불편: [/불편/, /어려운\s*점/, /장벽/],
-  "개선 요구": [/개선/, /바라는\s*점/, /보완/],
+  "개선 요구": [/개선/, /바라는\s*점/, /보완/, /바뀌었으면/, /달라졌으면/],
   만족도: [/만족/, /평가/],
   인식: [/인식/, /이미지/, /어떻게\s*생각/],
   이미지: [/이미지/, /인식/],
   인지: [/인지/, /알고\s*있/],
   "이용 경험": [/이용한\s*적/, /사용한\s*적/, /이용\s*경험/, /사용\s*경험/],
   "방문 경험": [/방문한\s*적/, /방문\s*경험/],
-  "참여 경험": [/참여한\s*적/, /참가한\s*적/, /참여\s*경험/],
+  "참여 경험": [/참여한\s*적/, /참가한\s*적/, /참여\s*경험/, /어떤\s*프로그램에\s*참여/],
   "수강 경험": [/수강한\s*적/, /수강\s*경험/],
-  "이용 빈도": [/이용\s*(?:빈도|횟수)/, /사용\s*(?:빈도|횟수)/, /얼마나\s*자주.*(?:이용|사용)/],
+  "이용 빈도": [/이용\s*(?:빈도|횟수)/, /사용\s*(?:빈도|횟수)/, /얼마나\s*자주.*(?:이용|사용|방문|찾)/],
   "구매 빈도": [/구매\s*(?:빈도|횟수)/, /주문\s*(?:빈도|횟수)/, /얼마나\s*자주.*(?:구매|주문|외식)/],
   "이용 시간": [/이용\s*시간/, /사용\s*시간/, /시청\s*시간/],
   "시간 사용": [/시간\s*사용/, /얼마나\s*시간/, /하루.*시간/],
@@ -42,7 +44,7 @@ const conceptPatterns: Record<string, RegExp[]> = {
   "대기 시간": [/대기\s*시간/, /얼마나\s*기다/],
   빈도: [/빈도/, /횟수/, /얼마나\s*자주/],
   비용: [/비용/, /가격/, /요금/, /지출/, /부담/],
-  "비이용 이유": [/이용하지\s*않는\s*이유/, /사용하지\s*않는\s*이유/, /참여하지\s*않는\s*이유/, /구매하지\s*않는\s*이유/, /가입하지\s*않는\s*이유/, /방문하지\s*않는\s*이유/, /보지\s*않는\s*이유/, /비이용\s*이유/, /미구매\s*이유/, /불참\s*이유/, /장벽/],
+  "비이용 이유": [/이용하지\s*않는\s*이유/, /사용하지\s*않는\s*이유/, /참여하지\s*않는\s*이유/, /구매하지\s*않는\s*이유/, /(?:사|먹|보|쓰)지\s*않는.*이유/, /가입하지\s*않는\s*이유/, /방문하지\s*않는\s*이유/, /보지\s*않는\s*이유/, /비이용\s*이유/, /미구매\s*이유/, /불참\s*이유/, /장벽/],
   "이용 의향": [/이용\s*의향/, /사용\s*의향/, /다시\s*(?:이용|사용)/, /쓸\s*생각/],
   "참여 의향": [/참여\s*의향/, /가입\s*의향/, /재참여/, /참가할\s*생각/],
   "서비스 필요성": [/필요/, /도입\s*수요/, /수요/],
@@ -57,18 +59,18 @@ const conceptPatterns: Record<string, RegExp[]> = {
   집중도: [/집중/],
   갈등: [/갈등/],
   "해결 방식": [/해결/, /대처/],
-  "학습 효과": [/학습\s*효과/, /도움\s*정도/, /자신감/],
+  "학습 효과": [/학습\s*효과/, /도움\s*정도/, /얼마나\s*도움/, /도움이\s*되/, /자신감/],
   "학교 적응": [/학교\s*적응/, /적응/],
   "선택 이유": [/선택한\s*이유/, /선택\s*이유/],
   "이용 목적": [/이용\s*목적/, /사용\s*목적/],
   선호: [/선호/, /관심\s*(?:활동|주제)/],
   충동구매: [/충동\s*구매/],
   저축: [/저축/],
-  "대상 비교": [/비교/, /차이/],
+  "대상 비교": [/비교/, /차이/, /어떤\s*프로그램에\s*참여/, /어느\s*(?:쪽|대상|서비스).*더/],
 };
 
 const negationPattern =
-  /(?:이용|사용|참여|참가|가입|구매|방문|시청|주문|클릭|운동)(?:하지\s*않|하지\s*못|한\s*적\s*없)|비이용|미구매|불참|미가입|비방문|비시청|비주문|안\s*(?:쓰|가|하|먹|보)|못\s*(?:쓰|가|하)/;
+  /(?:이용|사용|참여|참가|가입|구매|방문|시청|주문|클릭|운동|먹|보)(?:하지\s*않|하지\s*못|한\s*적\s*없|지\s*않)|비이용|미구매|불참|미가입|비방문|비시청|비주문|안\s*(?:쓰|가|하|먹|보)|못\s*(?:쓰|가|하)/;
 
 const genericFillerPatterns = conceptPatterns["generic filler"];
 
@@ -93,6 +95,28 @@ export function semanticTextMatch(actual: string, candidates: string[]) {
     const matched = tokens.filter((token) => normalizedActual.includes(normalize(token))).length;
     return matched / tokens.length >= 0.6;
   });
+}
+
+const nonUserScopePattern =
+  /(?:이용|사용|참여|참가|가입|구매|방문|시청|주문|클릭|먹|보)(?:하지\s*않|한\s*적\s*없|지\s*않)|비이용|미구매|불참|미가입|비방문|비시청|비주문|안\s*(?:쓰|가|먹|보)/;
+const positiveUserScopePattern =
+  /(?:이용|사용|참여|참가|가입|구매|방문|시청|주문|수강|먹|듣)(?:한|하는|했던|해\s*본|중인|\s*(?=(?:대학생|학생|사람|주민|직장인|고객|이용자)))|다니는/;
+
+function populationScopeCompatible(actual: string, expected: string) {
+  const actualNonUser = nonUserScopePattern.test(actual);
+  const expectedNonUser = nonUserScopePattern.test(expected);
+  if (actualNonUser !== expectedNonUser) return false;
+  const actualPositiveUser = positiveUserScopePattern.test(actual) && !actualNonUser;
+  const expectedPositiveUser = positiveUserScopePattern.test(expected) && !expectedNonUser;
+  return actualPositiveUser === expectedPositiveUser;
+}
+
+export function targetPopulationMatch(actual: string, candidates: string[]) {
+  return candidates.some(
+    (candidate) =>
+      semanticTextMatch(actual, [candidate]) &&
+      populationScopeCompatible(actual, candidate),
+  );
 }
 
 export function conceptPresent(concept: string, corpus: string) {
@@ -166,19 +190,21 @@ export function evaluateSemanticResult(
 ) {
   const fatalFailures: SurveyRegressionIssue[] = [];
   const warnings: SurveyRegressionIssue[] = [];
-  const questionText = result.questions.map((item) => item.title).join("\n");
-  const targetText = [
-    result.finalRespondentGroup,
-    result.canonicalTargetPopulation,
-    result.description,
-  ].filter(Boolean).join(" ");
-  const objectText = [
-    result.finalEvaluationTarget,
-    result.canonicalSurveyObject,
+  const questionTitleText = result.questions.map((item) => item.title).join("\n");
+  const questionText = result.questions
+    .map((item) => [item.title, ...item.options].join(" "))
+    .join("\n");
+  const targetText =
+    result.finalRespondentGroup ?? result.canonicalTargetPopulation ?? "";
+  const objectText =
+    result.finalEvaluationTarget ?? result.canonicalSurveyObject ?? "";
+  const allText = [
+    targetText,
+    objectText,
     result.title,
+    result.description,
     questionText,
-  ].filter(Boolean).join(" ");
-  const allText = `${targetText}\n${objectText}`;
+  ].filter(Boolean).join("\n");
 
   if (testCase.clarificationExpected) {
     if (result.responseType !== "clarification") {
@@ -196,11 +222,25 @@ export function evaluateSemanticResult(
   if (result.classification === "hard_fallback") {
     fatalFailures.push(issue("HARD_FALLBACK", "명확한 입력이 hard fallback으로 처리됨", "hard_fallback"));
   }
-  if (!semanticTextMatch(targetText, testCase.expectedTargetPopulation)) {
+  if (!targetPopulationMatch(targetText, testCase.expectedTargetPopulation)) {
     fatalFailures.push(issue("TARGET_POPULATION_MISMATCH", `응답 대상 불일치: ${targetText}`, "target_population"));
   }
   if (!semanticTextMatch(objectText, testCase.expectedSurveyObject)) {
     fatalFailures.push(issue("SURVEY_OBJECT_MISMATCH", `조사 대상 불일치: ${objectText}`, "survey_object"));
+  }
+  const malformedSemanticText = `${objectText}\n${questionTitleText}`;
+  if (
+    /(?:에\s*대해|에\s*관해)(?:를|을)|(?:미치는|교통수단별)(?:은|에)|^에게|묻고\s*싶/u.test(
+      malformedSemanticText,
+    )
+  ) {
+    fatalFailures.push(
+      issue(
+        "MALFORMED_SEMANTIC_PHRASE",
+        "조사 요청 조각이나 잘못된 조사가 최종 대상 또는 질문에 남음",
+        "question_quality",
+      ),
+    );
   }
   for (const forbidden of testCase.forbiddenTargetExpansions) {
     if (normalize(targetText).includes(normalize(forbidden))) {
@@ -230,12 +270,57 @@ export function evaluateSemanticResult(
       fatalFailures.push(issue("FORBIDDEN_CONCEPT_PRESENT", `금지 문항 개념 포함: ${concept}`, "question_quality"));
     }
   }
-  if (genericFillerPatterns.some((pattern) => pattern.test(questionText))) {
+  if (
+    genericFillerPatterns.some((pattern) => pattern.test(questionTitleText)) ||
+    /[‘'][^’']+[’'](?:과|와)\s*관련해\s*평소\s*가장\s*자주\s*겪는\s*상황/u.test(
+      questionTitleText,
+    )
+  ) {
     fatalFailures.push(issue("GENERIC_FILLER", "generic filler 문항이 포함됨", "question_quality"));
   }
   const normalizedQuestions = result.questions.map((item) => normalize(item.title));
   if (new Set(normalizedQuestions).size !== normalizedQuestions.length) {
     fatalFailures.push(issue("DUPLICATE_QUESTION", "완전히 중복된 질문이 있음", "question_quality"));
+  }
+  const misplacedScreenerIndex = result.questions.findIndex((item) =>
+    /(?:이용|사용|참여|방문|구매|수강|먹)한\s*적이\s*있나요/u.test(item.title),
+  );
+  if (misplacedScreenerIndex > 0) {
+    fatalFailures.push(
+      issue(
+        "MISPLACED_SCREENING_QUESTION",
+        `응답 적격성 확인 문항이 ${misplacedScreenerIndex + 1}번째에 배치됨`,
+        "question_quality",
+      ),
+    );
+  }
+  const inconvenienceQuestions = result.questions.filter(
+    (item) => item.type === "multiple" && /불편했던\s*점/u.test(item.title),
+  );
+  if (inconvenienceQuestions.length > 1) {
+    fatalFailures.push(
+      issue(
+        "DUPLICATE_CONSTRUCT",
+        "같은 불편 유형을 묻는 복수선택 문항이 중복됨",
+        "question_quality",
+      ),
+    );
+  }
+  if (
+    testCase.requiredQuestionConcepts.includes("만족도") &&
+    !result.questions.some(
+      (item) =>
+        item.type === "scale" &&
+        /(?:전반적으로\s*)?얼마나\s*만족|전반적인\s*만족/u.test(item.title),
+    )
+  ) {
+    fatalFailures.push(
+      issue(
+        "OVERALL_SATISFACTION_MISSING",
+        "만족 요소만 묻고 전반적 만족도를 직접 측정하지 않음",
+        "purpose_coverage",
+      ),
+    );
   }
   if (result.questions.length !== testCase.questionCount) {
     fatalFailures.push(issue("QUESTION_COUNT_MISMATCH", `문항 수 ${result.questions.length}/${testCase.questionCount}`, "question_quality"));

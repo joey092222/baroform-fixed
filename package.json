@@ -20,6 +20,8 @@
     "ai:eval:regression:live": "node --import tsx scripts/run-survey-regression-live.ts",
     "ai:eval:regression:summary": "node --import tsx scripts/summarize-survey-regression.ts",
     "ai:eval:regression:freeze": "node --import tsx scripts/freeze-survey-regression-baseline.ts",
+    "ai:eval:regression:audit": "node --import tsx scripts/audit-survey-regression-baseline.ts",
+    "ai:eval:regression:cluster": "node --import tsx scripts/cluster-survey-regression-failures.ts",
     "test:ai:regression": "node scripts/run-mock-tests.mjs tests/survey-regression-dataset.test.ts"
   },
   "dependencies": {
