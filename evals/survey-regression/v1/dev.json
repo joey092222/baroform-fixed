@@ -1,0 +1,4003 @@
+{
+  "version": "v1",
+  "split": "dev",
+  "seed": "baroform-regression-v1-dev-20260818",
+  "generatedAt": "2026-08-18T00:00:00.000Z",
+  "cases": [
+    {
+      "id": "dev-general-014",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "digital_service",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "동네 주민의 당근 앱 이용 목적과 거래 만족도",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "당근 앱을 이용하는 동네 주민"
+      ],
+      "expectedSurveyObject": [
+        "당근 앱"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 목적",
+        "거래 만족도"
+      ],
+      "mustPreserveTerms": [
+        "당근 앱",
+        "동네 주민"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "이용 목적",
+        "만족도"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "service_usage",
+        "satisfaction"
+      ],
+      "tags": [
+        "non_university",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-complex-012",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "reversed_roles",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "동아리 안 한 신입생한테 학교 적응이랑 가입 안 한 이유 물어보기",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "동아리에 가입하지 않은 신입생"
+      ],
+      "expectedSurveyObject": [
+        "동아리"
+      ],
+      "expectedPurposeConcepts": [
+        "학교 적응",
+        "미가입 이유"
+      ],
+      "mustPreserveTerms": [
+        "동아리",
+        "신입생"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "학교 적응",
+        "비이용 이유"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "mixed",
+        "attitude"
+      ],
+      "tags": [
+        "negation",
+        "complex_order",
+        "noisy_input",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-008",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "facility_mobility",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "자전거와 전동킥보드로 출퇴근하는 사람들의 이동 시간과 안전 경험 비교",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "자전거 또는 전동킥보드로 출퇴근하는 사람"
+      ],
+      "expectedSurveyObject": [
+        "자전거 출퇴근",
+        "전동킥보드 출퇴근"
+      ],
+      "expectedPurposeConcepts": [
+        "이동 시간 비교",
+        "안전 경험 비교"
+      ],
+      "mustPreserveTerms": [
+        "자전거",
+        "전동킥보드"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "소요 시간",
+        "안전",
+        "대상 비교"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "multiple",
+      "expectedArchetypes": [
+        "mobility_experience",
+        "mixed"
+      ],
+      "tags": [
+        "non_university",
+        "multiple_targets",
+        "complex_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-complex-002",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "single_multi_purpose",
+      "difficulty": "hard",
+      "surveyMode": "research",
+      "questionCount": 7,
+      "input": "배달 앱 한 개를 이용하는 1인 가구의 주문 습관과 지출, 구독 혜택 수요",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "배달 앱을 이용하는 1인 가구"
+      ],
+      "expectedSurveyObject": [
+        "배달 앱"
+      ],
+      "expectedPurposeConcepts": [
+        "주문 습관",
+        "지출",
+        "구독 혜택 수요"
+      ],
+      "mustPreserveTerms": [
+        "1인 가구",
+        "배달 앱"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "구매 빈도",
+        "비용",
+        "서비스 필요성"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "mixed",
+        "consumption_behavior"
+      ],
+      "tags": [
+        "non_university",
+        "single_target_multi_purpose",
+        "complex_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-past-010",
+      "split": "dev",
+      "stratum": "past_error_variant",
+      "category": "digital_service",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "네웹 안 쓰는 대학생들 왜 안 쓰는지랑 앞으로 쓸 생각 있는지",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "네이버 웹툰을 이용하지 않는 대학생"
+      ],
+      "expectedSurveyObject": [
+        "네이버 웹툰"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유",
+        "이용 의향"
+      ],
+      "mustPreserveTerms": [
+        "네웹"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "이용 의향"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "현재 이용 만족도",
+        "generic filler"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "attitude",
+        "need_demand"
+      ],
+      "tags": [
+        "negation",
+        "noisy_input",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-001",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "academic_course",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "새봄대학교 심리학과 1학년의 이번 학기 온라인 강의 만족도",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 심리학과 1학년"
+      ],
+      "expectedSurveyObject": [
+        "온라인 강의"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도"
+      ],
+      "mustPreserveTerms": [
+        "새봄대학교",
+        "심리학과"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "만족도",
+        "불편",
+        "개선 요구"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "learning_experience",
+        "satisfaction"
+      ],
+      "tags": [
+        "virtual_entity",
+        "timeframe"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-004",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "academic_course",
+      "difficulty": "hard",
+      "surveyMode": "research",
+      "questionCount": 7,
+      "input": "통계학 강의와 프로그래밍 강의가 데이터 분석 자신감에 미치는 영향을 비교",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "두 강의를 수강한 학습자"
+      ],
+      "expectedSurveyObject": [
+        "통계학 강의",
+        "프로그래밍 강의"
+      ],
+      "expectedPurposeConcepts": [
+        "데이터 분석 자신감 영향 비교"
+      ],
+      "mustPreserveTerms": [
+        "통계학",
+        "프로그래밍"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "수강 경험",
+        "자신감",
+        "대상 비교"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "multiple",
+      "expectedArchetypes": [
+        "relationship_analysis",
+        "mixed"
+      ],
+      "tags": [
+        "multiple_targets"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-016",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "digital_service",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "iOS용 공부 앱과 안드로이드용 공부 앱의 사용성 및 지속 사용 의향 비교",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "공부 앱 사용자"
+      ],
+      "expectedSurveyObject": [
+        "iOS용 공부 앱",
+        "안드로이드용 공부 앱"
+      ],
+      "expectedPurposeConcepts": [
+        "사용성 비교",
+        "지속 사용 의향 비교"
+      ],
+      "mustPreserveTerms": [
+        "iOS",
+        "안드로이드"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "사용성",
+        "이용 의향",
+        "대상 비교"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "multiple",
+      "expectedArchetypes": [
+        "mixed",
+        "service_usage"
+      ],
+      "tags": [
+        "non_university",
+        "multiple_targets"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-003",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "academic_course",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "진로 특강에 참여하지 않은 대학생의 불참 이유와 향후 참여 의향",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "진로 특강에 참여하지 않은 대학생"
+      ],
+      "expectedSurveyObject": [
+        "진로 특강"
+      ],
+      "expectedPurposeConcepts": [
+        "비참여 이유",
+        "참여 의향"
+      ],
+      "mustPreserveTerms": [
+        "진로 특강"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "참여 의향"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "event_program",
+        "need_demand"
+      ],
+      "tags": [
+        "negation",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-clarify-003",
+      "split": "dev",
+      "stratum": "clarification",
+      "category": "clarification",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "시설 이용",
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedSurveyObject": [
+        "시설"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "mustPreserveTerms": [
+        "시설"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": true,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "unresolved",
+        "mixed"
+      ],
+      "tags": [
+        "clarification"
+      ],
+      "notes": "시설명과 이용 맥락이 없음"
+    },
+    {
+      "id": "dev-general-005",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "facility_mobility",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "새봄대학교 학생의 솔빛관 접근성과 이동 불편",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 학생"
+      ],
+      "expectedSurveyObject": [
+        "솔빛관 이동"
+      ],
+      "expectedPurposeConcepts": [
+        "접근성",
+        "이동 불편"
+      ],
+      "mustPreserveTerms": [
+        "새봄대학교",
+        "솔빛관"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이동 빈도",
+        "이동 수단",
+        "소요 시간",
+        "불편"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "mobility_experience"
+      ],
+      "tags": [
+        "virtual_entity",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-031",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "lifestyle_behavior",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "주 1회도 운동하지 않는 성인의 운동 방해 요인",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "주 1회도 운동하지 않는 성인"
+      ],
+      "expectedSurveyObject": [
+        "운동"
+      ],
+      "expectedPurposeConcepts": [
+        "비실천 이유"
+      ],
+      "mustPreserveTerms": [
+        "운동",
+        "성인"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "attitude",
+        "need_demand"
+      ],
+      "tags": [
+        "negation",
+        "non_university",
+        "timeframe"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-021",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "teamwork_school_life",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "대학생 팀플에서 역할 분담 공정성과 의사소통 만족도",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "팀플 경험이 있는 대학생"
+      ],
+      "expectedSurveyObject": [
+        "팀플"
+      ],
+      "expectedPurposeConcepts": [
+        "역할 분담 공정성",
+        "의사소통 만족도"
+      ],
+      "mustPreserveTerms": [
+        "팀플"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "공정성",
+        "의사소통",
+        "만족도"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "multidimensional_construct"
+      ],
+      "tags": [
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-012",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "food_service",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "새봄대학교 별마루 식당과 해오름 식당의 가격·맛·대기시간 비교",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 식당 이용자"
+      ],
+      "expectedSurveyObject": [
+        "별마루 식당",
+        "해오름 식당"
+      ],
+      "expectedPurposeConcepts": [
+        "가격 비교",
+        "맛 비교",
+        "대기시간 비교"
+      ],
+      "mustPreserveTerms": [
+        "새봄대학교",
+        "별마루 식당",
+        "해오름 식당"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "비용",
+        "만족도",
+        "대기 시간",
+        "대상 비교"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "multiple",
+      "expectedArchetypes": [
+        "mixed",
+        "satisfaction"
+      ],
+      "tags": [
+        "virtual_entity",
+        "multiple_targets"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-past-020",
+      "split": "dev",
+      "stratum": "past_error_variant",
+      "category": "food_service",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "맛나샘 학생들 맛 서비스 둘다 어떤지 불편도",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "맛나샘 이용 학생"
+      ],
+      "expectedSurveyObject": [
+        "맛나샘"
+      ],
+      "expectedPurposeConcepts": [
+        "음식 만족도",
+        "서비스 만족도",
+        "불편"
+      ],
+      "mustPreserveTerms": [
+        "맛나샘"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "만족도",
+        "불편"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "satisfaction"
+      ],
+      "tags": [
+        "noisy_input",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-complex-007",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "multiple_target_comparison",
+      "difficulty": "hard",
+      "surveyMode": "research",
+      "questionCount": 7,
+      "input": "버스 통근자와 지하철 통근자의 소요 시간·혼잡·피로 비교",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "버스 또는 지하철 통근자"
+      ],
+      "expectedSurveyObject": [
+        "버스 통근",
+        "지하철 통근"
+      ],
+      "expectedPurposeConcepts": [
+        "소요 시간 비교",
+        "혼잡 비교",
+        "피로 비교"
+      ],
+      "mustPreserveTerms": [
+        "버스",
+        "지하철"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "소요 시간",
+        "혼잡",
+        "피로",
+        "대상 비교"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "multiple",
+      "expectedArchetypes": [
+        "mixed",
+        "mobility_experience"
+      ],
+      "tags": [
+        "non_university",
+        "multiple_targets",
+        "complex_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-past-003",
+      "split": "dev",
+      "stratum": "past_error_variant",
+      "category": "academic_satisfaction",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "경영대생들 경영대 시설 괜찮았는지랑 불편했던 점 조사",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "경영대생"
+      ],
+      "expectedSurveyObject": [
+        "경영대 시설"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도",
+        "불편"
+      ],
+      "mustPreserveTerms": [
+        "경영대"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "만족도",
+        "불편"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "mixed",
+        "attitude",
+        "satisfaction",
+        "service_usage"
+      ],
+      "tags": [
+        "noisy_input",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-023",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "teamwork_school_life",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "원격근무 팀원의 협업 도구 피로와 소속감",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "원격근무 팀원"
+      ],
+      "expectedSurveyObject": [
+        "원격 협업"
+      ],
+      "expectedPurposeConcepts": [
+        "협업 도구 피로",
+        "소속감"
+      ],
+      "mustPreserveTerms": [
+        "원격근무"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "피로",
+        "소속감"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "multidimensional_construct"
+      ],
+      "tags": [
+        "non_university",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-past-017",
+      "split": "dev",
+      "stratum": "past_error_variant",
+      "category": "food_service",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "맛나샘을 이용하는 학생들의 만족도와 개선 의견",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "맛나샘을 이용하는 학생"
+      ],
+      "expectedSurveyObject": [
+        "맛나샘"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도",
+        "개선 요구"
+      ],
+      "mustPreserveTerms": [
+        "맛나샘"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "만족도",
+        "불편",
+        "개선 요구"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "satisfaction",
+        "service_usage"
+      ],
+      "tags": [
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-027",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "consumer_behavior",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "넷플릭스와 티빙 구독자의 이용 빈도·콘텐츠 만족도 비교",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "OTT 구독자"
+      ],
+      "expectedSurveyObject": [
+        "넷플릭스",
+        "티빙"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 빈도 비교",
+        "콘텐츠 만족도 비교"
+      ],
+      "mustPreserveTerms": [
+        "넷플릭스",
+        "티빙"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이용 빈도",
+        "만족도",
+        "대상 비교"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "multiple",
+      "expectedArchetypes": [
+        "mixed",
+        "service_usage"
+      ],
+      "tags": [
+        "non_university",
+        "multiple_targets"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-complex-005",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "multiple_target_comparison",
+      "difficulty": "hard",
+      "surveyMode": "research",
+      "questionCount": 7,
+      "input": "새봄대학교 솔빛관과 별마루관의 접근성·혼잡·안전 비교",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 구성원"
+      ],
+      "expectedSurveyObject": [
+        "솔빛관",
+        "별마루관"
+      ],
+      "expectedPurposeConcepts": [
+        "접근성 비교",
+        "혼잡 비교",
+        "안전 비교"
+      ],
+      "mustPreserveTerms": [
+        "새봄대학교",
+        "솔빛관",
+        "별마루관"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "접근성",
+        "혼잡",
+        "안전",
+        "대상 비교"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "multiple",
+      "expectedArchetypes": [
+        "mixed",
+        "mobility_experience"
+      ],
+      "tags": [
+        "virtual_entity",
+        "multiple_targets"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-complex-008",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "multiple_target_comparison",
+      "difficulty": "hard",
+      "surveyMode": "research",
+      "questionCount": 7,
+      "input": "온라인 멘토링과 대면 멘토링에 참여한 청년의 도움 정도와 지속 참여 의향 비교",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "온라인 또는 대면 멘토링에 참여한 청년"
+      ],
+      "expectedSurveyObject": [
+        "온라인 멘토링",
+        "대면 멘토링"
+      ],
+      "expectedPurposeConcepts": [
+        "도움 정도 비교",
+        "지속 참여 의향 비교"
+      ],
+      "mustPreserveTerms": [
+        "온라인 멘토링",
+        "대면 멘토링"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "학습 효과",
+        "참여 의향",
+        "대상 비교"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "multiple",
+      "expectedArchetypes": [
+        "mixed",
+        "event_program"
+      ],
+      "tags": [
+        "non_university",
+        "multiple_targets",
+        "complex_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-clarify-004",
+      "split": "dev",
+      "stratum": "clarification",
+      "category": "clarification",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "학생들 생각",
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedSurveyObject": [
+        "학생들 생각"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "mustPreserveTerms": [
+        "학생들 생각"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": true,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "unresolved",
+        "mixed"
+      ],
+      "tags": [
+        "clarification"
+      ],
+      "notes": "생각을 물을 주제가 없음"
+    },
+    {
+      "id": "dev-past-009",
+      "split": "dev",
+      "stratum": "past_error_variant",
+      "category": "digital_service",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "국내 최대 웹툰 플랫폼인 네이버 웹툰의 대학생들의 이용 현황과 경험",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "대학생"
+      ],
+      "expectedSurveyObject": [
+        "네이버 웹툰"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 현황",
+        "이용 경험"
+      ],
+      "mustPreserveTerms": [
+        "네이버 웹툰"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "이용 빈도",
+        "만족도",
+        "불편"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "service_usage"
+      ],
+      "tags": [
+        "complex_order",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-complex-004",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "single_multi_purpose",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "지역 체육관을 다니는 주민의 이용 패턴, 불편, 재등록 의향",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "지역 체육관을 다니는 주민"
+      ],
+      "expectedSurveyObject": [
+        "지역 체육관"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 패턴",
+        "불편",
+        "재등록 의향"
+      ],
+      "mustPreserveTerms": [
+        "지역 체육관"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이용 빈도",
+        "불편",
+        "이용 의향"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "mixed",
+        "facility_usage"
+      ],
+      "tags": [
+        "non_university",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-complex-013",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "relationship_research",
+      "difficulty": "hard",
+      "surveyMode": "research",
+      "questionCount": 7,
+      "input": "대학생의 월 용돈 규모가 외식 빈도와 충동구매에 미치는 영향",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "대학생"
+      ],
+      "expectedSurveyObject": [
+        "월 용돈",
+        "외식 빈도",
+        "충동구매"
+      ],
+      "expectedPurposeConcepts": [
+        "변수 간 영향"
+      ],
+      "mustPreserveTerms": [
+        "월 용돈",
+        "외식",
+        "충동구매"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "비용",
+        "구매 빈도",
+        "충동구매"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "relationship_analysis"
+      ],
+      "tags": [
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-past-005",
+      "split": "dev",
+      "stratum": "past_error_variant",
+      "category": "facility_mobility",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "연세대학교 학생들의 대우관 등하교 경험",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "연세대학교 학생"
+      ],
+      "expectedSurveyObject": [
+        "대우관",
+        "대우관 이동 경험"
+      ],
+      "expectedPurposeConcepts": [
+        "이동 경험",
+        "불편"
+      ],
+      "mustPreserveTerms": [
+        "연세대학교",
+        "대우관"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이동 빈도",
+        "이동 수단",
+        "소요 시간",
+        "혼잡",
+        "안전",
+        "불편"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "mobility_experience"
+      ],
+      "tags": [],
+      "notes": ""
+    },
+    {
+      "id": "dev-clarify-006",
+      "split": "dev",
+      "stratum": "clarification",
+      "category": "clarification",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "두 개 비교",
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedSurveyObject": [
+        "두 개"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "mustPreserveTerms": [
+        "두 개"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": true,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "unresolved",
+        "mixed"
+      ],
+      "tags": [
+        "clarification"
+      ],
+      "notes": "비교 대상 두 항목이 없음"
+    },
+    {
+      "id": "dev-general-015",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "digital_service",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "모바일 뱅킹을 사용하지 않는 고령층의 디지털 장벽",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "모바일 뱅킹을 사용하지 않는 고령층"
+      ],
+      "expectedSurveyObject": [
+        "모바일 뱅킹"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유",
+        "디지털 장벽"
+      ],
+      "mustPreserveTerms": [
+        "모바일 뱅킹",
+        "고령층"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "불편"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "attitude",
+        "need_demand"
+      ],
+      "tags": [
+        "negation",
+        "non_university"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-noisy-006",
+      "split": "dev",
+      "stratum": "incomplete_user_input",
+      "category": "noisy_input",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "팀플 팀플 갈등 해결 어케하는지 조사좀",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "팀플 경험자"
+      ],
+      "expectedSurveyObject": [
+        "팀플"
+      ],
+      "expectedPurposeConcepts": [
+        "갈등",
+        "해결 방식"
+      ],
+      "mustPreserveTerms": [
+        "팀플"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "갈등",
+        "해결 방식"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "multidimensional_construct"
+      ],
+      "tags": [
+        "noisy_input",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-past-007",
+      "split": "dev",
+      "stratum": "past_error_variant",
+      "category": "facility_mobility",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "지난달 연세대 재학생이 대우관을 방문한 빈도와 혼잡·안전 경험 조사",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "연세대 재학생"
+      ],
+      "expectedSurveyObject": [
+        "대우관"
+      ],
+      "expectedPurposeConcepts": [
+        "방문 빈도",
+        "혼잡",
+        "안전"
+      ],
+      "mustPreserveTerms": [
+        "연세대",
+        "대우관"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이동 빈도",
+        "혼잡",
+        "안전"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "mobility_experience",
+        "facility_usage"
+      ],
+      "tags": [
+        "timeframe",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-clarify-002",
+      "split": "dev",
+      "stratum": "clarification",
+      "category": "clarification",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "앱 조사",
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedSurveyObject": [
+        "앱"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "mustPreserveTerms": [
+        "앱"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": true,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "unresolved",
+        "mixed"
+      ],
+      "tags": [
+        "clarification"
+      ],
+      "notes": "앱 이름과 조사 목적이 없음"
+    },
+    {
+      "id": "dev-past-013",
+      "split": "dev",
+      "stratum": "past_error_variant",
+      "category": "food_service",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "연세대학교 학생들의 한경관 학식 이용 경험",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "연세대학교 학생"
+      ],
+      "expectedSurveyObject": [
+        "한경관 학식"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 경험"
+      ],
+      "mustPreserveTerms": [
+        "연세대학교",
+        "한경관"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "이용 빈도",
+        "만족도"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "service_usage",
+        "facility_usage"
+      ],
+      "tags": [],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-028",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "consumer_behavior",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "지역 주민의 공공자전거 이용 경험과 요금 만족도",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "공공자전거를 이용하는 지역 주민"
+      ],
+      "expectedSurveyObject": [
+        "공공자전거"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 경험",
+        "요금 만족도"
+      ],
+      "mustPreserveTerms": [
+        "공공자전거",
+        "지역 주민"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "이용 빈도",
+        "만족도"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "service_usage",
+        "satisfaction"
+      ],
+      "tags": [
+        "non_university",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-past-016",
+      "split": "dev",
+      "stratum": "past_error_variant",
+      "category": "food_service",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "연세대 학생이 한경관 학식과 고를샘 식당을 선택하는 이유와 만족도 비교",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "연세대 학생"
+      ],
+      "expectedSurveyObject": [
+        "한경관 학식",
+        "고를샘 식당"
+      ],
+      "expectedPurposeConcepts": [
+        "선택 이유",
+        "만족도 비교"
+      ],
+      "mustPreserveTerms": [
+        "연세대",
+        "한경관",
+        "고를샘"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "선택 이유",
+        "만족도",
+        "대상 비교"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "multiple",
+      "expectedArchetypes": [
+        "mixed",
+        "satisfaction"
+      ],
+      "tags": [
+        "multiple_targets",
+        "complex_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-032",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "lifestyle_behavior",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "독서와 팟캐스트 청취를 여가로 즐기는 사람들의 시간 사용과 만족도 비교",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "독서 또는 팟캐스트 청취를 즐기는 사람"
+      ],
+      "expectedSurveyObject": [
+        "독서",
+        "팟캐스트 청취"
+      ],
+      "expectedPurposeConcepts": [
+        "시간 사용 비교",
+        "만족도 비교"
+      ],
+      "mustPreserveTerms": [
+        "독서",
+        "팟캐스트"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "시간 사용",
+        "만족도",
+        "대상 비교"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "multiple",
+      "expectedArchetypes": [
+        "mixed",
+        "behavior_usage"
+      ],
+      "tags": [
+        "non_university",
+        "multiple_targets",
+        "complex_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-complex-001",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "single_multi_purpose",
+      "difficulty": "hard",
+      "surveyMode": "research",
+      "questionCount": 7,
+      "input": "새봄대학교 중앙도서관 한 곳의 좌석 만족도, 혼잡 경험, 예약 기능 수요",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 중앙도서관 이용자"
+      ],
+      "expectedSurveyObject": [
+        "새봄대학교 중앙도서관"
+      ],
+      "expectedPurposeConcepts": [
+        "좌석 만족도",
+        "혼잡",
+        "예약 기능 수요"
+      ],
+      "mustPreserveTerms": [
+        "새봄대학교",
+        "중앙도서관"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "만족도",
+        "혼잡",
+        "서비스 필요성",
+        "이용 의향"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "mixed",
+        "facility_usage"
+      ],
+      "tags": [
+        "virtual_entity",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-030",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "lifestyle_behavior",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "최근 한 달 직장인의 SNS 하루 이용 시간과 피로감",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "직장인"
+      ],
+      "expectedSurveyObject": [
+        "SNS 이용"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 시간",
+        "피로감"
+      ],
+      "mustPreserveTerms": [
+        "직장인",
+        "SNS"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이용 시간",
+        "피로"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "multidimensional_construct",
+        "relationship_analysis"
+      ],
+      "tags": [
+        "non_university",
+        "timeframe",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-018",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "event_program",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "동아리에 가입하지 않은 학생의 미가입 이유와 관심 활동",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "동아리에 가입하지 않은 학생"
+      ],
+      "expectedSurveyObject": [
+        "동아리"
+      ],
+      "expectedPurposeConcepts": [
+        "미가입 이유",
+        "관심 활동"
+      ],
+      "mustPreserveTerms": [
+        "동아리"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "선호"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "attitude",
+        "need_demand"
+      ],
+      "tags": [
+        "negation",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-007",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "facility_mobility",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "휠체어 이용자가 공공도서관에 방문할 때 겪는 접근성 문제",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "공공도서관을 방문하는 휠체어 이용자"
+      ],
+      "expectedSurveyObject": [
+        "공공도서관"
+      ],
+      "expectedPurposeConcepts": [
+        "접근성",
+        "불편"
+      ],
+      "mustPreserveTerms": [
+        "휠체어",
+        "공공도서관"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "방문 경험",
+        "접근성",
+        "불편"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "mobility_experience",
+        "facility_usage"
+      ],
+      "tags": [
+        "non_university",
+        "complex_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-complex-006",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "multiple_target_comparison",
+      "difficulty": "hard",
+      "surveyMode": "research",
+      "questionCount": 7,
+      "input": "온새미 플랫폼과 별마루 서비스 사용자의 편의성 및 신뢰도 차이",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "두 디지털 서비스를 사용한 사람"
+      ],
+      "expectedSurveyObject": [
+        "온새미 플랫폼",
+        "별마루 서비스"
+      ],
+      "expectedPurposeConcepts": [
+        "편의성 비교",
+        "신뢰도 비교"
+      ],
+      "mustPreserveTerms": [
+        "온새미 플랫폼",
+        "별마루 서비스"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "사용성",
+        "신뢰",
+        "대상 비교"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "multiple",
+      "expectedArchetypes": [
+        "mixed",
+        "service_usage"
+      ],
+      "tags": [
+        "virtual_entity",
+        "non_university",
+        "multiple_targets",
+        "complex_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-024",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "teamwork_school_life",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "새봄대 학생들 학교생활 시간관리랑 스트레스",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 학생"
+      ],
+      "expectedSurveyObject": [
+        "학교생활"
+      ],
+      "expectedPurposeConcepts": [
+        "시간 관리",
+        "스트레스"
+      ],
+      "mustPreserveTerms": [
+        "새봄대"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "시간 사용",
+        "스트레스"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "multidimensional_construct"
+      ],
+      "tags": [
+        "virtual_entity",
+        "noisy_input",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-011",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "food_service",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "편의점 간편식을 구매하지 않는 20대의 미구매 이유",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "편의점 간편식을 구매하지 않는 20대"
+      ],
+      "expectedSurveyObject": [
+        "편의점 간편식"
+      ],
+      "expectedPurposeConcepts": [
+        "미구매 이유"
+      ],
+      "mustPreserveTerms": [
+        "편의점 간편식",
+        "20대"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "consumption_behavior",
+        "attitude"
+      ],
+      "tags": [
+        "negation",
+        "non_university"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-clarify-005",
+      "split": "dev",
+      "stratum": "clarification",
+      "category": "clarification",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "서비스 개선",
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedSurveyObject": [
+        "서비스"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "mustPreserveTerms": [
+        "서비스"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": true,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "unresolved",
+        "mixed"
+      ],
+      "tags": [
+        "clarification"
+      ],
+      "notes": "서비스명과 개선 범위가 없음"
+    },
+    {
+      "id": "dev-general-022",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "teamwork_school_life",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "교내 상담센터를 이용하지 않은 학생의 인지도와 이용 장벽",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "교내 상담센터를 이용하지 않은 학생"
+      ],
+      "expectedSurveyObject": [
+        "교내 상담센터"
+      ],
+      "expectedPurposeConcepts": [
+        "인지도",
+        "비이용 이유"
+      ],
+      "mustPreserveTerms": [
+        "상담센터"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "인지",
+        "비이용 이유"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "attitude",
+        "need_demand"
+      ],
+      "tags": [
+        "negation",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-complex-003",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "single_multi_purpose",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "학생상담 프로그램을 모르는 재학생의 인지도, 비이용 이유, 이용 의향",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "학생상담 프로그램을 이용하지 않는 재학생"
+      ],
+      "expectedSurveyObject": [
+        "학생상담 프로그램"
+      ],
+      "expectedPurposeConcepts": [
+        "인지도",
+        "비이용 이유",
+        "이용 의향"
+      ],
+      "mustPreserveTerms": [
+        "학생상담 프로그램"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "인지",
+        "비이용 이유",
+        "이용 의향"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "mixed",
+        "need_demand"
+      ],
+      "tags": [
+        "negation",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-009",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "food_service",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "새봄대학교 학생이 별마루 카페를 이용하는 빈도와 메뉴 만족도",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 학생"
+      ],
+      "expectedSurveyObject": [
+        "별마루 카페"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 빈도",
+        "메뉴 만족도"
+      ],
+      "mustPreserveTerms": [
+        "새봄대학교",
+        "별마루 카페"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이용 빈도",
+        "만족도"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "service_usage",
+        "satisfaction"
+      ],
+      "tags": [
+        "virtual_entity",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-complex-015",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "relationship_research",
+      "difficulty": "hard",
+      "surveyMode": "research",
+      "questionCount": 7,
+      "input": "통학 시간이 대학생의 학교생활 만족도에 미치는 영향과 교통수단별 차이",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "통학하는 대학생"
+      ],
+      "expectedSurveyObject": [
+        "통학 시간",
+        "학교생활 만족도",
+        "교통수단"
+      ],
+      "expectedPurposeConcepts": [
+        "영향 분석",
+        "집단 비교"
+      ],
+      "mustPreserveTerms": [
+        "통학 시간",
+        "학교생활 만족도"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "소요 시간",
+        "만족도",
+        "이동 수단"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "relationship_analysis"
+      ],
+      "tags": [
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-complex-009",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "reversed_roles",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "새봄대학교 학생에게 솔빛관을 오갈 때 느끼는 혼잡과 안전을 묻고 싶어",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 학생"
+      ],
+      "expectedSurveyObject": [
+        "솔빛관 이동"
+      ],
+      "expectedPurposeConcepts": [
+        "혼잡",
+        "안전"
+      ],
+      "mustPreserveTerms": [
+        "새봄대학교",
+        "솔빛관"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "혼잡",
+        "안전"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "mobility_experience"
+      ],
+      "tags": [
+        "virtual_entity",
+        "complex_order",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-029",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "lifestyle_behavior",
+      "difficulty": "hard",
+      "surveyMode": "research",
+      "questionCount": 7,
+      "input": "대학생의 평일 수면 시간과 수업 집중도의 관계",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "대학생"
+      ],
+      "expectedSurveyObject": [
+        "수면 시간",
+        "수업 집중도"
+      ],
+      "expectedPurposeConcepts": [
+        "변수 관계"
+      ],
+      "mustPreserveTerms": [
+        "수면 시간",
+        "수업 집중도"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "수면 시간",
+        "집중도"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "relationship_analysis"
+      ],
+      "tags": [
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-complex-016",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "relationship_research",
+      "difficulty": "hard",
+      "surveyMode": "research",
+      "questionCount": 7,
+      "input": "청소년의 하루 화면 이용 시간이 학습 집중도와 수면 만족도에 미치는 관계",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "청소년"
+      ],
+      "expectedSurveyObject": [
+        "화면 이용 시간",
+        "학습 집중도",
+        "수면 만족도"
+      ],
+      "expectedPurposeConcepts": [
+        "변수 관계"
+      ],
+      "mustPreserveTerms": [
+        "청소년",
+        "화면 이용 시간"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이용 시간",
+        "집중도",
+        "만족도"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "relationship_analysis"
+      ],
+      "tags": [
+        "non_university",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-complex-010",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "reversed_roles",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "별마루 서비스를 안 쓰는 직장인 대상으로 서비스가 어려운 이유랑 필요한 기능",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "별마루 서비스를 사용하지 않는 직장인"
+      ],
+      "expectedSurveyObject": [
+        "별마루 서비스"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유",
+        "기능 수요"
+      ],
+      "mustPreserveTerms": [
+        "별마루 서비스",
+        "직장인"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "원하는 기능"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "mixed",
+        "need_demand"
+      ],
+      "tags": [
+        "negation",
+        "virtual_entity",
+        "non_university",
+        "complex_order",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-006",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "facility_mobility",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "출근하는 직장인의 환승역 혼잡과 이동 안전 체감",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "출근하는 직장인"
+      ],
+      "expectedSurveyObject": [
+        "환승역 이동"
+      ],
+      "expectedPurposeConcepts": [
+        "혼잡",
+        "안전"
+      ],
+      "mustPreserveTerms": [
+        "직장인",
+        "환승역"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이동 수단",
+        "혼잡",
+        "안전"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "mobility_experience"
+      ],
+      "tags": [
+        "non_university",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-013",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "digital_service",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "새봄대학교 구성원의 온새미 플랫폼 사용성과 오류 경험",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 구성원"
+      ],
+      "expectedSurveyObject": [
+        "온새미 플랫폼"
+      ],
+      "expectedPurposeConcepts": [
+        "사용성",
+        "오류 경험"
+      ],
+      "mustPreserveTerms": [
+        "새봄대학교",
+        "온새미 플랫폼"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "사용성",
+        "불편"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "service_usage"
+      ],
+      "tags": [
+        "virtual_entity",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-020",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "event_program",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "멘토링 프로그램과 취업 캠프 참가자의 도움 정도 및 만족도 비교",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "두 프로그램 참가자"
+      ],
+      "expectedSurveyObject": [
+        "멘토링 프로그램",
+        "취업 캠프"
+      ],
+      "expectedPurposeConcepts": [
+        "도움 정도 비교",
+        "만족도 비교"
+      ],
+      "mustPreserveTerms": [
+        "멘토링",
+        "취업 캠프"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "참여 경험",
+        "학습 효과",
+        "만족도",
+        "대상 비교"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "multiple",
+      "expectedArchetypes": [
+        "mixed",
+        "event_program"
+      ],
+      "tags": [
+        "multiple_targets"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-noisy-005",
+      "split": "dev",
+      "stratum": "incomplete_user_input",
+      "category": "noisy_input",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "최근3달 배달 안시킨 1인가구 왜",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "최근 3개월 배달을 주문하지 않은 1인 가구"
+      ],
+      "expectedSurveyObject": [
+        "배달 주문"
+      ],
+      "expectedPurposeConcepts": [
+        "비주문 이유"
+      ],
+      "mustPreserveTerms": [
+        "1인가구",
+        "배달"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "consumption_behavior",
+        "attitude"
+      ],
+      "tags": [
+        "negation",
+        "timeframe",
+        "non_university",
+        "noisy_input"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-026",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "consumer_behavior",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "친환경 세제를 구매하지 않는 소비자의 미구매 이유와 가격 수용도",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "친환경 세제를 구매하지 않는 소비자"
+      ],
+      "expectedSurveyObject": [
+        "친환경 세제"
+      ],
+      "expectedPurposeConcepts": [
+        "미구매 이유",
+        "가격 수용도"
+      ],
+      "mustPreserveTerms": [
+        "친환경 세제"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "비용"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "consumption_behavior",
+        "need_demand"
+      ],
+      "tags": [
+        "negation",
+        "non_university",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-past-012",
+      "split": "dev",
+      "stratum": "past_error_variant",
+      "category": "digital_service",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "대학생이 네이버 웹툰과 카카오페이지를 이용하는 빈도와 만족도를 비교",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "대학생"
+      ],
+      "expectedSurveyObject": [
+        "네이버 웹툰",
+        "카카오페이지"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 빈도 비교",
+        "만족도 비교"
+      ],
+      "mustPreserveTerms": [
+        "네이버 웹툰",
+        "카카오페이지"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이용 빈도",
+        "만족도",
+        "대상 비교"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "multiple",
+      "expectedArchetypes": [
+        "mixed",
+        "service_usage"
+      ],
+      "tags": [
+        "multiple_targets",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-010",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "food_service",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "재택근무자의 배달음식 주문 빈도와 지출 부담",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "재택근무자"
+      ],
+      "expectedSurveyObject": [
+        "배달음식"
+      ],
+      "expectedPurposeConcepts": [
+        "주문 빈도",
+        "지출 부담"
+      ],
+      "mustPreserveTerms": [
+        "재택근무자",
+        "배달음식"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "구매 빈도",
+        "비용"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "consumption_behavior"
+      ],
+      "tags": [
+        "non_university",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-019",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "event_program",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "지역 주민이 봄꽃 축제에 참여한 경험과 지역 상권 효과에 대한 인식",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "봄꽃 축제에 참여한 지역 주민"
+      ],
+      "expectedSurveyObject": [
+        "봄꽃 축제"
+      ],
+      "expectedPurposeConcepts": [
+        "참여 경험",
+        "지역 상권 효과 인식"
+      ],
+      "mustPreserveTerms": [
+        "봄꽃 축제",
+        "지역 주민"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "참여 경험",
+        "인식"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "event_program",
+        "attitude"
+      ],
+      "tags": [
+        "non_university",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-noisy-001",
+      "split": "dev",
+      "stratum": "incomplete_user_input",
+      "category": "noisy_input",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "새봄대 솔빛관 이동 불편 뭐가 젤 큰지",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 구성원"
+      ],
+      "expectedSurveyObject": [
+        "솔빛관 이동"
+      ],
+      "expectedPurposeConcepts": [
+        "불편"
+      ],
+      "mustPreserveTerms": [
+        "새봄대",
+        "솔빛관"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "불편"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "mobility_experience"
+      ],
+      "tags": [
+        "virtual_entity",
+        "noisy_input"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-past-019",
+      "split": "dev",
+      "stratum": "past_error_variant",
+      "category": "food_service",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "최근 한 달 맛나샘 이용 학생의 방문 빈도와 음식 만족도",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "맛나샘 이용 학생"
+      ],
+      "expectedSurveyObject": [
+        "맛나샘"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 빈도",
+        "음식 만족도"
+      ],
+      "mustPreserveTerms": [
+        "맛나샘"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이용 빈도",
+        "만족도"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "service_usage",
+        "satisfaction"
+      ],
+      "tags": [
+        "timeframe",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-clarify-001",
+      "split": "dev",
+      "stratum": "clarification",
+      "category": "clarification",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "학교 만족도",
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedSurveyObject": [
+        "학교"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "mustPreserveTerms": [
+        "학교"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": true,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "unresolved",
+        "mixed"
+      ],
+      "tags": [
+        "clarification"
+      ],
+      "notes": "학교 전체·시설·수업 중 평가 범위가 불명확함"
+    },
+    {
+      "id": "dev-noisy-004",
+      "split": "dev",
+      "stratum": "incomplete_user_input",
+      "category": "noisy_input",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "온새미앱 써본사람 불편 만족",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "온새미 앱 사용자"
+      ],
+      "expectedSurveyObject": [
+        "온새미 앱"
+      ],
+      "expectedPurposeConcepts": [
+        "불편",
+        "만족도"
+      ],
+      "mustPreserveTerms": [
+        "온새미"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "불편",
+        "만족도"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "service_usage",
+        "satisfaction"
+      ],
+      "tags": [
+        "virtual_entity",
+        "noisy_input",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-complex-014",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "relationship_research",
+      "difficulty": "hard",
+      "surveyMode": "research",
+      "questionCount": 7,
+      "input": "직장인의 평일 수면 시간과 지각 빈도의 상관관계",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "직장인"
+      ],
+      "expectedSurveyObject": [
+        "수면 시간",
+        "지각 빈도"
+      ],
+      "expectedPurposeConcepts": [
+        "상관관계"
+      ],
+      "mustPreserveTerms": [
+        "직장인",
+        "수면 시간",
+        "지각"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "수면 시간",
+        "빈도"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "relationship_analysis"
+      ],
+      "tags": [
+        "non_university"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-past-006",
+      "split": "dev",
+      "stratum": "past_error_variant",
+      "category": "facility_mobility",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "대우관 오갈 때 학생들 이동수단이랑 얼마나 걸리는지, 뭐가 불편한지",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "대우관을 오가는 학생"
+      ],
+      "expectedSurveyObject": [
+        "대우관 이동"
+      ],
+      "expectedPurposeConcepts": [
+        "이동 수단",
+        "소요 시간",
+        "불편"
+      ],
+      "mustPreserveTerms": [
+        "대우관"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이동 수단",
+        "소요 시간",
+        "불편"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "mobility_experience"
+      ],
+      "tags": [
+        "noisy_input",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-025",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "consumer_behavior",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "최근 3개월 1인 가구의 장보기 빈도와 물가 부담",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "1인 가구"
+      ],
+      "expectedSurveyObject": [
+        "장보기"
+      ],
+      "expectedPurposeConcepts": [
+        "구매 빈도",
+        "물가 부담"
+      ],
+      "mustPreserveTerms": [
+        "1인 가구"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "구매 빈도",
+        "비용"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "consumption_behavior"
+      ],
+      "tags": [
+        "non_university",
+        "timeframe",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-noisy-003",
+      "split": "dev",
+      "stratum": "incomplete_user_input",
+      "category": "noisy_input",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "동아리 안함 이유 이유랑 가입생각",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "동아리에 가입하지 않은 사람"
+      ],
+      "expectedSurveyObject": [
+        "동아리"
+      ],
+      "expectedPurposeConcepts": [
+        "미가입 이유",
+        "가입 의향"
+      ],
+      "mustPreserveTerms": [
+        "동아리"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "참여 의향"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "need_demand",
+        "attitude"
+      ],
+      "tags": [
+        "negation",
+        "noisy_input",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-past-018",
+      "split": "dev",
+      "stratum": "past_error_variant",
+      "category": "food_service",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "맛나샘 안 가는 학생들 이유 조사해줘",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "맛나샘을 이용하지 않는 학생"
+      ],
+      "expectedSurveyObject": [
+        "맛나샘"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유"
+      ],
+      "mustPreserveTerms": [
+        "맛나샘"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "attitude",
+        "service_usage"
+      ],
+      "tags": [
+        "negation",
+        "noisy_input"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-017",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "event_program",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "새봄대학교 축제 참가자의 프로그램 만족도와 재참여 의향",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 축제 참가자"
+      ],
+      "expectedSurveyObject": [
+        "새봄대학교 축제"
+      ],
+      "expectedPurposeConcepts": [
+        "프로그램 만족도",
+        "재참여 의향"
+      ],
+      "mustPreserveTerms": [
+        "새봄대학교"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "참여 경험",
+        "만족도",
+        "참여 의향"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "event_program",
+        "satisfaction"
+      ],
+      "tags": [
+        "virtual_entity",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-past-015",
+      "split": "dev",
+      "stratum": "past_error_variant",
+      "category": "food_service",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "이번 학기 연세대생 한경관 학식 얼마나 자주 먹고 메뉴에는 만족하는지",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "연세대생"
+      ],
+      "expectedSurveyObject": [
+        "한경관 학식"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 빈도",
+        "메뉴 만족도"
+      ],
+      "mustPreserveTerms": [
+        "연세대",
+        "한경관"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이용 빈도",
+        "만족도"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "service_usage",
+        "satisfaction"
+      ],
+      "tags": [
+        "timeframe",
+        "noisy_input",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-complex-011",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "reversed_roles",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "새 메뉴 만족도는 별마루 카페를 최근 한 달 이용한 주민한테 조사",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "최근 한 달 별마루 카페를 이용한 주민"
+      ],
+      "expectedSurveyObject": [
+        "별마루 카페 새 메뉴"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도"
+      ],
+      "mustPreserveTerms": [
+        "별마루 카페"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "만족도"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "satisfaction",
+        "service_usage"
+      ],
+      "tags": [
+        "virtual_entity",
+        "non_university",
+        "timeframe",
+        "complex_order",
+        "noisy_input"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-past-001",
+      "split": "dev",
+      "stratum": "past_error_variant",
+      "category": "academic_satisfaction",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "경영대에 대한 연세대 경영대생들 만족도",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "연세대 경영대생"
+      ],
+      "expectedSurveyObject": [
+        "경영대"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도"
+      ],
+      "mustPreserveTerms": [
+        "연세대",
+        "경영대"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "만족도",
+        "개선 요구"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "satisfaction"
+      ],
+      "tags": [
+        "complex_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-past-002",
+      "split": "dev",
+      "stratum": "past_error_variant",
+      "category": "academic_satisfaction",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "최근 한 학기 동안 연세대 경영대생이 느낀 경영대 시설 만족도와 개선점을 조사해줘",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "연세대 경영대생"
+      ],
+      "expectedSurveyObject": [
+        "경영대 시설"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도",
+        "개선 요구"
+      ],
+      "mustPreserveTerms": [
+        "연세대",
+        "경영대"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "만족도",
+        "불편",
+        "개선 요구"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "satisfaction",
+        "facility_usage"
+      ],
+      "tags": [
+        "timeframe",
+        "single_target_multi_purpose",
+        "complex_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-noisy-002",
+      "split": "dev",
+      "stratum": "incomplete_user_input",
+      "category": "noisy_input",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "직장인 커피값 얼마나씀... 주에",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "직장인"
+      ],
+      "expectedSurveyObject": [
+        "커피 지출"
+      ],
+      "expectedPurposeConcepts": [
+        "주간 지출"
+      ],
+      "mustPreserveTerms": [
+        "직장인",
+        "커피"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "구매 빈도",
+        "비용"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "consumption_behavior"
+      ],
+      "tags": [
+        "non_university",
+        "timeframe",
+        "noisy_input"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-past-004",
+      "split": "dev",
+      "stratum": "past_error_variant",
+      "category": "academic_satisfaction",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "경영대 시설을 이용하지 않는 연세대 경영대생의 비이용 이유와 학교 이미지",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "경영대 시설을 이용하지 않는 연세대 경영대생"
+      ],
+      "expectedSurveyObject": [
+        "경영대 시설"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유",
+        "이미지"
+      ],
+      "mustPreserveTerms": [
+        "연세대",
+        "경영대"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "인식"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "이용 만족도 강제",
+        "generic filler"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "attitude",
+        "facility_usage"
+      ],
+      "tags": [
+        "negation",
+        "single_target_multi_purpose",
+        "complex_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-general-002",
+      "split": "dev",
+      "stratum": "general_domain",
+      "category": "academic_course",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "직장인이 퇴근 후 듣는 야간 강좌의 학습 효과와 어려움",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "야간 강좌를 듣는 직장인"
+      ],
+      "expectedSurveyObject": [
+        "야간 강좌"
+      ],
+      "expectedPurposeConcepts": [
+        "학습 효과",
+        "어려움"
+      ],
+      "mustPreserveTerms": [
+        "직장인",
+        "야간 강좌"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "학습 효과",
+        "불편"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "learning_experience"
+      ],
+      "tags": [
+        "non_university",
+        "single_target_multi_purpose",
+        "complex_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-past-014",
+      "split": "dev",
+      "stratum": "past_error_variant",
+      "category": "food_service",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "한경관 학식을 먹지 않는 연세대 학생들의 비이용 이유",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "한경관 학식을 먹지 않는 연세대 학생"
+      ],
+      "expectedSurveyObject": [
+        "한경관 학식"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유"
+      ],
+      "mustPreserveTerms": [
+        "연세대",
+        "한경관"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "attitude",
+        "service_usage"
+      ],
+      "tags": [
+        "negation",
+        "complex_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-past-008",
+      "split": "dev",
+      "stratum": "past_error_variant",
+      "category": "facility_mobility",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "대우관에 가지 않는 연세대 학생이 방문하지 않는 이유",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "대우관에 가지 않는 연세대 학생"
+      ],
+      "expectedSurveyObject": [
+        "대우관"
+      ],
+      "expectedPurposeConcepts": [
+        "비방문 이유"
+      ],
+      "mustPreserveTerms": [
+        "연세대",
+        "대우관"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "방문 만족도 강제",
+        "generic filler"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "attitude",
+        "mobility_experience"
+      ],
+      "tags": [
+        "negation",
+        "complex_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "dev-past-011",
+      "split": "dev",
+      "stratum": "past_error_variant",
+      "category": "digital_service",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "최근 3개월 대학생의 네이버 웹툰 이용 빈도와 이용 시간 조사",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "대학생"
+      ],
+      "expectedSurveyObject": [
+        "네이버 웹툰"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 빈도",
+        "이용 시간"
+      ],
+      "mustPreserveTerms": [
+        "네이버 웹툰"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "이용 빈도",
+        "이용 시간"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "service_usage"
+      ],
+      "tags": [
+        "timeframe",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    }
+  ]
+}

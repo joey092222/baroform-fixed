@@ -14,7 +14,13 @@
     "test": "npm run typecheck && node scripts/run-mock-tests.mjs tests/*.test.ts",
     "test:ai:mock": "node scripts/run-mock-tests.mjs tests/ai-cost-controls.test.ts tests/ai-golden-fixtures.test.ts",
     "ai:eval:fixtures": "node scripts/run-mock-tests.mjs tests/ai-golden-fixtures.test.ts",
-    "ai:eval:real": "node --import tsx scripts/ai-eval-real.ts"
+    "ai:eval:real": "node --import tsx scripts/ai-eval-real.ts",
+    "ai:eval:regression:generate": "node --import tsx evals/survey-regression/v1/generate-dataset.ts",
+    "ai:eval:regression:static": "node --import tsx scripts/run-survey-regression-static.ts",
+    "ai:eval:regression:live": "node --import tsx scripts/run-survey-regression-live.ts",
+    "ai:eval:regression:summary": "node --import tsx scripts/summarize-survey-regression.ts",
+    "ai:eval:regression:freeze": "node --import tsx scripts/freeze-survey-regression-baseline.ts",
+    "test:ai:regression": "node scripts/run-mock-tests.mjs tests/survey-regression-dataset.test.ts"
   },
   "dependencies": {
     "@fontsource-variable/noto-sans-kr": "^5.3.0",
