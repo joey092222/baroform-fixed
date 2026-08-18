@@ -6,6 +6,7 @@ import {
   buildSurveyAiRequest,
   repairInvalidQuestions,
 } from "../app/survey-ai";
+import { openAiMessageText } from "../app/lib/ai/ai-trace";
 import { analyzeSurveyPrompt } from "../app/survey-intent";
 import { createSurveyGenerationSchema } from "../app/lib/ai/survey-generation-schema";
 import { createSurveyPlan } from "../app/survey-planning";
@@ -245,7 +246,7 @@ test("OpenAI 요청에는 복합 의도와 목적별 계획을 구조화해 전�
     targetGrade: "전학년",
     questionCount: 7,
   });
-  const input = typeof request.input === "string" ? request.input : JSON.stringify(request.input);
+  const input = openAiMessageText(request.input);
 
   assert.match(input, /"intentMode":"composite"/);
   assert.match(input, /"kind":"usage_experience"/);

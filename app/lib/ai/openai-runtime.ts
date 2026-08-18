@@ -11,6 +11,30 @@ export const openAiMaxRetries = 1;
 export const defaultOpenAiTimeoutMs = 280_000;
 
 const initialFetch = globalThis.fetch;
+let testApiKeyOverride: string | null = null;
+
+export function resolveOpenAiApiKey() {
+  if (process.env.NODE_ENV !== "production" && testApiKeyOverride) {
+    return testApiKeyOverride;
+  }
+  return process.env.OPENAI_API_KEY?.trim() || null;
+}
+
+export async function withOpenAiApiKeyForTest<T>(
+  apiKey: string,
+  operation: () => Promise<T> | T,
+): Promise<T> {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("OPENAI_TEST_KEY_OVERRIDE_DISABLED_IN_PRODUCTION");
+  }
+  const previous = testApiKeyOverride;
+  testApiKeyOverride = apiKey;
+  try {
+    return await operation();
+  } finally {
+    testApiKeyOverride = previous;
+  }
+}
 
 export function hasInjectedTestTransport() {
   return process.env.NODE_ENV === "test" && globalThis.fetch !== initialFetch;

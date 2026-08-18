@@ -5,6 +5,7 @@ import {
   currentBuildDiagnostics,
   type BuildDiagnostics,
 } from "./build-diagnostics";
+import { isAiTraceEnabled, traceAiEvent } from "./lib/ai/ai-trace";
 
 export const MAX_REPAIR_ATTEMPTS = 1;
 export const MAX_FULL_REGENERATION_ATTEMPTS = 0;
@@ -14,10 +15,7 @@ export const MAX_MODEL_CALLS_PER_REQUEST = 1;
 export type GenerationSource = SurveyGenerationSource;
 
 function canRecordDetailedGenerationTrace() {
-  return (
-    process.env.NODE_ENV !== "production" ||
-    process.env.VERCEL_ENV === "preview"
-  );
+  return isAiTraceEnabled();
 }
 
 function canonicalGenerationSource(
@@ -687,6 +685,17 @@ export function recordSurveyFallback(
   trace.fallbackReason = reason.slice(0, 120);
   trace.fallbackCount += 1;
   if (source) trace.generationSource = canonicalGenerationSource(source);
+  traceAiEvent({
+    requestId: trace.requestId,
+    stage: "fallback_used",
+    data: {
+      fallbackUsed: true,
+      fallbackReason: trace.fallbackReason,
+      fallbackFunction: "recordSurveyFallback",
+      generationSource: trace.generationSource,
+      fallbackCount: trace.fallbackCount,
+    },
+  });
 }
 
 export function markSurveyGenerationStage(

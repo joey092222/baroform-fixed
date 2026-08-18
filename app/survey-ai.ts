@@ -2373,16 +2373,23 @@ export function buildSurveyAiRequest(
     "프로필 문맥이 사용자 원문과 충돌하면 사용자 원문을 우선한다.",
   ].join(" ");
 
-  const inputText = [
+  const parsedContextForPrompt = {
+    audience: parsedBrief.parsedSurveyContext.audience,
+    primaryEntity: parsedBrief.parsedSurveyContext.primaryEntity,
+    entityType: parsedBrief.parsedSurveyContext.entityType,
+    activity: parsedBrief.parsedSurveyContext.activity,
+    researchGoal: parsedBrief.parsedSurveyContext.researchGoal,
+    researchConstructs: parsedBrief.parsedSurveyContext.researchConstructs,
+    surveyArchetype: parsedBrief.parsedSurveyContext.surveyArchetype,
+    isUsageObject: parsedBrief.parsedSurveyContext.isUsageObject,
+  };
+  const developerContext = [
     useWebSearch
       ? "다음 정보를 바탕으로 필요한 웹 검색과 설문 생성을 한 번에 수행하라."
       : "다음 정보를 바탕으로 외부 검색 없이 설문을 생성하라.",
     "",
     "[현재 날짜]",
     currentDate,
-    "",
-    "[사용자가 입력한 원문]",
-    prompt,
     "",
     "[구조화된 설문 의도]",
     JSON.stringify(compactSurveyIntentForPrompt(surveyIntent)),
@@ -2403,7 +2410,7 @@ export function buildSurveyAiRequest(
     }),
     "",
     "[실체·활동·조사목적 분리 컨텍스트]",
-    JSON.stringify(parsedBrief.parsedSurveyContext),
+    JSON.stringify(parsedContextForPrompt),
     "",
     "[역할 기반 설문 계획]",
     JSON.stringify(compactSurveyPlanForPrompt(surveyPlan)),
@@ -2484,28 +2491,27 @@ export function buildSurveyAiRequest(
       : "설계, 응답자 경로 시뮬레이션과 품질검사를 이 한 번의 응답 안에서 끝내고 JSON Schema에 맞는 최종 결과만 반환한다.",
   ].join("\n");
 
-  const input =
+  const userContent =
     referenceImages.length > 0 || referenceFiles.length > 0
       ? [
-          {
-            role: "user" as const,
-            content: [
-              { type: "input_text" as const, text: inputText },
-              ...referenceFiles.map((file) => ({
-                type: "input_file" as const,
-                ...(file.fileId
-                  ? { file_id: file.fileId }
-                  : { filename: file.name, file_data: file.dataUrl }),
-              })),
-              ...referenceImages.map((image) => ({
-                type: "input_image" as const,
-                image_url: image.dataUrl,
-                detail: surveyMode === "research" ? ("high" as const) : ("low" as const),
-              })),
-            ],
-          },
+          { type: "input_text" as const, text: prompt },
+          ...referenceFiles.map((file) => ({
+            type: "input_file" as const,
+            ...(file.fileId
+              ? { file_id: file.fileId }
+              : { filename: file.name, file_data: file.dataUrl }),
+          })),
+          ...referenceImages.map((image) => ({
+            type: "input_image" as const,
+            image_url: image.dataUrl,
+            detail: surveyMode === "research" ? ("high" as const) : ("low" as const),
+          })),
         ]
-      : inputText;
+      : prompt;
+  const input = [
+    { role: "developer" as const, content: developerContext },
+    { role: "user" as const, content: userContent },
+  ];
 
   return {
     model,

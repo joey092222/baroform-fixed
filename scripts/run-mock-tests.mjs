@@ -15,6 +15,7 @@ const result = spawnSync(
       NODE_ENV: "test",
       AI_MOCK_MODE: process.env.AI_MOCK_MODE ?? "false",
       RUN_REAL_AI_TESTS: "false",
+      BAROFORM_ALLOW_LIVE_AI_TESTS: "false",
       ALLOW_REAL_OPENAI_IN_NON_PRODUCTION: "false",
     },
   },

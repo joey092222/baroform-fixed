@@ -105,10 +105,12 @@ import {
   readSurveyGenerationResponse,
   surveyGenerationErrorMessage,
   surveyGenerationErrorMetadata,
+  traceSurveyGenerationUiPayload,
   type SurveyGenerationFailureStage,
 } from "./survey-generation-client";
 import { surveyAudienceLabel } from "./survey-grade";
 import { surveySharePath } from "./survey-share";
+import { traceAiEvent } from "./lib/ai/ai-trace";
 
 type View =
   | "landing"
@@ -6455,14 +6457,21 @@ export default function Home({
     setIsAnalyzing(true);
     setClarification(null);
 
-    if (process.env.NODE_ENV !== "production") {
-      console.info("survey-generation-client-request", {
-        surveyMode: selectedSurveyMode,
+    traceAiEvent({
+      requestId: clientRequestId,
+      stage: "client_submit",
+      data: {
+        rawInputFromTextArea: requestedPrompt,
         inputLength: requestedPrompt.length,
-        attachmentCount,
-        requestId: clientRequestId,
-      });
-    }
+        selectedOptions: {
+          surveyMode: selectedSurveyMode,
+          targetGrade,
+          questionCount,
+          attachmentCount,
+        },
+        submitTimestamp: new Date(generationStartedAt).toISOString(),
+      },
+    });
 
     try {
       const response = await fetch("/api/survey-draft", {
@@ -6470,6 +6479,7 @@ export default function Home({
         headers: {
           "content-type": "application/json",
           "x-baroform-client-request-id": clientRequestId,
+          "x-baroform-client-submit-at": String(generationStartedAt),
         },
         signal: controller.signal,
         body: JSON.stringify({
@@ -6576,6 +6586,7 @@ export default function Home({
         selectedSurveyMode,
         Math.ceil((Date.now() - generationStartedAt) / 1_000),
       );
+      traceSurveyGenerationUiPayload(result, clientRequestId);
       setSurveyTitle(result.blueprint.title);
       setDescription(result.blueprint.description);
       setQuestions(result.blueprint.aiQuestions);
@@ -6584,6 +6595,19 @@ export default function Home({
       navigate("editor");
     } catch (analysisError) {
       if (analysisRequestRef.current !== requestId) return;
+      traceAiEvent({
+        requestId:
+          analysisError instanceof JsonResponseError && analysisError.requestId
+            ? analysisError.requestId
+            : clientRequestId,
+        stage: "request_failed",
+        data: surveyGenerationErrorMetadata(
+          analysisError,
+          selectedSurveyMode,
+          failureStage,
+          clientRequestId,
+        ),
+      });
       console.error(
         "survey-generation-client-error",
         surveyGenerationErrorMetadata(

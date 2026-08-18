@@ -10,11 +10,46 @@ import {
   type SurveyGenerationSource,
 } from "./survey-generation-response";
 import type { SurveyMode } from "./survey-mode";
+import { traceAiEvent } from "./lib/ai/ai-trace";
 
 export type SurveyGenerationFailureStage =
   | "initial-request"
   | "background-poll"
   | "response-apply";
+
+type SurveyGenerationUiPayload = {
+  requestId: string | null;
+  blueprint: {
+    title: string;
+    description: string;
+    aiQuestions: Array<{ title: string }>;
+  };
+};
+
+export function traceSurveyGenerationUiPayload(
+  result: SurveyGenerationUiPayload,
+  fallbackRequestId: string,
+) {
+  return traceAiEvent({
+    requestId: result.requestId ?? fallbackRequestId,
+    stage: "ui_payload_created",
+    data: {
+      apiResponseBody: result,
+      clientReceivedBody: result,
+      reactStatePayload: {
+        surveyTitle: result.blueprint.title,
+        description: result.blueprint.description,
+        questions: result.blueprint.aiQuestions,
+        questionCount: result.blueprint.aiQuestions.length,
+      },
+      rendererPayload: {
+        view: "editor",
+        title: result.blueprint.title,
+        questionTitles: result.blueprint.aiQuestions.map((item) => item.title),
+      },
+    },
+  });
+}
 
 type SurveyGenerationPayloadMetadata = {
   requestId: string | null;

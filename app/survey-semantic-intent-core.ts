@@ -2356,15 +2356,16 @@ export function compactSurveyIntentForPrompt(intent: SurveyIntent) {
   return {
     intentMode: intent.intentMode,
     targetPopulation: intent.targetPopulation,
-    semanticRoles: intent.entities.map((item) => ({
-      id: item.id,
-      text: item.text,
-      role: item.role,
-      source: item.source,
-      confidence: item.confidence,
-      ...(item.activityKind ? { activityKind: item.activityKind } : {}),
-    })),
-    studyTitle: intent.studyTitle?.text ?? null,
+    semanticRoles: intent.entities
+      .filter((item) => item.role !== "study_title")
+      .map((item) => ({
+        id: item.id,
+        text: item.text,
+        role: item.role,
+        source: item.source,
+        confidence: item.confidence,
+        ...(item.activityKind ? { activityKind: item.activityKind } : {}),
+      })),
     studyPurpose: intent.studyPurpose?.text ?? null,
     studyPurposes: intent.studyPurposes.map((item) => ({
       id: item.id,
@@ -2410,7 +2411,16 @@ export function compactSurveyIntentForPrompt(intent: SurveyIntent) {
     studyType: intent.studyType,
     ambiguityLevel: intent.ambiguityLevel,
     objectKind: intent.objectKind,
-    semanticContext: intent.semanticContext,
+    semanticContext: {
+      audience: intent.semanticContext.audience,
+      primaryEntity: intent.semanticContext.primaryEntity,
+      entityType: intent.semanticContext.entityType,
+      activity: intent.semanticContext.activity,
+      researchGoal: intent.semanticContext.researchGoal,
+      researchConstructs: intent.semanticContext.researchConstructs,
+      surveyArchetype: intent.semanticContext.surveyArchetype,
+      isUsageObject: intent.semanticContext.isUsageObject,
+    },
     researchIntent: compactResearchIntentForPrompt(intent.researchIntent),
   };
 }

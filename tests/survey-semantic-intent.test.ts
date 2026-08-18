@@ -4,6 +4,7 @@ import test from "node:test";
 import { POST as createSurveyDraft } from "../app/api/survey-draft/route";
 import { buildSurveyAiRequest } from "../app/survey-ai";
 import { analyzeSurveyPrompt } from "../app/survey-intent";
+import { openAiMessageText } from "../app/lib/ai/ai-trace";
 import {
   parseSurveyIntent,
   validateSurveyIntentCandidate,
@@ -91,10 +92,7 @@ test("전 연령대 AI 사용능력 실태조사는 능력과 실제 활용을 �
     analyzeSurveyPrompt(prompt),
     "gpt-5.6-terra",
   );
-  const requestText =
-    typeof request.input === "string"
-      ? request.input
-      : JSON.stringify(request.input);
+  const requestText = openAiMessageText(request.input);
   assert.match(requestText, /\[구조화된 설문 의도\]/);
   assert.match(requestText, /"objectKind":"ability_skill"/);
   assert.match(requestText, /"screeningRequired":false/);

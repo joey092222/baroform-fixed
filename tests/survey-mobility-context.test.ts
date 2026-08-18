@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { buildSurveyAiRequest } from "../app/survey-ai";
+import { openAiMessageText } from "../app/lib/ai/ai-trace";
 import {
   analyzeSurveyPrompt,
   generateSurvey,
@@ -138,8 +139,7 @@ test("OpenAI 요청에도 분리된 이동 컨텍스트와 predicate 정책을 �
     analyzeSurveyPrompt(mobilityPrompt),
     "gpt-5.6-terra",
   );
-  const input =
-    typeof request.input === "string" ? request.input : JSON.stringify(request.input);
+  const input = openAiMessageText(request.input);
   assert.match(input, /\[실체·활동·조사목적 분리 컨텍스트\]/);
   assert.match(input, /"surveyArchetype":"mobility_experience"/);
   assert.match(input, /"primaryEntity":"대우관"/);

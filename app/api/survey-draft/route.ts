@@ -84,10 +84,20 @@ import {
   createTrackedOpenAiClient,
   logOpenAiUsage,
   openAiMaxRetries,
+  resolveOpenAiApiKey,
   runOpenAiWithTransientRetry,
   shouldMockOpenAi,
 } from "@/app/lib/ai/openai-runtime";
 import { buildDiagnosticsHeaders } from "@/app/build-diagnostics";
+import {
+  summarizeOpenAiRequestForTrace,
+  summarizeOpenAiResponseForTrace,
+  traceAiEvent,
+} from "@/app/lib/ai/ai-trace";
+import {
+  normalizeUserInput,
+  selectSurveyUserInput,
+} from "@/app/lib/ai/user-input";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -473,6 +483,15 @@ function fallbackResponse(
           new Error(issues.join(" ")),
         );
       }
+      traceAiEvent({
+        requestId,
+        stage: "request_failed",
+        data: {
+          code: "REPAIR_EXHAUSTED",
+          stage: trace?.failureStage ?? "repair-validation",
+          issueCount: issues.length,
+        },
+      });
       return apiError(
         `안전한 설문 초안을 만들지 못했어요. ${issues.join(" ")}`,
         "REPAIR_EXHAUSTED",
@@ -795,10 +814,6 @@ function cacheResult(
   });
 }
 
-function normalizePrompt(value: string) {
-  return value.replace(/\r\n?/g, "\n").trim();
-}
-
 function generationCacheKey(value: unknown) {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
@@ -1094,6 +1109,11 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     status: number,
   ) => {
     failSurveyGenerationTrace(trace, code, new Error(message));
+    traceAiEvent({
+      requestId,
+      stage: "request_failed",
+      data: { code, stage: trace.failureStage ?? trace.stage, message },
+    });
     logTrace(trace);
     return apiError(
       message,
@@ -1134,6 +1154,15 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       400,
     );
   }
+  traceAiEvent({
+    requestId,
+    stage: "server_received",
+    data: {
+      clientRequestId,
+      requestBody: rawPayload,
+      receivedAt: new Date().toISOString(),
+    },
+  });
 
   const parsedPayload = surveyDraftRequestSchema.safeParse(rawPayload);
   markSurveyGenerationStage(trace, "request-schema-validation");
@@ -1163,12 +1192,21 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
   const surveyMode =
     parseRequestedSurveyMode(payload.surveyMode) ?? defaultSurveyMode;
 
-  const enteredPrompt =
-    typeof payload.prompt === "string"
-      ? normalizePrompt(payload.prompt)
-      : typeof payload.userInput === "string"
-        ? normalizePrompt(payload.userInput)
-        : "";
+  const selectedInput = selectSurveyUserInput(payload);
+  const enteredPrompt = normalizeUserInput(selectedInput.rawUserInput);
+  traceAiEvent({
+    requestId,
+    stage: "input_normalized",
+    data: {
+      beforeNormalization: selectedInput.rawUserInput,
+      afterNormalization: enteredPrompt,
+      beforeLength: selectedInput.rawUserInput.length,
+      afterLength: enteredPrompt.length,
+      normalizationFunction: "normalizeUserInput",
+      referencedFieldName: selectedInput.sourceField,
+      changed: selectedInput.rawUserInput !== enteredPrompt,
+    },
+  });
   const references = await parseSurveyReferences(payload.references);
   if (!references) {
     return earlyError(
@@ -1381,7 +1419,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     );
   }
 
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  const apiKey = resolveOpenAiApiKey();
   const mockMode = shouldMockOpenAi();
   if (!apiKey || mockMode) {
     const fallbackReason = !apiKey ? "api-key-missing" : "mock-mode";
@@ -1614,6 +1652,18 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     canonicalIntent,
     surveyPlan,
   });
+  traceAiEvent({
+    requestId,
+    stage: "prompt_built",
+    data: summarizeOpenAiRequestForTrace(
+      modelRequest as unknown as Record<string, unknown>,
+      selectedInput.rawUserInput,
+      {
+        timeoutMs: openAiTimeoutMs,
+        developerPromptVersion: "survey-ai-v1",
+      },
+    ),
+  });
   let upstreamCompleted = false;
   let modelCallStarted = false;
   let usageLogged = false;
@@ -1625,6 +1675,17 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     try {
       recordSurveyModelCall(trace);
       modelCallStarted = true;
+      traceAiEvent({
+        requestId,
+        stage: "openai_request_started",
+        data: {
+          model,
+          surveyMode,
+          timeoutMs: openAiTimeoutMs,
+          maxRetries: openAiMaxRetries,
+          modelCallCount: trace.modelCallCount,
+        },
+      });
       const attempted = await runOpenAiWithTransientRetry(
         () => openai.responses.parse(
           surveyMode === "research"
@@ -1648,6 +1709,16 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         ),
         (retryCount) => {
           actualRetryCount = retryCount;
+          traceAiEvent({
+            requestId,
+            stage: "retry_started",
+            data: {
+              retryCount,
+              maximumRetryCount: openAiMaxRetries,
+              rawUserInputPreserved: true,
+              promptChanged: false,
+            },
+          });
         },
       );
       rawResult = attempted.value;
@@ -1655,6 +1726,11 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       upstreamCompleted = true;
       markSurveyGenerationStage(trace, "model-response");
       recordSurveyModelResponseTrace(trace, rawResult);
+      traceAiEvent({
+        requestId,
+        stage: "openai_response_received",
+        data: summarizeOpenAiResponseForTrace(rawResult),
+      });
 
       logOpenAiUsage(rawResult, {
         requestId,
@@ -1738,6 +1814,16 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
                 }))
               : [],
         });
+        traceAiEvent({
+          requestId,
+          stage: "parse_failed",
+          data: {
+            parserFunction: "openai.responses.parse",
+            errorName: error instanceof Error ? error.name : "UnknownError",
+            errorMessage: error instanceof Error ? error.message : null,
+            jsonRepairExecuted: false,
+          },
+        });
       }
 
       if (isInvalidStructuredOutput && intent.intentMode === "composite") {
@@ -1767,15 +1853,51 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       openAiRequestId: responseRequestId(rawResult),
       ...responseDiagnostics(rawResult),
     });
-    let result = parseSurveyDraftResponse(
-      rawResult as unknown,
-      prompt,
-      questionCount,
-      targetGrade,
-      hasReferences,
-      trace,
-      { canonicalIntent, surveyPlan },
-    );
+    traceAiEvent({
+      requestId,
+      stage: "parse_started",
+      data: {
+        parserFunction: "parseSurveyDraftResponse",
+        schema: "surveyGenerationResponseSchema",
+        rawResponse: summarizeOpenAiResponseForTrace(rawResult),
+      },
+    });
+    let result: SurveyDraftResult;
+    try {
+      result = parseSurveyDraftResponse(
+        rawResult as unknown,
+        prompt,
+        questionCount,
+        targetGrade,
+        hasReferences,
+        trace,
+        { canonicalIntent, surveyPlan },
+      );
+      traceAiEvent({
+        requestId,
+        stage: "parse_succeeded",
+        data: {
+          status: result.status,
+          parsedSurvey:
+            result.status === "needs_clarification"
+              ? { clarification: result.clarification }
+              : result.blueprint,
+          jsonRepairExecuted: false,
+        },
+      });
+    } catch (error) {
+      traceAiEvent({
+        requestId,
+        stage: "parse_failed",
+        data: {
+          parserFunction: "parseSurveyDraftResponse",
+          errorName: error instanceof Error ? error.name : "UnknownError",
+          errorMessage: error instanceof Error ? error.message : null,
+          jsonRepairExecuted: false,
+        },
+      });
+      throw error;
+    }
     if (result.status === "ready" || result.status === "ready_with_caution") {
       recordSurveyPostprocessTrace(trace, {
         before: result.blueprint.aiQuestions.map((item) => item.title),
@@ -1814,6 +1936,17 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     if (result.status === "ready" || result.status === "ready_with_caution") {
       recordSurveyPostprocessTrace(trace, {
         final: result.blueprint.aiQuestions.map((item) => item.title),
+      });
+      traceAiEvent({
+        requestId,
+        stage: "postprocess_succeeded",
+        data: {
+          postprocessedSurvey: result.blueprint,
+          finalQuestionCount: result.blueprint.aiQuestions.length,
+          fallbackUsed: trace.fallbackUsed,
+          fallbackReason: trace.fallbackReason,
+          targetOrTopicChanged: false,
+        },
       });
     }
 
@@ -1854,6 +1987,16 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       headers: Record<string, string> = {},
     ) => {
       failSurveyGenerationTrace(trace, code, error);
+      traceAiEvent({
+        requestId,
+        stage: "request_failed",
+        data: {
+          code,
+          stage: trace.failureStage ?? trace.stage,
+          errorName: error instanceof Error ? error.name : "UnknownError",
+          errorMessage: error instanceof Error ? error.message : null,
+        },
+      });
       logTrace(trace);
       return apiError(
         message,
@@ -2049,7 +2192,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
 
 function backgroundMetadata(response: OpenAIResponse) {
   const metadata = response.metadata ?? {};
-  const prompt = normalizePrompt(metadata.baro_prompt ?? "");
+  const prompt = normalizeUserInput(metadata.baro_prompt ?? "");
   const targetGrade = isTargetGrade(metadata.baro_target_grade)
     ? metadata.baro_target_grade
     : null;
@@ -2114,7 +2257,7 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
     );
   }
   const job = backgroundJobParams(request);
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  const apiKey = resolveOpenAiApiKey();
   if (!job || !apiKey || !validBackgroundJobToken(job.responseId, job.jobToken, apiKey)) {
     return backgroundError(
       "정밀·연구 설문 작업 정보를 확인하지 못했어요.",
@@ -2412,7 +2555,7 @@ async function cancelBackgroundJob(request: Request, requestId: string) {
     );
   }
   const job = backgroundJobParams(request);
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  const apiKey = resolveOpenAiApiKey();
   if (!job || !apiKey || !validBackgroundJobToken(job.responseId, job.jobToken, apiKey)) {
     return apiError(
       "정밀·연구 설문 작업 정보를 확인하지 못했어요.",
@@ -2462,10 +2605,24 @@ export async function DELETE(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const requestId = crypto.randomUUID();
+  const candidateRequestId = request.headers.get("x-baroform-client-request-id")?.trim();
+  const requestId =
+    candidateRequestId && /^[A-Za-z0-9._:-]{8,80}$/.test(candidateRequestId)
+      ? candidateRequestId
+      : crypto.randomUUID();
   try {
     return await createSurveyDraftResponse(request, requestId);
   } catch (error) {
+    traceAiEvent({
+      requestId,
+      stage: "request_failed",
+      data: {
+        code: "SURVEY_GENERATION_INTERNAL_ERROR",
+        stage: "unhandled",
+        errorName: error instanceof Error ? error.name : "UnknownError",
+        errorMessage: error instanceof Error ? error.message : null,
+      },
+    });
     console.error("survey-generation-unhandled", {
       requestId,
       name: error instanceof Error ? error.name : "UnknownError",

@@ -145,7 +145,21 @@ function question(
 }
 
 function requestInputText(input: unknown) {
-  return typeof input === "string" ? input : JSON.stringify(input);
+  if (typeof input === "string") return input;
+  if (!Array.isArray(input)) return JSON.stringify(input);
+  return input
+    .flatMap((message) => {
+      if (!message || typeof message !== "object") return [];
+      const content = (message as { content?: unknown }).content;
+      if (typeof content === "string") return [content];
+      if (!Array.isArray(content)) return [];
+      return content.flatMap((part) => {
+        if (!part || typeof part !== "object") return [];
+        const text = (part as { text?: unknown }).text;
+        return typeof text === "string" ? [text] : [];
+      });
+    })
+    .join("\n");
 }
 
 test("단순 비율 요청은 해당 여부 한 문항으로 그대로 설계한다", () => {
@@ -1431,6 +1445,9 @@ test("검색 기반 구조화 결과를 기존 설문 편집 형식으로 연결
     assert.fail("완성된 설문 결과가 필요합니다.");
   }
   assert.equal(result.blueprint.aiQuestions.length, 7);
+  assert.equal(result.blueprint.title, "대학생 네이버웹툰 이용 현황 조사");
+  assert.equal(result.blueprint.description, "대학생의 네이버웹툰 이용 방식과 경험을 알아보기 위한 설문입니다.");
+  assert.equal(result.blueprint.aiQuestions[0]?.title, "네이버웹툰을 이용한 적이 있나요?");
   assert.equal(result.blueprint.aiQuestions[1]?.type, "single");
   assert.equal(result.blueprint.aiQuestions[5]?.type, "scale");
   assert.equal(result.research.sources[0]?.url, "https://comic.naver.com/");

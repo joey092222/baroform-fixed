@@ -231,7 +231,7 @@ function resolveAcademicSatisfaction(
   normalizedInput: string,
 ): ResolvedAcademicSatisfaction | null {
   const match = normalizedInput.match(
-    /^(.+?)에\s*대한\s+(.+?(?:대생|학과생|전공생|학생|학부생|재학생))(?:들)?의\s+(?:전반적\s*)?만족도(?:\s*조사)?$/,
+    /^(.+?)에\s*대한\s+(.+?(?:대생|학과생|전공생|학생|학부생|재학생))(?:들)?(?:의)?\s+(?:전반적\s*)?만족도(?:\s*조사)?$/,
   );
   if (!match) return null;
   const primaryText = normalize(match[1]);
@@ -299,11 +299,305 @@ function resolveAcademicSatisfaction(
   };
 }
 
+function resolveUsageAudienceSatisfaction(
+  normalizedInput: string,
+): ResolvedAcademicSatisfaction | null {
+  const match = normalizedInput.match(
+    /^(.{1,100}?)(?:을|를)\s*(이용|사용|방문|참여)하는\s+(.*?(?:학부생|대학원생|재학생|휴학생|대학생|학생|일반인|직장인|청년|교직원|교수|교사|이용자|사용자|소비자|고객|주민|학부모))(?:들)?(?:의)?\s+(?:전반적\s*)?만족도(?:\s*(?:와|과|및)\s*개선\s*(?:의견|요구|수요|점))?(?:\s*조사)?$/,
+  );
+  if (!match) return null;
+
+  const primaryText = normalize(match[1]);
+  const verb = match[2];
+  const audience = normalize(match[3]);
+  const entityType: SurveyContextEntityType =
+    /웹툰|플랫폼|사이트|SNS|OTT/.test(primaryText)
+      ? "platform"
+      : /제품|기기|상품/.test(primaryText)
+        ? "product"
+        : verb === "방문" || /시설|공간|도서관|식당|카페|건물/.test(primaryText)
+          ? "facility"
+          : "service";
+  const objectKind: SurveyIntentObjectKind =
+    entityType === "facility" ? "place_facility" : "service_product";
+  const evidence = [
+    `이용 대상과 응답자를 분리하는 '${verb}하는' 관형절`,
+    match[0],
+  ];
+
+  return {
+    audience,
+    primaryEntity: canonicalEntity(
+      primaryText,
+      entityType,
+      "primary_entity",
+      evidence,
+    ),
+    entityType,
+    objectKind,
+    ambiguity: {
+      level: "low",
+      requiresClarification: false,
+      code: null,
+      candidates: [],
+    },
+  };
+}
+
 type ResolvedConsumption = {
   audience: string | null;
   category: CanonicalEntity;
   activity: CanonicalActivity;
 };
+
+type ResolvedRelationalClause = {
+  audience: string;
+  audienceEvidence: string;
+  primaryEntity: CanonicalEntity;
+  entityType: SurveyContextEntityType;
+  objectKind: SurveyIntentObjectKind;
+  activity: string | null;
+  activityKind: SurveyActivityKind | null;
+  researchGoal: string;
+  researchConstructs: string[];
+  surveyArchetype: SurveyArchetype;
+  isUsageObject: boolean;
+  includesNonUsers: boolean;
+  purposeKinds: SurveyIntent["purposeBlocks"][number]["kind"][];
+};
+
+const relationalAudienceHead =
+  "(?:학부생|대학원생|재학생|휴학생|대학생|학생|일반인|직장인|청년|교직원|교수|교사|이용자|사용자|소비자|고객|주민|학부모|대생|학과생|전공생)";
+
+function inferRelationalEntityType(
+  value: string,
+  usageVerb = "",
+): SurveyContextEntityType {
+  if (/웹툰|플랫폼|사이트|SNS|OTT/.test(value)) return "platform";
+  if (/제품|기기|상품/.test(value)) return "product";
+  if (/시설|공간|도서관|식당|카페|건물|강의동/.test(value)) return "facility";
+  if (/관$/.test(value)) return "university_building";
+  if (/수업|강의|학습|교육/.test(value) && !/서비스/.test(value)) return "learning";
+  if (/서비스|앱|어플|프로그램|웹툰/.test(value) || usageVerb) return "service";
+  return "unknown";
+}
+
+function splitRelationalConstructs(value: string) {
+  const cleaned = normalize(value)
+    .replace(/(?:에\s*대한|에\s*관한)\s*/g, "")
+    .replace(/\s*(?:조사|파악)\s*$/g, "");
+  const parts = cleaned
+    .split(/(?:\s*[,·]\s*|\s+(?:및|그리고)\s+|(?<=[가-힣])(?:와|과)\s+)/)
+    .map(normalize)
+    .filter((item) => item.length > 0);
+  return [...new Set(parts.length > 0 ? parts : [cleaned])];
+}
+
+function withAccusativeParticle(value: string) {
+  const normalized = normalize(value);
+  const lastCharacter = normalized.at(-1);
+  if (!lastCharacter) return normalized;
+  const codePoint = lastCharacter.charCodeAt(0);
+  if (codePoint < 0xac00 || codePoint > 0xd7a3) {
+    return `${normalized}을`;
+  }
+  const hasFinalConsonant = (codePoint - 0xac00) % 28 !== 0;
+  return `${normalized}${hasFinalConsonant ? "을" : "를"}`;
+}
+
+function resolveRelationalClause(
+  normalizedInput: string,
+): ResolvedRelationalClause | null {
+  const nonUse = normalizedInput.match(
+    new RegExp(
+      `^(.{1,100}?)(?:을|를)\\s*(이용|사용|방문|참여)하지\\s*않는\\s+(.*?${relationalAudienceHead})(?:들)?(?:이|가|의)?\\s+(?:이를\\s*)?(?:이용|사용|방문|참여)하지\\s*않는\\s+(이유|원인|장벽|요인)$`,
+    ),
+  );
+  if (nonUse) {
+    const object = normalize(nonUse[1]);
+    const audienceGroup = normalize(nonUse[3]);
+    const entityType = inferRelationalEntityType(object, nonUse[2]);
+    const evidence = [nonUse[0], `${nonUse[2]}하지 않는`];
+    const activityVerb = nonUse[2];
+    return {
+      audience: `${withAccusativeParticle(object)} ${activityVerb}하지 않는 ${audienceGroup}`,
+      audienceEvidence: normalize(nonUse[0]),
+      primaryEntity: canonicalEntity(object, entityType, "primary_entity", evidence),
+      entityType,
+      objectKind: "attitude_perception",
+      activity: null,
+      activityKind: null,
+      researchGoal: `${object} 비이용 이유와 이용 장벽 파악`,
+      researchConstructs: ["비이용 이유", "이용 장벽", "향후 이용 조건"],
+      surveyArchetype: "attitude",
+      isUsageObject: false,
+      includesNonUsers: true,
+      purposeKinds: ["attitude_perception", "need_demand"],
+    };
+  }
+
+  const movement = normalizedInput.match(
+    new RegExp(
+      `^(.{1,100}?)(?:을|를)\\s*(오가는|왕래하는|이동하는|통학하는)\\s+(.*?${relationalAudienceHead})(?:들)?(?:이|가|의)?\\s+(?:느끼는|경험하는|평가하는)\\s+(.+)$`,
+    ),
+  );
+  if (movement) {
+    const object = normalize(movement[1]);
+    const audience = normalize(movement[3]);
+    const movementVerb = normalize(movement[2]);
+    const movementObject = withAccusativeParticle(object);
+    const statedConstructs = splitRelationalConstructs(movement[4]);
+    const entityType = inferRelationalEntityType(object);
+    return {
+      audience: `${movementObject} ${movementVerb} ${audience}`,
+      audienceEvidence: normalize(`${movementObject} ${movementVerb} ${movement[3]}`),
+      primaryEntity: canonicalEntity(
+        object,
+        entityType === "unknown" ? "place" : entityType,
+        "primary_entity",
+        [movement[0], movement[2]],
+      ),
+      entityType: entityType === "unknown" ? "place" : entityType,
+      objectKind: "behavior_usage",
+      activity: `${movementObject} ${movementVerb.replace(/하는$/, "")} 이동`,
+      activityKind: "move",
+      researchGoal: `${object} 접근 및 이동 경험의 ${statedConstructs.join(", ")} 파악`,
+      researchConstructs: statedConstructs,
+      surveyArchetype: "mobility_experience",
+      isUsageObject: false,
+      includesNonUsers: false,
+      purposeKinds: ["behavior_usage", "need_demand"],
+    };
+  }
+
+  const actorPerspective = normalizedInput.match(
+    new RegExp(
+      `^(.*?${relationalAudienceHead})(?:들)?(?:이|가)\\s+(바라보는|평가하는|인식하는|생각하는)\\s+(.+?)(?:의)\\s+(.+)$`,
+    ),
+  );
+  if (actorPerspective) {
+    const audience = normalize(actorPerspective[1]);
+    const object = normalize(actorPerspective[3]);
+    const constructs = splitRelationalConstructs(actorPerspective[4]);
+    const entityType = inferRelationalEntityType(object);
+    const containsUsage = constructs.some((item) => /이용|사용|방문|경험/.test(item));
+    return {
+      audience,
+      audienceEvidence: normalize(actorPerspective[1]),
+      primaryEntity: canonicalEntity(
+        object,
+        entityType === "unknown" ? "construct" : entityType,
+        "primary_entity",
+        [actorPerspective[0], actorPerspective[2]],
+      ),
+      entityType: entityType === "unknown" ? "construct" : entityType,
+      objectKind: containsUsage ? "composite" : "attitude_perception",
+      activity: containsUsage ? `${object} 이용 경험` : null,
+      activityKind: containsUsage ? "use" : null,
+      researchGoal: `${object}에 대한 ${constructs.join(", ")} 파악`,
+      researchConstructs: constructs,
+      surveyArchetype: containsUsage ? "mixed" : "attitude",
+      isUsageObject: false,
+      includesNonUsers: true,
+      purposeKinds: containsUsage
+        ? ["attitude_perception", "usage_experience"]
+        : ["attitude_perception"],
+    };
+  }
+
+  const positiveUse = normalizedInput.match(
+    new RegExp(
+      `^(.{1,100}?)(?:을|를)\\s*(이용하는|사용하는|쓰는|방문하는|참여하는)\\s+(.*?${relationalAudienceHead})(?:들)?(?:의|이|가)\\s+(.+)$`,
+    ),
+  );
+  if (positiveUse) {
+    const object = normalize(positiveUse[1]);
+    const audience = normalize(positiveUse[3]);
+    const activityVerb = normalize(positiveUse[2]);
+    const usageObject = withAccusativeParticle(object);
+    const constructs = splitRelationalConstructs(positiveUse[4]);
+    const entityType = inferRelationalEntityType(object, positiveUse[2]);
+    const satisfaction = constructs.some((item) => /만족|평가/.test(item));
+    return {
+      audience: `${usageObject} ${activityVerb} ${audience}`,
+      audienceEvidence: normalize(`${usageObject} ${activityVerb} ${positiveUse[3]}`),
+      primaryEntity: canonicalEntity(object, entityType, "primary_entity", [
+        positiveUse[0],
+        positiveUse[2],
+      ]),
+      entityType,
+      objectKind: satisfaction ? "satisfaction_evaluation" : "service_product",
+      activity: `${object} 이용`,
+      activityKind: "use",
+      researchGoal: `${object}의 ${constructs.join(", ")} 파악`,
+      researchConstructs: constructs,
+      surveyArchetype: satisfaction
+        ? "satisfaction"
+        : entityType === "platform"
+          ? "platform_usage"
+          : entityType === "product"
+            ? "product_usage"
+            : entityType === "facility" || entityType === "university_building"
+              ? "facility_usage"
+              : "service_usage",
+      isUsageObject: !satisfaction,
+      includesNonUsers: false,
+      purposeKinds: satisfaction ? ["satisfaction"] : ["usage_experience"],
+    };
+  }
+
+  const audienceEvaluation = normalizedInput.match(
+    new RegExp(
+      `^(.*?${relationalAudienceHead})(?:들)?(?:의)\\s+(.+?)\\s+((?:전반적\\s*)?만족도(?:\\s*(?:와|과|및)\\s*개선\\s*(?:의견|요구|수요|점))?)$`,
+    ),
+  );
+  if (audienceEvaluation) {
+    const audience = normalize(audienceEvaluation[1]);
+    const object = normalize(audienceEvaluation[2]);
+    const domains = splitRelationalConstructs(object);
+    const multidimensional = domains.length > 1;
+    // 단일 만족도는 기존 canonical parser가 더 풍부한 도메인 정보를
+    // 보존한다. 이 경로는 명시적으로 여러 평가 영역을 나열한 문장만
+    // 관계형 다차원 조사로 승격한다.
+    if (!multidimensional) return null;
+    const entityType = inferRelationalEntityType(object);
+    const constructs = multidimensional
+      ? [...domains.map((item) => `${item} 만족도`), "개선 수요"]
+      : ["전반적 만족도", "세부 경험 평가", "불편", "개선 수요"];
+    return {
+      audience,
+      audienceEvidence: normalize(audienceEvaluation[1]),
+      primaryEntity: canonicalEntity(
+        object,
+        multidimensional
+          ? "multidimensional_construct"
+          : entityType === "unknown"
+            ? "construct"
+            : entityType,
+        "primary_entity",
+        [audienceEvaluation[0], audienceEvaluation[3]],
+      ),
+      entityType: multidimensional
+        ? "construct"
+        : entityType === "unknown"
+          ? "construct"
+          : entityType,
+      objectKind: multidimensional
+        ? "multidimensional_construct"
+        : "satisfaction_evaluation",
+      activity: null,
+      activityKind: null,
+      researchGoal: `${object}의 영역별 만족도와 개선 요구 파악`,
+      researchConstructs: constructs,
+      surveyArchetype: multidimensional ? "multidimensional_construct" : "satisfaction",
+      isUsageObject: false,
+      includesNonUsers: false,
+      purposeKinds: ["satisfaction", "need_demand"],
+    };
+  }
+
+  return null;
+}
 
 function resolveConsumptionActivity(
   normalizedInput: string,
@@ -634,6 +928,130 @@ function reconcileAcademicIntent(
   };
 }
 
+function reconcileRelationalClauseIntent(
+  base: SurveyIntent,
+  resolved: ResolvedRelationalClause,
+  rawInput: string,
+  normalizedInput: string,
+): { intent: SurveyIntent; context: ParsedSurveyContext } {
+  const audienceEntity = intentEntity(
+    canonicalEntity(
+      resolved.audience,
+      "construct",
+      "audience",
+      [resolved.audienceEvidence],
+    ),
+    "target_population",
+  );
+  const objectEntity = intentEntity(
+    resolved.primaryEntity,
+    resolved.entityType === "service" ||
+      resolved.entityType === "platform" ||
+      resolved.entityType === "product"
+      ? "product_or_service"
+      : resolved.entityType === "construct"
+        ? "construct"
+        : "concrete_object",
+  );
+  const activityEntity =
+    resolved.activity && resolved.activityKind
+      ? {
+          id: stableId("activity", resolved.activity),
+          text: resolved.activity,
+          normalizedText: resolved.activity,
+          role: "behavior" as const,
+          source: "explicit" as const,
+          confidence: 0.96,
+          activityKind: resolved.activityKind,
+        }
+      : null;
+  const constructEntities = resolved.researchConstructs.map((text) => ({
+    id: stableId("construct", text),
+    text,
+    normalizedText: text,
+    role: "construct" as const,
+    source: "explicit" as const,
+    confidence: 0.94,
+  }));
+  const purposeBlocks = resolved.purposeKinds.map((kind, index) => ({
+    id: `purpose-${kind}-${index + 1}`,
+    text:
+      index === 0
+        ? resolved.researchGoal
+        : `${resolved.primaryEntity.text}의 개선 조건과 후속 수요 파악`,
+    kind,
+    target: resolved.primaryEntity.text,
+    targetEntityIds: [objectEntity.id],
+    constructEntityIds: constructEntities.map((item) => item.id),
+    order: index + 1,
+    relationToPrevious: index === 0 ? null : ("independent" as const),
+  }));
+  const firstPurpose = {
+    id: stableId("study-purpose", resolved.researchGoal),
+    text: resolved.researchGoal,
+    normalizedText: resolved.researchGoal,
+    role: "study_purpose" as const,
+    source: "explicit" as const,
+    confidence: 0.96,
+  };
+  const context: ParsedSurveyContext = {
+    rawUserInput: rawInput,
+    normalizedInput,
+    audience: resolved.audience,
+    primaryEntity: resolved.primaryEntity.text,
+    entityType: resolved.entityType,
+    activity: resolved.activity,
+    researchGoal: resolved.researchGoal,
+    researchConstructs: resolved.researchConstructs,
+    surveyArchetype: resolved.surveyArchetype,
+    isUsageObject: resolved.isUsageObject,
+  };
+
+  return {
+    context,
+    intent: {
+      ...base,
+      targetPopulation: resolved.audience,
+      targetPopulationEntities: [audienceEntity],
+      studyPurpose: firstPurpose,
+      studyPurposes: [firstPurpose],
+      purpose: resolved.researchGoal,
+      purposeBlocks,
+      semanticContext: context,
+      objectKind: resolved.objectKind,
+      surveyObject: resolved.primaryEntity.text,
+      legacyEvaluationTarget: resolved.primaryEntity.text,
+      entities: [
+        audienceEntity,
+        objectEntity,
+        ...(activityEntity ? [activityEntity] : []),
+        ...constructEntities,
+      ],
+      objects: [objectEntity],
+      activities: activityEntity ? [activityEntity] : [],
+      constructs: [...resolved.researchConstructs],
+      constructEntities,
+      evaluationTargets: [resolved.primaryEntity.text],
+      targetCardinality: "single",
+      targetListSource: "explicit_in_prompt",
+      unitOfAnalysis: "개별 응답자",
+      measurementMode:
+        resolved.objectKind === "multidimensional_construct" ||
+        resolved.objectKind === "composite"
+          ? "composite"
+          : "single_evaluation",
+      screeningRequired: false,
+      screeningReason: null,
+      eligibilityCondition: resolved.audience,
+      includesNonUsers: resolved.includesNonUsers,
+      ambiguityLevel: "low",
+      requiresCreatorClarification: false,
+      missingInformation: [],
+      intentMode: purposeBlocks.length > 1 ? "composite" : "single",
+    },
+  };
+}
+
 export function parseCanonicalSurveyIntent(
   rawInput: string,
   studyType: SurveyIntentStudyType = "general",
@@ -644,16 +1062,28 @@ export function parseCanonicalSurveyIntent(
     semanticContext: initialContext,
   });
   let generationContext = initialContext;
-  const academic = resolveAcademicSatisfaction(normalizedInput);
+  const satisfaction =
+    resolveAcademicSatisfaction(normalizedInput) ??
+    resolveUsageAudienceSatisfaction(normalizedInput);
+  const relationalClause = resolveRelationalClause(normalizedInput);
   const consumption = resolveConsumptionActivity(
     normalizedInput,
     initialContext.audience ?? surveyIntent.targetPopulation,
   );
 
-  if (academic) {
+  if (relationalClause) {
+    const reconciled = reconcileRelationalClauseIntent(
+      surveyIntent,
+      relationalClause,
+      rawInput,
+      normalizedInput,
+    );
+    surveyIntent = reconciled.intent;
+    generationContext = reconciled.context;
+  } else if (satisfaction) {
     const reconciled = reconcileAcademicIntent(
       surveyIntent,
-      academic,
+      satisfaction,
       rawInput,
       normalizedInput,
     );
@@ -833,6 +1263,38 @@ export function parseCanonicalSurveyIntent(
     };
   }
 
+  const canonicalObject = surveyIntent.surveyObject?.trim() ?? "";
+  const contextStillEchoesRequest =
+    generationContext.primaryEntity === normalizedInput ||
+    generationContext.primaryEntity === rawInput.trim();
+  if (
+    canonicalObject &&
+    canonicalObject !== normalizedInput &&
+    contextStillEchoesRequest
+  ) {
+    const canonicalActivity =
+      surveyIntent.activities[0]?.text ??
+      (generationContext.isUsageObject ? `${canonicalObject} 이용` : null);
+    generationContext = {
+      ...generationContext,
+      audience: surveyIntent.targetPopulation ?? generationContext.audience,
+      primaryEntity: canonicalObject,
+      activity: canonicalActivity,
+      researchGoal:
+        surveyIntent.studyPurpose?.text ??
+        surveyIntent.purpose ??
+        generationContext.researchGoal,
+      researchConstructs:
+        surveyIntent.constructs.length > 0
+          ? [...surveyIntent.constructs]
+          : generationContext.researchConstructs,
+    };
+    surveyIntent = {
+      ...surveyIntent,
+      semanticContext: generationContext,
+    };
+  }
+
   const reconciledLabels = reconcileCanonicalLabels(
     surveyIntent,
     generationContext,
@@ -856,7 +1318,7 @@ export function parseCanonicalSurveyIntent(
         : generationContext.entityType,
       item.role === "category_set" ? "category_set" : "primary_entity",
       [item.text],
-      academic?.primaryEntity.candidates ?? [],
+      satisfaction?.primaryEntity.candidates ?? [],
     ),
   );
   const canonicalActivities = surveyIntent.activities.map((item) => ({
@@ -890,7 +1352,7 @@ export function parseCanonicalSurveyIntent(
     targetEntityIds: purpose.targetEntityIds,
     constructIds: purpose.constructEntityIds,
   }));
-  const ambiguityCandidates = academic?.ambiguity.candidates ?? [];
+  const ambiguityCandidates = satisfaction?.ambiguity.candidates ?? [];
   const relationFailure = surveyIntent.researchIntent.parseFailureCode;
   const ambiguity: CanonicalAmbiguity = relationFailure
     ? {
@@ -899,7 +1361,7 @@ export function parseCanonicalSurveyIntent(
         code: relationFailure,
         candidates: ambiguityCandidates,
       }
-    : academic?.ambiguity ?? {
+    : satisfaction?.ambiguity ?? {
         level: surveyIntent.ambiguityLevel,
         requiresClarification: surveyIntent.requiresCreatorClarification,
         code: null,

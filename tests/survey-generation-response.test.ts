@@ -185,6 +185,9 @@ test("알 수 없는 응답 type은 계약 오류로 구분한다", async () => 
 });
 
 test("성공·실패 분석에 필요한 생성 trace 필드를 requestId 단위로 보존한다", () => {
+  const mutableEnv = process.env as Record<string, string | undefined>;
+  const previousTraceFlag = mutableEnv.BAROFORM_AI_TRACE;
+  mutableEnv.BAROFORM_AI_TRACE = "true";
   const trace = createSurveyGenerationTrace("request-trace");
   recordSurveyRequestTrace(trace, {
     httpMethod: "POST",
@@ -278,6 +281,8 @@ test("성공·실패 분석에 필요한 생성 trace 필드를 requestId 단위
   assert.equal(snapshot.repairCount, 0);
   assert.equal(snapshot.fallbackCount, 1);
   assert.ok(snapshot.totalElapsedMs >= 0);
+  if (previousTraceFlag === undefined) delete mutableEnv.BAROFORM_AI_TRACE;
+  else mutableEnv.BAROFORM_AI_TRACE = previousTraceFlag;
 });
 
 test("OpenAI parse failure fallback의 경로와 실제 원인을 구분한다", () => {
