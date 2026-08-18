@@ -1151,7 +1151,13 @@ function structuredQuestion(
     text,
     helper_text: null,
     required: type !== "long_text",
-    reference_period: id === 2 ? "최근 4주" : null,
+    reference_period:
+      id === 2 &&
+      /(?:얼마나\s*자주|(?:이용|사용|방문|참여|구매|이동|통학|등하교|출퇴근)\s*(?:빈도|횟수))/.test(
+        text,
+      )
+        ? "최근 4주"
+        : null,
     options: labels.map((label, index) => ({
       id: `Q${id}_O${index + 1}`,
       label,
@@ -1457,6 +1463,11 @@ test("검색 기반 구조화 결과를 기존 설문 편집 형식으로 연결
   assert.equal(result.blueprint.description, "대학생의 네이버웹툰 이용 방식과 경험을 알아보기 위한 설문입니다.");
   assert.equal(result.blueprint.aiQuestions[0]?.title, "네이버웹툰을 이용한 적이 있나요?");
   assert.equal(result.blueprint.aiQuestions[1]?.type, "single");
+  assert.equal(
+    result.blueprint.aiQuestions[1]?.title,
+    "최근 4주 동안 네이버웹툰을 얼마나 자주 이용했나요?",
+  );
+  assert.equal(result.blueprint.aiQuestions[1]?.explicitTimeframe, "최근 4주");
   assert.equal(result.blueprint.aiQuestions[5]?.type, "scale");
   assert.equal(result.research.sources[0]?.url, "https://comic.naver.com/");
   assert.equal(result.surveyPlan?.requested_question_count, 7);

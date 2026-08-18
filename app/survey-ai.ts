@@ -8,6 +8,7 @@ import {
   type SurveyBlueprint,
   type SurveyDomain,
   type SurveyIntentKind,
+  type SurveyBrief,
   type SurveyQuestion,
 } from "./survey-intent";
 import { formatQuestionReason } from "./question-reason";
@@ -81,6 +82,10 @@ import {
   type SurveyGenerationTrace,
 } from "./survey-generation-trace";
 import { lintSurveyQuestionSemantics } from "./survey-context";
+import {
+  ensureVisibleReferencePeriod,
+  isRecurringFrequencyQuestion,
+} from "./survey-reference-period";
 
 export class SurveyValidationError extends Error {
   readonly issues: string[];
@@ -555,7 +560,9 @@ function structuredGenerationToLegacy(
     decisionGoalIds: undefined,
     subjectRole: fallback.aiQuestions[index]?.subjectRole,
     objectRole: fallback.aiQuestions[index]?.objectRole,
-    explicitTimeframe: fallback.aiQuestions[index]?.explicitTimeframe,
+    explicitTimeframe:
+      question.reference_period ??
+      fallback.aiQuestions[index]?.explicitTimeframe,
   }));
 
   return {
@@ -875,7 +882,25 @@ function normalizeQuestion(value: unknown, id: number): SurveyQuestion {
           .filter(Boolean)
           .slice(0, 12)
       : undefined,
+    explicitTimeframe:
+      cleanText(
+        value.explicitTimeframe ?? value.referencePeriod ?? value.reference_period,
+        120,
+      ) || undefined,
   };
+}
+
+function canonicalizeQuestionReferencePeriods(
+  questions: SurveyQuestion[],
+  brief: SurveyBrief,
+) {
+  return questions.map((question) =>
+    ensureVisibleReferencePeriod(question, {
+      userExplicitTimeframe: brief.surveyIntent.explicitTimeframe,
+      existingExplicitTimeframe: question.explicitTimeframe,
+      recommendedTimeframe: brief.recommendedTimeframe,
+    }),
+  );
 }
 
 /**
@@ -1459,7 +1484,7 @@ function planBasedReplacement(
 ): SurveyQuestion {
   const askableBlocks = plan.blocks.filter((item) => item.directlyAskable);
   const block = askableBlocks[index] ?? askableBlocks.at(-1);
-  return {
+  const replacement: SurveyQuestion = {
     ...fallbackQuestion,
     id: original.id,
     reason: formatQuestionReason(fallbackQuestion.reason),
@@ -1479,9 +1504,15 @@ function planBasedReplacement(
     subjectRole: fallbackQuestion.subjectRole ?? "target_population",
     objectRole:
       fallbackQuestion.objectRole ?? intent.objects[0]?.role ?? "real_world_object",
-    explicitTimeframe:
-      fallbackQuestion.explicitTimeframe ?? intent.explicitTimeframe,
+    explicitTimeframe: undefined,
   };
+  return isRecurringFrequencyQuestion(replacement)
+    ? ensureVisibleReferencePeriod(replacement, {
+        userExplicitTimeframe: intent.explicitTimeframe,
+        existingExplicitTimeframe:
+          original.explicitTimeframe ?? fallbackQuestion.explicitTimeframe,
+      })
+    : replacement;
 }
 
 export function repairInvalidQuestions({
@@ -1572,7 +1603,7 @@ function replacementForPlanBlock(
   block: SurveyPlanBlock,
   intent: SurveyIntent,
 ): SurveyQuestion {
-  return {
+  const replacement: SurveyQuestion = {
     ...fallbackQuestion,
     id: original.id,
     reason: formatQuestionReason(fallbackQuestion.reason),
@@ -1589,9 +1620,15 @@ function replacementForPlanBlock(
     subjectRole: fallbackQuestion.subjectRole ?? "target_population",
     objectRole:
       fallbackQuestion.objectRole ?? intent.objects[0]?.role ?? "real_world_object",
-    explicitTimeframe:
-      fallbackQuestion.explicitTimeframe ?? intent.explicitTimeframe,
+    explicitTimeframe: undefined,
   };
+  return isRecurringFrequencyQuestion(replacement)
+    ? ensureVisibleReferencePeriod(replacement, {
+        userExplicitTimeframe: intent.explicitTimeframe,
+        existingExplicitTimeframe:
+          original.explicitTimeframe ?? fallbackQuestion.explicitTimeframe,
+      })
+    : replacement;
 }
 
 export function restoreMissingRequiredPlanBlocks({
@@ -2077,7 +2114,7 @@ export function parseSurveyDraftResponse(
           canonicalFallback,
         );
   const aiQuestions = applyTargetGradeToQuestions(
-    coverage.aiQuestions,
+    canonicalizeQuestionReferencePeriods(coverage.aiQuestions, brief),
     targetGrade,
     questionCount,
     respondentWithGrade,
@@ -2157,15 +2194,18 @@ export function parseSurveyDraftResponse(
   const getPlanBasedFallback = () => {
     if (localFallback) return localFallback;
     const rawFallback = canonicalFallback;
-    const fallbackQuestions = applyTargetGradeToQuestions(
-      resizeSurveyQuestions(rawFallback.aiQuestions, questionCount),
-      targetGrade,
-      questionCount,
-      respondentWithGrade,
-    ).map((item) => ({
-      ...item,
-      reason: formatQuestionReason(item.reason),
-    }));
+    const fallbackQuestions = canonicalizeQuestionReferencePeriods(
+      applyTargetGradeToQuestions(
+        resizeSurveyQuestions(rawFallback.aiQuestions, questionCount),
+        targetGrade,
+        questionCount,
+        respondentWithGrade,
+      ).map((item) => ({
+        ...item,
+        reason: formatQuestionReason(item.reason),
+      })),
+      brief,
+    );
     localFallback = {
       ...rawFallback,
       description: descriptionWithPreservedAudience({
@@ -2250,6 +2290,15 @@ export function parseSurveyDraftResponse(
       respondentGroup: respondentWithGrade,
       questions: requiredCoverageRepair.survey.aiQuestions,
     }),
+  };
+  const finalQuestionsWithReferencePeriods = canonicalizeQuestionReferencePeriods(
+    blueprint.aiQuestions,
+    brief,
+  );
+  blueprint = {
+    ...blueprint,
+    templateQuestions: finalQuestionsWithReferencePeriods.slice(0, 5),
+    aiQuestions: finalQuestionsWithReferencePeriods,
   };
   recordSurveyPlanCoverageTrace(trace, {
     initial: requiredCoverageRepair.initialCoverage,

@@ -10,6 +10,12 @@ import {
   parseSurveyGenerationContextCore,
   type ParsedSurveyContext,
 } from "./survey-context-core";
+import {
+  extractVisibleReferencePeriod,
+  isRecurringFrequencyQuestion,
+  isSafeDefaultReferencePeriod,
+  referencePeriodsMatch,
+} from "./survey-reference-period";
 
 export type SurveyIntentStudyType = "general" | "research";
 
@@ -2000,7 +2006,30 @@ export function validateSurveyIntentCandidate(
         evidence: text,
       });
     }
-    if (!intent.explicitTimeframe && inventedTimeframe.test(combined)) {
+    const visibleReferencePeriod = extractVisibleReferencePeriod(text);
+    const recurringFrequencyQuestion = isRecurringFrequencyQuestion({
+        title: text,
+        explicitTimeframe: referencePeriod,
+        measuredVariable: question.measuredVariable,
+        measuredConstruct: question.measuredConstruct,
+        questionPurpose: question.questionPurpose,
+      });
+    const usesDeclaredModelReferencePeriod =
+      recurringFrequencyQuestion &&
+      Boolean(referencePeriod) &&
+      (!visibleReferencePeriod ||
+        referencePeriodsMatch(referencePeriod, visibleReferencePeriod));
+    const usesDeterministicFrequencyDefault =
+      recurringFrequencyQuestion &&
+      isSafeDefaultReferencePeriod(
+        referencePeriod || visibleReferencePeriod,
+      );
+    if (
+      !intent.explicitTimeframe &&
+      inventedTimeframe.test(combined) &&
+      !usesDeclaredModelReferencePeriod &&
+      !usesDeterministicFrequencyDefault
+    ) {
       pushViolation(violations, {
         code: "INVENTED_TIMEFRAME",
         severity: "repairable",

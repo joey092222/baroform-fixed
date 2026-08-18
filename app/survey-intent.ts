@@ -29,6 +29,12 @@ import {
   type ParsedSurveyContext,
 } from "./survey-context";
 import {
+  ensureVisibleReferencePeriods,
+  hasVisibleReferencePeriod,
+  isRecurringFrequencyQuestion,
+  questionReferencePeriodConflicts,
+} from "./survey-reference-period";
+import {
   audienceIncludesRequiredQualifiers,
   audienceMentionedInText,
 } from "./survey-audience";
@@ -5548,38 +5554,77 @@ function decorateBlueprint(
   };
 }
 
+function withVisibleQuestionReferencePeriods(
+  blueprint: SurveyBlueprint,
+  resolution: {
+    userExplicitTimeframe?: string | null;
+    recommendedTimeframe?: string | null;
+  },
+) {
+  return {
+    ...blueprint,
+    templateQuestions: ensureVisibleReferencePeriods(
+      blueprint.templateQuestions,
+      resolution,
+    ),
+    aiQuestions: ensureVisibleReferencePeriods(
+      blueprint.aiQuestions,
+      resolution,
+    ),
+  };
+}
+
 export function generateSurvey(brief: SurveyBrief): SurveyBlueprint {
   const normalized = brief.normalizedBrief;
   const semantics = brief.semantics;
   const subject = brief.researchSubject;
   let blueprint: SurveyBlueprint;
+  const periodResolution = {
+    userExplicitTimeframe: brief.surveyIntent.explicitTimeframe,
+    recommendedTimeframe: brief.recommendedTimeframe,
+  };
 
   if (brief.parsedSurveyContext.surveyArchetype === "mobility_experience") {
-    return mobilityExperienceBlueprint(brief);
+    return withVisibleQuestionReferencePeriods(
+      mobilityExperienceBlueprint(brief),
+      periodResolution,
+    );
   }
 
   const semanticBlueprint = semanticIntentBlueprint(brief);
   if (semanticBlueprint) {
-    return decorateBlueprint(semanticBlueprint, brief.parsedSurveyContext);
+    return decorateBlueprint(
+      withVisibleQuestionReferencePeriods(semanticBlueprint, periodResolution),
+      brief.parsedSurveyContext,
+    );
   }
 
   if (/팀플|팀\s*프로젝트|조별\s*과제/.test(normalized)) {
     return decorateBlueprint(
-      collaborationBlueprint(brief),
+      withVisibleQuestionReferencePeriods(
+        collaborationBlueprint(brief),
+        periodResolution,
+      ),
       brief.parsedSurveyContext,
       "collaboration_blueprint",
     );
   }
   if (/학식|식당|급식|구내식당/.test(subject)) {
     return decorateBlueprint(
-      cafeteriaBriefBlueprint(brief),
+      withVisibleQuestionReferencePeriods(
+        cafeteriaBriefBlueprint(brief),
+        periodResolution,
+      ),
       brief.parsedSurveyContext,
       "cafeteria_blueprint",
     );
   }
   if (canUseUsageBlueprint(brief.parsedSurveyContext, subject)) {
     return decorateBlueprint(
-      usageBlueprint(subject, brief),
+      withVisibleQuestionReferencePeriods(
+        usageBlueprint(subject, brief),
+        periodResolution,
+      ),
       brief.parsedSurveyContext,
     );
   }
@@ -5623,15 +5668,16 @@ export function generateSurvey(brief: SurveyBrief): SurveyBlueprint {
     }
   }
 
-  return decorateBlueprint(
-    attachSemantics(blueprint, {
+  const attachedBlueprint = attachSemantics(blueprint, {
       ...semantics,
       respondentGroup: brief.targetRespondents,
       evaluationTarget: brief.researchSubject,
       explicitTopic: brief.researchSubject,
       domain: brief.domain,
       goalLabel: brief.researchGoal,
-    }),
+    });
+  return decorateBlueprint(
+    withVisibleQuestionReferencePeriods(attachedBlueprint, periodResolution),
     brief.parsedSurveyContext,
   );
 }
@@ -5720,8 +5766,12 @@ export function analyzeSurveyPrompt(
     }
   }
 
+  const semanticBlueprint = attachSemantics(blueprint, semantics);
+  const periodResolution = {
+    userExplicitTimeframe: canonicalIntent.surveyIntent.explicitTimeframe,
+  };
   return decorateBlueprint(
-    attachSemantics(blueprint, semantics),
+    withVisibleQuestionReferencePeriods(semanticBlueprint, periodResolution),
     parsedSurveyContext,
   );
 }
@@ -5921,9 +5971,16 @@ export function validateSurvey(
     ) {
       issues.push(`문항 ${item.id}가 서로 다른 두 개 이상의 개념을 함께 묻고 있습니다.`);
     }
-    if (/(?:얼마나\s*자주|이용\s*빈도|사용\s*빈도)/.test(item.title) &&
-        !/(?:평소|최근|지난|하루|일주일|한\s*달|한달|1개월|3개월|학기|일\s*동안|주\s*동안|월\s*동안)/.test(item.title)) {
+    if (
+      isRecurringFrequencyQuestion(item) &&
+      !hasVisibleReferencePeriod(item)
+    ) {
       issues.push(`문항 ${item.id}의 이용 빈도에 기준 기간이 없습니다.`);
+    }
+    if (isRecurringFrequencyQuestion(item) && questionReferencePeriodConflicts(item)) {
+      issues.push(
+        `문항 ${item.id}의 기준 기간 메타데이터와 질문 제목이 일치하지 않습니다.`,
+      );
     }
     if (titles.has(normalizedTitle)) {
       issues.push(`문항 ${item.id}가 앞선 문항과 중복됩니다.`);
@@ -6018,6 +6075,7 @@ export function validateSurvey(
           decisionGoalIds: item.decisionGoalIds,
           subjectRole: item.subjectRole,
           objectRole: item.objectRole,
+          referencePeriod: item.explicitTimeframe,
         })),
       })
     : [];
