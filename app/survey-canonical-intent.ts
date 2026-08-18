@@ -413,6 +413,12 @@ function withAccusativeParticle(value: string) {
   return `${normalized}${hasFinalConsonant ? "을" : "를"}`;
 }
 
+function stripRelationalEntityDescriptor(value: string) {
+  const normalized = normalize(value);
+  const descriptor = normalized.match(/^.{2,80}?인\s+(.+)$/);
+  return normalize(descriptor?.[1] ?? normalized);
+}
+
 function resolveRelationalClause(
   normalizedInput: string,
 ): ResolvedRelationalClause | null {
@@ -441,6 +447,158 @@ function resolveRelationalClause(
       isUsageObject: false,
       includesNonUsers: true,
       purposeKinds: ["attitude_perception", "need_demand"],
+    };
+  }
+
+  const audienceMovement = normalizedInput.match(
+    new RegExp(
+      `^(.*?${relationalAudienceHead})(?:들)?(?:의|이|가)\\s+(.+?)\\s+(등하교|통학|출퇴근|이동)(?:\\s*(?:경험|환경|과정))?$`,
+    ),
+  );
+  if (audienceMovement) {
+    const statedAudience = normalize(audienceMovement[1]);
+    const object = normalize(audienceMovement[2]);
+    const movementKind = normalize(audienceMovement[3]);
+    const objectWithParticle = withAccusativeParticle(object);
+    const entityType = inferRelationalEntityType(object);
+    const resolvedEntityType = entityType === "unknown" ? "place" : entityType;
+    return {
+      audience: `${objectWithParticle} 이용하거나 방문하는 ${statedAudience}`,
+      audienceEvidence: normalize(`${audienceMovement[1]}의 ${object} ${movementKind} 경험`),
+      primaryEntity: canonicalEntity(
+        object,
+        resolvedEntityType,
+        "primary_entity",
+        [audienceMovement[0], movementKind],
+      ),
+      entityType: resolvedEntityType,
+      objectKind: "behavior_usage",
+      activity: `${object} 수업이나 활동을 위해 오가는 이동`,
+      activityKind: "move",
+      researchGoal: `${object} ${movementKind} 및 이동 경험 파악`,
+      researchConstructs: [
+        "방문 빈도",
+        "이동 수단",
+        "소요 시간",
+        "혼잡",
+        "안전",
+        "불편",
+        "개선 수요",
+      ],
+      surveyArchetype: "mobility_experience",
+      isUsageObject: false,
+      includesNonUsers: false,
+      purposeKinds: ["behavior_usage", "need_demand"],
+    };
+  }
+
+  const objectAudienceUsage = normalizedInput.match(
+    new RegExp(
+      `^(.+?)(?:의)\\s+(.*?${relationalAudienceHead})(?:들)?(?:의)\\s+((?:이용|사용|방문)\\s*(?:현황|경험)(?:\\s*(?:과|와|및)\\s*(?:현황|경험))?)$`,
+    ),
+  );
+  if (objectAudienceUsage) {
+    const object = stripRelationalEntityDescriptor(objectAudienceUsage[1]);
+    const statedAudience = normalize(objectAudienceUsage[2]);
+    const entityType = inferRelationalEntityType(object, objectAudienceUsage[3]);
+    const resolvedEntityType = entityType === "unknown" ? "service" : entityType;
+    const usageObject = withAccusativeParticle(object);
+    return {
+      audience: `${usageObject} 이용하는 ${statedAudience}`,
+      audienceEvidence: normalize(
+        `${objectAudienceUsage[1]}의 ${objectAudienceUsage[2]}의 ${objectAudienceUsage[3]}`,
+      ),
+      primaryEntity: canonicalEntity(
+        object,
+        resolvedEntityType,
+        "primary_entity",
+        [objectAudienceUsage[0], objectAudienceUsage[3]],
+      ),
+      entityType: resolvedEntityType,
+      objectKind:
+        resolvedEntityType === "facility" || resolvedEntityType === "university_building"
+          ? "place_facility"
+          : "service_product",
+      activity: `${object} 이용`,
+      activityKind: "use",
+      researchGoal: `${object} 이용 현황과 경험 파악`,
+      researchConstructs: ["이용 여부", "이용 빈도", "이용 행태", "만족도", "불편"],
+      surveyArchetype:
+        resolvedEntityType === "platform"
+          ? "platform_usage"
+          : resolvedEntityType === "product"
+            ? "product_usage"
+            : resolvedEntityType === "facility" || resolvedEntityType === "university_building"
+              ? "facility_usage"
+              : "service_usage",
+      isUsageObject: true,
+      includesNonUsers: false,
+      purposeKinds: ["usage_experience"],
+    };
+  }
+
+  const audienceObjectUsage = normalizedInput.match(
+    new RegExp(
+      `^(.*?${relationalAudienceHead})(?:들)?(?:의)\\s+(.+?)\\s+(이용|사용|방문)\\s*(경험|현황)(?:\\s*(?:과|와|및)\\s+(.+))?$`,
+    ),
+  );
+  if (audienceObjectUsage) {
+    const statedAudience = normalize(audienceObjectUsage[1]);
+    const audienceInstitution = statedAudience.match(
+      /^(.+?(?:대학교?|학교))\s+/,
+    )?.[1];
+    const statedObject = normalize(audienceObjectUsage[2]);
+    const object =
+      audienceInstitution && /^교내\s+/.test(statedObject)
+        ? `${audienceInstitution} ${statedObject}`
+        : statedObject;
+    const trailingConstruct = normalize(audienceObjectUsage[5] ?? "")
+      .replace(/\s*(?:설문\s*)?조사$/u, "")
+      .trim();
+    const entityType = inferRelationalEntityType(object, audienceObjectUsage[3]);
+    const resolvedEntityType = entityType === "unknown" ? "service" : entityType;
+    const usageObject = withAccusativeParticle(object);
+    const isPlace =
+      resolvedEntityType === "facility" || resolvedEntityType === "university_building";
+    const researchConstructs = [
+      "이용 여부",
+      "이용 빈도",
+      "이용 목적",
+      "만족도",
+      "불편",
+      ...(trailingConstruct ? [trailingConstruct] : []),
+    ];
+    return {
+      audience: isPlace
+        ? `${usageObject} 이용하거나 방문한 ${statedAudience}`
+        : `${usageObject} 이용한 ${statedAudience}`,
+      audienceEvidence: normalize(audienceObjectUsage[0]),
+      primaryEntity: canonicalEntity(
+        object,
+        resolvedEntityType,
+        "primary_entity",
+        [audienceObjectUsage[0], audienceObjectUsage[3]],
+      ),
+      entityType: resolvedEntityType,
+      objectKind: isPlace ? "place_facility" : "service_product",
+      activity: `${object} 이용`,
+      activityKind: "use",
+      researchGoal: trailingConstruct
+        ? `${object} 이용 경험과 ${trailingConstruct} 파악`
+        : `${object} 이용 경험과 행태 파악`,
+      researchConstructs: [...new Set(researchConstructs)],
+      surveyArchetype: isPlace
+        ? "facility_usage"
+        : resolvedEntityType === "platform"
+          ? "platform_usage"
+          : resolvedEntityType === "product"
+            ? "product_usage"
+            : "service_usage",
+      isUsageObject: true,
+      includesNonUsers: false,
+      purposeKinds: trailingConstruct
+        ? ["usage_experience", "need_demand"]
+        : ["usage_experience"],
     };
   }
 
@@ -505,7 +663,7 @@ function resolveRelationalClause(
       researchGoal: `${object}에 대한 ${constructs.join(", ")} 파악`,
       researchConstructs: constructs,
       surveyArchetype: containsUsage ? "mixed" : "attitude",
-      isUsageObject: false,
+      isUsageObject: containsUsage,
       includesNonUsers: true,
       purposeKinds: containsUsage
         ? ["attitude_perception", "usage_experience"]
@@ -1002,6 +1160,9 @@ function reconcileRelationalClauseIntent(
     source: "explicit" as const,
     confidence: 0.96,
   };
+  const canonicalStudyTitle = `${resolved.primaryEntity.text} ${resolved.researchConstructs
+    .slice(0, 2)
+    .join("·")} 조사`;
   const context: ParsedSurveyContext = {
     rawUserInput: rawInput,
     normalizedInput,
@@ -1019,6 +1180,14 @@ function reconcileRelationalClauseIntent(
     context,
     intent: {
       ...base,
+      studyTitle: base.studyTitle
+        ? {
+            ...base.studyTitle,
+            text: canonicalStudyTitle,
+            normalizedText: canonicalStudyTitle,
+            source: "inferred",
+          }
+        : base.studyTitle,
       targetPopulation: resolved.audience,
       targetPopulationEntities: [audienceEntity],
       studyPurpose: firstPurpose,
@@ -1055,7 +1224,7 @@ function reconcileRelationalClauseIntent(
       ambiguityLevel: "low",
       requiresCreatorClarification: false,
       missingInformation: [],
-      intentMode: purposeBlocks.length > 1 ? "composite" : "single",
+      intentMode: "single",
     },
   };
 }

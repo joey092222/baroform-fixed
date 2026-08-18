@@ -1751,7 +1751,18 @@ export function validateSurveyIntentCandidate(
   }
 
   if (intent.intentMode === "composite") {
-    if (intent.surveyObject || intent.legacyEvaluationTarget) {
+    const purposeTargets = new Set(
+      intent.purposeBlocks
+        .map((purposeBlock) => normalizeRoleText(purposeBlock.target))
+        .filter(Boolean),
+    );
+    const hasMultipleTargets =
+      intent.targetCardinality === "multiple" || purposeTargets.size > 1;
+    const expectsProposedSolution =
+      /(?:도입|개설|마련|추가|신설|출시|개발).{0,30}(?:수요|필요|의향|선호)|(?:수요|필요|의향|선호).{0,30}(?:도입|개설|마련|추가|신설|출시|개발)/.test(
+        intent.rawInput,
+      );
+    if (hasMultipleTargets && (intent.surveyObject || intent.legacyEvaluationTarget)) {
       pushViolation(violations, {
         code: "MULTIPLE_TARGETS_STORED_AS_SINGLE_STRING",
         severity: "fatal",
@@ -1760,7 +1771,11 @@ export function validateSurveyIntentCandidate(
         origin: "schema",
       });
     }
-    if (!intent.entities.some((item) => item.role === "proposed_solution")) {
+    if (
+      hasMultipleTargets &&
+      expectsProposedSolution &&
+      !intent.entities.some((item) => item.role === "proposed_solution")
+    ) {
       pushViolation(violations, {
         code: "PROPOSED_SOLUTION_NOT_SEPARATED",
         severity: "fatal",

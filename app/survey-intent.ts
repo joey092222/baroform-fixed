@@ -1462,8 +1462,24 @@ export function parseSurveyBrief(
     "을",
     "를",
   );
+  const primaryEntity = semantics.parsedSurveyContext.primaryEntity.trim();
+  const compactTarget = targetRespondents.replace(/\s+/g, "");
+  const compactEntity = primaryEntity.replace(/\s+/g, "");
+  const targetAlreadyIncludesEntity =
+    compactEntity.length >= 2 && compactTarget.includes(compactEntity);
+  const statedPurpose =
+    surveyIntent.purpose ?? `${goalDimensions} 파악`;
+  const compactPurpose =
+    targetAlreadyIncludesEntity &&
+    statedPurpose.startsWith(primaryEntity)
+      ? statedPurpose.slice(primaryEntity.length).trim()
+      : statedPurpose;
   const researchGoal = preferSurveyIntent
-    ? `${labelWithParticle(targetRespondents, "의", "의")} ${goalSubject} 관련 ${surveyIntent.purpose ?? `${goalDimensions} 파악`}한다.`
+    ? `${labelWithParticle(targetRespondents, "의", "의")} ${
+        targetAlreadyIncludesEntity
+          ? compactPurpose
+          : `${goalSubject} 관련 ${compactPurpose}`
+      }한다.`
     : `${labelWithParticle(targetRespondents, "의", "의")} ${goalSubject} 관련 ${goalDimensions} 파악한다.`;
   const isUsageStudy =
     semantics.kind === "usage" || /이용\s*(?:현황|경험|빈도)|사용\s*(?:현황|경험|빈도)/.test(split.content);
@@ -1475,9 +1491,15 @@ export function parseSurveyBrief(
         normalizedPrimaryRequest,
       )
       ? `${researchSubject.replace(/\s*경험$/, "")} 의견 조사`
-      : `${targetRespondents}의 ${researchSubject} 조사`
+      : `${targetRespondents}의 ${
+          targetAlreadyIncludesEntity && researchSubject.startsWith(primaryEntity)
+            ? researchSubject.slice(primaryEntity.length).trim()
+            : researchSubject
+        } 조사`
     : preferSurveyIntent && /(?:조사|연구)$/.test(normalizedBrief)
-      ? normalizedBrief
+      ? targetAlreadyIncludesEntity
+        ? `${targetRespondents}의 ${dimensions.slice(0, 2).join("·")} 조사`
+        : normalizedBrief
       : /팀플|팀\s*프로젝트|조별\s*과제/.test(normalizedBrief)
     ? `${researchSubject} 조사`
     : /학식|식당|급식/.test(researchSubject)
@@ -1487,7 +1509,9 @@ export function parseSurveyBrief(
         : awarenessUsageDimensions
           ? `${contextualSubject} 인식 및 ${awarenessUsageDimensions.usageVerb} ${awarenessUsageDimensions.usageDimension} 조사`
         : isUsageStudy
-          ? `${targetRespondents}의 ${researchSubject} 이용 현황 및 경험 조사`
+          ? targetAlreadyIncludesEntity
+            ? `${targetRespondents}의 이용 현황 및 경험 조사`
+            : `${targetRespondents}의 ${researchSubject} 이용 현황 및 경험 조사`
           : `${targetRespondents}의 ${researchSubject} 조사`;
 
   return {

@@ -1237,11 +1237,13 @@ function assertSurveyDepth(
     if (scaleCount > Math.ceil(expected * 0.6)) {
       throw new Error("AI 설문이 척도형 문항에 지나치게 치우쳤습니다.");
     }
-    let currentRun = 1;
-    for (let index = 1; index < types.length; index += 1) {
-      currentRun = types[index] === types[index - 1] ? currentRun + 1 : 1;
-      if (currentRun >= 4) {
-        throw new Error("같은 문항 유형이 지나치게 반복됩니다.");
+    if (typeSet.size < 3) {
+      let currentRun = 1;
+      for (let index = 1; index < types.length; index += 1) {
+        currentRun = types[index] === types[index - 1] ? currentRun + 1 : 1;
+        if (currentRun >= 4) {
+          throw new Error("같은 문항 유형이 지나치게 반복됩니다.");
+        }
       }
     }
   }

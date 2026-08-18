@@ -2160,6 +2160,66 @@ test("7문항은 자유응답 없이도 목적에 맞는 객관식과 척도형 
   }
 });
 
+test("역할과 유형이 충분히 다양한 설문은 객관식이 연속되어도 허용한다", () => {
+  const prompt = "새봄대학교 학생들의 솔빛관 이용 경험과 개선 의견";
+  const questions = [
+    question(1, "솔빛관을 이용하거나 방문한 적이 있나요?", "single", ["예", "아니요"]),
+    question(2, "솔빛관을 얼마나 자주 이용하거나 방문하나요?", "single", [
+      "주 4회 이상",
+      "주 2~3회",
+      "주 1회",
+      "월 1~3회",
+      "거의 방문하지 않음",
+    ]),
+    question(3, "솔빛관을 주로 어떤 목적으로 이용하나요?", "single", [
+      "수업",
+      "학습",
+      "모임",
+      "휴식",
+      "기타",
+    ]),
+    question(4, "솔빛관 이용 경험에 전반적으로 얼마나 만족하나요?", "single", [
+      "매우 만족",
+      "만족",
+      "보통",
+      "불만족",
+      "매우 불만족",
+    ]),
+    question(5, "솔빛관에서 가장 개선이 필요한 공간은 어디인가요?", "single", [
+      "강의 공간",
+      "학습 공간",
+      "휴게 공간",
+      "이동 공간",
+      "기타",
+    ]),
+    question(6, "솔빛관을 이용하면서 불편했던 점을 모두 골라주세요.", "multiple", [
+      "혼잡",
+      "이동 동선",
+      "편의시설 부족",
+      "안내 부족",
+      "특별히 없음",
+    ]),
+    question(7, "솔빛관에서 가장 먼저 개선됐으면 하는 점을 적어주세요.", "text"),
+  ];
+  const payload = readyPayload({
+    prompt,
+    evaluationTarget: "솔빛관",
+    respondentGroup: "솔빛관을 이용하거나 방문한 새봄대학교 학생",
+    entityType: "building",
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
+    sourceUrls: ["https://example.com/facility"],
+  });
+  editReadyPayload(payload, (result) => {
+    result.aiQuestions = questions;
+    const designPlan = result.designPlan as Record<string, unknown>;
+    designPlan.questionRoles = [...fixtureQuestionRoles];
+  });
+
+  const parsed = parseSurveyDraftResponse(payload, prompt, 7, "전학년", true);
+  assert.equal(parsed.status, "ready");
+});
+
 test("항목명처럼 끝난 AI 문항을 응답 가능한 질문 문장으로 다듬는다", () => {
   const prompt = "학생지원센터 상담 예약 경험 조사";
   const questions = [

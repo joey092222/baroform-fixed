@@ -349,7 +349,7 @@ test("불완전한 Responses API 출력은 성공 설문으로 오인하지 않�
   assert.equal(events.some((event) => event.stage === "ui_payload_created"), false);
 });
 
-test("의미 검수 실패는 성공 설문으로 오인하지 않고 정확한 실패 trace를 남긴다", async () => {
+test("의미 검수에서 발견한 일부 문항은 안전하게 복구하고 성공 trace를 남긴다", async () => {
   const prompt = "해오름관을 오가는 이용자들이 느끼는 접근성과 이동 불편";
   const invalid = replaceStructuredOutput(structuredResponse(prompt), (payload) => {
     payload.survey.questions[0]!.text =
@@ -370,17 +370,24 @@ test("의미 검수 실패는 성공 설문으로 오인하지 않고 정확한 
   const body = (await response.json()) as {
     ok?: boolean;
     type?: string;
-    code?: string;
-    stage?: string;
+    blueprint?: { aiQuestions?: Array<{ title?: string }> };
   };
-  assert.equal(response.status, 422);
-  assert.equal(body.ok, false);
-  assert.equal(body.type, "error");
-  assert.equal(body.code, "REPAIR_EXHAUSTED");
-  assert.equal(typeof body.stage, "string");
+  assert.equal(response.status, 200);
+  assert.equal(body.ok, true);
+  assert.equal(body.type, "survey");
+  assert.equal(
+    response.headers.get("x-baroform-generation-source"),
+    "openai_partial_repair",
+  );
+  assert.equal(response.headers.get("x-baroform-repair-count"), "1");
+  const titles = (body.blueprint?.aiQuestions ?? [])
+    .map((question) => question.title ?? "")
+    .join("\n");
+  assert.doesNotMatch(titles, /경험에 대해를 이용|경험을 얼마나 자주 이용/);
   assert.ok(events.some((event) => event.stage === "parse_started"));
-  assert.ok(events.some((event) => event.stage === "parse_failed"));
-  assert.ok(events.some((event) => event.stage === "request_failed"));
+  assert.ok(events.some((event) => event.stage === "parse_succeeded"));
+  assert.ok(events.some((event) => event.stage === "postprocess_succeeded"));
+  assert.equal(events.some((event) => event.stage === "request_failed"), false);
   assert.equal(events.some((event) => event.stage === "ui_payload_created"), false);
 });
 

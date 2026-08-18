@@ -14,6 +14,7 @@ import {
 } from "../app/lib/ai/user-input";
 import { buildSurveyAiRequest } from "../app/survey-ai";
 import { parseCanonicalSurveyIntent } from "../app/survey-canonical-intent";
+import { validateSurveyIntentCandidate } from "../app/survey-semantic-intent-core";
 import { POST as createSurveyDraft } from "../app/api/survey-draft/route";
 
 const representativeInputs = [
@@ -133,12 +134,18 @@ test("대표 입력의 canonical 대상과 응답자를 서로 바꾸지 않는�
   assert.equal(movement.generationContext.isUsageObject, false);
 
   const platform = parseCanonicalSurveyIntent(representativeInputs[2]);
-  assert.equal(platform.generationContext.audience, "대학생");
+  assert.equal(
+    platform.generationContext.audience,
+    "네이버 웹툰을 이용하는 대학생",
+  );
   assert.match(platform.generationContext.primaryEntity, /네이버 웹툰/);
   assert.equal(platform.surveyArchetype, "platform_usage");
 
   const cafeteria = parseCanonicalSurveyIntent(representativeInputs[3]);
-  assert.equal(cafeteria.generationContext.audience, "연세대학교 학생");
+  assert.equal(
+    cafeteria.generationContext.audience,
+    "한경관 학식을 이용한 연세대학교 학생",
+  );
   assert.equal(cafeteria.generationContext.primaryEntity, "한경관 학식");
 
   const serviceSatisfaction = parseCanonicalSurveyIntent(representativeInputs[4]);
@@ -162,6 +169,8 @@ test("처음 보는 관형절에서도 응답자·대상·행동·목적의 관�
     "이미지",
     "이용 경험",
   ]);
+  assert.equal(perspective.surveyIntent.intentMode, "single");
+  assert.equal(perspective.generationContext.isUsageObject, true);
 
   const nonUser = parseCanonicalSurveyIntent(
     "맛나샘을 이용하지 않는 연세대 학생들이 이용하지 않는 이유",
@@ -173,6 +182,19 @@ test("처음 보는 관형절에서도 응답자·대상·행동·목적의 관�
   assert.equal(nonUser.generationContext.primaryEntity, "맛나샘");
   assert.equal(nonUser.generationContext.isUsageObject, false);
   assert.match(nonUser.generationContext.researchGoal, /비이용 이유|이용 장벽/);
+  assert.equal(nonUser.surveyIntent.intentMode, "single");
+
+  for (const intent of [perspective.surveyIntent, nonUser.surveyIntent]) {
+    const schemaCodes = validateSurveyIntentCandidate(intent, {
+      title: intent.studyTitle?.text ?? undefined,
+      description: intent.purpose ?? undefined,
+      questions: [],
+    }).map((item) => item.code);
+    assert.doesNotMatch(
+      schemaCodes.join(" "),
+      /MULTIPLE_TARGETS_STORED_AS_SINGLE_STRING|PROPOSED_SOLUTION_NOT_SEPARATED/,
+    );
+  }
 
   const mobility = parseCanonicalSurveyIntent(
     "대우관을 오가는 학생들이 느끼는 접근성, 혼잡도와 이동 불편",
@@ -256,6 +278,30 @@ test("가상 고유명사에서도 응답자·대상·행동·목적의 의미 �
   assert.deepEqual(perspective.generationContext.researchConstructs, [
     "이미지",
     "이용 경험",
+  ]);
+
+  const facilityExperience = parseCanonicalSurveyIntent(
+    "새봄대학교 학생들의 솔빛관 이용 경험과 개선 의견",
+  );
+  assert.equal(
+    facilityExperience.generationContext.audience,
+    "솔빛관을 이용하거나 방문한 새봄대학교 학생",
+  );
+  assert.equal(facilityExperience.generationContext.primaryEntity, "솔빛관");
+  assert.equal(
+    facilityExperience.generationContext.entityType,
+    "university_building",
+  );
+  assert.equal(facilityExperience.surveyArchetype, "facility_usage");
+  assert.equal(facilityExperience.generationContext.isUsageObject, true);
+  assert.equal(facilityExperience.surveyIntent.intentMode, "single");
+  assert.deepEqual(facilityExperience.generationContext.researchConstructs, [
+    "이용 여부",
+    "이용 빈도",
+    "이용 목적",
+    "만족도",
+    "불편",
+    "개선 의견",
   ]);
 
   const multidimensional = parseCanonicalSurveyIntent(virtualEntityInputs[5]);

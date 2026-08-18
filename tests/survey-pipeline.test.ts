@@ -85,14 +85,14 @@ const cases = [
     input:
       "현재 국내 최대 웹툰 플랫폼인 네이버 웹툰의 대학생들의 이용 현황과 경험을 분석하고 싶어",
     subject: "네이버 웹툰",
-    respondents: "대학생",
+    respondents: "네이버 웹툰을 이용하는 대학생",
   },
   {
     name: "교내 학식당 조사 의뢰문",
     input:
       "연세대학교 학생들의 교내 학식당 이용 경험과 만족도를 조사하고 싶어",
     subject: "연세대학교 교내 학식당",
-    respondents: "연세대학교 학생",
+    respondents: "연세대학교 교내 학식당을 이용하거나 방문한 연세대학교 학생",
   },
   {
     name: "팀플 협업 조사 의뢰문",
@@ -128,7 +128,14 @@ test("조사 목적은 한국어 조사를 맞추고 응답자 접두어를 중�
   const webtoonBrief = parseSurveyBrief(cases[0].input);
   const teamworkBrief = parseSurveyBrief(cases[2].input);
 
-  assert.match(webtoonBrief.researchGoal, /서비스 만족도를 파악한다/);
+  assert.match(
+    webtoonBrief.researchGoal,
+    /^네이버 웹툰을 이용하는 대학생의 이용 현황과 경험 파악한다\.$/,
+  );
+  assert.doesNotMatch(
+    webtoonBrief.researchGoal,
+    /네이버 웹툰.*네이버 웹툰/,
+  );
   assert.doesNotMatch(webtoonBrief.researchGoal, /만족도을/);
   assert.match(
     teamworkBrief.researchGoal,
