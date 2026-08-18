@@ -277,6 +277,44 @@ test("실제 POST 경로는 원문 역할·nullable 출력·후처리·UI payloa
   );
 });
 
+test("실제 POST 경로는 검색 미요청 요청의 검색 전용 품질 메타데이터만 정규화한다", async () => {
+  const prompt = "대학생들의 통학 경험과 불편 조사";
+  const generated = replaceStructuredOutput(structuredResponse(prompt), (payload) => {
+    payload.status = "ready";
+    payload.research.search_status = "failed";
+    payload.quality_check.all_named_entities_searched = false;
+  });
+  let upstreamRequest: Record<string, unknown> | null = null;
+
+  const response = await withMockTransport(async (_input, init) => {
+    upstreamRequest = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return Response.json(generated);
+  }, () =>
+    createSurveyDraft(
+      requestFor(prompt, "trace-route-unused-search-metadata-001"),
+    ),
+  );
+  const parsed = await readSurveyGenerationResponse<
+    { blueprint: { aiQuestions: Array<{ title: string }> } },
+    Record<string, never>,
+    Record<string, never>
+  >(response);
+
+  assert.equal(response.status, 200);
+  assert.equal(parsed.type, "survey");
+  if (parsed.type !== "survey") throw new Error("SURVEY_RESPONSE_EXPECTED");
+  assert.equal(parsed.blueprint.aiQuestions.length, 7);
+  assert.ok(upstreamRequest);
+  const captured = upstreamRequest as unknown as Record<string, unknown>;
+  assert.equal(captured.tools, undefined);
+  assert.match(
+    response.headers.get("x-baroform-normalized-metadata") ?? "",
+    /quality_check\.all_named_entities_searched/,
+  );
+  assert.equal(response.headers.get("x-baroform-generation-source"), "openai");
+  assert.equal(response.headers.get("x-baroform-fallback-count"), "0");
+});
+
 test("불완전한 Responses API 출력은 성공 설문으로 오인하지 않고 실패 trace를 남긴다", async () => {
   const events: AiTraceEvent[] = [];
   const response = await withAiTraceForTest(

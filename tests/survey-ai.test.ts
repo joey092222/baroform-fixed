@@ -1767,6 +1767,52 @@ test("구조화 결과의 중복 문항 ID는 서버가 결정적으로 정규�
   assert.equal(diagnostics.modelOutputRejectedAt, null);
 });
 
+test("검색을 요청하지 않은 생성에서는 검색 전용 품질 메타데이터를 결정적으로 정규화한다", () => {
+  const payload = structuredReadyPayload();
+  payload.output = payload.output.filter((item) => item.type !== "web_search_call");
+  payload.output_parsed.status = "ready";
+  payload.output_parsed.research.search_status = "failed";
+  payload.output_parsed.quality_check.all_named_entities_searched = false;
+  const trace = createSurveyGenerationTrace("normalize-unused-search-metadata");
+
+  const result = parseSurveyDraftResponse(
+    payload,
+    "대학생 네이버웹툰 이용 현황 조사",
+    7,
+    "전학년",
+    false,
+    trace,
+    { webSearchRequested: false },
+  );
+  const diagnostics = surveyGenerationTraceSnapshot(trace);
+
+  assert.match(result.status, /^ready/);
+  if (result.status !== "ready" && result.status !== "ready_with_caution") {
+    assert.fail("완성된 설문 결과가 필요합니다.");
+  }
+  assert.equal(result.blueprint.aiQuestions.length, 7);
+  assert.ok(
+    diagnostics.normalizedInternalMetadataPaths.includes(
+      "quality_check.all_named_entities_searched",
+    ),
+  );
+  assert.equal(diagnostics.modelOutputRejectedAt, null);
+
+  assert.throws(
+    () =>
+      parseSurveyDraftResponse(
+        payload,
+        "대학생 네이버웹툰 이용 현황 조사",
+        7,
+        "전학년",
+        false,
+        undefined,
+        { webSearchRequested: true },
+      ),
+    /검색 실패 결과는 주의 상태|완료되지 않은 품질 검사/,
+  );
+});
+
 test("정규화할 수 없는 모델 품질 거절은 정확한 단계와 issue path를 trace에 남긴다", () => {
   const payload = structuredReadyPayload();
   payload.output_parsed.quality_check.all_logic_paths_valid = false;

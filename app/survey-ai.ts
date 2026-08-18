@@ -306,6 +306,7 @@ function entityTypeFromResolvedAs(value: string | null): SurveyEntityType {
 function generationIntegrityIssues(
   generation: SurveyGeneration,
   expectedQuestionCount: number,
+  options?: { webSearchRequested?: boolean },
 ) {
   const issues: string[] = [];
   const sourceIds = new Set<string>();
@@ -462,13 +463,22 @@ function generationIntegrityIssues(
     issues.push("설문 계획의 최소·최대 경로 문항 수가 실제 구조와 맞지 않습니다.");
   }
   if (
+    options?.webSearchRequested !== false &&
     generation.research.search_status === "failed" &&
     generation.status !== "ready_with_caution"
   ) {
     issues.push("검색 실패 결과는 주의 상태로 표시해야 합니다.");
   }
   const failedQualityChecks = Object.entries(generation.quality_check)
-    .filter(([key, value]) => key !== "warnings" && value !== true)
+    .filter(
+      ([key, value]) =>
+        key !== "warnings" &&
+        value !== true &&
+        !(
+          key === "all_named_entities_searched" &&
+          options?.webSearchRequested === false
+        ),
+    )
     .map(([key]) => key);
   if (failedQualityChecks.length > 0) {
     issues.push(
@@ -871,8 +881,22 @@ function normalizeQuestion(value: unknown, id: number): SurveyQuestion {
 export function normalizeModelGeneratedSurveyMetadata(
   generation: SurveyGeneration,
   expectedQuestionCount: number,
+  options?: { webSearchRequested?: boolean },
 ) {
   const normalizedPaths: string[] = [];
+  const qualityCheck =
+    options?.webSearchRequested === false &&
+    generation.quality_check.all_named_entities_searched === false
+      ? (() => {
+          normalizedPaths.push("quality_check.all_named_entities_searched");
+          return {
+            ...generation.quality_check,
+            // A search-specific quality gate is not applicable when the server did
+            // not include a web_search tool in the OpenAI request.
+            all_named_entities_searched: true,
+          };
+        })()
+      : generation.quality_check;
   const sourceIdMap = new Map<string, string>();
   const sources = generation.research.sources.map((source, index) => {
     const id = `source-${index + 1}`;
@@ -974,6 +998,7 @@ export function normalizeModelGeneratedSurveyMetadata(
       research: { ...generation.research, sources, entities },
       survey_plan: { ...generation.survey_plan, ...planCounts },
       survey: { ...generation.survey, sections, questions },
+      quality_check: qualityCheck,
     } satisfies SurveyGeneration,
     normalizedPaths: [...new Set(normalizedPaths)],
   };
@@ -1707,6 +1732,7 @@ export function parseSurveyDraftResponse(
   generationContext?: {
     canonicalIntent?: CanonicalSurveyIntent;
     surveyPlan?: SurveyPlan;
+    webSearchRequested?: boolean;
   },
 ): SurveyDraftResult {
   if (!isRecord(rawPayload)) {
@@ -1726,6 +1752,8 @@ export function parseSurveyDraftResponse(
   const canonicalPlan =
     generationContext?.surveyPlan ??
     createSurveyPlan(canonicalIntent.surveyIntent, questionCount);
+  const webSearchRequested =
+    generationContext?.webSearchRequested ?? completedSearch;
   let decoded: unknown = rawPayload.output_parsed;
   if (decoded === undefined || decoded === null) {
     recordSurveySchemaDiagnostics(trace, {
@@ -1758,10 +1786,12 @@ export function parseSurveyDraftResponse(
     const preNormalizationIssues = generationIntegrityIssues(
       structuredResult.data,
       questionCount,
+      { webSearchRequested },
     );
     const normalized = normalizeModelGeneratedSurveyMetadata(
       structuredResult.data,
       questionCount,
+      { webSearchRequested },
     );
     structuredGeneration = normalized.generation;
     recordSurveyModelOutputDiagnostics(trace, {
@@ -1771,6 +1801,7 @@ export function parseSurveyDraftResponse(
     const integrityIssues = generationIntegrityIssues(
       structuredGeneration,
       questionCount,
+      { webSearchRequested },
     );
     if (integrityIssues.length > 0) {
       recordSurveySchemaDiagnostics(trace, {

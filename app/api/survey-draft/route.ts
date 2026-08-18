@@ -586,6 +586,13 @@ function responseUsedWebSearch(response: unknown) {
   );
 }
 
+function requestUsesWebSearch(request: unknown) {
+  if (!isRecord(request) || !Array.isArray(request.tools)) return false;
+  return request.tools.some(
+    (tool) => isRecord(tool) && tool.type === "web_search",
+  );
+}
+
 function responseRequestId(response: unknown) {
   if (!response || typeof response !== "object") return null;
   const value = (response as { _request_id?: unknown })._request_id;
@@ -1871,7 +1878,11 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         targetGrade,
         hasReferences,
         trace,
-        { canonicalIntent, surveyPlan },
+        {
+          canonicalIntent,
+          surveyPlan,
+          webSearchRequested: requestUsesWebSearch(modelRequest),
+        },
       );
       traceAiEvent({
         requestId,
@@ -2364,7 +2375,11 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
         context.targetGrade,
         context.hasReferences,
         trace,
-        { canonicalIntent, surveyPlan },
+        {
+          canonicalIntent,
+          surveyPlan,
+          webSearchRequested: requestUsesWebSearch(parseParams),
+        },
       );
       if (result.status === "ready" || result.status === "ready_with_caution") {
         recordSurveyPostprocessTrace(trace, {
