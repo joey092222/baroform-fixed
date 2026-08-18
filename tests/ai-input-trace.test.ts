@@ -136,7 +136,7 @@ test("대표 입력의 canonical 대상과 응답자를 서로 바꾸지 않는�
   const platform = parseCanonicalSurveyIntent(representativeInputs[2]);
   assert.equal(
     platform.generationContext.audience,
-    "네이버 웹툰을 이용하는 대학생",
+    "대학생",
   );
   assert.match(platform.generationContext.primaryEntity, /네이버 웹툰/);
   assert.equal(platform.surveyArchetype, "platform_usage");
@@ -144,7 +144,7 @@ test("대표 입력의 canonical 대상과 응답자를 서로 바꾸지 않는�
   const cafeteria = parseCanonicalSurveyIntent(representativeInputs[3]);
   assert.equal(
     cafeteria.generationContext.audience,
-    "한경관 학식을 이용한 연세대학교 학생",
+    "연세대학교 학생",
   );
   assert.equal(cafeteria.generationContext.primaryEntity, "한경관 학식");
 
@@ -285,7 +285,7 @@ test("가상 고유명사에서도 응답자·대상·행동·목적의 의미 �
   );
   assert.equal(
     facilityExperience.generationContext.audience,
-    "솔빛관을 이용하거나 방문한 새봄대학교 학생",
+    "새봄대학교 학생",
   );
   assert.equal(facilityExperience.generationContext.primaryEntity, "솔빛관");
   assert.equal(
