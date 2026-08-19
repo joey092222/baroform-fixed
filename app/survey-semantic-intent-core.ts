@@ -1639,6 +1639,69 @@ function optionLabels(question: SurveyIntentQuestionCandidate) {
   });
 }
 
+export type SurveyEntryQuestionRole =
+  | "eligibility_screening"
+  | "non_disqualifying_usage_routing"
+  | "unnecessary_screening";
+
+function hasExplicitExperienceQualification(intent: SurveyIntent) {
+  const qualification = [
+    intent.targetPopulation,
+    intent.eligibilityCondition,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return /(?:비이용자|비사용자|비참여자|이용자|사용자|구매자|방문자|참여자|수강생)|비(?:이용|사용|참여)\s*(?:학생|사람|주민|고객)|(?:이용|사용|구매|방문|참여|수강)(?:한|하지\s*않은|해\s*본\s*적이\s*없는)\s*(?:사람|학생|주민|고객)/.test(
+    qualification,
+  );
+}
+
+export function classifySurveyEntryQuestionRole(
+  intent: SurveyIntent,
+  question: SurveyIntentQuestionCandidate,
+): SurveyEntryQuestionRole {
+  if (intent.screeningRequired || hasExplicitExperienceQualification(intent)) {
+    return "eligibility_screening";
+  }
+
+  const text = candidateQuestionText(question);
+  const options = optionLabels(question);
+  const asksUsageStatus =
+    /(?:이용|사용|구매|방문|참여|수강|먹어|마셔)\s*(?:한|해\s*본|해본|본)?\s*(?:적|경험)(?:이|은|가)?\s*(?:있|없)|(?:이용|사용|구매|방문|참여|수강)\s*여부/.test(
+      text,
+    );
+  const keepsNonUsers = options.some((option) =>
+    /^(?:아니요|없어요|없음|해당\s*없음)$|(?:이용|사용|구매|방문|참여|수강|경험)(?:해\s*본\s*적)?\s*없/.test(
+      option,
+    ),
+  );
+  const measuresUsageExperience = intent.purposeBlocks.some(
+    (purpose) => purpose.kind === "usage_experience",
+  );
+  const objectLabels = [
+    intent.surveyObject,
+    ...intent.objects.map((item) => item.text),
+    ...intent.evaluationTargets,
+  ]
+    .map((item) => item?.trim())
+    .filter((item): item is string => Boolean(item));
+  const referencesCanonicalObject = objectLabels.some(
+    (item) => text.includes(item) || item.includes(text.replace(/[?？.]$/g, "")),
+  );
+
+  if (
+    intent.includesNonUsers &&
+    measuresUsageExperience &&
+    asksUsageStatus &&
+    keepsNonUsers &&
+    referencesCanonicalObject
+  ) {
+    return "non_disqualifying_usage_routing";
+  }
+
+  return "unnecessary_screening";
+}
+
 function pushViolation(
   violations: SurveyIntentViolation[],
   violation: SurveyIntentViolation,
@@ -2376,7 +2439,11 @@ export function validateSurveyIntentCandidate(
   }
 
   if (firstQuestion && !intent.screeningRequired) {
-    if (firstQuestion.role === "screening") {
+    if (
+      firstQuestion.role === "screening" &&
+      classifySurveyEntryQuestionRole(intent, firstQuestion) ===
+        "unnecessary_screening"
+    ) {
       pushViolation(violations, {
         code: "UNNECESSARY_SCREENING",
         severity: "repairable",
