@@ -176,6 +176,9 @@ test("목적 선행형 역할 복원은 앱·프로그램·제품·비이용자 
       object: "다온 앱의 새 기능",
       purpose: /새 기능.*만족도/,
       context: "다온 앱",
+      targetMustInclude: /다온 앱을 사용한 대학생/,
+      targetMustExclude: /다온 앱에 사용|다온 앱에서 사용/,
+      activity: /다온 앱 사용/,
       negative: false,
     },
     {
@@ -184,6 +187,9 @@ test("목적 선행형 역할 복원은 앱·프로그램·제품·비이용자 
       object: "늘봄센터 프로그램",
       purpose: /프로그램.*만족도/,
       context: "늘봄센터 프로그램",
+      targetMustInclude: /늘봄센터 프로그램에 참여한 학부모/,
+      targetMustExclude: /늘봄센터 프로그램을 참여한/,
+      activity: /늘봄센터 프로그램에 참여/,
       negative: false,
     },
     {
@@ -192,6 +198,9 @@ test("목적 선행형 역할 복원은 앱·프로그램·제품·비이용자 
       object: "신제품",
       purpose: /신제품.*만족도/,
       context: "해든 매장",
+      targetMustInclude: /해든 매장에서 구매한 고객/,
+      targetMustExclude: /해든 매장을 구매한/,
+      activity: /해든 매장에서 구매/,
       negative: false,
     },
     {
@@ -200,6 +209,9 @@ test("목적 선행형 역할 복원은 앱·프로그램·제품·비이용자 
       object: "다온 플랫폼",
       purpose: /비이용 이유/,
       context: "다온 플랫폼",
+      targetMustInclude: /다온 플랫폼을 사용하지 않는 직장인/,
+      targetMustExclude: /다온 플랫폼에 사용하지/,
+      activity: null,
       negative: true,
     },
   ];
@@ -215,7 +227,102 @@ test("목적 선행형 역할 복원은 앱·프로그램·제품·비이용자 
     );
     assert.equal(intent.surveyIntent.screeningRequired, true, fixture.input);
     assert.equal(intent.surveyIntent.includesNonUsers, fixture.negative, fixture.input);
+    assert.match(
+      intent.surveyIntent.targetPopulation ?? "",
+      fixture.targetMustInclude,
+      fixture.input,
+    );
+    assert.doesNotMatch(
+      intent.surveyIntent.targetPopulation ?? "",
+      fixture.targetMustExclude,
+      fixture.input,
+    );
+    if (fixture.activity) {
+      assert.match(
+        intent.surveyIntent.activities.map((activity) => activity.text).join(" "),
+        fixture.activity,
+        fixture.input,
+      );
+    }
   }
+});
+
+test("목적 선행형 적격 조건은 장소·프로그램·서비스의 문법 관계를 보존한다", () => {
+  const fixtures = [
+    {
+      input: "상품 만족도는 솔나래 상점에서 지난 두 달 구매한 소비자에게 조사",
+      audience: /솔나래 상점에서 구매한 소비자/,
+      activity: /솔나래 상점에서 구매/,
+      forbidden: /솔나래 상점을 구매한/,
+    },
+    {
+      input: "교육 만족도는 해오름 교육에 이번 학기 참여한 교직원에게 조사",
+      audience: /해오름 교육에 참여한 교직원/,
+      activity: /해오름 교육에 참여/,
+      forbidden: /해오름 교육을 참여한/,
+    },
+    {
+      input: "기능 평가는 모아 앱을 최근 두 달 사용한 고객에게 조사",
+      audience: /모아 앱을 사용한 고객/,
+      activity: /모아 앱 사용/,
+      forbidden: /모아 앱에서 사용한/,
+    },
+    {
+      input: "시설 인식은 솔빛 체육관 최근 두 달 이용한 주민한테 조사",
+      audience: /최근 두 달 솔빛 체육관을 이용한 주민/,
+      activity: /솔빛 체육관 이용/,
+      forbidden: /솔빛 체육관에 이용한/,
+    },
+  ];
+
+  for (const fixture of fixtures) {
+    const canonical = parseCanonicalSurveyIntent(fixture.input);
+    assert.match(canonical.surveyIntent.targetPopulation ?? "", fixture.audience);
+    assert.doesNotMatch(canonical.surveyIntent.targetPopulation ?? "", fixture.forbidden);
+    assert.match(
+      canonical.surveyIntent.activities.map((activity) => activity.text).join(" "),
+      fixture.activity,
+    );
+  }
+});
+
+test("목적 선행형 비이용·불참·미구매 조건은 부정을 잃지 않는다", () => {
+  const fixtures = [
+    {
+      input: "서비스 비이용 이유는 누리 플랫폼을 사용하지 않은 직장인에게 조사",
+      audience: /누리 플랫폼을 사용하지 않은 직장인/,
+      forbidden: /누리 플랫폼을 사용한 직장인/,
+    },
+    {
+      input: "프로그램 불참 이유는 새길 교육에 이번 학기 참여하지 않은 교직원에게 조사",
+      audience: /이번 학기 새길 교육에 참여하지 않은 교직원/,
+      forbidden: /새길 교육을 참여하지/,
+    },
+    {
+      input: "상품 미구매 이유는 온빛 상점에서 최근 한 달 구매하지 않은 고객에게 조사",
+      audience: /최근 한 달 온빛 상점에서 구매하지 않은 고객/,
+      forbidden: /온빛 상점을 구매하지/,
+    },
+  ];
+
+  for (const fixture of fixtures) {
+    const canonical = parseCanonicalSurveyIntent(fixture.input);
+    assert.match(canonical.surveyIntent.targetPopulation ?? "", fixture.audience);
+    assert.doesNotMatch(canonical.surveyIntent.targetPopulation ?? "", fixture.forbidden);
+    assert.equal(canonical.surveyIntent.includesNonUsers, true);
+    assert.equal(canonical.surveyIntent.screeningRequired, true);
+  }
+});
+
+test("전체 집단의 이용 경험 조사는 적격 이용자로 응답 대상을 축소하지 않는다", () => {
+  const input = "새봄대학교 학생의 별마루 카페 이용 경험과 불편";
+  const canonical = parseCanonicalSurveyIntent(input);
+  const blueprint = analyzeSurveyPrompt(input, canonical);
+
+  assert.equal(canonical.surveyIntent.targetPopulation, "새봄대학교 학생");
+  assert.equal(canonical.surveyIntent.screeningRequired, false);
+  assert.equal(blueprint.respondentGroup, "새봄대학교 학생");
+  assert.ok(blueprint.aiQuestions.some((question) => /이용한 적|이용 여부/.test(question.title)));
 });
 
 test("역할 연결어가 없는 bare 명사열은 억지 설문 대신 clarification으로 남긴다", () => {

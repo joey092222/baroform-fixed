@@ -379,6 +379,7 @@ type ResolvedRelationalClause = {
   screeningRequired?: boolean;
   screeningReason?: string | null;
   explicitTimeframe?: string | null;
+  semanticFrame?: FrontedPurposeSemanticFrame | null;
 };
 
 type ResolvedComparisonClause = {
@@ -396,16 +397,32 @@ const relationalTimeframePattern =
   "(?:(?:최근|지난)\\s+(?:\\d+|한|두|세|네)\\s*(?:일|주|주일|개월|달|학기|년)|(?:이번|지난)\\s*(?:주|달|월|학기|학년도|연도))(?:\\s*(?:간|동안))?";
 
 const frontedPurposePattern =
-  "(?:만족도|평가|인지도|인지|인식|이미지|비이용\\s*이유|미사용\\s*이유|불참\\s*이유|안\\s*(?:쓰는|사용하는|이용하는)\\s*이유|이용\\s*의향|참여\\s*의향|구매\\s*의향|수요|필요성|개선(?:점|의견|요구)?)";
+  "(?:만족도|평가|인지도|인지|인식|이미지|비이용\\s*이유|미사용\\s*이유|미구매\\s*이유|불참\\s*이유|안\\s*(?:쓰는|사용하는|이용하는)\\s*이유|이용\\s*의향|참여\\s*의향|구매\\s*의향|수요|필요성|개선(?:점|의견|요구)?)";
 
 type QualifiedRespondent = {
   audience: string;
+  audienceHead: string;
   contextText: string;
+  contextParticle: "을" | "를" | "에" | "에서";
   activityPhrase: string;
+  eligibilityActivity: string;
+  canonicalActivity: string;
   activityKind: SurveyActivityKind | null;
   negative: boolean;
   timeframe: string | null;
   evidence: string;
+};
+
+type FrontedPurposeSemanticFrame = {
+  frontedPurpose: string;
+  contextEntity: string;
+  surveyObject: string;
+  eligibilityActivity: string;
+  eligibilityTimeframe: string | null;
+  targetPopulationHead: string;
+  targetPopulation: string;
+  screeningRequired: boolean;
+  negation: boolean;
 };
 
 function stripPurposeMetric(value: string) {
@@ -423,8 +440,36 @@ function activityKindFromQualifier(value: string): SurveyActivityKind | null {
   if (/참여|참가/.test(value)) return "attend";
   if (/구매/.test(value)) return "purchase";
   if (/방문/.test(value)) return "use";
-  if (/이용|사용|쓰/.test(value)) return "use";
+  if (/이용|사용|쓰|쓴|써/.test(value)) return "use";
   return null;
+}
+
+function inferredContextParticle(
+  contextText: string,
+  qualifier: string,
+  activityKind: SurveyActivityKind | null,
+): QualifiedRespondent["contextParticle"] {
+  if (activityKind === "attend") return "에";
+  if (
+    activityKind === "purchase" &&
+    /(?:매장|상점|가게|마트|몰|식당|카페|시장)$/.test(contextText)
+  ) {
+    return "에서";
+  }
+  if (/참여|참가/.test(qualifier)) return "에";
+  return withAccusativeParticle(contextText).endsWith("을") ? "을" : "를";
+}
+
+function activityPredicate(
+  qualifier: string,
+  activityKind: SurveyActivityKind | null,
+) {
+  if (activityKind === "attend") return /참가/.test(qualifier) ? "참가" : "참여";
+  if (activityKind === "purchase") return "구매";
+  if (/방문/.test(qualifier)) return "방문";
+  if (/사용|쓰|쓴|써/.test(qualifier)) return "사용";
+  if (activityKind === "use") return "이용";
+  return qualifier.replace(/(?:한|하는|않는)$/, "");
 }
 
 function resolveQualifiedRespondent(value: string): QualifiedRespondent | null {
@@ -434,23 +479,44 @@ function resolveQualifiedRespondent(value: string): QualifiedRespondent | null {
     .trim();
   const match = normalized.match(
     new RegExp(
-      `^(${relationalTimeframePattern})?\\s*(.{1,100}?)(?:을|를|에|에서)?\\s*(${relationalTimeframePattern})?\\s*(이용한|사용한|쓴|써본|방문한|참여한|참가한|구매한|이용하지\\s*않는|사용하지\\s*않는|쓰지\\s*않는|안\\s*(?:쓰는|사용하는|이용하는)|방문하지\\s*않는|참여하지\\s*않는|구매하지\\s*않는)\\s+(.*?${relationalAudienceHead})(?:들)?$`,
+      `^(${relationalTimeframePattern})?\\s*(.{1,100}?)(을|를|에|에서)?\\s*(${relationalTimeframePattern})?\\s*(이용한|사용한|쓴|써본|방문한|참여한|참가한|구매한|이용하지\\s*않(?:는|은)|사용하지\\s*않(?:는|은)|쓰지\\s*않(?:는|은)|안\\s*(?:쓰는|사용하는|이용하는)|방문하지\\s*않(?:는|은)|참여하지\\s*않(?:는|은)|구매하지\\s*않(?:는|은))\\s+(.*?${relationalAudienceHead})(?:들)?$`,
     ),
   );
   if (!match) return null;
-  const contextText = normalize(match[2]);
-  const timeframe = normalize(match[1] ?? match[3] ?? "") || null;
-  const qualifier = normalize(match[4]);
-  const audienceHead = normalize(match[5]);
+  let contextText = normalize(match[2]);
+  let explicitParticle = normalize(match[3] ?? "");
+  if (!explicitParticle) {
+    const swallowedParticle = contextText.match(/^(.+?)(에서|에|을|를)$/u);
+    if (swallowedParticle) {
+      contextText = normalize(swallowedParticle[1]);
+      explicitParticle = swallowedParticle[2];
+    }
+  }
+  const timeframe = normalize(match[1] ?? match[4] ?? "") || null;
+  const qualifier = normalize(match[5]);
+  const audienceHead = normalize(match[6]);
+  const activityKind = activityKindFromQualifier(qualifier);
+  const contextParticle = (explicitParticle ||
+    inferredContextParticle(contextText, qualifier, activityKind)) as QualifiedRespondent["contextParticle"];
+  const eligibilityActivity = normalize(
+    `${contextText}${contextParticle} ${activityPredicate(qualifier, activityKind)}`,
+  );
+  const canonicalActivity = ["을", "를"].includes(contextParticle)
+    ? normalize(`${contextText} ${activityPredicate(qualifier, activityKind)}`)
+    : eligibilityActivity;
   const negative = /지\s*않|^안\s*/.test(qualifier);
   const qualifiedAudience = normalize(
-    `${timeframe ? `${timeframe} ` : ""}${withAccusativeParticle(contextText)} ${qualifier} ${audienceHead}`,
+    `${timeframe ? `${timeframe} ` : ""}${contextText}${contextParticle} ${qualifier} ${audienceHead}`,
   );
   return {
     audience: qualifiedAudience,
+    audienceHead,
     contextText,
+    contextParticle,
     activityPhrase: qualifier,
-    activityKind: activityKindFromQualifier(qualifier),
+    eligibilityActivity,
+    canonicalActivity,
+    activityKind,
     negative,
     timeframe,
     evidence: normalized,
@@ -520,7 +586,18 @@ function resolveFrontedPurposeRespondentClause(
   const resolvedObjectType = objectType === "unknown" ? "construct" : objectType;
   const purposeKind = purposeKindFromConstruct(construct);
   const negativePurpose =
-    qualified.negative || /비이용|미사용|불참|안\s*(?:쓰|사용|이용)/.test(construct);
+    qualified.negative || /비이용|미사용|미구매|불참|안\s*(?:쓰|사용|이용)/.test(construct);
+  const semanticFrame: FrontedPurposeSemanticFrame = {
+    frontedPurpose: purposePhrase,
+    contextEntity: qualified.contextText,
+    surveyObject: objectText,
+    eligibilityActivity: qualified.eligibilityActivity,
+    eligibilityTimeframe: qualified.timeframe,
+    targetPopulationHead: qualified.audienceHead,
+    targetPopulation: qualified.audience,
+    screeningRequired: true,
+    negation: negativePurpose,
+  };
 
   return {
     audience: qualified.audience,
@@ -544,7 +621,7 @@ function resolveFrontedPurposeRespondentClause(
         ? "attitude_perception"
         : relationalObjectKind(resolvedObjectType),
     activity: qualified.activityKind && !qualified.negative
-      ? `${qualified.contextText} ${qualified.activityPhrase.replace(/한$/, "")}`
+      ? qualified.canonicalActivity
       : null,
     activityKind: qualified.negative ? null : qualified.activityKind,
     researchGoal: `${objectText}의 ${construct} 파악`,
@@ -561,6 +638,7 @@ function resolveFrontedPurposeRespondentClause(
     screeningRequired: true,
     screeningReason: `${qualified.audience}에 해당하는지 확인해야 함`,
     explicitTimeframe: qualified.timeframe,
+    semanticFrame,
   };
 }
 
@@ -602,6 +680,17 @@ function resolvePrequalifiedPurposeClause(
   const objectType = inferRelationalEntityType(objectText);
   const resolvedObjectType = objectType === "unknown" ? "construct" : objectType;
   const purposeKind = purposeKindFromConstruct(construct);
+  const semanticFrame: FrontedPurposeSemanticFrame = {
+    frontedPurpose: purposePhrase,
+    contextEntity: qualified.contextText,
+    surveyObject: objectText,
+    eligibilityActivity: qualified.eligibilityActivity,
+    eligibilityTimeframe: qualified.timeframe,
+    targetPopulationHead: qualified.audienceHead,
+    targetPopulation: qualified.audience,
+    screeningRequired: !prefiltered,
+    negation: qualified.negative,
+  };
 
   return {
     audience: qualified.audience,
@@ -623,7 +712,7 @@ function resolvePrequalifiedPurposeClause(
       ? "satisfaction_evaluation"
       : relationalObjectKind(resolvedObjectType),
     activity: qualified.activityKind && !qualified.negative
-      ? `${qualified.contextText} ${qualified.activityPhrase.replace(/한$/, "")}`
+      ? qualified.canonicalActivity
       : null,
     activityKind: qualified.negative ? null : qualified.activityKind,
     researchGoal: `${objectText}의 ${construct} 파악`,
@@ -638,6 +727,7 @@ function resolvePrequalifiedPurposeClause(
       ? null
       : `${qualified.audience}에 해당하는지 확인해야 함`,
     explicitTimeframe: qualified.timeframe,
+    semanticFrame,
   };
 }
 

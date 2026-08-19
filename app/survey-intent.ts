@@ -1475,9 +1475,13 @@ export function parseSurveyBrief(
     /\s+/g,
     "",
   );
+  const hasExplicitTargetPopulation = Boolean(
+    surveyIntent.targetPopulation?.trim() || canonicalIntent.audience?.text?.trim(),
+  );
   if (
     explicitUsageExperience &&
     surveyIntent.surveyObject &&
+    !hasExplicitTargetPopulation &&
     compactSurveyObject.length >= 2 &&
     !compactRespondent.includes(compactSurveyObject)
   ) {
@@ -1529,16 +1533,19 @@ export function parseSurveyBrief(
     compactEntity.length >= 2 && compactTarget.includes(compactEntity);
   const statedPurpose =
     surveyIntent.purpose ?? `${goalDimensions} 파악`;
+  const purposeStartsWithPrimaryEntity =
+    primaryEntity.length >= 2 && statedPurpose.startsWith(primaryEntity);
   const compactPurpose =
-    targetAlreadyIncludesEntity &&
-    statedPurpose.startsWith(primaryEntity)
+    purposeStartsWithPrimaryEntity
       ? statedPurpose.slice(primaryEntity.length).trim()
       : statedPurpose;
   const researchGoal = preferSurveyIntent
     ? `${labelWithParticle(targetRespondents, "의", "의")} ${
         targetAlreadyIncludesEntity
           ? compactPurpose
-          : `${goalSubject} 관련 ${compactPurpose}`
+          : purposeStartsWithPrimaryEntity
+            ? statedPurpose
+            : `${goalSubject} 관련 ${compactPurpose}`
       }한다.`
     : `${labelWithParticle(targetRespondents, "의", "의")} ${goalSubject} 관련 ${goalDimensions} 파악한다.`;
   const isUsageStudy =
