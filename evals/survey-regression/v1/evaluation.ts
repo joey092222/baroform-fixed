@@ -29,7 +29,7 @@ const conceptPatterns: Record<string, RegExp[]> = {
   불편: [/불편/, /어려운\s*점/, /장벽/],
   "개선 요구": [/개선/, /바라는\s*점/, /보완/, /바뀌었으면/, /달라졌으면/],
   만족도: [/만족/, /평가/],
-  인식: [/인식/, /이미지/, /어떻게\s*생각/],
+  인식: [/인식/, /이미지/, /인상/, /어떻게\s*생각/],
   이미지: [/이미지/, /인식/],
   인지: [/인지/, /알고\s*있/],
   "이용 경험": [/이용한\s*적/, /사용한\s*적/, /이용\s*경험/, /사용\s*경험/],
@@ -177,6 +177,20 @@ function comparisonCoveragePresent(
   );
 }
 
+function purposeConceptPresent(
+  concept: string,
+  semanticCorpus: string,
+  questionCorpus: string,
+  expectedTargets: string[],
+) {
+  if (!/비교/u.test(concept)) return conceptPresent(concept, semanticCorpus);
+  const baseConcept = concept.replace(/\s*비교\s*/gu, " ").trim();
+  return (
+    (!baseConcept || conceptPresent(baseConcept, semanticCorpus)) &&
+    comparisonCoveragePresent(questionCorpus, expectedTargets)
+  );
+}
+
 function directSatisfactionMeasurementPresent(
   questions: SurveyRegressionResult["questions"],
 ) {
@@ -200,18 +214,24 @@ function directSatisfactionMeasurementPresent(
 function screeningQuestionPresent(
   questions: Array<{ title: string; options: string[]; reason?: string | null }>,
 ) {
-  return questions.some((question) => {
-    const visible = `${question.title}\n${question.options.join("\n")}`;
-    const asksEligibility =
-      /(?:이용|사용|참여|참가|가입|구매|방문|시청|주문|수강|통학|운동|클릭|먹)(?:한\s*적|해\s*본|한\s*경험|하고\s*있|하지\s*않|여부)|(?:현재|최근).*(?:해당|맞(?:나요|습니까)|있(?:나요|습니까))/u.test(
-        visible,
-      );
-    const hasStatusChoices =
-      /(?:경험|이용|사용|참여|방문|구매).*(?:있음|없음)|(?:예|네).*(?:아니요|아님)|해당함.*해당하지\s*않음/u.test(
-        visible,
-      );
-    return asksEligibility || hasStatusChoices;
-  });
+  return questions.some(questionLooksLikeScreening);
+}
+
+function questionLooksLikeScreening(question: {
+  title: string;
+  options: string[];
+  reason?: string | null;
+}) {
+  const visible = `${question.title}\n${question.options.join("\n")}`;
+  const asksEligibility =
+    /(?:이용|사용|참여|참가|가입|구매|방문|시청|주문|수강|통학|운동|클릭|먹)(?:한\s*적|해\s*본|한\s*경험|하고\s*있|하지\s*않|여부)|(?:현재|최근).*(?:해당|맞(?:나요|습니까)|있(?:나요|습니까)|재학|재직|거주)/u.test(
+      visible,
+    );
+  const hasStatusChoices =
+    /(?:경험|이용|사용|참여|방문|구매).*(?:있음|없음)|(?:예|네).*(?:아니요|아님)|해당함.*해당하지\s*않음/u.test(
+      visible,
+    );
+  return asksEligibility || hasStatusChoices;
 }
 
 function issue(
@@ -433,7 +453,14 @@ export function evaluateSemanticResult(
     .filter(Boolean)
     .join("\n");
   for (const concept of testCase.expectedPurposeConcepts) {
-    if (!conceptPresent(concept, purposeText)) {
+    if (
+      !purposeConceptPresent(
+        concept,
+        purposeText,
+        questionText,
+        testCase.expectedSurveyObject,
+      )
+    ) {
       fatalFailures.push(
         issue(
           "REQUIRED_PURPOSE_MISSING",
@@ -480,10 +507,14 @@ export function evaluateSemanticResult(
   if (new Set(normalizedQuestions).size !== normalizedQuestions.length) {
     fatalFailures.push(issue("DUPLICATE_QUESTION", "완전히 중복된 질문이 있음", "question_quality"));
   }
-  const misplacedScreenerIndex = result.questions.findIndex((item) =>
-    /(?:이용|사용|참여|방문|구매|수강|먹)한\s*적이\s*있나요/u.test(item.title),
+  const misplacedScreenerIndex = result.questions.findIndex(
+    (item, index) =>
+      questionLooksLikeScreening(item) &&
+      result.questions
+        .slice(0, index)
+        .some((previous) => !questionLooksLikeScreening(previous)),
   );
-  if (misplacedScreenerIndex > 0) {
+  if (misplacedScreenerIndex >= 0) {
     fatalFailures.push(
       issue(
         "MISPLACED_SCREENING_QUESTION",

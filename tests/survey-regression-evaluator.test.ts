@@ -147,6 +147,32 @@ test("후행 스크리너, 중복 불편 문항, 간접 만족 요소를 문항 
   assert.equal(codes.has("OVERALL_SATISFACTION_MISSING"), true);
 });
 
+test("응답자 자격과 이용 자격을 연속으로 먼저 묻는 screening prefix는 허용한다", () => {
+  const evaluated = evaluateSemanticResult(
+    frontedCase("fronted-noisy-002"),
+    result({
+      finalRespondentGroup: "최근 3개월 다온 앱을 쓴 대학생",
+      finalEvaluationTarget: "다온 앱의 새 기능",
+      title: "다온 앱 새 기능 만족도 조사",
+      description: "최근 3개월 다온 앱을 쓴 대학생의 새 기능 만족도를 조사합니다.",
+      questions: [
+        question("현재 대학에 재학 중인가요?", "single", ["네", "아니요", "휴학 중"]),
+        question("최근 3개월 안에 다온 앱을 사용한 적이 있나요?", "single", ["있어요", "없어요"]),
+        question("최근 3개월 동안 다온 앱의 새 기능을 얼마나 자주 사용했나요?"),
+        question("다온 앱의 새 기능에 전반적으로 얼마나 만족했나요?", "scale"),
+        question("새 기능을 사용하기 쉬웠나요?"),
+        question("새 기능에서 불편했던 점은 무엇인가요?", "multiple"),
+        question("새 기능에서 가장 먼저 바뀌었으면 하는 점을 적어주세요", "text"),
+      ],
+    }),
+  );
+
+  assert.equal(
+    evaluated.fatalFailures.some((item) => item.code === "MISPLACED_SCREENING_QUESTION"),
+    false,
+  );
+});
+
 test("조사 대상 메타데이터가 핵심 명사로 축약돼도 맥락과 질문이 완전하면 오탐하지 않는다", () => {
   const evaluated = evaluateSemanticResult(
     frontedCase("fronted-clear-007"),
@@ -197,6 +223,44 @@ test("두 대상을 각각 측정하고 더 만족한 대상을 고르게 하면
       (item) =>
         item.code === "REQUIRED_QUESTION_CONCEPT_MISSING" &&
         item.message.includes("대상 비교"),
+    ),
+    false,
+  );
+  assert.equal(
+    evaluated.fatalFailures.some(
+      (item) =>
+        item.code === "REQUIRED_PURPOSE_MISSING" &&
+        item.message.includes("만족도 비교"),
+    ),
+    false,
+  );
+});
+
+test("시설에 대한 전반적 인상은 인식 측정으로 인정한다", () => {
+  const evaluated = evaluateSemanticResult(
+    frontedCase("fronted-noisy-006"),
+    result({
+      finalRespondentGroup: "최근 두 달 늘빛 체육관을 이용한 주민",
+      finalEvaluationTarget: "늘빛 체육관",
+      title: "늘빛 체육관 시설 인식 조사",
+      description: "최근 두 달 시설 이용 주민의 인식을 조사합니다.",
+      questions: [
+        question("최근 두 달 동안 늘빛 체육관을 이용해 본 적이 있나요?"),
+        question("최근 두 달 동안 늘빛 체육관을 몇 번 이용했나요?"),
+        question("늘빛 체육관을 이용한 주된 목적은 무엇인가요?"),
+        question("늘빛 체육관에 대해 전반적으로 어떤 인상을 받았나요?", "scale"),
+        question("늘빛 체육관을 다시 이용할 가능성은 어느 정도인가요?", "scale"),
+        question("늘빛 체육관에서 가장 먼저 개선됐으면 하는 점은 무엇인가요?"),
+        question("늘빛 체육관에 관한 의견을 적어주세요", "text"),
+      ],
+    }),
+  );
+
+  assert.equal(
+    evaluated.fatalFailures.some(
+      (item) =>
+        item.code === "REQUIRED_QUESTION_CONCEPT_MISSING" &&
+        item.message.includes("인식"),
     ),
     false,
   );
