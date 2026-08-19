@@ -138,6 +138,7 @@ function parseArguments() {
   const expectedBuildSha = args.get("expected-build-sha") ?? null;
   const expectedBranch = args.get("expected-branch") ?? null;
   const vercelPnpm = args.get("vercel-pnpm") ?? null;
+  const previewShareUrl = process.env.BAROFORM_PREVIEW_SHARE_URL?.trim() || null;
   const maxCasesRaw = args.get("max-cases") ?? null;
   const maxCases = maxCasesRaw === null ? null : Number(maxCasesRaw);
   if (maxCases !== null && (!Number.isInteger(maxCases) || maxCases < 1)) {
@@ -151,7 +152,10 @@ function parseArguments() {
     throw new Error("INVALID_CASE_IDS");
   }
   const remotePreview = Boolean(deployment);
-  if (remotePreview && (!expectedBuildSha || !expectedBranch || !vercelPnpm)) {
+  if (
+    remotePreview &&
+    (!expectedBuildSha || !expectedBranch || (!vercelPnpm && !previewShareUrl))
+  ) {
     throw new Error("REMOTE_PREVIEW_ARGUMENTS_REQUIRED");
   }
   return {
@@ -163,10 +167,74 @@ function parseArguments() {
     expectedBuildSha,
     expectedBranch,
     vercelPnpm,
+    previewShareUrl,
     remotePreview,
     maxCases,
     caseIds,
   };
+}
+
+let previewAccessCookies: string | null = null;
+
+function setCookiePairs(headers: Headers) {
+  const getSetCookie = (headers as Headers & {
+    getSetCookie?: () => string[];
+  }).getSetCookie;
+  const values = getSetCookie?.call(headers) ?? [];
+  return values
+    .map((value) => value.split(";", 1)[0]?.trim())
+    .filter((value): value is string => Boolean(value));
+}
+
+async function authenticatePreviewAccess() {
+  if (!args.previewShareUrl) throw new Error("PREVIEW_SHARE_URL_MISSING");
+  const cookies = new Map<string, string>();
+  let currentUrl = args.previewShareUrl;
+  for (let redirectCount = 0; redirectCount < 8; redirectCount += 1) {
+    const response = await fetch(currentUrl, {
+      redirect: "manual",
+      headers: cookies.size > 0
+        ? { cookie: [...cookies.entries()].map(([key, value]) => `${key}=${value}`).join("; ") }
+        : undefined,
+    });
+    for (const pair of setCookiePairs(response.headers)) {
+      const separator = pair.indexOf("=");
+      if (separator > 0) cookies.set(pair.slice(0, separator), pair.slice(separator + 1));
+    }
+    if (response.status < 300 || response.status >= 400) break;
+    const location = response.headers.get("location");
+    if (!location) break;
+    currentUrl = new URL(location, currentUrl).toString();
+  }
+  if (cookies.size === 0) throw new Error("PREVIEW_SHARE_COOKIE_MISSING");
+  previewAccessCookies = [...cookies.entries()]
+    .map(([key, value]) => `${key}=${value}`)
+    .join("; ");
+}
+
+async function directPreviewRequest(
+  path: string,
+  method: "GET" | "POST",
+  body?: string,
+) {
+  if (!args.deployment) throw new Error("REMOTE_PREVIEW_NOT_CONFIGURED");
+  if (!previewAccessCookies) await authenticatePreviewAccess();
+  const baseUrl = /^https?:\/\//u.test(args.deployment)
+    ? args.deployment
+    : `https://${args.deployment}`;
+  const response = await fetch(new URL(path, baseUrl), {
+    method,
+    redirect: "manual",
+    headers: {
+      cookie: previewAccessCookies ?? "",
+      ...(body === undefined ? {} : { "content-type": "application/json" }),
+    },
+    body,
+  });
+  if (response.status >= 300 && response.status < 400) {
+    throw new Error("PREVIEW_ACCESS_NOT_AUTHENTICATED");
+  }
+  return response;
 }
 
 function requireLiveEnvironment(remotePreview = false) {
@@ -316,12 +384,28 @@ async function vercelPreviewRequest(
 ) {
   if (
     !args.deployment ||
-    !args.vercelPnpm ||
     !args.expectedBuildSha ||
     !args.expectedBranch
   ) {
     throw new Error("REMOTE_PREVIEW_NOT_CONFIGURED");
   }
+  if (args.previewShareUrl) {
+    const response = await directPreviewRequest(path, method, body);
+    const buildSha = response.headers.get("x-baroform-build-sha");
+    const environment = response.headers.get("x-baroform-environment");
+    const branch = response.headers.get("x-baroform-git-branch");
+    if (buildSha !== args.expectedBuildSha) {
+      throw new Error(`REMOTE_BUILD_SHA_MISMATCH:${buildSha ?? "missing"}`);
+    }
+    if (environment !== "preview") {
+      throw new Error(`REMOTE_ENVIRONMENT_NOT_PREVIEW:${environment ?? "missing"}`);
+    }
+    if (branch !== args.expectedBranch) {
+      throw new Error(`REMOTE_BRANCH_MISMATCH:${branch ?? "missing"}`);
+    }
+    return response;
+  }
+  if (!args.vercelPnpm) throw new Error("VERCEL_PNPM_REQUIRED");
   const commandArguments = [
     "dlx",
     "vercel@59.1.3",
