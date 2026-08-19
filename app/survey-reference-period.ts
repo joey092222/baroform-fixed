@@ -15,7 +15,7 @@ export type ReferencePeriodResolution = {
   recommendedTimeframe?: string | null;
 };
 
-export const DEFAULT_RECURRING_REFERENCE_PERIOD = "최근 한 달";
+export const DEFAULT_RECURRING_REFERENCE_PERIOD = "평소";
 
 const referencePeriodSource = [
   "평소",
@@ -108,20 +108,20 @@ export function resolveQuestionReferencePeriod(
   resolution: ReferencePeriodResolution = {},
 ) {
   if (!isRecurringFrequencyQuestion(question)) return null;
-  const visiblePeriod = extractVisibleReferencePeriod(question.title);
-  const candidates = [
+  const declaredCandidates = [
     resolution.userExplicitTimeframe,
     resolution.eligibilityTimeframe,
     resolution.canonicalExplicitTimeframe,
     resolution.modelReferencePeriod,
     resolution.existingExplicitTimeframe ?? question.explicitTimeframe,
-    visiblePeriod,
-    resolution.recommendedTimeframe,
   ];
-  for (const candidate of candidates) {
+  for (const candidate of declaredCandidates) {
     const cleaned = cleanReferencePeriod(candidate);
     if (cleaned) return cleaned;
   }
+
+  // 질문 문구에만 등장한 수치 기간은 사용자 의도나 구조화 metadata로
+  // 승격하지 않는다. 선언된 기간이 없으면 같은 비수치 기본 범위를 쓴다.
   return hasConcreteRecurringTarget(question)
     ? DEFAULT_RECURRING_REFERENCE_PERIOD
     : null;

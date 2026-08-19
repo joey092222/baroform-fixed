@@ -29,7 +29,7 @@ const frequencyQuestion = (
   explicitTimeframe,
 });
 
-test("모델 reference_period를 메타데이터와 응답자용 제목에 함께 반영한다", () => {
+test("모델이 구조화 metadata로 선언한 기간을 질문에도 반영한다", () => {
   const result = ensureVisibleReferencePeriod(
     frequencyQuestion("솔빛관을 얼마나 자주 이용하시나요?"),
     { modelReferencePeriod: "최근 한 달" },
@@ -42,7 +42,7 @@ test("모델 reference_period를 메타데이터와 응답자용 제목에 함�
   );
 });
 
-test("제목과 모델 기간이 이미 일치하면 기간을 중복하지 않는다", () => {
+test("질문과 구조화 metadata의 기간이 일치하면 중복하지 않는다", () => {
   const title = "최근 한 달 동안 솔빛관을 얼마나 자주 이용하셨나요?";
   const result = ensureVisibleReferencePeriod(frequencyQuestion(title), {
     modelReferencePeriod: "최근 한 달",
@@ -51,6 +51,16 @@ test("제목과 모델 기간이 이미 일치하면 기간을 중복하지 않�
   assert.equal(result.title, title);
   assert.equal(result.explicitTimeframe, "최근 한 달");
   assert.equal(result.title.match(/최근 한 달/g)?.length, 1);
+});
+
+test("질문 문구에만 추가된 수치 기간은 안전한 기본 범위로 정규화한다", () => {
+  const result = ensureVisibleReferencePeriod(
+    frequencyQuestion("최근 한 달 동안 솔빛관을 얼마나 자주 이용하시나요?"),
+  );
+
+  assert.equal(result.explicitTimeframe, DEFAULT_RECURRING_REFERENCE_PERIOD);
+  assert.equal(result.title, "평소 솔빛관을 얼마나 자주 이용하시나요?");
+  assert.doesNotMatch(result.title, /최근 한 달/);
 });
 
 test("사용자가 지정한 기간이 모델 기간보다 우선한다", () => {
@@ -123,7 +133,7 @@ test("기간이 없는 반복 이용 빈도에는 안전한 기본 기간을 결
   assert.equal(result.explicitTimeframe, DEFAULT_RECURRING_REFERENCE_PERIOD);
   assert.equal(
     result.title,
-    "최근 한 달 동안 솔빛관을 얼마나 자주 이용하시나요?",
+    "평소 솔빛관을 얼마나 자주 이용하시나요?",
   );
 });
 
@@ -141,7 +151,7 @@ test("동사가 활용된 반복 구매 빈도에도 기준 기간을 적용한�
   assert.equal(result.explicitTimeframe, DEFAULT_RECURRING_REFERENCE_PERIOD);
   assert.equal(
     result.title,
-    "최근 한 달 동안 계획하지 않았던 물건을 충동적으로 구매하는 빈도는 어느 정도인가요?",
+    "평소 계획하지 않았던 물건을 충동적으로 구매하는 빈도는 어느 정도인가요?",
   );
 });
 
