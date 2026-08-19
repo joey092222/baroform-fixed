@@ -34,6 +34,7 @@ import type {
   SurveyRegressionCase,
   SurveyRegressionResult,
 } from "../evals/survey-regression/v1/schema";
+import { frontedPurposeSmokeCases } from "../evals/survey-regression/v1.1/fronted-purpose-smoke";
 
 type TraceSnapshot = {
   requestId?: unknown;
@@ -124,6 +125,10 @@ function parseArguments() {
   );
   const split = args.get("split") ?? "all";
   if (!/^(?:dev|holdout|all)$/.test(split)) throw new Error(`INVALID_SPLIT:${split}`);
+  const suite = args.get("suite") ?? "v1";
+  if (!/^(?:v1|fronted-purpose)$/.test(suite)) {
+    throw new Error(`INVALID_SUITE:${suite}`);
+  }
   const runId = args.get("run-id") ?? `live-${new Date().toISOString().replace(/[:.]/g, "-")}`;
   if (!/^[A-Za-z0-9._-]{3,100}$/.test(runId)) throw new Error("INVALID_RUN_ID");
   const deployment = args.get("deployment") ?? null;
@@ -148,6 +153,7 @@ function parseArguments() {
   }
   return {
     split: split as "dev" | "holdout" | "all",
+    suite: suite as "v1" | "fronted-purpose",
     runId,
     estimateOnly: args.get("estimate-only") === "true",
     deployment,
@@ -672,13 +678,18 @@ function checkpointCaseSummary(result: SurveyRegressionResult) {
 
 const args = parseArguments();
 const root = process.cwd();
-const datasets = await Promise.all([
-  readRegressionDataset(resolve(root, "evals/survey-regression/v1/dev.json")),
-  readRegressionDataset(resolve(root, "evals/survey-regression/v1/holdout.json")),
-]);
-const allCases = mergeDatasets(...datasets);
-const quality = validateDatasetQuality(allCases);
-if (quality.errors.length > 0) throw new Error(quality.errors.join("\n"));
+const allCases = args.suite === "fronted-purpose"
+  ? [...frontedPurposeSmokeCases]
+  : mergeDatasets(
+      ...(await Promise.all([
+        readRegressionDataset(resolve(root, "evals/survey-regression/v1/dev.json")),
+        readRegressionDataset(resolve(root, "evals/survey-regression/v1/holdout.json")),
+      ])),
+    );
+if (args.suite === "v1") {
+  const quality = validateDatasetQuality(allCases);
+  if (quality.errors.length > 0) throw new Error(quality.errors.join("\n"));
+}
 const requestedCaseIds = new Set(args.caseIds);
 const selectedCases = allCases
   .filter((item) => args.split === "all" || item.split === args.split)
@@ -696,7 +707,12 @@ if (!projection.withinCap) {
   );
 }
 
-const artifactDirectory = resolve(root, ".artifacts/survey-regression/v1", args.runId);
+const artifactDirectory = resolve(
+  root,
+  ".artifacts/survey-regression",
+  args.suite === "v1" ? "v1" : "v1.1-fronted-purpose",
+  args.runId,
+);
 await mkdir(resolve(artifactDirectory, "cases"), { recursive: true });
 await writeFile(resolve(artifactDirectory, "cost-projection.json"), `${JSON.stringify(projection, null, 2)}\n`);
 if (args.estimateOnly) {

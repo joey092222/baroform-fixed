@@ -31,6 +31,7 @@ import {
 } from "../evals/survey-regression/v1/runner-utils";
 import { surveyRegressionCaseSchema } from "../evals/survey-regression/v1/schema";
 import { auditedSurveyRegressionDatasetSchema } from "../evals/survey-regression/v1.1/schema";
+import { frontedPurposeSmokeCases } from "../evals/survey-regression/v1.1/fronted-purpose-smoke";
 
 test("100개 층화 데이터셋의 스키마와 분포가 고정돼 있다", () => {
   assert.equal(devCases.length, 80);
@@ -224,4 +225,26 @@ test("evaluator는 적격 조건·조사 대상·조사 목적 누락을 서로 
   assert.ok(codes.includes("SURVEY_OBJECT_MISMATCH"));
   assert.equal(codes.includes("REQUIRED_PURPOSE_MISSING"), false);
   assert.equal(codes.includes("REQUIRED_QUESTION_CONCEPT_MISSING"), false);
+});
+
+test("목적 선행형 20건 smoke fixture는 clear 8·noisy 6·ambiguous 3·control 3으로 고정된다", () => {
+  assert.equal(frontedPurposeSmokeCases.length, 20);
+  assert.equal(
+    frontedPurposeSmokeCases.filter((item) => item.id.startsWith("fronted-clear-")).length,
+    8,
+  );
+  assert.equal(
+    frontedPurposeSmokeCases.filter((item) => item.id.startsWith("fronted-noisy-")).length,
+    6,
+  );
+  assert.equal(
+    frontedPurposeSmokeCases.filter((item) => item.id.startsWith("fronted-ambiguous-")).length,
+    3,
+  );
+  assert.equal(
+    frontedPurposeSmokeCases.filter((item) => item.id.startsWith("fronted-control-")).length,
+    3,
+  );
+  for (const item of frontedPurposeSmokeCases) surveyRegressionCaseSchema.parse(item);
+  assertNoSecrets(JSON.stringify(frontedPurposeSmokeCases));
 });
