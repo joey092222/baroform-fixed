@@ -22,7 +22,7 @@ import {
   type TargetGrade,
 } from "./survey-grade";
 import {
-  audienceGroupMentionedInText,
+  audienceIncludesRequiredQualifiers,
   audienceMentionedInText,
   ensureAudienceInDescription,
   resolveFinalRespondentGroup,
@@ -84,6 +84,7 @@ import {
 import { lintSurveyQuestionSemantics } from "./survey-context";
 import {
   ensureVisibleReferencePeriod,
+  hasVisibleReferencePeriod,
   isRecurringFrequencyQuestion,
 } from "./survey-reference-period";
 import {
@@ -910,13 +911,19 @@ function canonicalizeQuestionReferencePeriods(
   questions: SurveyQuestion[],
   brief: SurveyBrief,
 ) {
-  return questions.map((question) =>
-    ensureVisibleReferencePeriod(question, {
+  return questions.map((question) => {
+    const frequencyQuestion = ensureVisibleReferencePeriod(question, {
       userExplicitTimeframe: brief.surveyIntent.explicitTimeframe,
       existingExplicitTimeframe: question.explicitTimeframe,
       recommendedTimeframe: brief.recommendedTimeframe,
-    }),
-  );
+    });
+    return ensureExperienceScreeningReferencePeriod(
+      frequencyQuestion,
+      question.explicitTimeframe ??
+        brief.surveyIntent.explicitTimeframe ??
+        brief.recommendedTimeframe,
+    );
+  });
 }
 
 function preserveCanonicalEvaluationTargetMetadata(
@@ -1594,13 +1601,42 @@ function planBasedReplacement(
       fallbackQuestion.objectRole ?? intent.objects[0]?.role ?? "real_world_object",
     explicitTimeframe: undefined,
   };
-  return isRecurringFrequencyQuestion(replacement)
+  const periodAwareReplacement = isRecurringFrequencyQuestion(replacement)
     ? ensureVisibleReferencePeriod(replacement, {
         userExplicitTimeframe: intent.explicitTimeframe,
         existingExplicitTimeframe:
           original.explicitTimeframe ?? fallbackQuestion.explicitTimeframe,
       })
     : replacement;
+  return ensureExperienceScreeningReferencePeriod(
+    periodAwareReplacement,
+    original.explicitTimeframe ?? intent.explicitTimeframe,
+  );
+}
+
+function ensureExperienceScreeningReferencePeriod(
+  question: SurveyQuestion,
+  referencePeriod: string | null | undefined,
+) {
+  const period = referencePeriod?.trim();
+  if (
+    !period ||
+    /^(?:사용자\s*지정\s*없음|지정\s*없음|없음|해당\s*없음)$/.test(period) ||
+    hasVisibleReferencePeriod(question) ||
+    !/(?:이용|사용|방문|참여|참가|구매|시식|먹어\s*본|경험).*(?:적이|경험이)\s*(?:있|없)|(?:이용|사용|방문|참여|참가|구매|시식)한\s*적/.test(
+      question.title,
+    )
+  ) {
+    return question;
+  }
+  const prefix = /(?:동안|평소|오늘|어제)$/.test(period)
+    ? period
+    : `${period} 동안`;
+  return {
+    ...question,
+    title: `${prefix} ${question.title}`,
+    explicitTimeframe: period,
+  };
 }
 
 export function repairInvalidQuestions({
@@ -1710,13 +1746,17 @@ function replacementForPlanBlock(
       fallbackQuestion.objectRole ?? intent.objects[0]?.role ?? "real_world_object",
     explicitTimeframe: undefined,
   };
-  return isRecurringFrequencyQuestion(replacement)
+  const periodAwareReplacement = isRecurringFrequencyQuestion(replacement)
     ? ensureVisibleReferencePeriod(replacement, {
         userExplicitTimeframe: intent.explicitTimeframe,
         existingExplicitTimeframe:
           original.explicitTimeframe ?? fallbackQuestion.explicitTimeframe,
       })
     : replacement;
+  return ensureExperienceScreeningReferencePeriod(
+    periodAwareReplacement,
+    original.explicitTimeframe ?? intent.explicitTimeframe,
+  );
 }
 
 export function restoreMissingRequiredPlanBlocks({
@@ -1797,7 +1837,7 @@ export function restoreMissingRequiredPlanBlocks({
       (question, index) =>
         !replacedIndexes.has(index) && incompatibleIds.has(String(question.id)),
     );
-    const unplannedIndex = questions.findLastIndex(
+    const unplannedIndex = questions.findIndex(
       (question, index) =>
         !protectedIndexes.has(index) &&
         !replacedIndexes.has(index) &&
@@ -1857,25 +1897,11 @@ export function restoreMissingRequiredPlanBlocks({
 function descriptionWithPreservedAudience({
   description,
   respondentGroup,
-  questions,
 }: {
   description: string;
   respondentGroup: string;
-  questions: SurveyQuestion[];
 }) {
-  const audienceGuidanceText = [
-    description,
-    ...questions
-      .filter((item) =>
-        /(?:입니까|인가요|해당하나요|자격|이용한\s*적|사용한\s*적|참여한\s*적|방문한\s*적|경험이\s*있)/.test(
-          item.title,
-        ),
-      )
-      .map((item) => item.title),
-  ].join(" ");
-  return audienceMentionedInText(respondentGroup, description) ||
-    (audienceGroupMentionedInText(respondentGroup, description) &&
-      audienceMentionedInText(respondentGroup, audienceGuidanceText))
+  return audienceMentionedInText(respondentGroup, description)
     ? description
     : ensureAudienceInDescription(description, respondentGroup);
 }
@@ -2142,12 +2168,22 @@ export function parseSurveyDraftResponse(
   const targetGrade = isTargetGrade(requestedTargetGrade)
     ? requestedTargetGrade
     : "전학년";
+  const canonicalRespondent = canonicalIntent.surveyIntent.targetPopulation;
+  const parsedRespondent = brief.targetRespondents;
+  const canonicalOrParsedRespondent =
+    canonicalRespondent &&
+    audienceIncludesRequiredQualifiers(canonicalRespondent, parsedRespondent)
+      ? parsedRespondent
+      : canonicalRespondent ?? canonicalFallback.respondentGroup ?? parsedRespondent;
+  const explicitRespondent =
+    !canonicalRespondent &&
+    canonicalOrParsedRespondent === "관련 경험이 있는 응답자"
+      ? null
+      : canonicalOrParsedRespondent;
   const respondentWithGrade = resolveFinalRespondentGroup({
     explicitTarget: isSimpleProportionSurveyRequest(prompt)
       ? canonicalFallback.respondentGroup
-      : canonicalIntent.surveyIntent.targetPopulation ??
-        canonicalFallback.respondentGroup ??
-        brief.targetRespondents,
+      : explicitRespondent,
     explicitTargetEvidence: canonicalIntent.audience?.evidence,
     modelTarget: respondentGroup,
     targetGrade,
@@ -2271,8 +2307,18 @@ export function parseSurveyDraftResponse(
       }
     }
   }
+  const referencePeriodQuestions = canonicalizeQuestionReferencePeriods(
+    coverage.aiQuestions,
+    brief,
+  );
+  const initialReferencePeriodRepairedIds = referencePeriodQuestions
+    .filter(
+      (question, index) =>
+        question.title !== coverage.aiQuestions[index]?.title,
+    )
+    .map((question) => question.id);
   const aiQuestions = applyTargetGradeToQuestions(
-    canonicalizeQuestionReferencePeriods(coverage.aiQuestions, brief),
+    referencePeriodQuestions,
     targetGrade,
     questionCount,
     respondentWithGrade,
@@ -2281,7 +2327,6 @@ export function parseSurveyDraftResponse(
   const descriptionWithAudience = descriptionWithPreservedAudience({
     description: modelDescription,
     respondentGroup: respondentWithGrade,
-    questions: aiQuestions,
   });
 
   const reportedClassification = cleanText(
@@ -2369,7 +2414,6 @@ export function parseSurveyDraftResponse(
       description: descriptionWithPreservedAudience({
         description: rawFallback.description,
         respondentGroup: respondentWithGrade,
-        questions: fallbackQuestions,
       }),
       respondentGroup: respondentWithGrade,
       templateQuestions: fallbackQuestions.slice(0, 5),
@@ -2411,7 +2455,6 @@ export function parseSurveyDraftResponse(
       description: descriptionWithPreservedAudience({
         description: repair.survey.description,
         respondentGroup: respondentWithGrade,
-        questions: repair.survey.aiQuestions,
       }),
     };
     recordSurveySemanticDiagnostics(trace, {
@@ -2447,13 +2490,18 @@ export function parseSurveyDraftResponse(
     description: descriptionWithPreservedAudience({
       description: requiredCoverageRepair.survey.description,
       respondentGroup: respondentWithGrade,
-      questions: requiredCoverageRepair.survey.aiQuestions,
     }),
   };
   const finalQuestionsWithReferencePeriods = canonicalizeQuestionReferencePeriods(
     blueprint.aiQuestions,
     brief,
   );
+  const finalReferencePeriodRepairedIds = finalQuestionsWithReferencePeriods
+    .filter(
+      (question, index) =>
+        question.title !== blueprint.aiQuestions[index]?.title,
+    )
+    .map((question) => question.id);
   blueprint = preserveCanonicalEvaluationTargetMetadata(
     {
       ...blueprint,
@@ -2477,11 +2525,17 @@ export function parseSurveyDraftResponse(
       violationQuestionIds: repairedRoleMismatchIds,
     });
   }
-  if (requiredCoverageRepair.repairedQuestionIds.length > 0) {
+  if (
+    requiredCoverageRepair.repairedQuestionIds.length > 0 ||
+    initialReferencePeriodRepairedIds.length > 0 ||
+    finalReferencePeriodRepairedIds.length > 0
+  ) {
     repairedQuestionIds = [
       ...new Set([
         ...repairedQuestionIds,
         ...requiredCoverageRepair.repairedQuestionIds,
+        ...initialReferencePeriodRepairedIds,
+        ...finalReferencePeriodRepairedIds,
       ]),
     ];
     const repairedSet = new Set(repairedQuestionIds);

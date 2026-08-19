@@ -1233,6 +1233,13 @@ function shouldPreferSurveyIntent(intent: SurveyIntent) {
     intent.objectKind === "decision_support" ||
     intent.decisionGoals.length > 0 ||
     intent.objectKind === "ability_skill" ||
+    (intent.includesNonUsers &&
+      intent.objects.some((item) =>
+        ["product_or_service", "concrete_object"].includes(item.role),
+      ) &&
+      /(?:모르는|알지\s*못하는|안\s*(?:쓰는|사용하는|이용하는|방문하는|참여하는|가는)|가지\s*않는|(?:이용|사용|쓰|방문|참여|가입|참가)하지\s*않는)/.test(
+        intent.targetPopulation ?? intent.rawInput,
+      )) ||
     (intent.objectKind === "attitude_perception" &&
       /(?:비이용자|비사용자|(?:사용|이용)해\s*본\s*적이\s*없는|한\s*번도\s*(?:사용|이용)하지\s*않은).*(?:포함|까지)/.test(
         intent.rawInput,
@@ -1427,6 +1434,26 @@ export function parseSurveyBrief(
     )?.[1] ?? "이동";
     researchSubject = `${semantics.parsedSurveyContext.primaryEntity} ${movement} 경험`;
   }
+  const conciseConstructSubject = normalizePrompt(
+    surveyIntent.constructs[0] ?? "",
+  )
+    .replace(/(?:을|를)\s*$/, "")
+    .replace(/\s*(?:만족도|평가)(?:\s+.*)?$/, "")
+    .replace(
+      /\s*(?:현황\s*파악|빈도\s*조사|불편\s*조사|미충족\s*수요\s*파악|선호\s*비교|신규\s*서비스\s*결정|시설\s*개설\s*결정)\s*$/,
+      "",
+    )
+    .trim();
+  if (
+    (researchSubject.length < 2 ||
+      researchSubject.length > 80 ||
+      surveyRequestPhraseCue.test(researchSubject)) &&
+    conciseConstructSubject.length >= 2 &&
+    conciseConstructSubject.length <= 80 &&
+    !surveyRequestPhraseCue.test(conciseConstructSubject)
+  ) {
+    researchSubject = conciseConstructSubject;
+  }
   let targetRespondents =
     surveyIntent.targetPopulation ??
     canonicalIntent.audience?.text ??
@@ -1438,6 +1465,29 @@ export function parseSurveyBrief(
       : awarenessUsageDimensions
         ? "일반 응답자"
         : "관련 경험이 있는 응답자");
+  const explicitUsageExperience =
+    semantics.parsedSurveyContext.isUsageObject &&
+    /(?:이용|사용|방문|참여|구매|주문)\s*(?:현황\s*(?:과|와|및)\s*)?경험|(?:이용|사용|방문|참여|구매|주문)\s*경험\s*(?:과|와|및)\s*(?:만족|불편|평가)/.test(
+      normalizedBrief,
+    );
+  const compactRespondent = targetRespondents.replace(/\s+/g, "");
+  const compactSurveyObject = (surveyIntent.surveyObject ?? "").replace(
+    /\s+/g,
+    "",
+  );
+  if (
+    explicitUsageExperience &&
+    surveyIntent.surveyObject &&
+    compactSurveyObject.length >= 2 &&
+    !compactRespondent.includes(compactSurveyObject)
+  ) {
+    const object = surveyIntent.surveyObject;
+    targetRespondents = ["place", "facility", "university_building"].includes(
+      semantics.parsedSurveyContext.entityType,
+    )
+      ? `${labelWithParticle(object, "을", "를")} 이용하거나 방문한 ${targetRespondents}`
+      : `${labelWithParticle(object, "을", "를")} 이용하는 ${targetRespondents}`;
+  }
   if (
     /팀플|팀\s*프로젝트|조별\s*과제/.test(normalizedBrief) &&
     !/경험이\s*있는/.test(targetRespondents)
@@ -4449,21 +4499,247 @@ function perceptionIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
   };
 }
 
+function nonUserIntentBlueprint(brief: SurveyBrief): SurveyBlueprint | null {
+  const intent = brief.surveyIntent;
+  if (
+    !intent.includesNonUsers ||
+    !/(?:모르는|알지\s*못하는|안\s*(?:쓰는|사용하는|이용하는|방문하는|참여하는|가는)|가지\s*않는|(?:이용|사용|쓰|방문|참여|가입|참가)하지\s*않는)/.test(
+      intent.targetPopulation ?? "",
+    )
+  ) {
+    return null;
+  }
+  const object = intentObjectForQuestion(intent, brief.researchSubject);
+  const hasConcreteUsageTarget = intent.objects.some((item) =>
+    ["product_or_service", "concrete_object"].includes(item.role),
+  );
+  if (!object || !hasConcreteUsageTarget) return null;
+  const isVisitTarget = ["place", "facility", "university_building"].includes(
+    brief.parsedSurveyContext.entityType,
+  );
+  const actionLabel = isVisitTarget ? "방문" : "이용";
+
+  const plan = createSurveyPlan(intent, 7);
+  const rawQuestions = [
+    question(
+      1,
+      `${object}에 대해 어느 정도 알고 있나요?`,
+      "비이용 이유를 해석하기 위한 사전 인지 수준을 확인함.",
+      "single",
+      ["잘 알고 있음", "어느 정도 알고 있음", "이름만 들어봄", "거의 모름", "전혀 모름"],
+    ),
+    question(
+      2,
+      `${labelWithParticle(object, "을", "를")} ${actionLabel}하지 않는 가장 큰 이유는 무엇인가요?`,
+      "현재 비이용을 설명하는 핵심 이유를 한 가지로 구분함.",
+      "single",
+      ["필요성을 느끼지 못함", "이용 방법을 모름", "접근하거나 시작하기 어려움", "비용이나 조건이 부담됨", "대체 수단을 이용함", "신뢰하기 어려움", "기타"],
+    ),
+    question(
+      3,
+      `현재 ${object}에서 부족하거나 ${actionLabel}하기 어렵다고 느끼는 점을 모두 골라주세요.`,
+      "비이용으로 이어지는 구체적인 장벽을 복수로 파악함.",
+      "multiple",
+      ["정보가 부족함", "사용 방법이 복잡함", "접근성이 낮음", "시간이 부족함", "비용이 부담됨", "원하는 기능이 부족함", "특별히 어려운 점 없음", "기타"],
+    ),
+    question(
+      4,
+      `${labelWithParticle(object, "을", "를")} ${actionLabel}하기 위해 필요한 지원을 모두 골라주세요.`,
+      "비이용자가 실제로 필요로 하는 지원 조건을 구분함.",
+      "multiple",
+      ["쉬운 사용 안내", "체험 기회", "접근 절차 간소화", "비용 지원", "상담·문의 창구", "개인 상황에 맞는 추천", "별도 지원이 필요하지 않음", "기타"],
+    ),
+    question(
+      5,
+      `${object}에 가장 필요하다고 생각하는 기능이나 조건을 모두 골라주세요.`,
+      "향후 개선에서 우선할 기능과 운영 조건을 파악함.",
+      "multiple",
+      ["쉽고 명확한 안내", "간단한 이용 절차", "개인 맞춤 기능", "문제 발생 시 빠른 지원", "합리적인 비용", "접근성 개선", "기타"],
+    ),
+    question(
+      6,
+      `필요한 지원과 기능이 제공된다면 앞으로 ${labelWithParticle(object, "을", "를")} ${actionLabel}할 의향이 어느 정도인가요?`,
+      "개선 조건이 충족됐을 때의 실제 이용 가능성을 측정함.",
+      "scale",
+    ),
+    question(
+      7,
+      `${labelWithParticle(object, "을", "를")} ${actionLabel}하기 어려운 이유나 필요한 지원을 더 적어주세요.`,
+      "선택지에 담기지 않은 비이용 맥락과 요구를 수집함.",
+      "text",
+      undefined,
+      false,
+    ),
+  ];
+  const questions = rawQuestions.map((item, index) => {
+    const block = plan.blocks[index];
+    return block ? annotatePlannedQuestion(item, block, intent) : item;
+  });
+  return {
+    kind: "needs",
+    intentLabel: "비이용 이유·필요 조건",
+    subject: object,
+    title: brief.surveyTitle,
+    description: `${brief.targetRespondents}이 ${labelWithParticle(object, "을", "를")} ${actionLabel}하지 않는 이유와 장벽, 필요한 기능과 지원을 파악하기 위한 설문입니다.`,
+    templateTitle: `${object} 비이용자 핵심 문항`,
+    templateSummary: "비이용자를 실제 이용자로 가정하지 않고 이유·장벽·지원 조건을 순서대로 확인해요.",
+    detectedSignals: [
+      `응답 대상 · ${brief.targetRespondents}`,
+      `조사 대상 · ${object}`,
+      "응답 조건 · 현재 비이용자",
+    ],
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
+    respondentGroup: brief.targetRespondents,
+    evaluationTarget: object,
+    goal: intent.purpose ?? brief.researchGoal,
+    assumptions: [],
+    domain: brief.domain,
+    semanticPlan: plan,
+  };
+}
+
+function multipleTargetIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
+  const intent = brief.surveyIntent;
+  const targets = intent.evaluationTargets.slice(0, 4);
+  const includesFrequency = intent.constructs.some((item) => /빈도|현황/.test(item));
+  const includesTimeUse = intent.constructs.some((item) => /시간\s*(?:사용|투입)|이용\s*시간/.test(item));
+  const usageTargets = intent.objects
+    .filter((item) => intent.evaluationTargets.includes(item.text))
+    .every((item) => item.role === "product_or_service");
+  const comparisonDimension =
+    intent.constructs.find((item) => /만족|평가|사용성|편의|지원/.test(item)) ??
+    "전반적 경험";
+  const frequencyOptions = [
+    "거의 매일",
+    "주 3~4회",
+    "주 1~2회",
+    "월 1~3회",
+    "거의 이용하지 않음",
+    "이용한 적 없음",
+  ];
+  const questions: SurveyQuestion[] = [];
+  if (includesTimeUse) {
+    for (const target of targets) {
+      questions.push(
+        question(
+          questions.length + 1,
+          `평소 ${target}에 하루 평균 어느 정도 시간을 쓰나요?`,
+          `${target}에 쓰는 시간을 다른 대상과 같은 구간으로 측정함.`,
+          "single",
+          ["30분 미만", "30분 이상 1시간 미만", "1시간 이상 2시간 미만", "2시간 이상 3시간 미만", "3시간 이상", "해당 활동을 하지 않음"],
+        ),
+      );
+    }
+  }
+  if (includesFrequency) {
+    for (const target of targets) {
+      questions.push(
+        question(
+          questions.length + 1,
+          usageTargets
+            ? `평소 ${labelWithParticle(target, "을", "를")} 얼마나 자주 이용하시나요?`
+            : `평소 ${labelWithParticle(target, "을", "를")} 얼마나 자주 하나요?`,
+          `${target}의 실제 빈도를 다른 대상과 같은 기준으로 측정함.`,
+          "single",
+          frequencyOptions,
+        ),
+      );
+    }
+  }
+  for (const target of targets) {
+    const satisfactionTitle = /^만족도$|전반적\s*만족도/.test(comparisonDimension)
+      ? `${target}에 전반적으로 얼마나 만족하시나요?`
+      : `${target}의 ${comparisonDimension.replace(/\s*만족도$/, "")}에 얼마나 만족하시나요?`;
+    questions.push(
+      question(
+        questions.length + 1,
+        satisfactionTitle,
+        `${target}의 ${comparisonDimension}을 다른 대상과 같은 척도로 측정함.`,
+        "scale",
+      ),
+    );
+  }
+  questions.push(
+    question(
+      questions.length + 1,
+      includesTimeUse
+        ? `${targets.join("·")} 중 평소 더 많은 시간을 쓰는 활동은 무엇인가요?`
+        : usageTargets
+          ? `${targets.join("·")} 중 더 자주 이용하는 대상은 무엇인가요?`
+          : `${targets.join("·")} 중 더 자주 하는 활동은 무엇인가요?`,
+      "대상별 응답과 함께 실제 행동 우선순위를 확인함.",
+      "single",
+      [
+        ...targets,
+        usageTargets ? "비슷하게 이용함" : "비슷한 정도로 함",
+        usageTargets ? "이용한 적 없음" : "해당 활동을 하지 않음",
+      ],
+    ),
+    question(
+      questions.length + 2,
+      `${comparisonDimension}에 영향을 준 요소를 모두 골라주세요.`,
+      "대상별 평가 차이를 설명하는 공통 요인을 파악함.",
+      "multiple",
+      ["내용과 품질", "이용 편의", "정보와 안내", "응답과 지원", "비용 대비 가치", "접근성", "기타"],
+    ),
+    question(
+      questions.length + 3,
+      usageTargets
+        ? `${labelWithParticle(targets.join("·"), "을", "를")} 이용하면서 불편했던 점이나 개선 의견을 적어주세요.`
+        : `${targets.join("·")} 활동에서 불편했던 점이나 개선 의견을 적어주세요.`,
+      "선택지로 설명하기 어려운 대상별 경험 차이를 수집함.",
+      "text",
+      undefined,
+      false,
+    ),
+  );
+  if (intent.constructs.some((item) => /지속|계속|재이용/.test(item))) {
+    questions.splice(
+      Math.max(0, questions.length - 1),
+      0,
+      question(
+        questions.length,
+        `${targets.join("·")} 중 앞으로도 계속 이용할 의향이 가장 높은 대상은 무엇인가요?`,
+        "현재 평가가 지속 이용 의향으로 이어지는 대상을 구분함.",
+        "single",
+        [...targets, "비슷함", "계속 이용할 대상 없음"],
+      ),
+    );
+  }
+  const normalizedQuestions = questions.slice(0, 7).map((item, index) => ({
+    ...item,
+    id: index + 1,
+    planBlockId: `target-comparison-${index + 1}`,
+  }));
+  const targetLabel = targets.join("·");
+  return {
+    kind: "satisfaction",
+    intentLabel: "복수 대상 비교 평가",
+    subject: targetLabel,
+    title: brief.surveyTitle,
+    description: `${brief.targetRespondents}의 ${targets.join("·")} 이용 경험을 같은 기준으로 비교하기 위한 설문입니다.`,
+    templateTitle: `${targetLabel} 비교 문항`,
+    templateSummary: "각 대상을 같은 기준으로 반복 측정해 이용 빈도와 평가 차이를 확인해요.",
+    detectedSignals: [
+      `응답 대상 · ${brief.targetRespondents}`,
+      `비교 대상 · ${targets.join(", ")}`,
+      `비교 항목 · ${intent.constructs.join(", ")}`,
+    ],
+    templateQuestions: normalizedQuestions.slice(0, 5),
+    aiQuestions: normalizedQuestions,
+    respondentGroup: brief.targetRespondents,
+    evaluationTarget: targetLabel,
+    goal: intent.purpose ?? brief.researchGoal,
+    assumptions: [],
+    domain: brief.domain,
+  };
+}
+
 function satisfactionIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
   const intent = brief.surveyIntent;
   if (intent.targetCardinality === "multiple") {
-    return satisfactionBlueprint({
-      ...brief.semantics,
-      evaluationTargets: intent.evaluationTargets,
-      targetCardinality: intent.targetCardinality,
-      targetListSource: intent.targetListSource,
-      unitOfAnalysis: intent.unitOfAnalysis,
-      measurementMode: intent.measurementMode,
-      screeningRequired: intent.screeningRequired,
-      screeningReason: intent.screeningReason,
-      requiresCreatorClarification: intent.requiresCreatorClarification,
-      missingInformation: intent.missingInformation,
-    });
+    return multipleTargetIntentBlueprint(brief);
   }
   const object = intentObjectForQuestion(intent, brief.researchSubject);
   const experienceQuestion = intent.eligibilityCondition
@@ -4526,6 +4802,28 @@ function satisfactionIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
       false,
     ),
   );
+  const continuationConstruct = intent.constructs.find((item) =>
+    /재참여|재이용|재방문|지속\s*(?:사용|이용)|추천\s*의향/.test(item),
+  );
+  if (continuationConstruct) {
+    const continuationTitle = /재참여/.test(continuationConstruct)
+      ? `앞으로 비슷한 ${object}에 다시 참여할 의향이 어느 정도인가요?`
+      : /재방문/.test(continuationConstruct)
+        ? `앞으로 ${labelWithParticle(object, "을", "를")} 다시 방문할 의향이 어느 정도인가요?`
+        : /추천/.test(continuationConstruct)
+          ? `${labelWithParticle(object, "을", "를")} 주변 사람에게 추천할 의향이 어느 정도인가요?`
+          : `앞으로 ${labelWithParticle(object, "을", "를")} 계속 이용할 의향이 어느 정도인가요?`;
+    questions.splice(
+      Math.max(0, questions.length - 2),
+      0,
+      question(
+        0,
+        continuationTitle,
+        `${continuationConstruct}을 만족도와 분리해 직접 측정함.`,
+        "scale",
+      ),
+    );
+  }
   const normalizedQuestions = questions.slice(0, 7).map((item, index) => ({
     ...item,
     id: index + 1,
@@ -4818,6 +5116,7 @@ function relationalPlanBlockQuestion(
   const variable = block.variable.trim();
   const timeframePrefix =
     timeframe && !variable.startsWith(timeframe) ? `${timeframe} ` : "";
+  const classReferencePeriod = timeframe ? `${timeframe} 동안` : "평소";
   const reason = block.purpose;
 
   const supplemental: Record<string, SurveyQuestion> = {
@@ -4826,10 +5125,10 @@ function relationalPlanBlockQuestion(
     "housing-choice-influence": question(id, "통학 시간이 현재 거주 형태를 선택하는 데 어느 정도 영향을 주었나요?", reason, "scale"),
     "housing-choice-reason": question(id, "현재 거주 형태를 선택한 주된 이유를 모두 골라주세요.", reason, "multiple", ["통학 시간 단축", "주거비 부담", "가족과의 거주", "학업·생활 편의", "독립적인 생활", "기숙사 입주 가능 여부", "안전·생활환경", "기타"]),
     "commute-support": question(id, "통학 부담을 줄이기 위해 가장 필요한 지원이 있다면 적어주세요.", reason, "text", undefined, false),
-    "class-days": question(id, "이번 학기에 일주일 평균 수업이 있는 날은 며칠인가요?", reason, "single", ["1일", "2일", "3일", "4일", "5일 이상"]),
-    "early-class-days": question(id, "이번 학기에 오전 10시 이전에 시작하는 수업은 일주일에 며칠인가요?", reason, "single", ["없음", "1일", "2일", "3일", "4일 이상"]),
+    "class-days": question(id, `${classReferencePeriod} 일주일 평균 수업이 있는 날은 며칠인가요?`, reason, "single", ["1일", "2일", "3일", "4일", "5일 이상"]),
+    "early-class-days": question(id, `${classReferencePeriod} 오전 10시 이전에 시작하는 수업은 일주일에 며칠인가요?`, reason, "single", ["없음", "1일", "2일", "3일", "4일 이상"]),
     "commute-duration": question(id, "평소 등교할 때 편도 통학 시간은 어느 정도인가요?", reason, "single", ["15분 미만", "15분 이상~30분 미만", "30분 이상~60분 미만", "60분 이상~90분 미만", "90분 이상"]),
-    "tardiness-reasons": question(id, "이번 학기에 수업에 지각한 주된 이유를 모두 골라주세요.", reason, "multiple", ["늦게 잠들거나 수면이 부족해서", "알람을 듣지 못해서", "등교 준비가 늦어져서", "대중교통 지연·도로 정체 때문에", "이전 일정이 늦게 끝나서", "지각한 적 없음", "기타"]),
+    "tardiness-reasons": question(id, `${classReferencePeriod} 수업에 지각한 주된 이유를 모두 골라주세요.`, reason, "multiple", ["늦게 잠들거나 수면이 부족해서", "알람을 듣지 못해서", "등교 준비가 늦어져서", "대중교통 지연·도로 정체 때문에", "이전 일정이 늦게 끝나서", "지각한 적 없음", "기타"]),
     "sleep-schedule-context": question(id, "수면이나 등교 준비와 관련해 덧붙이고 싶은 상황이 있다면 적어주세요.", reason, "text", undefined, false),
     "predictor-context": question(id, "앞에서 답한 선행 값이 달라지는 주된 상황을 모두 골라주세요.", reason, "multiple", ["평일", "주말·공휴일", "학업·업무가 많은 시기", "개인 일정이 많은 시기", "특별한 상황 없음", "기타"]),
     "outcome-driver": question(id, "결과 값이 평소와 달랐던 때의 상황을 모두 골라주세요.", reason, "multiple", ["시간 여유가 달랐음", "비용 여건이 달랐음", "접근 환경이 달랐음", "개인 일정이 달랐음", "주변 환경이 달랐음", "특별한 차이가 없었음", "기타"]),
@@ -5524,6 +5823,8 @@ function semanticIntentBlueprint(brief: SurveyBrief) {
   }
   const relational = relationalIntentBlueprint(brief);
   if (relational) return relational;
+  const nonUser = nonUserIntentBlueprint(brief);
+  if (nonUser) return nonUser;
   if (!shouldPreferSurveyIntent(brief.surveyIntent)) return null;
   switch (brief.surveyIntent.objectKind) {
     case "decision_support":

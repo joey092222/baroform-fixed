@@ -391,14 +391,6 @@ export function surveyTemplateKeyForContext(context: ParsedSurveyContext) {
   return `${context.surveyArchetype}_blueprint`;
 }
 
-const usageBlueprintEntityTypes = new Set<SurveyContextEntityType>([
-  "service",
-  "platform",
-  "product",
-  "feature",
-  "facility",
-]);
-
 const usageBlueprintArchetypes = new Set<SurveyArchetype>([
   "service_usage",
   "platform_usage",
@@ -417,7 +409,6 @@ export function canUseUsageBlueprint(
     context.isUsageObject === true &&
     context.surveyArchetype !== "mobility_experience" &&
     usageBlueprintArchetypes.has(context.surveyArchetype) &&
-    usageBlueprintEntityTypes.has(context.entityType) &&
     !surveyRequestWrapperInSubject.test(subject)
   );
 }

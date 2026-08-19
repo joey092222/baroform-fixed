@@ -23,6 +23,7 @@ import {
   type TargetGrade,
 } from "../../survey-grade";
 import {
+  audienceIncludesRequiredQualifiers,
   audienceGroupMentionedInText,
   audienceMentionedInText,
   ensureAudienceInDescription,
@@ -546,10 +547,11 @@ function creatorClarificationResult(
     clarification: {
       question: relationNeedsClarification
         ? "서로 비교할 두 항목을 나누어 알려주세요."
-        : "평가할 수업은 어떻게 정할까요?",
+        : intent.missingInformation[0] ??
+          "조사할 구체적인 대상과 확인하려는 내용을 알려주세요.",
       reason: relationNeedsClarification
         ? "관계 조사를 감지했지만 두 측정 항목을 안전하게 구분하지 못했어요."
-        : "수업별 만족도를 비교하려면 평가할 수업 목록이나 반복 평가 방식을 먼저 정해야 해요.",
+        : "현재 입력만으로는 응답자가 답할 구체적인 조사 대상을 안전하게 정하기 어려워요.",
       options: relationNeedsClarification
         ? [
             "첫 번째 항목과 두 번째 항목을 직접 입력할게요",
@@ -557,9 +559,9 @@ function creatorClarificationResult(
             "관계와 함께 집단별 차이도 비교할게요",
           ]
         : [
-            "평가할 수업 목록을 직접 입력할게요",
-            "응답자가 수강한 수업명을 입력하게 할게요",
-            "응답자가 현재 수강 중인 여러 수업을 각각 평가하게 할게요",
+            "구체적인 서비스·제품·장소를 입력할게요",
+            "확인하려는 경험이나 의견을 입력할게요",
+            "응답 대상과 조사 목적을 함께 입력할게요",
           ],
     },
     research: {
@@ -567,7 +569,7 @@ function creatorClarificationResult(
       entity: null,
       summary: relationNeedsClarification
         ? "관계를 분석할 두 측정 항목을 확인하고 있어요."
-        : "복수 평가 대상의 목록 또는 평가 방식을 확인하고 있어요.",
+        : "설문에서 다룰 구체적인 대상과 조사 내용을 확인하고 있어요.",
       facts: [],
       sources: [],
       classification: "unresolved",
@@ -681,10 +683,22 @@ function applyDraftSettings(
   questionCount: number,
   canonicalIntent?: CanonicalSurveyIntent,
 ): SurveyBlueprint {
+  const canonicalTarget = canonicalIntent?.surveyIntent.targetPopulation;
+  const derivedTarget = canonicalIntent
+    ? parseSurveyBrief(prompt, canonicalIntent).targetRespondents
+    : blueprint.respondentGroup;
+  const explicitTarget =
+    canonicalTarget &&
+    derivedTarget &&
+    audienceIncludesRequiredQualifiers(canonicalTarget, derivedTarget)
+      ? derivedTarget
+      : canonicalTarget ??
+        (derivedTarget === "관련 경험이 있는 응답자" ? null : derivedTarget) ??
+        blueprint.respondentGroup;
   const finalRespondentGroup = resolveFinalRespondentGroup({
     explicitTarget: isSimpleProportionSurveyRequest(prompt)
       ? blueprint.respondentGroup
-      : canonicalIntent?.surveyIntent.targetPopulation ?? blueprint.respondentGroup,
+      : explicitTarget,
     explicitTargetEvidence: canonicalIntent?.audience?.evidence,
     modelTarget: blueprint.respondentGroup,
     targetGrade,
@@ -2050,14 +2064,14 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         trace.failureStage ?? trace.stage,
       );
     };
-    if (
+    const canUseValidatedPlanFallback =
       upstreamCompleted &&
-      intent.intentMode === "composite" &&
       (error instanceof SurveyValidationError ||
-        error instanceof SurveyGenerationResponseError ||
-        error instanceof SyntaxError ||
-        (error instanceof Error && error.name === "ZodError"))
-    ) {
+        (intent.intentMode === "composite" &&
+          (error instanceof SurveyGenerationResponseError ||
+            error instanceof SyntaxError ||
+            (error instanceof Error && error.name === "ZodError"))));
+    if (canUseValidatedPlanFallback) {
       if (!trace.parseFailureStage) {
         recordSurveySchemaDiagnostics(trace, {
           stage:
@@ -2091,7 +2105,9 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       });
       return respondWithPlanBasedFallback(
         "model-output-rejected",
-        "composite_plan_fallback",
+        intent.intentMode === "composite"
+          ? "composite_plan_fallback"
+          : outputRejectionFallbackSource(trace, error),
       );
     }
 
