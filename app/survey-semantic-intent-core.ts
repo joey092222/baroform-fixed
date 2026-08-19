@@ -1697,8 +1697,9 @@ export function validateSurveyIntentCandidate(
     studyTitleAliases.some((title) =>
       entityTextUsedAsActionObject(text, title),
     );
+  const canonicalRelationObjects = [...intent.objects, ...intent.contexts];
   const semanticallySameObject = (candidate: IntentEntity) =>
-    intent.objects.some((allowed) => {
+    canonicalRelationObjects.some((allowed) => {
       const allowedText = normalizeRoleText(allowed.text);
       const candidateText = normalizeRoleText(candidate.text);
       if (

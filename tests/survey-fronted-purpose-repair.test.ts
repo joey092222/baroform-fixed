@@ -11,6 +11,7 @@ import {
   validateSurvey,
 } from "../app/survey-intent";
 import { createSurveyPlan } from "../app/survey-planning";
+import { validateSurveyIntentCandidate } from "../app/survey-semantic-intent";
 
 test("fronted purpose fallback은 응답자 존재가 아니라 실제 적격 조건을 확인한다", () => {
   const fixtures = [
@@ -92,4 +93,131 @@ test("부분 repair는 모호해진 만족도 문항을 직접 만족도 문항�
   for (const index of [0, 1, 2, 3, 5, 6]) {
     assert.deepEqual(repaired.survey.aiQuestions[index], modelSurvey.aiQuestions[index]);
   }
+});
+
+test("중복 문항 repair는 canonical 위치의 조사 목적을 복구하고 정상 문항을 보존한다", () => {
+  const input = "새 기능 만족도는 누리 앱을 최근 3개월 사용한 대학생에게 조사";
+  const canonical = parseCanonicalSurveyIntent(input);
+  const fallback = analyzeSurveyPrompt(input, canonical);
+  const questions = fallback.aiQuestions.map((item) => ({
+    ...item,
+    options: item.options ? [...item.options] : undefined,
+  }));
+  assert.ok(questions[1]);
+  assert.ok(questions[2]);
+  questions[2] = {
+    ...questions[1],
+    id: questions[2].id,
+  };
+  const modelSurvey = {
+    ...fallback,
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
+  };
+  const repaired = repairInvalidQuestions({
+    survey: modelSurvey,
+    intent: canonical.surveyIntent,
+    plan: createSurveyPlan(canonical.surveyIntent, 7),
+    qualityIssues: ["문항 3가 앞선 문항과 중복됩니다."],
+    violations: [],
+    getFallback: () => fallback,
+  });
+
+  assert.deepEqual(repaired.repairedQuestionIds, [3]);
+  assert.deepEqual(repaired.survey.aiQuestions[2]?.title, fallback.aiQuestions[2]?.title);
+  assert.notEqual(
+    repaired.survey.aiQuestions[2]?.title,
+    repaired.survey.aiQuestions[1]?.title,
+  );
+  for (const index of [0, 1, 3, 4, 5, 6]) {
+    assert.deepEqual(repaired.survey.aiQuestions[index], modelSurvey.aiQuestions[index]);
+  }
+  assert.deepEqual(
+    validateSurveyIntentCandidate(canonical.surveyIntent, {
+      questions: repaired.survey.aiQuestions,
+    }),
+    [],
+  );
+  assert.deepEqual(
+    validateSurvey(
+      input,
+      parseSurveyBrief(input, canonical),
+      repaired.survey,
+      canonical.surveyIntent.surveyObject ?? undefined,
+    ),
+    [],
+  );
+});
+
+test("관계 오류 repair는 원문 밖 서비스를 제거하고 eligibility와 기간을 보존한다", () => {
+  const input = "새 기능 만족도는 새길 앱 최근 3개월 쓴 대학생한테 조사";
+  const canonical = parseCanonicalSurveyIntent(input);
+  const fallback = analyzeSurveyPrompt(input, canonical);
+  const questions = fallback.aiQuestions.map((item) => ({
+    ...item,
+    options: item.options ? [...item.options] : undefined,
+  }));
+  assert.ok(questions[3]);
+  questions[3] = {
+    ...questions[3],
+    title: "별빛 멤버십 서비스를 이용한 적이 있나요?",
+    type: "single",
+    options: ["이용한 적 있음", "이용한 적 없음"],
+    measuredConstruct: "별빛 멤버십 서비스 이용 경험",
+    measuredVariable: "별빛 멤버십 서비스 이용 여부",
+    questionPurpose: "별빛 멤버십 서비스와의 관계를 확인함.",
+  };
+  const modelSurvey = {
+    ...fallback,
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
+  };
+  const beforeRepairViolations = validateSurveyIntentCandidate(
+    canonical.surveyIntent,
+    { questions: modelSurvey.aiQuestions },
+  );
+  assert.ok(
+    beforeRepairViolations.some(
+      (item) =>
+        item.code === "SEMANTIC_RELATION_INVALID" && item.questionId === 4,
+    ),
+  );
+
+  const repaired = repairInvalidQuestions({
+    survey: modelSurvey,
+    intent: canonical.surveyIntent,
+    plan: createSurveyPlan(canonical.surveyIntent, 7),
+    violations: [
+      {
+        code: "SEMANTIC_RELATION_INVALID",
+        severity: "repairable",
+        message: "사용자 입력에 없는 서비스 관계가 추가되었습니다.",
+        questionId: 4,
+        evidence: "별빛 멤버십 서비스",
+        origin: "question",
+      },
+    ],
+    getFallback: () => fallback,
+  });
+
+  assert.deepEqual(repaired.repairedQuestionIds, [4]);
+  assert.deepEqual(repaired.survey.aiQuestions[3]?.title, fallback.aiQuestions[3]?.title);
+  assert.doesNotMatch(
+    repaired.survey.aiQuestions.map((item) => item.title).join(" "),
+    /별빛\s*멤버십/,
+  );
+  assert.deepEqual(repaired.survey.aiQuestions[0], modelSurvey.aiQuestions[0]);
+  assert.match(repaired.survey.aiQuestions[0]?.title ?? "", /최근 3개월/);
+  for (const index of [0, 1, 2, 4, 5, 6]) {
+    assert.deepEqual(repaired.survey.aiQuestions[index], modelSurvey.aiQuestions[index]);
+  }
+  assert.deepEqual(
+    validateSurvey(
+      input,
+      parseSurveyBrief(input, canonical),
+      repaired.survey,
+      canonical.surveyIntent.surveyObject ?? undefined,
+    ),
+    [],
+  );
 });

@@ -1658,8 +1658,55 @@ function repairConceptMatchScore(
 function selectFallbackQuestionForRepair(
   original: SurveyQuestion,
   fallbackQuestions: SurveyQuestion[],
+  plan: SurveyPlan,
   index: number,
+  preferredConcept?: RepairQuestionConcept,
 ) {
+  const askableBlocks = plan.blocks.filter((item) => item.directlyAskable);
+  const declaredBlock = askableBlocks.find(
+    (item) => item.id === original.planBlockId,
+  );
+  if (declaredBlock) {
+    const declaredCandidate = fallbackQuestions.find((candidate) =>
+      questionCoversSurveyPlanBlock(candidate, declaredBlock),
+    );
+    if (declaredCandidate) return declaredCandidate;
+  }
+
+  if (preferredConcept) {
+    const preferred = fallbackQuestions
+      .map((candidate, candidateIndex) => ({
+        candidate,
+        candidateIndex,
+        score: repairConceptMatchScore(preferredConcept, candidate),
+      }))
+      .filter((item) => item.score >= 0)
+      .sort(
+        (left, right) =>
+          right.score - left.score || left.candidateIndex - right.candidateIndex,
+      )[0]?.candidate;
+    if (preferred) return preferred;
+  }
+
+  // Structured model questions intentionally do not inherit plan links by array
+  // index. The deterministic fallback does, however, follow the canonical plan
+  // order. Use that canonical slot before any fuzzy option/title similarity so a
+  // duplicate or invented-relation question cannot select another question's
+  // fallback merely because their choices happen to overlap.
+  const positionalCandidate = fallbackQuestions[index];
+  if (positionalCandidate) return positionalCandidate;
+
+  const concept = inferRepairQuestionConcept(original);
+  const ranked = fallbackQuestions
+    .map((candidate, candidateIndex) => ({
+      candidate,
+      candidateIndex,
+      score: repairConceptMatchScore(concept, candidate),
+    }))
+    .filter((item) => item.score >= 0)
+    .sort((left, right) => right.score - left.score || left.candidateIndex - right.candidateIndex);
+  if (ranked[0]?.candidate) return ranked[0].candidate;
+
   const originalOptions = new Set(
     (original.options ?? []).map((option) => option.replace(/\s+/g, "").trim()),
   );
@@ -1677,26 +1724,7 @@ function selectFallbackQuestionForRepair(
         right.overlap - left.overlap || left.candidateIndex - right.candidateIndex,
     )[0]?.candidate;
   if (optionMatchedQuestion) return optionMatchedQuestion;
-
-  const concept = inferRepairQuestionConcept(original);
-  if (concept === "other") {
-    return (
-      fallbackQuestions[index] ??
-      fallbackQuestions.at(-1) ??
-      original
-    );
-  }
-  const ranked = fallbackQuestions
-    .map((candidate, candidateIndex) => ({
-      candidate,
-      candidateIndex,
-      score: repairConceptMatchScore(concept, candidate),
-    }))
-    .filter((item) => item.score >= 0)
-    .sort((left, right) => right.score - left.score || left.candidateIndex - right.candidateIndex);
   return (
-    ranked[0]?.candidate ??
-    fallbackQuestions[index] ??
     fallbackQuestions.at(-1) ??
     original
   );
@@ -1745,13 +1773,13 @@ function planBasedReplacement(
   index: number,
 ): SurveyQuestion {
   const askableBlocks = plan.blocks.filter((item) => item.directlyAskable);
-  const matchingBlock = askableBlocks.find((item) =>
-    questionCoversSurveyPlanBlock(fallbackQuestion, item),
-  );
   const declaredBlock = askableBlocks.find(
     (item) => item.id === original.planBlockId,
   );
-  const block = matchingBlock ?? declaredBlock ?? askableBlocks[index] ?? askableBlocks.at(-1);
+  const matchingBlock = askableBlocks.find((item) =>
+    questionCoversSurveyPlanBlock(fallbackQuestion, item),
+  );
+  const block = declaredBlock ?? matchingBlock ?? askableBlocks[index] ?? askableBlocks.at(-1);
   const replacement: SurveyQuestion = {
     ...fallbackQuestion,
     id: original.id,
@@ -1761,13 +1789,13 @@ function planBasedReplacement(
     measuredEntityIds:
       block?.measuredEntityIds ?? fallbackQuestion.measuredEntityIds,
     measuredConstruct:
-      fallbackQuestion.measuredConstruct ?? block?.variable,
-    measuredVariable: fallbackQuestion.measuredVariable ?? block?.variable,
-    measuredRole: fallbackQuestion.measuredRole ?? block?.role,
+      block?.variable ?? fallbackQuestion.measuredConstruct,
+    measuredVariable: block?.variable ?? fallbackQuestion.measuredVariable,
+    measuredRole: block?.role ?? fallbackQuestion.measuredRole,
     questionPurpose:
-      fallbackQuestion.questionPurpose ?? block?.purpose ?? fallbackQuestion.reason,
+      block?.purpose ?? fallbackQuestion.questionPurpose ?? fallbackQuestion.reason,
     decisionGoalIds:
-      fallbackQuestion.decisionGoalIds ?? block?.decisionGoalIds,
+      block?.decisionGoalIds ?? fallbackQuestion.decisionGoalIds,
     unitOfAnalysis: fallbackQuestion.unitOfAnalysis ?? intent.unitOfAnalysis,
     subjectRole: fallbackQuestion.subjectRole ?? "target_population",
     objectRole:
@@ -1869,10 +1897,22 @@ export function repairInvalidQuestions({
       return question;
     }
     repairedQuestionIds.push(question.id);
+    const targetedQualityIssues = qualityIssues.filter((issue) =>
+      new RegExp(`(?:문항|질문)\\s+(?:question-)?${question.id}(?:\\D|$)`).test(
+        issue,
+      ),
+    );
+    const preferredConcept: RepairQuestionConcept | undefined = targetedQualityIssues.some(
+      (issue) => /전반적\s*만족도.*직접\s*측정/.test(issue),
+    )
+      ? "satisfaction"
+      : undefined;
     const fallbackQuestion = selectFallbackQuestionForRepair(
       question,
       fallbackQuestions,
+      plan,
       index,
+      preferredConcept,
     );
     return planBasedReplacement(
       question,
