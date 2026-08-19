@@ -1,0 +1,1165 @@
+{
+  "version": "v1.1-audited",
+  "sourceVersion": "v1-original",
+  "split": "holdout",
+  "seed": "baroform-regression-v1-holdout-20260818",
+  "generatedAt": "2026-08-18T00:00:00.000Z",
+  "auditedAt": "2026-08-19T00:00:00.000Z",
+  "cases": [
+    {
+      "id": "holdout-general-006",
+      "split": "holdout",
+      "stratum": "general_domain",
+      "category": "teamwork_school_life",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "프로젝트 팀원이 회의에 참여하지 못한 이유와 비동기 협업 수요",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "회의에 참여하지 못한 프로젝트 팀원"
+      ],
+      "expectedSurveyObject": [
+        "프로젝트 협업"
+      ],
+      "expectedPurposeConcepts": [
+        "비참여 이유",
+        "비동기 협업 수요"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [],
+      "expectedEligibilityConditions": [
+        "회의에 참여하지 못한 프로젝트 팀원"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "프로젝트 팀원"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "서비스 필요성"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "mixed",
+        "need_demand"
+      ],
+      "tags": [
+        "non_university",
+        "negation",
+        "single_target_multi_purpose",
+        "complex_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "holdout-general-007",
+      "split": "holdout",
+      "stratum": "general_domain",
+      "category": "consumer_behavior",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "지난 6개월 반려동물 가구의 온라인 사료 구매 빈도와 가격 민감도",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "반려동물 가구"
+      ],
+      "expectedSurveyObject": [
+        "온라인 사료 구매"
+      ],
+      "expectedPurposeConcepts": [
+        "구매 빈도",
+        "가격 민감도"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "반려동물",
+        "온라인 사료"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "구매 빈도",
+        "비용"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "consumption_behavior"
+      ],
+      "tags": [
+        "non_university",
+        "timeframe",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "holdout-complex-004",
+      "split": "holdout",
+      "stratum": "complex_relation",
+      "category": "reversed_roles",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "최근 한 달 해든 서비스 알림을 받았지만 클릭하지 않은 이용자에게 이유와 개선점을 묻기",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "해든 서비스 알림을 클릭하지 않은 이용자"
+      ],
+      "expectedSurveyObject": [
+        "해든 서비스 알림"
+      ],
+      "expectedPurposeConcepts": [
+        "비클릭 이유",
+        "개선 요구"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [
+        "해든 서비스 알림",
+        "해든 서비스"
+      ],
+      "expectedEligibilityConditions": [
+        "해든 서비스 알림을 클릭하지 않은 이용자"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "해든 서비스"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "개선 요구"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "mixed",
+        "attitude"
+      ],
+      "tags": [
+        "virtual_entity",
+        "non_university",
+        "negation",
+        "timeframe",
+        "complex_order",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "holdout-past-003",
+      "split": "holdout",
+      "stratum": "past_error_variant",
+      "category": "digital_service",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "다온 플랫폼을 쓰는 취업준비생의 이용 현황과 경험",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "다온 플랫폼을 쓰는 취업준비생"
+      ],
+      "expectedSurveyObject": [
+        "다온 플랫폼"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 현황",
+        "이용 경험"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [
+        "다온 플랫폼"
+      ],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "다온 플랫폼",
+        "취업준비생"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "이용 빈도",
+        "만족도",
+        "불편"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "service_usage"
+      ],
+      "tags": [
+        "virtual_entity",
+        "non_university",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "holdout-clarify-001",
+      "split": "holdout",
+      "stratum": "clarification",
+      "category": "clarification",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "공간 평가",
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedSurveyObject": [
+        "공간"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "inputQuality": "ambiguous",
+      "contextEntities": [],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "공간"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": true,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "unresolved",
+        "mixed"
+      ],
+      "tags": [
+        "clarification"
+      ],
+      "notes": "평가할 공간과 응답 대상이 없음"
+    },
+    {
+      "id": "holdout-general-008",
+      "split": "holdout",
+      "stratum": "general_domain",
+      "category": "lifestyle_behavior",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "주말에 영상 콘텐츠를 보지 않는 성인의 여가 선택 이유",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "주말에 영상 콘텐츠를 보지 않는 성인"
+      ],
+      "expectedSurveyObject": [
+        "영상 콘텐츠 시청"
+      ],
+      "expectedPurposeConcepts": [
+        "비시청 이유",
+        "여가 선택"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "영상 콘텐츠",
+        "성인"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "선호"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "attitude",
+        "behavior_usage"
+      ],
+      "tags": [
+        "non_university",
+        "negation",
+        "timeframe"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "holdout-general-003",
+      "split": "holdout",
+      "stratum": "general_domain",
+      "category": "food_service",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "최근 2주 해든 푸드트럭 이용자의 방문 빈도와 대기 만족도",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "해든 푸드트럭 이용자"
+      ],
+      "expectedSurveyObject": [
+        "해든 푸드트럭"
+      ],
+      "expectedPurposeConcepts": [
+        "방문 빈도",
+        "대기 만족도"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "해든 푸드트럭"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이용 빈도",
+        "대기 시간",
+        "만족도"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "service_usage",
+        "satisfaction"
+      ],
+      "tags": [
+        "virtual_entity",
+        "timeframe",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "holdout-general-005",
+      "split": "holdout",
+      "stratum": "general_domain",
+      "category": "event_program",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "지역 독서모임에 참가하지 않은 주민의 불참 이유와 관심 주제",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "지역 독서모임에 참가하지 않은 주민"
+      ],
+      "expectedSurveyObject": [
+        "지역 독서모임"
+      ],
+      "expectedPurposeConcepts": [
+        "불참 이유",
+        "관심 주제"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [],
+      "expectedEligibilityConditions": [
+        "지역 독서모임에 참가하지 않은 주민"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "독서모임",
+        "주민"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "선호"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "event_program",
+        "need_demand"
+      ],
+      "tags": [
+        "non_university",
+        "negation",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "holdout-past-002",
+      "split": "holdout",
+      "stratum": "past_error_variant",
+      "category": "facility_mobility",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "한울대학교 재학생의 늘봄관 통학 및 이동 경험",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "한울대학교 재학생"
+      ],
+      "expectedSurveyObject": [
+        "늘봄관 이동"
+      ],
+      "expectedPurposeConcepts": [
+        "이동 경험"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [
+        "한울대학교",
+        "늘봄관"
+      ],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "한울대학교",
+        "늘봄관"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이동 빈도",
+        "이동 수단",
+        "소요 시간",
+        "혼잡",
+        "안전",
+        "불편"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "mobility_experience"
+      ],
+      "tags": [
+        "virtual_entity"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "holdout-complex-001",
+      "split": "holdout",
+      "stratum": "complex_relation",
+      "category": "single_multi_purpose",
+      "difficulty": "hard",
+      "surveyMode": "research",
+      "questionCount": 7,
+      "input": "한울대학교 늘봄관 한 곳의 학습 공간 만족도와 예약 좌석 기능 수요",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "한울대학교 늘봄관 이용자"
+      ],
+      "expectedSurveyObject": [
+        "늘봄관 학습 공간"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도",
+        "예약 좌석 기능 수요"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [
+        "한울대학교",
+        "늘봄관"
+      ],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "한울대학교",
+        "늘봄관"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "만족도",
+        "서비스 필요성",
+        "이용 의향"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "mixed",
+        "facility_usage"
+      ],
+      "tags": [
+        "virtual_entity",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "holdout-past-001",
+      "split": "holdout",
+      "stratum": "past_error_variant",
+      "category": "academic_satisfaction",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "한울대 경영학부 학생이 느끼는 경영학관 시설 만족도",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "한울대학교 경영학부 학생"
+      ],
+      "expectedSurveyObject": [
+        "경영학관 시설"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [
+        "경영학부",
+        "경영학관"
+      ],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "한울대",
+        "경영학부",
+        "경영학관"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "만족도",
+        "불편",
+        "개선 요구"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "satisfaction",
+        "facility_usage"
+      ],
+      "tags": [
+        "virtual_entity",
+        "complex_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "holdout-complex-002",
+      "split": "holdout",
+      "stratum": "complex_relation",
+      "category": "multiple_target_comparison",
+      "difficulty": "hard",
+      "surveyMode": "research",
+      "questionCount": 7,
+      "input": "도보 통근과 자가용 통근의 이동 시간, 비용, 스트레스 차이",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "도보 또는 자가용 통근자"
+      ],
+      "expectedSurveyObject": [
+        "도보 통근",
+        "자가용 통근"
+      ],
+      "expectedPurposeConcepts": [
+        "이동 시간 비교",
+        "비용 비교",
+        "스트레스 비교"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "도보",
+        "자가용"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "소요 시간",
+        "비용",
+        "스트레스",
+        "대상 비교"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "multiple",
+      "expectedArchetypes": [
+        "relationship_analysis",
+        "mobility_experience"
+      ],
+      "tags": [
+        "non_university",
+        "multiple_targets",
+        "complex_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "holdout-complex-003",
+      "split": "holdout",
+      "stratum": "complex_relation",
+      "category": "relationship_research",
+      "difficulty": "hard",
+      "surveyMode": "research",
+      "questionCount": 7,
+      "input": "청년의 월세 부담이 외식 횟수와 저축 비율에 미치는 영향",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "월세를 내는 청년"
+      ],
+      "expectedSurveyObject": [
+        "월세 부담",
+        "외식 횟수",
+        "저축 비율"
+      ],
+      "expectedPurposeConcepts": [
+        "변수 간 영향"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "청년",
+        "월세",
+        "저축"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "비용",
+        "구매 빈도",
+        "저축"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "relationship_analysis"
+      ],
+      "tags": [
+        "non_university",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "holdout-clarify-002",
+      "split": "holdout",
+      "stratum": "clarification",
+      "category": "clarification",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "둘 중 뭐가 나은지",
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedSurveyObject": [
+        "두 대상"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "inputQuality": "ambiguous",
+      "contextEntities": [],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": true,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "unresolved",
+        "mixed"
+      ],
+      "tags": [
+        "clarification"
+      ],
+      "notes": "비교할 두 대상과 기준이 없음"
+    },
+    {
+      "id": "holdout-noisy-002",
+      "split": "holdout",
+      "stratum": "incomplete_user_input",
+      "category": "noisy_input",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "다온앱 요즘 안씀 이유 다시쓸지",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "다온 앱을 최근 사용하지 않는 사람"
+      ],
+      "expectedSurveyObject": [
+        "다온 앱"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유",
+        "재사용 의향"
+      ],
+      "inputQuality": "noisy_recoverable",
+      "contextEntities": [
+        "다온 앱"
+      ],
+      "expectedEligibilityConditions": [
+        "다온 앱을 최근 사용하지 않는 사람"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "다온"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "이용 의향"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "need_demand",
+        "attitude"
+      ],
+      "tags": [
+        "virtual_entity",
+        "non_university",
+        "negation",
+        "timeframe",
+        "noisy_input",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "holdout-noisy-001",
+      "split": "holdout",
+      "stratum": "incomplete_user_input",
+      "category": "noisy_input",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "한울대 늘봄관 안감 왜 불편",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "늘봄관에 가지 않는 한울대학교 학생"
+      ],
+      "expectedSurveyObject": [
+        "늘봄관"
+      ],
+      "expectedPurposeConcepts": [
+        "비방문 이유",
+        "불편"
+      ],
+      "inputQuality": "noisy_recoverable",
+      "contextEntities": [
+        "늘봄관"
+      ],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "한울대",
+        "늘봄관"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "불편"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "mobility_experience",
+        "attitude"
+      ],
+      "tags": [
+        "virtual_entity",
+        "negation",
+        "noisy_input",
+        "complex_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "holdout-past-004",
+      "split": "holdout",
+      "stratum": "past_error_variant",
+      "category": "digital_service",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "해든 서비스를 이용하지 않는 청년의 비이용 이유와 필요한 지원",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "해든 서비스를 이용하지 않는 청년"
+      ],
+      "expectedSurveyObject": [
+        "해든 서비스"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유",
+        "지원 수요"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [
+        "해든 서비스"
+      ],
+      "expectedEligibilityConditions": [
+        "해든 서비스를 이용하지 않는 청년"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "해든 서비스",
+        "청년"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "서비스 필요성"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "need_demand",
+        "attitude"
+      ],
+      "tags": [
+        "virtual_entity",
+        "non_university",
+        "negation",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "holdout-general-002",
+      "split": "holdout",
+      "stratum": "general_domain",
+      "category": "facility_mobility",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "늘봄관에 방문하지 않는 한울대 학생의 접근 장벽",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "늘봄관에 방문하지 않는 한울대학교 학생"
+      ],
+      "expectedSurveyObject": [
+        "늘봄관"
+      ],
+      "expectedPurposeConcepts": [
+        "비방문 이유",
+        "접근 장벽"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [
+        "늘봄관"
+      ],
+      "expectedEligibilityConditions": [
+        "늘봄관에 방문하지 않는 한울대학교 학생"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "늘봄관",
+        "한울대"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "접근성"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "mobility_experience",
+        "attitude"
+      ],
+      "tags": [
+        "virtual_entity",
+        "negation",
+        "complex_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "holdout-general-001",
+      "split": "holdout",
+      "stratum": "general_domain",
+      "category": "academic_course",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "한울대학교 교양 수업 수강생의 토론 참여 경험과 만족도",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "한울대학교 교양 수업 수강생"
+      ],
+      "expectedSurveyObject": [
+        "교양 수업"
+      ],
+      "expectedPurposeConcepts": [
+        "토론 참여 경험",
+        "만족도"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [
+        "교양 수업",
+        "한울대학교"
+      ],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "한울대학교"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "참여 경험",
+        "만족도"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "learning_experience",
+        "satisfaction"
+      ],
+      "tags": [
+        "virtual_entity",
+        "single_target_multi_purpose"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "holdout-general-004",
+      "split": "holdout",
+      "stratum": "general_domain",
+      "category": "digital_service",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "다온 플랫폼과 해든 서비스의 고객 지원 만족도 비교",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "두 서비스를 이용한 고객"
+      ],
+      "expectedSurveyObject": [
+        "다온 플랫폼",
+        "해든 서비스"
+      ],
+      "expectedPurposeConcepts": [
+        "고객 지원 만족도 비교"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [
+        "다온 플랫폼",
+        "해든 서비스"
+      ],
+      "expectedEligibilityConditions": [
+        "두 서비스를 이용한 고객"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "다온 플랫폼",
+        "해든 서비스"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "만족도",
+        "대상 비교"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "multiple",
+      "expectedArchetypes": [
+        "mixed",
+        "satisfaction"
+      ],
+      "tags": [
+        "virtual_entity",
+        "non_university",
+        "multiple_targets"
+      ],
+      "notes": ""
+    }
+  ]
+}

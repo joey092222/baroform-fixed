@@ -4,6 +4,12 @@ export const surveyRegressionSplitSchema = z.enum(["dev", "holdout"]);
 export const surveyRegressionModeSchema = z.enum(["standard", "research"]);
 export const surveyRegressionOutcomeSchema = z.enum(["survey", "clarification"]);
 export const surveyRegressionDifficultySchema = z.enum(["easy", "medium", "hard"]);
+export const surveyRegressionInputQualitySchema = z.enum([
+  "clear",
+  "noisy_recoverable",
+  "ambiguous",
+  "invalid_test_sentence",
+]);
 
 export const surveyRegressionCaseSchema = z.object({
   id: z.string().min(3),
@@ -24,6 +30,11 @@ export const surveyRegressionCaseSchema = z.object({
   expectedTargetPopulation: z.array(z.string().min(1)).min(1),
   expectedSurveyObject: z.array(z.string().min(1)).min(1),
   expectedPurposeConcepts: z.array(z.string().min(1)).min(1),
+  inputQuality: surveyRegressionInputQualitySchema.optional(),
+  contextEntities: z.array(z.string().min(1)).optional(),
+  expectedEligibilityConditions: z.array(z.string().min(1)).optional(),
+  screeningExpected: z.boolean().optional(),
+  forbiddenPurposeConcepts: z.array(z.string().min(1)).optional(),
   mustPreserveTerms: z.array(z.string().min(1)),
   mustPreserveNegation: z.boolean(),
   requiredQuestionConcepts: z.array(z.string().min(1)),
@@ -78,6 +89,8 @@ export type SurveyRegressionIssue = {
   fatal: boolean;
   cluster:
     | "target_population"
+    | "eligibility"
+    | "context_entity"
     | "survey_object"
     | "negation"
     | "single_vs_multiple_target"

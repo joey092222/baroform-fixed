@@ -1,0 +1,11 @@
+{
+  "version": "survey-regression-v1-original",
+  "files": {
+    "dev": {
+      "sha256": "ccbe4c036c28e4477b6f748b5bd34aaaa6d512fa436e0f2614a26f19e46da494"
+    },
+    "holdout": {
+      "sha256": "918faae7642295962bc482c0f69a24e62c2ff5c5aac1211c3d891f740a87b27b"
+    }
+  }
+}

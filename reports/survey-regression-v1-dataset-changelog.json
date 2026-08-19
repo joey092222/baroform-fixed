@@ -1,0 +1,5084 @@
+[
+  {
+    "caseId": "dev-general-014",
+    "action": "keep_as_is",
+    "previousInput": "동네 주민의 당근 앱 이용 목적과 거래 만족도",
+    "revisedInput": "동네 주민의 당근 앱 이용 목적과 거래 만족도",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "당근 앱을 이용하는 동네 주민"
+      ],
+      "expectedSurveyObject": [
+        "당근 앱"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 목적",
+        "거래 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "이용 목적",
+        "만족도"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "당근 앱을 이용하는 동네 주민"
+      ],
+      "expectedEligibilityConditions": [
+        "당근 앱을 이용하는 동네 주민"
+      ],
+      "contextEntities": [
+        "당근 앱"
+      ],
+      "expectedSurveyObject": [
+        "당근 앱"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 목적",
+        "거래 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "이용 목적",
+        "만족도"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-complex-012",
+    "action": "keep_as_noisy_recoverable",
+    "previousInput": "동아리 안 한 신입생한테 학교 적응이랑 가입 안 한 이유 물어보기",
+    "revisedInput": "동아리 안 한 신입생한테 학교 적응이랑 가입 안 한 이유 물어보기",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "동아리에 가입하지 않은 신입생"
+      ],
+      "expectedSurveyObject": [
+        "동아리"
+      ],
+      "expectedPurposeConcepts": [
+        "학교 적응",
+        "미가입 이유"
+      ],
+      "requiredQuestionConcepts": [
+        "학교 적응",
+        "비이용 이유"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "동아리에 가입하지 않은 신입생"
+      ],
+      "expectedEligibilityConditions": [
+        "동아리에 가입하지 않은 신입생"
+      ],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "동아리"
+      ],
+      "expectedPurposeConcepts": [
+        "학교 적응",
+        "미가입 이유"
+      ],
+      "requiredQuestionConcepts": [
+        "학교 적응",
+        "비이용 이유"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "축약·구어체·조사 생략이 있으나 응답 대상과 조사 목적의 우세한 해석이 하나이므로 복구 가능한 입력으로 보존함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "noisy_recoverable"
+  },
+  {
+    "caseId": "dev-general-008",
+    "action": "keep_as_is",
+    "previousInput": "자전거와 전동킥보드로 출퇴근하는 사람들의 이동 시간과 안전 경험 비교",
+    "revisedInput": "자전거와 전동킥보드로 출퇴근하는 사람들의 이동 시간과 안전 경험 비교",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "자전거 또는 전동킥보드로 출퇴근하는 사람"
+      ],
+      "expectedSurveyObject": [
+        "자전거 출퇴근",
+        "전동킥보드 출퇴근"
+      ],
+      "expectedPurposeConcepts": [
+        "이동 시간 비교",
+        "안전 경험 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "소요 시간",
+        "안전",
+        "대상 비교"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "자전거 또는 전동킥보드로 출퇴근하는 사람"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "자전거 출퇴근",
+        "전동킥보드 출퇴근"
+      ],
+      "expectedPurposeConcepts": [
+        "이동 시간 비교",
+        "안전 경험 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "소요 시간",
+        "안전",
+        "대상 비교"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-complex-002",
+    "action": "keep_as_is",
+    "previousInput": "배달 앱 한 개를 이용하는 1인 가구의 주문 습관과 지출, 구독 혜택 수요",
+    "revisedInput": "배달 앱 한 개를 이용하는 1인 가구의 주문 습관과 지출, 구독 혜택 수요",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "배달 앱을 이용하는 1인 가구"
+      ],
+      "expectedSurveyObject": [
+        "배달 앱"
+      ],
+      "expectedPurposeConcepts": [
+        "주문 습관",
+        "지출",
+        "구독 혜택 수요"
+      ],
+      "requiredQuestionConcepts": [
+        "구매 빈도",
+        "비용",
+        "서비스 필요성"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "배달 앱을 이용하는 1인 가구"
+      ],
+      "expectedEligibilityConditions": [
+        "배달 앱을 이용하는 1인 가구"
+      ],
+      "contextEntities": [
+        "배달 앱"
+      ],
+      "expectedSurveyObject": [
+        "배달 앱"
+      ],
+      "expectedPurposeConcepts": [
+        "주문 습관",
+        "지출",
+        "구독 혜택 수요"
+      ],
+      "requiredQuestionConcepts": [
+        "구매 빈도",
+        "비용",
+        "서비스 필요성"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-past-010",
+    "action": "keep_as_noisy_recoverable",
+    "previousInput": "네웹 안 쓰는 대학생들 왜 안 쓰는지랑 앞으로 쓸 생각 있는지",
+    "revisedInput": "네웹 안 쓰는 대학생들 왜 안 쓰는지랑 앞으로 쓸 생각 있는지",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "네이버 웹툰을 이용하지 않는 대학생"
+      ],
+      "expectedSurveyObject": [
+        "네이버 웹툰"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유",
+        "이용 의향"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "이용 의향"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "네이버 웹툰을 이용하지 않는 대학생"
+      ],
+      "expectedEligibilityConditions": [
+        "네이버 웹툰을 이용하지 않는 대학생"
+      ],
+      "contextEntities": [
+        "네이버 웹툰"
+      ],
+      "expectedSurveyObject": [
+        "네이버 웹툰"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유",
+        "이용 의향"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "이용 의향"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "축약·구어체·조사 생략이 있으나 응답 대상과 조사 목적의 우세한 해석이 하나이므로 복구 가능한 입력으로 보존함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "noisy_recoverable"
+  },
+  {
+    "caseId": "dev-general-001",
+    "action": "keep_as_is",
+    "previousInput": "새봄대학교 심리학과 1학년의 이번 학기 온라인 강의 만족도",
+    "revisedInput": "새봄대학교 심리학과 1학년의 이번 학기 온라인 강의 만족도",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 심리학과 1학년"
+      ],
+      "expectedSurveyObject": [
+        "온라인 강의"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도",
+        "불편",
+        "개선 요구"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 심리학과 1학년"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "온라인 강의",
+        "새봄대학교",
+        "심리학과"
+      ],
+      "expectedSurveyObject": [
+        "온라인 강의"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도",
+        "불편",
+        "개선 요구"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-general-004",
+    "action": "keep_as_is",
+    "previousInput": "통계학 강의와 프로그래밍 강의가 데이터 분석 자신감에 미치는 영향을 비교",
+    "revisedInput": "통계학 강의와 프로그래밍 강의가 데이터 분석 자신감에 미치는 영향을 비교",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "두 강의를 수강한 학습자"
+      ],
+      "expectedSurveyObject": [
+        "통계학 강의",
+        "프로그래밍 강의"
+      ],
+      "expectedPurposeConcepts": [
+        "데이터 분석 자신감 영향 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "수강 경험",
+        "자신감",
+        "대상 비교"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "두 강의를 수강한 학습자"
+      ],
+      "expectedEligibilityConditions": [
+        "두 강의를 수강한 학습자"
+      ],
+      "contextEntities": [
+        "통계학 강의",
+        "프로그래밍 강의"
+      ],
+      "expectedSurveyObject": [
+        "통계학 강의",
+        "프로그래밍 강의"
+      ],
+      "expectedPurposeConcepts": [
+        "데이터 분석 자신감 영향 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "수강 경험",
+        "자신감",
+        "대상 비교"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-general-016",
+    "action": "keep_as_is",
+    "previousInput": "iOS용 공부 앱과 안드로이드용 공부 앱의 사용성 및 지속 사용 의향 비교",
+    "revisedInput": "iOS용 공부 앱과 안드로이드용 공부 앱의 사용성 및 지속 사용 의향 비교",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "공부 앱 사용자"
+      ],
+      "expectedSurveyObject": [
+        "iOS용 공부 앱",
+        "안드로이드용 공부 앱"
+      ],
+      "expectedPurposeConcepts": [
+        "사용성 비교",
+        "지속 사용 의향 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "사용성",
+        "이용 의향",
+        "대상 비교"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "공부 앱 사용자"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "iOS용 공부 앱",
+        "안드로이드용 공부 앱"
+      ],
+      "expectedSurveyObject": [
+        "iOS용 공부 앱",
+        "안드로이드용 공부 앱"
+      ],
+      "expectedPurposeConcepts": [
+        "사용성 비교",
+        "지속 사용 의향 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "사용성",
+        "이용 의향",
+        "대상 비교"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-general-003",
+    "action": "keep_as_is",
+    "previousInput": "진로 특강에 참여하지 않은 대학생의 불참 이유와 향후 참여 의향",
+    "revisedInput": "진로 특강에 참여하지 않은 대학생의 불참 이유와 향후 참여 의향",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "진로 특강에 참여하지 않은 대학생"
+      ],
+      "expectedSurveyObject": [
+        "진로 특강"
+      ],
+      "expectedPurposeConcepts": [
+        "비참여 이유",
+        "참여 의향"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "참여 의향"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "진로 특강에 참여하지 않은 대학생"
+      ],
+      "expectedEligibilityConditions": [
+        "진로 특강에 참여하지 않은 대학생"
+      ],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "진로 특강"
+      ],
+      "expectedPurposeConcepts": [
+        "비참여 이유",
+        "참여 의향"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "참여 의향"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-clarify-003",
+    "action": "relabel_as_clarification",
+    "previousInput": "시설 이용",
+    "revisedInput": "시설 이용",
+    "previousExpectation": {
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedSurveyObject": [
+        "시설"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "requiredQuestionConcepts": []
+    },
+    "revisedExpectation": {
+      "inputQuality": "ambiguous",
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "시설"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "requiredQuestionConcepts": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상 또는 구체적인 조사 대상·기준이 빠져 있어 임의 설문 대신 clarification이 필요함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "ambiguous"
+  },
+  {
+    "caseId": "dev-general-005",
+    "action": "keep_as_is",
+    "previousInput": "새봄대학교 학생의 솔빛관 접근성과 이동 불편",
+    "revisedInput": "새봄대학교 학생의 솔빛관 접근성과 이동 불편",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 학생"
+      ],
+      "expectedSurveyObject": [
+        "솔빛관 이동"
+      ],
+      "expectedPurposeConcepts": [
+        "접근성",
+        "이동 불편"
+      ],
+      "requiredQuestionConcepts": [
+        "이동 빈도",
+        "이동 수단",
+        "소요 시간",
+        "불편"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 학생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "새봄대학교",
+        "솔빛관"
+      ],
+      "expectedSurveyObject": [
+        "솔빛관 이동"
+      ],
+      "expectedPurposeConcepts": [
+        "접근성",
+        "이동 불편"
+      ],
+      "requiredQuestionConcepts": [
+        "이동 빈도",
+        "이동 수단",
+        "소요 시간",
+        "불편"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-general-031",
+    "action": "keep_as_is",
+    "previousInput": "주 1회도 운동하지 않는 성인의 운동 방해 요인",
+    "revisedInput": "주 1회도 운동하지 않는 성인의 운동 방해 요인",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "주 1회도 운동하지 않는 성인"
+      ],
+      "expectedSurveyObject": [
+        "운동"
+      ],
+      "expectedPurposeConcepts": [
+        "비실천 이유"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "주 1회도 운동하지 않는 성인"
+      ],
+      "expectedEligibilityConditions": [
+        "주 1회도 운동하지 않는 성인"
+      ],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "운동"
+      ],
+      "expectedPurposeConcepts": [
+        "비실천 이유"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-general-021",
+    "action": "keep_as_is",
+    "previousInput": "대학생 팀플에서 역할 분담 공정성과 의사소통 만족도",
+    "revisedInput": "대학생 팀플에서 역할 분담 공정성과 의사소통 만족도",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "팀플 경험이 있는 대학생"
+      ],
+      "expectedSurveyObject": [
+        "팀플"
+      ],
+      "expectedPurposeConcepts": [
+        "역할 분담 공정성",
+        "의사소통 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "공정성",
+        "의사소통",
+        "만족도"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "팀플 경험이 있는 대학생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "팀플"
+      ],
+      "expectedPurposeConcepts": [
+        "역할 분담 공정성",
+        "의사소통 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "공정성",
+        "의사소통",
+        "만족도"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-general-012",
+    "action": "keep_as_is",
+    "previousInput": "새봄대학교 별마루 식당과 해오름 식당의 가격·맛·대기시간 비교",
+    "revisedInput": "새봄대학교 별마루 식당과 해오름 식당의 가격·맛·대기시간 비교",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 식당 이용자"
+      ],
+      "expectedSurveyObject": [
+        "별마루 식당",
+        "해오름 식당"
+      ],
+      "expectedPurposeConcepts": [
+        "가격 비교",
+        "맛 비교",
+        "대기시간 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "비용",
+        "만족도",
+        "대기 시간",
+        "대상 비교"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 식당 이용자"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "별마루 식당",
+        "해오름 식당",
+        "새봄대학교"
+      ],
+      "expectedSurveyObject": [
+        "별마루 식당",
+        "해오름 식당"
+      ],
+      "expectedPurposeConcepts": [
+        "가격 비교",
+        "맛 비교",
+        "대기시간 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "비용",
+        "만족도",
+        "대기 시간",
+        "대상 비교"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-past-020",
+    "action": "keep_as_noisy_recoverable",
+    "previousInput": "맛나샘 학생들 맛 서비스 둘다 어떤지 불편도",
+    "revisedInput": "맛나샘 학생들 맛 서비스 둘다 어떤지 불편도",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "맛나샘 이용 학생"
+      ],
+      "expectedSurveyObject": [
+        "맛나샘"
+      ],
+      "expectedPurposeConcepts": [
+        "음식 만족도",
+        "서비스 만족도",
+        "불편"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도",
+        "불편"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "맛나샘 이용 학생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "맛나샘"
+      ],
+      "expectedPurposeConcepts": [
+        "음식 만족도",
+        "서비스 만족도",
+        "불편"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도",
+        "불편"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "축약·구어체·조사 생략이 있으나 응답 대상과 조사 목적의 우세한 해석이 하나이므로 복구 가능한 입력으로 보존함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "noisy_recoverable"
+  },
+  {
+    "caseId": "dev-complex-007",
+    "action": "keep_as_is",
+    "previousInput": "버스 통근자와 지하철 통근자의 소요 시간·혼잡·피로 비교",
+    "revisedInput": "버스 통근자와 지하철 통근자의 소요 시간·혼잡·피로 비교",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "버스 또는 지하철 통근자"
+      ],
+      "expectedSurveyObject": [
+        "버스 통근",
+        "지하철 통근"
+      ],
+      "expectedPurposeConcepts": [
+        "소요 시간 비교",
+        "혼잡 비교",
+        "피로 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "소요 시간",
+        "혼잡",
+        "피로",
+        "대상 비교"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "버스 또는 지하철 통근자"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "버스 통근",
+        "지하철 통근"
+      ],
+      "expectedPurposeConcepts": [
+        "소요 시간 비교",
+        "혼잡 비교",
+        "피로 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "소요 시간",
+        "혼잡",
+        "피로",
+        "대상 비교"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-past-003",
+    "action": "keep_as_noisy_recoverable",
+    "previousInput": "경영대생들 경영대 시설 괜찮았는지랑 불편했던 점 조사",
+    "revisedInput": "경영대생들 경영대 시설 괜찮았는지랑 불편했던 점 조사",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "경영대생"
+      ],
+      "expectedSurveyObject": [
+        "경영대 시설"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도",
+        "불편"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도",
+        "불편"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "경영대생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "경영대 시설"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도",
+        "불편"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도",
+        "불편"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "축약·구어체·조사 생략이 있으나 응답 대상과 조사 목적의 우세한 해석이 하나이므로 복구 가능한 입력으로 보존함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "noisy_recoverable"
+  },
+  {
+    "caseId": "dev-general-023",
+    "action": "keep_as_is",
+    "previousInput": "원격근무 팀원의 협업 도구 피로와 소속감",
+    "revisedInput": "원격근무 팀원의 협업 도구 피로와 소속감",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "원격근무 팀원"
+      ],
+      "expectedSurveyObject": [
+        "원격 협업"
+      ],
+      "expectedPurposeConcepts": [
+        "협업 도구 피로",
+        "소속감"
+      ],
+      "requiredQuestionConcepts": [
+        "피로",
+        "소속감"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "원격근무 팀원"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "원격 협업"
+      ],
+      "expectedPurposeConcepts": [
+        "협업 도구 피로",
+        "소속감"
+      ],
+      "requiredQuestionConcepts": [
+        "피로",
+        "소속감"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-past-017",
+    "action": "keep_as_is",
+    "previousInput": "맛나샘을 이용하는 학생들의 만족도와 개선 의견",
+    "revisedInput": "맛나샘을 이용하는 학생들의 만족도와 개선 의견",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "맛나샘을 이용하는 학생"
+      ],
+      "expectedSurveyObject": [
+        "맛나샘"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도",
+        "개선 요구"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도",
+        "불편",
+        "개선 요구"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "맛나샘을 이용하는 학생"
+      ],
+      "expectedEligibilityConditions": [
+        "맛나샘을 이용하는 학생"
+      ],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "맛나샘"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도",
+        "개선 요구"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도",
+        "불편",
+        "개선 요구"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-general-027",
+    "action": "keep_as_is",
+    "previousInput": "넷플릭스와 티빙 구독자의 이용 빈도·콘텐츠 만족도 비교",
+    "revisedInput": "넷플릭스와 티빙 구독자의 이용 빈도·콘텐츠 만족도 비교",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "OTT 구독자"
+      ],
+      "expectedSurveyObject": [
+        "넷플릭스",
+        "티빙"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 빈도 비교",
+        "콘텐츠 만족도 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 빈도",
+        "만족도",
+        "대상 비교"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "OTT 구독자"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "넷플릭스",
+        "티빙"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 빈도 비교",
+        "콘텐츠 만족도 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 빈도",
+        "만족도",
+        "대상 비교"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-complex-005",
+    "action": "keep_as_is",
+    "previousInput": "새봄대학교 솔빛관과 별마루관의 접근성·혼잡·안전 비교",
+    "revisedInput": "새봄대학교 솔빛관과 별마루관의 접근성·혼잡·안전 비교",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 구성원"
+      ],
+      "expectedSurveyObject": [
+        "솔빛관",
+        "별마루관"
+      ],
+      "expectedPurposeConcepts": [
+        "접근성 비교",
+        "혼잡 비교",
+        "안전 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "접근성",
+        "혼잡",
+        "안전",
+        "대상 비교"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 구성원"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "솔빛관",
+        "별마루관",
+        "새봄대학교"
+      ],
+      "expectedSurveyObject": [
+        "솔빛관",
+        "별마루관"
+      ],
+      "expectedPurposeConcepts": [
+        "접근성 비교",
+        "혼잡 비교",
+        "안전 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "접근성",
+        "혼잡",
+        "안전",
+        "대상 비교"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-complex-008",
+    "action": "keep_as_is",
+    "previousInput": "온라인 멘토링과 대면 멘토링에 참여한 청년의 도움 정도와 지속 참여 의향 비교",
+    "revisedInput": "온라인 멘토링과 대면 멘토링에 참여한 청년의 도움 정도와 지속 참여 의향 비교",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "온라인 또는 대면 멘토링에 참여한 청년"
+      ],
+      "expectedSurveyObject": [
+        "온라인 멘토링",
+        "대면 멘토링"
+      ],
+      "expectedPurposeConcepts": [
+        "도움 정도 비교",
+        "지속 참여 의향 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "학습 효과",
+        "참여 의향",
+        "대상 비교"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "온라인 또는 대면 멘토링에 참여한 청년"
+      ],
+      "expectedEligibilityConditions": [
+        "온라인 또는 대면 멘토링에 참여한 청년"
+      ],
+      "contextEntities": [
+        "온라인 멘토링",
+        "대면 멘토링"
+      ],
+      "expectedSurveyObject": [
+        "온라인 멘토링",
+        "대면 멘토링"
+      ],
+      "expectedPurposeConcepts": [
+        "도움 정도 비교",
+        "지속 참여 의향 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "학습 효과",
+        "참여 의향",
+        "대상 비교"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-clarify-004",
+    "action": "relabel_as_clarification",
+    "previousInput": "학생들 생각",
+    "revisedInput": "학생들 생각",
+    "previousExpectation": {
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedSurveyObject": [
+        "학생들 생각"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "requiredQuestionConcepts": []
+    },
+    "revisedExpectation": {
+      "inputQuality": "ambiguous",
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "학생들 생각"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "requiredQuestionConcepts": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상 또는 구체적인 조사 대상·기준이 빠져 있어 임의 설문 대신 clarification이 필요함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "ambiguous"
+  },
+  {
+    "caseId": "dev-past-009",
+    "action": "keep_as_noisy_recoverable",
+    "previousInput": "국내 최대 웹툰 플랫폼인 네이버 웹툰의 대학생들의 이용 현황과 경험",
+    "revisedInput": "국내 최대 웹툰 플랫폼인 네이버 웹툰의 대학생들의 이용 현황과 경험",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "대학생"
+      ],
+      "expectedSurveyObject": [
+        "네이버 웹툰"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 현황",
+        "이용 경험"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "이용 빈도",
+        "만족도",
+        "불편"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "대학생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "네이버 웹툰"
+      ],
+      "expectedSurveyObject": [
+        "네이버 웹툰"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 현황",
+        "이용 경험"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "이용 빈도",
+        "만족도",
+        "불편"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "축약·구어체·조사 생략이 있으나 응답 대상과 조사 목적의 우세한 해석이 하나이므로 복구 가능한 입력으로 보존함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "noisy_recoverable"
+  },
+  {
+    "caseId": "dev-complex-004",
+    "action": "keep_as_is",
+    "previousInput": "지역 체육관을 다니는 주민의 이용 패턴, 불편, 재등록 의향",
+    "revisedInput": "지역 체육관을 다니는 주민의 이용 패턴, 불편, 재등록 의향",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "지역 체육관을 다니는 주민"
+      ],
+      "expectedSurveyObject": [
+        "지역 체육관"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 패턴",
+        "불편",
+        "재등록 의향"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 빈도",
+        "불편",
+        "이용 의향"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "지역 체육관을 다니는 주민"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "지역 체육관"
+      ],
+      "expectedSurveyObject": [
+        "지역 체육관"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 패턴",
+        "불편",
+        "재등록 의향"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 빈도",
+        "불편",
+        "이용 의향"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-complex-013",
+    "action": "keep_as_is",
+    "previousInput": "대학생의 월 용돈 규모가 외식 빈도와 충동구매에 미치는 영향",
+    "revisedInput": "대학생의 월 용돈 규모가 외식 빈도와 충동구매에 미치는 영향",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "대학생"
+      ],
+      "expectedSurveyObject": [
+        "월 용돈",
+        "외식 빈도",
+        "충동구매"
+      ],
+      "expectedPurposeConcepts": [
+        "변수 간 영향"
+      ],
+      "requiredQuestionConcepts": [
+        "비용",
+        "구매 빈도",
+        "충동구매"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "대학생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "월 용돈",
+        "외식 빈도",
+        "충동구매"
+      ],
+      "expectedPurposeConcepts": [
+        "변수 간 영향"
+      ],
+      "requiredQuestionConcepts": [
+        "비용",
+        "구매 빈도",
+        "충동구매"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-past-005",
+    "action": "keep_as_is",
+    "previousInput": "연세대학교 학생들의 대우관 등하교 경험",
+    "revisedInput": "연세대학교 학생들의 대우관 등하교 경험",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "연세대학교 학생"
+      ],
+      "expectedSurveyObject": [
+        "대우관",
+        "대우관 이동 경험"
+      ],
+      "expectedPurposeConcepts": [
+        "이동 경험",
+        "불편"
+      ],
+      "requiredQuestionConcepts": [
+        "이동 빈도",
+        "이동 수단",
+        "소요 시간",
+        "혼잡",
+        "안전",
+        "불편"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "연세대학교 학생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "대우관",
+        "연세대학교"
+      ],
+      "expectedSurveyObject": [
+        "대우관",
+        "대우관 이동 경험"
+      ],
+      "expectedPurposeConcepts": [
+        "이동 경험",
+        "불편"
+      ],
+      "requiredQuestionConcepts": [
+        "이동 빈도",
+        "이동 수단",
+        "소요 시간",
+        "혼잡",
+        "안전",
+        "불편"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-clarify-006",
+    "action": "relabel_as_clarification",
+    "previousInput": "두 개 비교",
+    "revisedInput": "두 개 비교",
+    "previousExpectation": {
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedSurveyObject": [
+        "두 개"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "requiredQuestionConcepts": []
+    },
+    "revisedExpectation": {
+      "inputQuality": "ambiguous",
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "두 개"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "requiredQuestionConcepts": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상 또는 구체적인 조사 대상·기준이 빠져 있어 임의 설문 대신 clarification이 필요함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "ambiguous"
+  },
+  {
+    "caseId": "dev-general-015",
+    "action": "keep_as_is",
+    "previousInput": "모바일 뱅킹을 사용하지 않는 고령층의 디지털 장벽",
+    "revisedInput": "모바일 뱅킹을 사용하지 않는 고령층의 디지털 장벽",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "모바일 뱅킹을 사용하지 않는 고령층"
+      ],
+      "expectedSurveyObject": [
+        "모바일 뱅킹"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유",
+        "디지털 장벽"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "불편"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "모바일 뱅킹을 사용하지 않는 고령층"
+      ],
+      "expectedEligibilityConditions": [
+        "모바일 뱅킹을 사용하지 않는 고령층"
+      ],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "모바일 뱅킹"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유",
+        "디지털 장벽"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "불편"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-noisy-006",
+    "action": "keep_as_noisy_recoverable",
+    "previousInput": "팀플 팀플 갈등 해결 어케하는지 조사좀",
+    "revisedInput": "팀플 팀플 갈등 해결 어케하는지 조사좀",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "팀플 경험자"
+      ],
+      "expectedSurveyObject": [
+        "팀플"
+      ],
+      "expectedPurposeConcepts": [
+        "갈등",
+        "해결 방식"
+      ],
+      "requiredQuestionConcepts": [
+        "갈등",
+        "해결 방식"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "팀플 경험자"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "팀플"
+      ],
+      "expectedPurposeConcepts": [
+        "갈등",
+        "해결 방식"
+      ],
+      "requiredQuestionConcepts": [
+        "갈등",
+        "해결 방식"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "축약·구어체·조사 생략이 있으나 응답 대상과 조사 목적의 우세한 해석이 하나이므로 복구 가능한 입력으로 보존함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "noisy_recoverable"
+  },
+  {
+    "caseId": "dev-past-007",
+    "action": "keep_as_is",
+    "previousInput": "지난달 연세대 재학생이 대우관을 방문한 빈도와 혼잡·안전 경험 조사",
+    "revisedInput": "지난달 연세대 재학생이 대우관을 방문한 빈도와 혼잡·안전 경험 조사",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "연세대 재학생"
+      ],
+      "expectedSurveyObject": [
+        "대우관"
+      ],
+      "expectedPurposeConcepts": [
+        "방문 빈도",
+        "혼잡",
+        "안전"
+      ],
+      "requiredQuestionConcepts": [
+        "이동 빈도",
+        "혼잡",
+        "안전"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "연세대 재학생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "대우관"
+      ],
+      "expectedSurveyObject": [
+        "대우관"
+      ],
+      "expectedPurposeConcepts": [
+        "방문 빈도",
+        "혼잡",
+        "안전"
+      ],
+      "requiredQuestionConcepts": [
+        "이동 빈도",
+        "혼잡",
+        "안전"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-clarify-002",
+    "action": "relabel_as_clarification",
+    "previousInput": "앱 조사",
+    "revisedInput": "앱 조사",
+    "previousExpectation": {
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedSurveyObject": [
+        "앱"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "requiredQuestionConcepts": []
+    },
+    "revisedExpectation": {
+      "inputQuality": "ambiguous",
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "앱"
+      ],
+      "expectedSurveyObject": [
+        "앱"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "requiredQuestionConcepts": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상 또는 구체적인 조사 대상·기준이 빠져 있어 임의 설문 대신 clarification이 필요함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "ambiguous"
+  },
+  {
+    "caseId": "dev-past-013",
+    "action": "keep_as_is",
+    "previousInput": "연세대학교 학생들의 한경관 학식 이용 경험",
+    "revisedInput": "연세대학교 학생들의 한경관 학식 이용 경험",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "연세대학교 학생"
+      ],
+      "expectedSurveyObject": [
+        "한경관 학식"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 경험"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "이용 빈도",
+        "만족도"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "연세대학교 학생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "한경관 학식",
+        "연세대학교",
+        "한경관"
+      ],
+      "expectedSurveyObject": [
+        "한경관 학식"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 경험"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "이용 빈도",
+        "만족도"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-general-028",
+    "action": "keep_as_is",
+    "previousInput": "지역 주민의 공공자전거 이용 경험과 요금 만족도",
+    "revisedInput": "지역 주민의 공공자전거 이용 경험과 요금 만족도",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "공공자전거를 이용하는 지역 주민"
+      ],
+      "expectedSurveyObject": [
+        "공공자전거"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 경험",
+        "요금 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "이용 빈도",
+        "만족도"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "공공자전거를 이용하는 지역 주민"
+      ],
+      "expectedEligibilityConditions": [
+        "공공자전거를 이용하는 지역 주민"
+      ],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "공공자전거"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 경험",
+        "요금 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "이용 빈도",
+        "만족도"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-past-016",
+    "action": "keep_as_is",
+    "previousInput": "연세대 학생이 한경관 학식과 고를샘 식당을 선택하는 이유와 만족도 비교",
+    "revisedInput": "연세대 학생이 한경관 학식과 고를샘 식당을 선택하는 이유와 만족도 비교",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "연세대 학생"
+      ],
+      "expectedSurveyObject": [
+        "한경관 학식",
+        "고를샘 식당"
+      ],
+      "expectedPurposeConcepts": [
+        "선택 이유",
+        "만족도 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "선택 이유",
+        "만족도",
+        "대상 비교"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "연세대 학생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "한경관 학식",
+        "고를샘 식당",
+        "한경관"
+      ],
+      "expectedSurveyObject": [
+        "한경관 학식",
+        "고를샘 식당"
+      ],
+      "expectedPurposeConcepts": [
+        "선택 이유",
+        "만족도 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "선택 이유",
+        "만족도",
+        "대상 비교"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-general-032",
+    "action": "keep_as_is",
+    "previousInput": "독서와 팟캐스트 청취를 여가로 즐기는 사람들의 시간 사용과 만족도 비교",
+    "revisedInput": "독서와 팟캐스트 청취를 여가로 즐기는 사람들의 시간 사용과 만족도 비교",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "독서 또는 팟캐스트 청취를 즐기는 사람"
+      ],
+      "expectedSurveyObject": [
+        "독서",
+        "팟캐스트 청취"
+      ],
+      "expectedPurposeConcepts": [
+        "시간 사용 비교",
+        "만족도 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "시간 사용",
+        "만족도",
+        "대상 비교"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "독서 또는 팟캐스트 청취를 즐기는 사람"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "독서",
+        "팟캐스트 청취"
+      ],
+      "expectedPurposeConcepts": [
+        "시간 사용 비교",
+        "만족도 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "시간 사용",
+        "만족도",
+        "대상 비교"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-complex-001",
+    "action": "keep_as_is",
+    "previousInput": "새봄대학교 중앙도서관 한 곳의 좌석 만족도, 혼잡 경험, 예약 기능 수요",
+    "revisedInput": "새봄대학교 중앙도서관 한 곳의 좌석 만족도, 혼잡 경험, 예약 기능 수요",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 중앙도서관 이용자"
+      ],
+      "expectedSurveyObject": [
+        "새봄대학교 중앙도서관"
+      ],
+      "expectedPurposeConcepts": [
+        "좌석 만족도",
+        "혼잡",
+        "예약 기능 수요"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도",
+        "혼잡",
+        "서비스 필요성",
+        "이용 의향"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 중앙도서관 이용자"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "새봄대학교 중앙도서관",
+        "새봄대학교",
+        "중앙도서관"
+      ],
+      "expectedSurveyObject": [
+        "새봄대학교 중앙도서관"
+      ],
+      "expectedPurposeConcepts": [
+        "좌석 만족도",
+        "혼잡",
+        "예약 기능 수요"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도",
+        "혼잡",
+        "서비스 필요성",
+        "이용 의향"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-general-030",
+    "action": "keep_as_is",
+    "previousInput": "최근 한 달 직장인의 SNS 하루 이용 시간과 피로감",
+    "revisedInput": "최근 한 달 직장인의 SNS 하루 이용 시간과 피로감",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "직장인"
+      ],
+      "expectedSurveyObject": [
+        "SNS 이용"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 시간",
+        "피로감"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 시간",
+        "피로"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "직장인"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "SNS 이용"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 시간",
+        "피로감"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 시간",
+        "피로"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-general-018",
+    "action": "keep_as_is",
+    "previousInput": "동아리에 가입하지 않은 학생의 미가입 이유와 관심 활동",
+    "revisedInput": "동아리에 가입하지 않은 학생의 미가입 이유와 관심 활동",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "동아리에 가입하지 않은 학생"
+      ],
+      "expectedSurveyObject": [
+        "동아리"
+      ],
+      "expectedPurposeConcepts": [
+        "미가입 이유",
+        "관심 활동"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "선호"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "동아리에 가입하지 않은 학생"
+      ],
+      "expectedEligibilityConditions": [
+        "동아리에 가입하지 않은 학생"
+      ],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "동아리"
+      ],
+      "expectedPurposeConcepts": [
+        "미가입 이유",
+        "관심 활동"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "선호"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-general-007",
+    "action": "keep_as_is",
+    "previousInput": "휠체어 이용자가 공공도서관에 방문할 때 겪는 접근성 문제",
+    "revisedInput": "휠체어 이용자가 공공도서관에 방문할 때 겪는 접근성 문제",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "공공도서관을 방문하는 휠체어 이용자"
+      ],
+      "expectedSurveyObject": [
+        "공공도서관"
+      ],
+      "expectedPurposeConcepts": [
+        "접근성",
+        "불편"
+      ],
+      "requiredQuestionConcepts": [
+        "방문 경험",
+        "접근성",
+        "불편"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "공공도서관을 방문하는 휠체어 이용자"
+      ],
+      "expectedEligibilityConditions": [
+        "공공도서관을 방문하는 휠체어 이용자"
+      ],
+      "contextEntities": [
+        "공공도서관"
+      ],
+      "expectedSurveyObject": [
+        "공공도서관"
+      ],
+      "expectedPurposeConcepts": [
+        "접근성",
+        "불편"
+      ],
+      "requiredQuestionConcepts": [
+        "방문 경험",
+        "접근성",
+        "불편"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-complex-006",
+    "action": "keep_as_is",
+    "previousInput": "온새미 플랫폼과 별마루 서비스 사용자의 편의성 및 신뢰도 차이",
+    "revisedInput": "온새미 플랫폼과 별마루 서비스 사용자의 편의성 및 신뢰도 차이",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "두 디지털 서비스를 사용한 사람"
+      ],
+      "expectedSurveyObject": [
+        "온새미 플랫폼",
+        "별마루 서비스"
+      ],
+      "expectedPurposeConcepts": [
+        "편의성 비교",
+        "신뢰도 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "사용성",
+        "신뢰",
+        "대상 비교"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "두 디지털 서비스를 사용한 사람"
+      ],
+      "expectedEligibilityConditions": [
+        "두 디지털 서비스를 사용한 사람"
+      ],
+      "contextEntities": [
+        "온새미 플랫폼",
+        "별마루 서비스"
+      ],
+      "expectedSurveyObject": [
+        "온새미 플랫폼",
+        "별마루 서비스"
+      ],
+      "expectedPurposeConcepts": [
+        "편의성 비교",
+        "신뢰도 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "사용성",
+        "신뢰",
+        "대상 비교"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-general-024",
+    "action": "keep_as_noisy_recoverable",
+    "previousInput": "새봄대 학생들 학교생활 시간관리랑 스트레스",
+    "revisedInput": "새봄대 학생들 학교생활 시간관리랑 스트레스",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 학생"
+      ],
+      "expectedSurveyObject": [
+        "학교생활"
+      ],
+      "expectedPurposeConcepts": [
+        "시간 관리",
+        "스트레스"
+      ],
+      "requiredQuestionConcepts": [
+        "시간 사용",
+        "스트레스"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 학생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "학교생활"
+      ],
+      "expectedPurposeConcepts": [
+        "시간 관리",
+        "스트레스"
+      ],
+      "requiredQuestionConcepts": [
+        "시간 사용",
+        "스트레스"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "축약·구어체·조사 생략이 있으나 응답 대상과 조사 목적의 우세한 해석이 하나이므로 복구 가능한 입력으로 보존함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "noisy_recoverable"
+  },
+  {
+    "caseId": "dev-general-011",
+    "action": "keep_as_is",
+    "previousInput": "편의점 간편식을 구매하지 않는 20대의 미구매 이유",
+    "revisedInput": "편의점 간편식을 구매하지 않는 20대의 미구매 이유",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "편의점 간편식을 구매하지 않는 20대"
+      ],
+      "expectedSurveyObject": [
+        "편의점 간편식"
+      ],
+      "expectedPurposeConcepts": [
+        "미구매 이유"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "편의점 간편식을 구매하지 않는 20대"
+      ],
+      "expectedEligibilityConditions": [
+        "편의점 간편식을 구매하지 않는 20대"
+      ],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "편의점 간편식"
+      ],
+      "expectedPurposeConcepts": [
+        "미구매 이유"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-clarify-005",
+    "action": "relabel_as_clarification",
+    "previousInput": "서비스 개선",
+    "revisedInput": "서비스 개선",
+    "previousExpectation": {
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedSurveyObject": [
+        "서비스"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "requiredQuestionConcepts": []
+    },
+    "revisedExpectation": {
+      "inputQuality": "ambiguous",
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "서비스"
+      ],
+      "expectedSurveyObject": [
+        "서비스"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "requiredQuestionConcepts": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상 또는 구체적인 조사 대상·기준이 빠져 있어 임의 설문 대신 clarification이 필요함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "ambiguous"
+  },
+  {
+    "caseId": "dev-general-022",
+    "action": "keep_as_is",
+    "previousInput": "교내 상담센터를 이용하지 않은 학생의 인지도와 이용 장벽",
+    "revisedInput": "교내 상담센터를 이용하지 않은 학생의 인지도와 이용 장벽",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "교내 상담센터를 이용하지 않은 학생"
+      ],
+      "expectedSurveyObject": [
+        "교내 상담센터"
+      ],
+      "expectedPurposeConcepts": [
+        "인지도",
+        "비이용 이유"
+      ],
+      "requiredQuestionConcepts": [
+        "인지",
+        "비이용 이유"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "교내 상담센터를 이용하지 않은 학생"
+      ],
+      "expectedEligibilityConditions": [
+        "교내 상담센터를 이용하지 않은 학생"
+      ],
+      "contextEntities": [
+        "교내 상담센터",
+        "상담센터"
+      ],
+      "expectedSurveyObject": [
+        "교내 상담센터"
+      ],
+      "expectedPurposeConcepts": [
+        "인지도",
+        "비이용 이유"
+      ],
+      "requiredQuestionConcepts": [
+        "인지",
+        "비이용 이유"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-complex-003",
+    "action": "keep_as_is",
+    "previousInput": "학생상담 프로그램을 모르는 재학생의 인지도, 비이용 이유, 이용 의향",
+    "revisedInput": "학생상담 프로그램을 모르는 재학생의 인지도, 비이용 이유, 이용 의향",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "학생상담 프로그램을 이용하지 않는 재학생"
+      ],
+      "expectedSurveyObject": [
+        "학생상담 프로그램"
+      ],
+      "expectedPurposeConcepts": [
+        "인지도",
+        "비이용 이유",
+        "이용 의향"
+      ],
+      "requiredQuestionConcepts": [
+        "인지",
+        "비이용 이유",
+        "이용 의향"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "학생상담 프로그램을 이용하지 않는 재학생"
+      ],
+      "expectedEligibilityConditions": [
+        "학생상담 프로그램을 이용하지 않는 재학생"
+      ],
+      "contextEntities": [
+        "학생상담 프로그램"
+      ],
+      "expectedSurveyObject": [
+        "학생상담 프로그램"
+      ],
+      "expectedPurposeConcepts": [
+        "인지도",
+        "비이용 이유",
+        "이용 의향"
+      ],
+      "requiredQuestionConcepts": [
+        "인지",
+        "비이용 이유",
+        "이용 의향"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-general-009",
+    "action": "keep_as_is",
+    "previousInput": "새봄대학교 학생이 별마루 카페를 이용하는 빈도와 메뉴 만족도",
+    "revisedInput": "새봄대학교 학생이 별마루 카페를 이용하는 빈도와 메뉴 만족도",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 학생"
+      ],
+      "expectedSurveyObject": [
+        "별마루 카페"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 빈도",
+        "메뉴 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 빈도",
+        "만족도"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 학생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "별마루 카페",
+        "새봄대학교"
+      ],
+      "expectedSurveyObject": [
+        "별마루 카페"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 빈도",
+        "메뉴 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 빈도",
+        "만족도"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-complex-015",
+    "action": "keep_as_is",
+    "previousInput": "통학 시간이 대학생의 학교생활 만족도에 미치는 영향과 교통수단별 차이",
+    "revisedInput": "통학 시간이 대학생의 학교생활 만족도에 미치는 영향과 교통수단별 차이",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "통학하는 대학생"
+      ],
+      "expectedSurveyObject": [
+        "통학 시간",
+        "학교생활 만족도",
+        "교통수단"
+      ],
+      "expectedPurposeConcepts": [
+        "영향 분석",
+        "집단 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "소요 시간",
+        "만족도",
+        "이동 수단"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "통학하는 대학생"
+      ],
+      "expectedEligibilityConditions": [
+        "통학하는 대학생"
+      ],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "통학 시간",
+        "학교생활 만족도",
+        "교통수단"
+      ],
+      "expectedPurposeConcepts": [
+        "영향 분석",
+        "집단 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "소요 시간",
+        "만족도",
+        "이동 수단"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-complex-009",
+    "action": "keep_as_is",
+    "previousInput": "새봄대학교 학생에게 솔빛관을 오갈 때 느끼는 혼잡과 안전을 묻고 싶어",
+    "revisedInput": "새봄대학교 학생에게 솔빛관을 오갈 때 느끼는 혼잡과 안전을 묻고 싶어",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 학생"
+      ],
+      "expectedSurveyObject": [
+        "솔빛관 이동"
+      ],
+      "expectedPurposeConcepts": [
+        "혼잡",
+        "안전"
+      ],
+      "requiredQuestionConcepts": [
+        "혼잡",
+        "안전"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 학생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "새봄대학교",
+        "솔빛관"
+      ],
+      "expectedSurveyObject": [
+        "솔빛관 이동"
+      ],
+      "expectedPurposeConcepts": [
+        "혼잡",
+        "안전"
+      ],
+      "requiredQuestionConcepts": [
+        "혼잡",
+        "안전"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-general-029",
+    "action": "keep_as_is",
+    "previousInput": "대학생의 평일 수면 시간과 수업 집중도의 관계",
+    "revisedInput": "대학생의 평일 수면 시간과 수업 집중도의 관계",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "대학생"
+      ],
+      "expectedSurveyObject": [
+        "수면 시간",
+        "수업 집중도"
+      ],
+      "expectedPurposeConcepts": [
+        "변수 관계"
+      ],
+      "requiredQuestionConcepts": [
+        "수면 시간",
+        "집중도"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "대학생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "수업 집중도"
+      ],
+      "expectedSurveyObject": [
+        "수면 시간",
+        "수업 집중도"
+      ],
+      "expectedPurposeConcepts": [
+        "변수 관계"
+      ],
+      "requiredQuestionConcepts": [
+        "수면 시간",
+        "집중도"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-complex-016",
+    "action": "keep_as_is",
+    "previousInput": "청소년의 하루 화면 이용 시간이 학습 집중도와 수면 만족도에 미치는 관계",
+    "revisedInput": "청소년의 하루 화면 이용 시간이 학습 집중도와 수면 만족도에 미치는 관계",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "청소년"
+      ],
+      "expectedSurveyObject": [
+        "화면 이용 시간",
+        "학습 집중도",
+        "수면 만족도"
+      ],
+      "expectedPurposeConcepts": [
+        "변수 관계"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 시간",
+        "집중도",
+        "만족도"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "청소년"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "화면 이용 시간",
+        "학습 집중도",
+        "수면 만족도"
+      ],
+      "expectedPurposeConcepts": [
+        "변수 관계"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 시간",
+        "집중도",
+        "만족도"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-complex-010",
+    "action": "keep_as_is",
+    "previousInput": "별마루 서비스를 안 쓰는 직장인 대상으로 서비스가 어려운 이유랑 필요한 기능",
+    "revisedInput": "별마루 서비스를 안 쓰는 직장인 대상으로 서비스가 어려운 이유랑 필요한 기능",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "별마루 서비스를 사용하지 않는 직장인"
+      ],
+      "expectedSurveyObject": [
+        "별마루 서비스"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유",
+        "기능 수요"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "원하는 기능"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "별마루 서비스를 사용하지 않는 직장인"
+      ],
+      "expectedEligibilityConditions": [
+        "별마루 서비스를 사용하지 않는 직장인"
+      ],
+      "contextEntities": [
+        "별마루 서비스"
+      ],
+      "expectedSurveyObject": [
+        "별마루 서비스"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유",
+        "기능 수요"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "원하는 기능"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-general-006",
+    "action": "keep_as_is",
+    "previousInput": "출근하는 직장인의 환승역 혼잡과 이동 안전 체감",
+    "revisedInput": "출근하는 직장인의 환승역 혼잡과 이동 안전 체감",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "출근하는 직장인"
+      ],
+      "expectedSurveyObject": [
+        "환승역 이동"
+      ],
+      "expectedPurposeConcepts": [
+        "혼잡",
+        "안전"
+      ],
+      "requiredQuestionConcepts": [
+        "이동 수단",
+        "혼잡",
+        "안전"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "출근하는 직장인"
+      ],
+      "expectedEligibilityConditions": [
+        "출근하는 직장인"
+      ],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "환승역 이동"
+      ],
+      "expectedPurposeConcepts": [
+        "혼잡",
+        "안전"
+      ],
+      "requiredQuestionConcepts": [
+        "이동 수단",
+        "혼잡",
+        "안전"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-general-013",
+    "action": "keep_as_is",
+    "previousInput": "새봄대학교 구성원의 온새미 플랫폼 사용성과 오류 경험",
+    "revisedInput": "새봄대학교 구성원의 온새미 플랫폼 사용성과 오류 경험",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 구성원"
+      ],
+      "expectedSurveyObject": [
+        "온새미 플랫폼"
+      ],
+      "expectedPurposeConcepts": [
+        "사용성",
+        "오류 경험"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "사용성",
+        "불편"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 구성원"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "온새미 플랫폼",
+        "새봄대학교"
+      ],
+      "expectedSurveyObject": [
+        "온새미 플랫폼"
+      ],
+      "expectedPurposeConcepts": [
+        "사용성",
+        "오류 경험"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "사용성",
+        "불편"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-general-020",
+    "action": "keep_as_is",
+    "previousInput": "멘토링 프로그램과 취업 캠프 참가자의 도움 정도 및 만족도 비교",
+    "revisedInput": "멘토링 프로그램과 취업 캠프 참가자의 도움 정도 및 만족도 비교",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "두 프로그램 참가자"
+      ],
+      "expectedSurveyObject": [
+        "멘토링 프로그램",
+        "취업 캠프"
+      ],
+      "expectedPurposeConcepts": [
+        "도움 정도 비교",
+        "만족도 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "참여 경험",
+        "학습 효과",
+        "만족도",
+        "대상 비교"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "두 프로그램 참가자"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "멘토링 프로그램",
+        "취업 캠프",
+        "멘토링"
+      ],
+      "expectedSurveyObject": [
+        "멘토링 프로그램",
+        "취업 캠프"
+      ],
+      "expectedPurposeConcepts": [
+        "도움 정도 비교",
+        "만족도 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "참여 경험",
+        "학습 효과",
+        "만족도",
+        "대상 비교"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-noisy-005",
+    "action": "keep_as_noisy_recoverable",
+    "previousInput": "최근3달 배달 안시킨 1인가구 왜",
+    "revisedInput": "최근3달 배달 안시킨 1인가구 왜",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "최근 3개월 배달을 주문하지 않은 1인 가구"
+      ],
+      "expectedSurveyObject": [
+        "배달 주문"
+      ],
+      "expectedPurposeConcepts": [
+        "비주문 이유"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "최근 3개월 배달을 주문하지 않은 1인 가구"
+      ],
+      "expectedEligibilityConditions": [
+        "최근 3개월 배달을 주문하지 않은 1인 가구"
+      ],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "배달 주문"
+      ],
+      "expectedPurposeConcepts": [
+        "비주문 이유"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "축약·구어체·조사 생략이 있으나 응답 대상과 조사 목적의 우세한 해석이 하나이므로 복구 가능한 입력으로 보존함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "noisy_recoverable"
+  },
+  {
+    "caseId": "dev-general-026",
+    "action": "keep_as_is",
+    "previousInput": "친환경 세제를 구매하지 않는 소비자의 미구매 이유와 가격 수용도",
+    "revisedInput": "친환경 세제를 구매하지 않는 소비자의 미구매 이유와 가격 수용도",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "친환경 세제를 구매하지 않는 소비자"
+      ],
+      "expectedSurveyObject": [
+        "친환경 세제"
+      ],
+      "expectedPurposeConcepts": [
+        "미구매 이유",
+        "가격 수용도"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "비용"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "친환경 세제를 구매하지 않는 소비자"
+      ],
+      "expectedEligibilityConditions": [
+        "친환경 세제를 구매하지 않는 소비자"
+      ],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "친환경 세제"
+      ],
+      "expectedPurposeConcepts": [
+        "미구매 이유",
+        "가격 수용도"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "비용"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-past-012",
+    "action": "keep_as_is",
+    "previousInput": "대학생이 네이버 웹툰과 카카오페이지를 이용하는 빈도와 만족도를 비교",
+    "revisedInput": "대학생이 네이버 웹툰과 카카오페이지를 이용하는 빈도와 만족도를 비교",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "대학생"
+      ],
+      "expectedSurveyObject": [
+        "네이버 웹툰",
+        "카카오페이지"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 빈도 비교",
+        "만족도 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 빈도",
+        "만족도",
+        "대상 비교"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "대학생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "네이버 웹툰"
+      ],
+      "expectedSurveyObject": [
+        "네이버 웹툰",
+        "카카오페이지"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 빈도 비교",
+        "만족도 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 빈도",
+        "만족도",
+        "대상 비교"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-general-010",
+    "action": "keep_as_is",
+    "previousInput": "재택근무자의 배달음식 주문 빈도와 지출 부담",
+    "revisedInput": "재택근무자의 배달음식 주문 빈도와 지출 부담",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "재택근무자"
+      ],
+      "expectedSurveyObject": [
+        "배달음식"
+      ],
+      "expectedPurposeConcepts": [
+        "주문 빈도",
+        "지출 부담"
+      ],
+      "requiredQuestionConcepts": [
+        "구매 빈도",
+        "비용"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "재택근무자"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "배달음식"
+      ],
+      "expectedPurposeConcepts": [
+        "주문 빈도",
+        "지출 부담"
+      ],
+      "requiredQuestionConcepts": [
+        "구매 빈도",
+        "비용"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-general-019",
+    "action": "keep_as_is",
+    "previousInput": "지역 주민이 봄꽃 축제에 참여한 경험과 지역 상권 효과에 대한 인식",
+    "revisedInput": "지역 주민이 봄꽃 축제에 참여한 경험과 지역 상권 효과에 대한 인식",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "봄꽃 축제에 참여한 지역 주민"
+      ],
+      "expectedSurveyObject": [
+        "봄꽃 축제"
+      ],
+      "expectedPurposeConcepts": [
+        "참여 경험",
+        "지역 상권 효과 인식"
+      ],
+      "requiredQuestionConcepts": [
+        "참여 경험",
+        "인식"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "봄꽃 축제에 참여한 지역 주민"
+      ],
+      "expectedEligibilityConditions": [
+        "봄꽃 축제에 참여한 지역 주민"
+      ],
+      "contextEntities": [
+        "봄꽃 축제"
+      ],
+      "expectedSurveyObject": [
+        "봄꽃 축제"
+      ],
+      "expectedPurposeConcepts": [
+        "참여 경험",
+        "지역 상권 효과 인식"
+      ],
+      "requiredQuestionConcepts": [
+        "참여 경험",
+        "인식"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-noisy-001",
+    "action": "keep_as_noisy_recoverable",
+    "previousInput": "새봄대 솔빛관 이동 불편 뭐가 젤 큰지",
+    "revisedInput": "새봄대 솔빛관 이동 불편 뭐가 젤 큰지",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 구성원"
+      ],
+      "expectedSurveyObject": [
+        "솔빛관 이동"
+      ],
+      "expectedPurposeConcepts": [
+        "불편"
+      ],
+      "requiredQuestionConcepts": [
+        "불편"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 구성원"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "솔빛관"
+      ],
+      "expectedSurveyObject": [
+        "솔빛관 이동"
+      ],
+      "expectedPurposeConcepts": [
+        "불편"
+      ],
+      "requiredQuestionConcepts": [
+        "불편"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "축약·구어체·조사 생략이 있으나 응답 대상과 조사 목적의 우세한 해석이 하나이므로 복구 가능한 입력으로 보존함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "noisy_recoverable"
+  },
+  {
+    "caseId": "dev-past-019",
+    "action": "keep_as_is",
+    "previousInput": "최근 한 달 맛나샘 이용 학생의 방문 빈도와 음식 만족도",
+    "revisedInput": "최근 한 달 맛나샘 이용 학생의 방문 빈도와 음식 만족도",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "맛나샘 이용 학생"
+      ],
+      "expectedSurveyObject": [
+        "맛나샘"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 빈도",
+        "음식 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 빈도",
+        "만족도"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "맛나샘 이용 학생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "맛나샘"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 빈도",
+        "음식 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 빈도",
+        "만족도"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-clarify-001",
+    "action": "relabel_as_clarification",
+    "previousInput": "학교 만족도",
+    "revisedInput": "학교 만족도",
+    "previousExpectation": {
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedSurveyObject": [
+        "학교"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "requiredQuestionConcepts": []
+    },
+    "revisedExpectation": {
+      "inputQuality": "ambiguous",
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "학교"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "requiredQuestionConcepts": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상 또는 구체적인 조사 대상·기준이 빠져 있어 임의 설문 대신 clarification이 필요함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "ambiguous"
+  },
+  {
+    "caseId": "dev-noisy-004",
+    "action": "keep_as_noisy_recoverable",
+    "previousInput": "온새미앱 써본사람 불편 만족",
+    "revisedInput": "온새미앱 써본사람 불편 만족",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "온새미 앱 사용자"
+      ],
+      "expectedSurveyObject": [
+        "온새미 앱"
+      ],
+      "expectedPurposeConcepts": [
+        "불편",
+        "만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "불편",
+        "만족도"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "온새미 앱 사용자"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "온새미 앱"
+      ],
+      "expectedSurveyObject": [
+        "온새미 앱"
+      ],
+      "expectedPurposeConcepts": [
+        "불편",
+        "만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "불편",
+        "만족도"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "축약·구어체·조사 생략이 있으나 응답 대상과 조사 목적의 우세한 해석이 하나이므로 복구 가능한 입력으로 보존함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "noisy_recoverable"
+  },
+  {
+    "caseId": "dev-complex-014",
+    "action": "keep_as_is",
+    "previousInput": "직장인의 평일 수면 시간과 지각 빈도의 상관관계",
+    "revisedInput": "직장인의 평일 수면 시간과 지각 빈도의 상관관계",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "직장인"
+      ],
+      "expectedSurveyObject": [
+        "수면 시간",
+        "지각 빈도"
+      ],
+      "expectedPurposeConcepts": [
+        "상관관계"
+      ],
+      "requiredQuestionConcepts": [
+        "수면 시간",
+        "빈도"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "직장인"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "수면 시간",
+        "지각 빈도"
+      ],
+      "expectedPurposeConcepts": [
+        "상관관계"
+      ],
+      "requiredQuestionConcepts": [
+        "수면 시간",
+        "빈도"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-past-006",
+    "action": "keep_as_noisy_recoverable",
+    "previousInput": "대우관 오갈 때 학생들 이동수단이랑 얼마나 걸리는지, 뭐가 불편한지",
+    "revisedInput": "대우관 오갈 때 학생들 이동수단이랑 얼마나 걸리는지, 뭐가 불편한지",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "대우관을 오가는 학생"
+      ],
+      "expectedSurveyObject": [
+        "대우관 이동"
+      ],
+      "expectedPurposeConcepts": [
+        "이동 수단",
+        "소요 시간",
+        "불편"
+      ],
+      "requiredQuestionConcepts": [
+        "이동 수단",
+        "소요 시간",
+        "불편"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "대우관을 오가는 학생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "대우관"
+      ],
+      "expectedSurveyObject": [
+        "대우관 이동"
+      ],
+      "expectedPurposeConcepts": [
+        "이동 수단",
+        "소요 시간",
+        "불편"
+      ],
+      "requiredQuestionConcepts": [
+        "이동 수단",
+        "소요 시간",
+        "불편"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "축약·구어체·조사 생략이 있으나 응답 대상과 조사 목적의 우세한 해석이 하나이므로 복구 가능한 입력으로 보존함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "noisy_recoverable"
+  },
+  {
+    "caseId": "dev-general-025",
+    "action": "keep_as_is",
+    "previousInput": "최근 3개월 1인 가구의 장보기 빈도와 물가 부담",
+    "revisedInput": "최근 3개월 1인 가구의 장보기 빈도와 물가 부담",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "1인 가구"
+      ],
+      "expectedSurveyObject": [
+        "장보기"
+      ],
+      "expectedPurposeConcepts": [
+        "구매 빈도",
+        "물가 부담"
+      ],
+      "requiredQuestionConcepts": [
+        "구매 빈도",
+        "비용"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "1인 가구"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "장보기"
+      ],
+      "expectedPurposeConcepts": [
+        "구매 빈도",
+        "물가 부담"
+      ],
+      "requiredQuestionConcepts": [
+        "구매 빈도",
+        "비용"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-noisy-003",
+    "action": "keep_as_noisy_recoverable",
+    "previousInput": "동아리 안함 이유 이유랑 가입생각",
+    "revisedInput": "동아리 안함 이유 이유랑 가입생각",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "동아리에 가입하지 않은 사람"
+      ],
+      "expectedSurveyObject": [
+        "동아리"
+      ],
+      "expectedPurposeConcepts": [
+        "미가입 이유",
+        "가입 의향"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "참여 의향"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "동아리에 가입하지 않은 사람"
+      ],
+      "expectedEligibilityConditions": [
+        "동아리에 가입하지 않은 사람"
+      ],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "동아리"
+      ],
+      "expectedPurposeConcepts": [
+        "미가입 이유",
+        "가입 의향"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "참여 의향"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "축약·구어체·조사 생략이 있으나 응답 대상과 조사 목적의 우세한 해석이 하나이므로 복구 가능한 입력으로 보존함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "noisy_recoverable"
+  },
+  {
+    "caseId": "dev-past-018",
+    "action": "keep_as_noisy_recoverable",
+    "previousInput": "맛나샘 안 가는 학생들 이유 조사해줘",
+    "revisedInput": "맛나샘 안 가는 학생들 이유 조사해줘",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "맛나샘을 이용하지 않는 학생"
+      ],
+      "expectedSurveyObject": [
+        "맛나샘"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "맛나샘을 이용하지 않는 학생"
+      ],
+      "expectedEligibilityConditions": [
+        "맛나샘을 이용하지 않는 학생"
+      ],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "맛나샘"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "축약·구어체·조사 생략이 있으나 응답 대상과 조사 목적의 우세한 해석이 하나이므로 복구 가능한 입력으로 보존함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "noisy_recoverable"
+  },
+  {
+    "caseId": "dev-general-017",
+    "action": "keep_as_is",
+    "previousInput": "새봄대학교 축제 참가자의 프로그램 만족도와 재참여 의향",
+    "revisedInput": "새봄대학교 축제 참가자의 프로그램 만족도와 재참여 의향",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 축제 참가자"
+      ],
+      "expectedSurveyObject": [
+        "새봄대학교 축제"
+      ],
+      "expectedPurposeConcepts": [
+        "프로그램 만족도",
+        "재참여 의향"
+      ],
+      "requiredQuestionConcepts": [
+        "참여 경험",
+        "만족도",
+        "참여 의향"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 축제 참가자"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "새봄대학교 축제",
+        "새봄대학교"
+      ],
+      "expectedSurveyObject": [
+        "새봄대학교 축제"
+      ],
+      "expectedPurposeConcepts": [
+        "프로그램 만족도",
+        "재참여 의향"
+      ],
+      "requiredQuestionConcepts": [
+        "참여 경험",
+        "만족도",
+        "참여 의향"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-past-015",
+    "action": "keep_as_noisy_recoverable",
+    "previousInput": "이번 학기 연세대생 한경관 학식 얼마나 자주 먹고 메뉴에는 만족하는지",
+    "revisedInput": "이번 학기 연세대생 한경관 학식 얼마나 자주 먹고 메뉴에는 만족하는지",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "연세대생"
+      ],
+      "expectedSurveyObject": [
+        "한경관 학식"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 빈도",
+        "메뉴 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 빈도",
+        "만족도"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "연세대생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "한경관 학식",
+        "한경관"
+      ],
+      "expectedSurveyObject": [
+        "한경관 학식"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 빈도",
+        "메뉴 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 빈도",
+        "만족도"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "축약·구어체·조사 생략이 있으나 응답 대상과 조사 목적의 우세한 해석이 하나이므로 복구 가능한 입력으로 보존함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "noisy_recoverable"
+  },
+  {
+    "caseId": "dev-complex-011",
+    "action": "rewrite_for_clear_split",
+    "previousInput": "새 메뉴 만족도는 별마루 카페를 최근 한 달 이용한 주민한테 조사",
+    "revisedInput": "새 메뉴 만족도는 별마루 카페를 최근 한 달 이용한 주민한테 조사",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "최근 한 달 별마루 카페를 이용한 주민"
+      ],
+      "expectedSurveyObject": [
+        "별마루 카페 새 메뉴"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "만족도"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "최근 한 달 동안 별마루 카페를 이용한 주민"
+      ],
+      "expectedEligibilityConditions": [
+        "최근 한 달 내 별마루 카페 이용"
+      ],
+      "contextEntities": [
+        "별마루 카페"
+      ],
+      "expectedSurveyObject": [
+        "별마루 카페의 새 메뉴"
+      ],
+      "expectedPurposeConcepts": [
+        "새 메뉴 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": [
+        "별마루 카페 일반 이용 경험",
+        "별마루 카페 전체 만족도",
+        "주민 일반 특성"
+      ]
+    },
+    "reason": "도치된 만족도 목적, 최근 이용 적격 조건, 카페 맥락, 새 메뉴 평가 대상을 분리함. 모델 출력과 무관하게 문장 자체의 우세한 해석을 기준으로 함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "noisy_recoverable"
+  },
+  {
+    "caseId": "dev-past-001",
+    "action": "keep_as_noisy_recoverable",
+    "previousInput": "경영대에 대한 연세대 경영대생들 만족도",
+    "revisedInput": "경영대에 대한 연세대 경영대생들 만족도",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "연세대 경영대생"
+      ],
+      "expectedSurveyObject": [
+        "경영대"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도",
+        "개선 요구"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "연세대 경영대생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "경영대"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도",
+        "개선 요구"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "축약·구어체·조사 생략이 있으나 응답 대상과 조사 목적의 우세한 해석이 하나이므로 복구 가능한 입력으로 보존함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "noisy_recoverable"
+  },
+  {
+    "caseId": "dev-past-002",
+    "action": "keep_as_is",
+    "previousInput": "최근 한 학기 동안 연세대 경영대생이 느낀 경영대 시설 만족도와 개선점을 조사해줘",
+    "revisedInput": "최근 한 학기 동안 연세대 경영대생이 느낀 경영대 시설 만족도와 개선점을 조사해줘",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "연세대 경영대생"
+      ],
+      "expectedSurveyObject": [
+        "경영대 시설"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도",
+        "개선 요구"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도",
+        "불편",
+        "개선 요구"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "연세대 경영대생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "경영대 시설"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도",
+        "개선 요구"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도",
+        "불편",
+        "개선 요구"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-noisy-002",
+    "action": "keep_as_noisy_recoverable",
+    "previousInput": "직장인 커피값 얼마나씀... 주에",
+    "revisedInput": "직장인 커피값 얼마나씀... 주에",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "직장인"
+      ],
+      "expectedSurveyObject": [
+        "커피 지출"
+      ],
+      "expectedPurposeConcepts": [
+        "주간 지출"
+      ],
+      "requiredQuestionConcepts": [
+        "구매 빈도",
+        "비용"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "직장인"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "커피 지출"
+      ],
+      "expectedPurposeConcepts": [
+        "주간 지출"
+      ],
+      "requiredQuestionConcepts": [
+        "구매 빈도",
+        "비용"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "축약·구어체·조사 생략이 있으나 응답 대상과 조사 목적의 우세한 해석이 하나이므로 복구 가능한 입력으로 보존함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "noisy_recoverable"
+  },
+  {
+    "caseId": "dev-past-004",
+    "action": "keep_as_is",
+    "previousInput": "경영대 시설을 이용하지 않는 연세대 경영대생의 비이용 이유와 학교 이미지",
+    "revisedInput": "경영대 시설을 이용하지 않는 연세대 경영대생의 비이용 이유와 학교 이미지",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "경영대 시설을 이용하지 않는 연세대 경영대생"
+      ],
+      "expectedSurveyObject": [
+        "경영대 시설"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유",
+        "이미지"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "인식"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "경영대 시설을 이용하지 않는 연세대 경영대생"
+      ],
+      "expectedEligibilityConditions": [
+        "경영대 시설을 이용하지 않는 연세대 경영대생"
+      ],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "경영대 시설"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유",
+        "이미지"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "인식"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-general-002",
+    "action": "keep_as_is",
+    "previousInput": "직장인이 퇴근 후 듣는 야간 강좌의 학습 효과와 어려움",
+    "revisedInput": "직장인이 퇴근 후 듣는 야간 강좌의 학습 효과와 어려움",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "야간 강좌를 듣는 직장인"
+      ],
+      "expectedSurveyObject": [
+        "야간 강좌"
+      ],
+      "expectedPurposeConcepts": [
+        "학습 효과",
+        "어려움"
+      ],
+      "requiredQuestionConcepts": [
+        "학습 효과",
+        "불편"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "야간 강좌를 듣는 직장인"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "야간 강좌"
+      ],
+      "expectedPurposeConcepts": [
+        "학습 효과",
+        "어려움"
+      ],
+      "requiredQuestionConcepts": [
+        "학습 효과",
+        "불편"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-past-014",
+    "action": "keep_as_is",
+    "previousInput": "한경관 학식을 먹지 않는 연세대 학생들의 비이용 이유",
+    "revisedInput": "한경관 학식을 먹지 않는 연세대 학생들의 비이용 이유",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "한경관 학식을 먹지 않는 연세대 학생"
+      ],
+      "expectedSurveyObject": [
+        "한경관 학식"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "한경관 학식을 먹지 않는 연세대 학생"
+      ],
+      "expectedEligibilityConditions": [
+        "한경관 학식을 먹지 않는 연세대 학생"
+      ],
+      "contextEntities": [
+        "한경관 학식",
+        "한경관"
+      ],
+      "expectedSurveyObject": [
+        "한경관 학식"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-past-008",
+    "action": "keep_as_is",
+    "previousInput": "대우관에 가지 않는 연세대 학생이 방문하지 않는 이유",
+    "revisedInput": "대우관에 가지 않는 연세대 학생이 방문하지 않는 이유",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "대우관에 가지 않는 연세대 학생"
+      ],
+      "expectedSurveyObject": [
+        "대우관"
+      ],
+      "expectedPurposeConcepts": [
+        "비방문 이유"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "대우관에 가지 않는 연세대 학생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "대우관"
+      ],
+      "expectedSurveyObject": [
+        "대우관"
+      ],
+      "expectedPurposeConcepts": [
+        "비방문 이유"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "dev-past-011",
+    "action": "keep_as_is",
+    "previousInput": "최근 3개월 대학생의 네이버 웹툰 이용 빈도와 이용 시간 조사",
+    "revisedInput": "최근 3개월 대학생의 네이버 웹툰 이용 빈도와 이용 시간 조사",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "대학생"
+      ],
+      "expectedSurveyObject": [
+        "네이버 웹툰"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 빈도",
+        "이용 시간"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "이용 빈도",
+        "이용 시간"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "대학생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "네이버 웹툰"
+      ],
+      "expectedSurveyObject": [
+        "네이버 웹툰"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 빈도",
+        "이용 시간"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "이용 빈도",
+        "이용 시간"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "holdout-general-006",
+    "action": "keep_as_is",
+    "previousInput": "프로젝트 팀원이 회의에 참여하지 못한 이유와 비동기 협업 수요",
+    "revisedInput": "프로젝트 팀원이 회의에 참여하지 못한 이유와 비동기 협업 수요",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "회의에 참여하지 못한 프로젝트 팀원"
+      ],
+      "expectedSurveyObject": [
+        "프로젝트 협업"
+      ],
+      "expectedPurposeConcepts": [
+        "비참여 이유",
+        "비동기 협업 수요"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "서비스 필요성"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "회의에 참여하지 못한 프로젝트 팀원"
+      ],
+      "expectedEligibilityConditions": [
+        "회의에 참여하지 못한 프로젝트 팀원"
+      ],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "프로젝트 협업"
+      ],
+      "expectedPurposeConcepts": [
+        "비참여 이유",
+        "비동기 협업 수요"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "서비스 필요성"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "holdout-general-007",
+    "action": "keep_as_is",
+    "previousInput": "지난 6개월 반려동물 가구의 온라인 사료 구매 빈도와 가격 민감도",
+    "revisedInput": "지난 6개월 반려동물 가구의 온라인 사료 구매 빈도와 가격 민감도",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "반려동물 가구"
+      ],
+      "expectedSurveyObject": [
+        "온라인 사료 구매"
+      ],
+      "expectedPurposeConcepts": [
+        "구매 빈도",
+        "가격 민감도"
+      ],
+      "requiredQuestionConcepts": [
+        "구매 빈도",
+        "비용"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "반려동물 가구"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "온라인 사료 구매"
+      ],
+      "expectedPurposeConcepts": [
+        "구매 빈도",
+        "가격 민감도"
+      ],
+      "requiredQuestionConcepts": [
+        "구매 빈도",
+        "비용"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "holdout-complex-004",
+    "action": "keep_as_is",
+    "previousInput": "최근 한 달 해든 서비스 알림을 받았지만 클릭하지 않은 이용자에게 이유와 개선점을 묻기",
+    "revisedInput": "최근 한 달 해든 서비스 알림을 받았지만 클릭하지 않은 이용자에게 이유와 개선점을 묻기",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "해든 서비스 알림을 클릭하지 않은 이용자"
+      ],
+      "expectedSurveyObject": [
+        "해든 서비스 알림"
+      ],
+      "expectedPurposeConcepts": [
+        "비클릭 이유",
+        "개선 요구"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "개선 요구"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "해든 서비스 알림을 클릭하지 않은 이용자"
+      ],
+      "expectedEligibilityConditions": [
+        "해든 서비스 알림을 클릭하지 않은 이용자"
+      ],
+      "contextEntities": [
+        "해든 서비스 알림",
+        "해든 서비스"
+      ],
+      "expectedSurveyObject": [
+        "해든 서비스 알림"
+      ],
+      "expectedPurposeConcepts": [
+        "비클릭 이유",
+        "개선 요구"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "개선 요구"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "holdout-past-003",
+    "action": "keep_as_is",
+    "previousInput": "다온 플랫폼을 쓰는 취업준비생의 이용 현황과 경험",
+    "revisedInput": "다온 플랫폼을 쓰는 취업준비생의 이용 현황과 경험",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "다온 플랫폼을 쓰는 취업준비생"
+      ],
+      "expectedSurveyObject": [
+        "다온 플랫폼"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 현황",
+        "이용 경험"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "이용 빈도",
+        "만족도",
+        "불편"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "다온 플랫폼을 쓰는 취업준비생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "다온 플랫폼"
+      ],
+      "expectedSurveyObject": [
+        "다온 플랫폼"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 현황",
+        "이용 경험"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "이용 빈도",
+        "만족도",
+        "불편"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "holdout-clarify-001",
+    "action": "relabel_as_clarification",
+    "previousInput": "공간 평가",
+    "revisedInput": "공간 평가",
+    "previousExpectation": {
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedSurveyObject": [
+        "공간"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "requiredQuestionConcepts": []
+    },
+    "revisedExpectation": {
+      "inputQuality": "ambiguous",
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "공간"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "requiredQuestionConcepts": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상 또는 구체적인 조사 대상·기준이 빠져 있어 임의 설문 대신 clarification이 필요함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "ambiguous"
+  },
+  {
+    "caseId": "holdout-general-008",
+    "action": "keep_as_is",
+    "previousInput": "주말에 영상 콘텐츠를 보지 않는 성인의 여가 선택 이유",
+    "revisedInput": "주말에 영상 콘텐츠를 보지 않는 성인의 여가 선택 이유",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "주말에 영상 콘텐츠를 보지 않는 성인"
+      ],
+      "expectedSurveyObject": [
+        "영상 콘텐츠 시청"
+      ],
+      "expectedPurposeConcepts": [
+        "비시청 이유",
+        "여가 선택"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "선호"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "주말에 영상 콘텐츠를 보지 않는 성인"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "영상 콘텐츠 시청"
+      ],
+      "expectedPurposeConcepts": [
+        "비시청 이유",
+        "여가 선택"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "선호"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "holdout-general-003",
+    "action": "keep_as_is",
+    "previousInput": "최근 2주 해든 푸드트럭 이용자의 방문 빈도와 대기 만족도",
+    "revisedInput": "최근 2주 해든 푸드트럭 이용자의 방문 빈도와 대기 만족도",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "해든 푸드트럭 이용자"
+      ],
+      "expectedSurveyObject": [
+        "해든 푸드트럭"
+      ],
+      "expectedPurposeConcepts": [
+        "방문 빈도",
+        "대기 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 빈도",
+        "대기 시간",
+        "만족도"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "해든 푸드트럭 이용자"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "해든 푸드트럭"
+      ],
+      "expectedPurposeConcepts": [
+        "방문 빈도",
+        "대기 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 빈도",
+        "대기 시간",
+        "만족도"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "holdout-general-005",
+    "action": "keep_as_is",
+    "previousInput": "지역 독서모임에 참가하지 않은 주민의 불참 이유와 관심 주제",
+    "revisedInput": "지역 독서모임에 참가하지 않은 주민의 불참 이유와 관심 주제",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "지역 독서모임에 참가하지 않은 주민"
+      ],
+      "expectedSurveyObject": [
+        "지역 독서모임"
+      ],
+      "expectedPurposeConcepts": [
+        "불참 이유",
+        "관심 주제"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "선호"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "지역 독서모임에 참가하지 않은 주민"
+      ],
+      "expectedEligibilityConditions": [
+        "지역 독서모임에 참가하지 않은 주민"
+      ],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "지역 독서모임"
+      ],
+      "expectedPurposeConcepts": [
+        "불참 이유",
+        "관심 주제"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "선호"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "holdout-past-002",
+    "action": "keep_as_is",
+    "previousInput": "한울대학교 재학생의 늘봄관 통학 및 이동 경험",
+    "revisedInput": "한울대학교 재학생의 늘봄관 통학 및 이동 경험",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "한울대학교 재학생"
+      ],
+      "expectedSurveyObject": [
+        "늘봄관 이동"
+      ],
+      "expectedPurposeConcepts": [
+        "이동 경험"
+      ],
+      "requiredQuestionConcepts": [
+        "이동 빈도",
+        "이동 수단",
+        "소요 시간",
+        "혼잡",
+        "안전",
+        "불편"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "한울대학교 재학생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "한울대학교",
+        "늘봄관"
+      ],
+      "expectedSurveyObject": [
+        "늘봄관 이동"
+      ],
+      "expectedPurposeConcepts": [
+        "이동 경험"
+      ],
+      "requiredQuestionConcepts": [
+        "이동 빈도",
+        "이동 수단",
+        "소요 시간",
+        "혼잡",
+        "안전",
+        "불편"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "holdout-complex-001",
+    "action": "keep_as_is",
+    "previousInput": "한울대학교 늘봄관 한 곳의 학습 공간 만족도와 예약 좌석 기능 수요",
+    "revisedInput": "한울대학교 늘봄관 한 곳의 학습 공간 만족도와 예약 좌석 기능 수요",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "한울대학교 늘봄관 이용자"
+      ],
+      "expectedSurveyObject": [
+        "늘봄관 학습 공간"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도",
+        "예약 좌석 기능 수요"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도",
+        "서비스 필요성",
+        "이용 의향"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "한울대학교 늘봄관 이용자"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "한울대학교",
+        "늘봄관"
+      ],
+      "expectedSurveyObject": [
+        "늘봄관 학습 공간"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도",
+        "예약 좌석 기능 수요"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도",
+        "서비스 필요성",
+        "이용 의향"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "holdout-past-001",
+    "action": "keep_as_is",
+    "previousInput": "한울대 경영학부 학생이 느끼는 경영학관 시설 만족도",
+    "revisedInput": "한울대 경영학부 학생이 느끼는 경영학관 시설 만족도",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "한울대학교 경영학부 학생"
+      ],
+      "expectedSurveyObject": [
+        "경영학관 시설"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도",
+        "불편",
+        "개선 요구"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "한울대학교 경영학부 학생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "경영학부",
+        "경영학관"
+      ],
+      "expectedSurveyObject": [
+        "경영학관 시설"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도",
+        "불편",
+        "개선 요구"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "holdout-complex-002",
+    "action": "keep_as_is",
+    "previousInput": "도보 통근과 자가용 통근의 이동 시간, 비용, 스트레스 차이",
+    "revisedInput": "도보 통근과 자가용 통근의 이동 시간, 비용, 스트레스 차이",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "도보 또는 자가용 통근자"
+      ],
+      "expectedSurveyObject": [
+        "도보 통근",
+        "자가용 통근"
+      ],
+      "expectedPurposeConcepts": [
+        "이동 시간 비교",
+        "비용 비교",
+        "스트레스 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "소요 시간",
+        "비용",
+        "스트레스",
+        "대상 비교"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "도보 또는 자가용 통근자"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "도보 통근",
+        "자가용 통근"
+      ],
+      "expectedPurposeConcepts": [
+        "이동 시간 비교",
+        "비용 비교",
+        "스트레스 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "소요 시간",
+        "비용",
+        "스트레스",
+        "대상 비교"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "holdout-complex-003",
+    "action": "keep_as_is",
+    "previousInput": "청년의 월세 부담이 외식 횟수와 저축 비율에 미치는 영향",
+    "revisedInput": "청년의 월세 부담이 외식 횟수와 저축 비율에 미치는 영향",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "월세를 내는 청년"
+      ],
+      "expectedSurveyObject": [
+        "월세 부담",
+        "외식 횟수",
+        "저축 비율"
+      ],
+      "expectedPurposeConcepts": [
+        "변수 간 영향"
+      ],
+      "requiredQuestionConcepts": [
+        "비용",
+        "구매 빈도",
+        "저축"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "월세를 내는 청년"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "월세 부담",
+        "외식 횟수",
+        "저축 비율"
+      ],
+      "expectedPurposeConcepts": [
+        "변수 간 영향"
+      ],
+      "requiredQuestionConcepts": [
+        "비용",
+        "구매 빈도",
+        "저축"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "holdout-clarify-002",
+    "action": "relabel_as_clarification",
+    "previousInput": "둘 중 뭐가 나은지",
+    "revisedInput": "둘 중 뭐가 나은지",
+    "previousExpectation": {
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedSurveyObject": [
+        "두 대상"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "requiredQuestionConcepts": []
+    },
+    "revisedExpectation": {
+      "inputQuality": "ambiguous",
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "구체화가 필요한 응답 대상"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "두 대상"
+      ],
+      "expectedPurposeConcepts": [
+        "조사 방향 확인"
+      ],
+      "requiredQuestionConcepts": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상 또는 구체적인 조사 대상·기준이 빠져 있어 임의 설문 대신 clarification이 필요함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "ambiguous"
+  },
+  {
+    "caseId": "holdout-noisy-002",
+    "action": "keep_as_noisy_recoverable",
+    "previousInput": "다온앱 요즘 안씀 이유 다시쓸지",
+    "revisedInput": "다온앱 요즘 안씀 이유 다시쓸지",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "다온 앱을 최근 사용하지 않는 사람"
+      ],
+      "expectedSurveyObject": [
+        "다온 앱"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유",
+        "재사용 의향"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "이용 의향"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "다온 앱을 최근 사용하지 않는 사람"
+      ],
+      "expectedEligibilityConditions": [
+        "다온 앱을 최근 사용하지 않는 사람"
+      ],
+      "contextEntities": [
+        "다온 앱"
+      ],
+      "expectedSurveyObject": [
+        "다온 앱"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유",
+        "재사용 의향"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "이용 의향"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "축약·구어체·조사 생략이 있으나 응답 대상과 조사 목적의 우세한 해석이 하나이므로 복구 가능한 입력으로 보존함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "noisy_recoverable"
+  },
+  {
+    "caseId": "holdout-noisy-001",
+    "action": "keep_as_noisy_recoverable",
+    "previousInput": "한울대 늘봄관 안감 왜 불편",
+    "revisedInput": "한울대 늘봄관 안감 왜 불편",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "늘봄관에 가지 않는 한울대학교 학생"
+      ],
+      "expectedSurveyObject": [
+        "늘봄관"
+      ],
+      "expectedPurposeConcepts": [
+        "비방문 이유",
+        "불편"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "불편"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "늘봄관에 가지 않는 한울대학교 학생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "늘봄관"
+      ],
+      "expectedSurveyObject": [
+        "늘봄관"
+      ],
+      "expectedPurposeConcepts": [
+        "비방문 이유",
+        "불편"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "불편"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "축약·구어체·조사 생략이 있으나 응답 대상과 조사 목적의 우세한 해석이 하나이므로 복구 가능한 입력으로 보존함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "noisy_recoverable"
+  },
+  {
+    "caseId": "holdout-past-004",
+    "action": "keep_as_is",
+    "previousInput": "해든 서비스를 이용하지 않는 청년의 비이용 이유와 필요한 지원",
+    "revisedInput": "해든 서비스를 이용하지 않는 청년의 비이용 이유와 필요한 지원",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "해든 서비스를 이용하지 않는 청년"
+      ],
+      "expectedSurveyObject": [
+        "해든 서비스"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유",
+        "지원 수요"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "서비스 필요성"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "해든 서비스를 이용하지 않는 청년"
+      ],
+      "expectedEligibilityConditions": [
+        "해든 서비스를 이용하지 않는 청년"
+      ],
+      "contextEntities": [
+        "해든 서비스"
+      ],
+      "expectedSurveyObject": [
+        "해든 서비스"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유",
+        "지원 수요"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "서비스 필요성"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "holdout-general-002",
+    "action": "keep_as_is",
+    "previousInput": "늘봄관에 방문하지 않는 한울대 학생의 접근 장벽",
+    "revisedInput": "늘봄관에 방문하지 않는 한울대 학생의 접근 장벽",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "늘봄관에 방문하지 않는 한울대학교 학생"
+      ],
+      "expectedSurveyObject": [
+        "늘봄관"
+      ],
+      "expectedPurposeConcepts": [
+        "비방문 이유",
+        "접근 장벽"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "접근성"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "늘봄관에 방문하지 않는 한울대학교 학생"
+      ],
+      "expectedEligibilityConditions": [
+        "늘봄관에 방문하지 않는 한울대학교 학생"
+      ],
+      "contextEntities": [
+        "늘봄관"
+      ],
+      "expectedSurveyObject": [
+        "늘봄관"
+      ],
+      "expectedPurposeConcepts": [
+        "비방문 이유",
+        "접근 장벽"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "접근성"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "holdout-general-001",
+    "action": "keep_as_is",
+    "previousInput": "한울대학교 교양 수업 수강생의 토론 참여 경험과 만족도",
+    "revisedInput": "한울대학교 교양 수업 수강생의 토론 참여 경험과 만족도",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "한울대학교 교양 수업 수강생"
+      ],
+      "expectedSurveyObject": [
+        "교양 수업"
+      ],
+      "expectedPurposeConcepts": [
+        "토론 참여 경험",
+        "만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "참여 경험",
+        "만족도"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "한울대학교 교양 수업 수강생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [
+        "교양 수업",
+        "한울대학교"
+      ],
+      "expectedSurveyObject": [
+        "교양 수업"
+      ],
+      "expectedPurposeConcepts": [
+        "토론 참여 경험",
+        "만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "참여 경험",
+        "만족도"
+      ],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  },
+  {
+    "caseId": "holdout-general-004",
+    "action": "keep_as_is",
+    "previousInput": "다온 플랫폼과 해든 서비스의 고객 지원 만족도 비교",
+    "revisedInput": "다온 플랫폼과 해든 서비스의 고객 지원 만족도 비교",
+    "previousExpectation": {
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "두 서비스를 이용한 고객"
+      ],
+      "expectedSurveyObject": [
+        "다온 플랫폼",
+        "해든 서비스"
+      ],
+      "expectedPurposeConcepts": [
+        "고객 지원 만족도 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도",
+        "대상 비교"
+      ]
+    },
+    "revisedExpectation": {
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "두 서비스를 이용한 고객"
+      ],
+      "expectedEligibilityConditions": [
+        "두 서비스를 이용한 고객"
+      ],
+      "contextEntities": [
+        "다온 플랫폼",
+        "해든 서비스"
+      ],
+      "expectedSurveyObject": [
+        "다온 플랫폼",
+        "해든 서비스"
+      ],
+      "expectedPurposeConcepts": [
+        "고객 지원 만족도 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도",
+        "대상 비교"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": []
+    },
+    "reason": "응답 대상과 조사 대상 또는 목적이 제품 입력으로 충분히 식별되는 문장·명사구이므로 유지함.",
+    "semanticBasis": "입력 자체의 한국어 의미, 서술 관계, 조사 대상·응답 대상·적격 조건·조사 목적 구분을 기준으로 판정함.",
+    "inputQuality": "clear"
+  }
+]
