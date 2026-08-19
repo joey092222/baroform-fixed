@@ -4152,6 +4152,9 @@ test("서로 겹치는 빈도 구간은 해당 문항만 부분 수리한다", (
   const diagnostics = surveyGenerationTraceSnapshot(trace);
 
   assert.match(result.status, /^ready/);
+  if (result.status === "needs_clarification") {
+    assert.fail("빈도 선택지 부분 수리는 clarification으로 종료하면 안 됩니다.");
+  }
   assert.equal(diagnostics.generationSource, "openai_partial_repair");
   assert.equal(diagnostics.fallbackCount, 0);
   assert.deepEqual(diagnostics.repairedQuestionIds, [frequencyQuestion.id.replace("Q", "")]);
