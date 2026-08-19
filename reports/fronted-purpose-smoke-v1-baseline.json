@@ -1,0 +1,2646 @@
+{
+  "schemaVersion": 1,
+  "baselineId": "fronted-purpose-smoke-v1",
+  "immutable": true,
+  "capturedAt": "2026-08-19",
+  "source": {
+    "branch": "codex/fix-survey-regression-root-causes-v1",
+    "commit": "8484ee3311d963adfdf118674f8fb56e2182b233",
+    "artifactDirectory": ".artifacts/survey-regression/v1.1-fronted-purpose/fronted-purpose-preview-20260819-approved",
+    "deploymentId": "dpl_7i69edCDivKd8WCPU9x3rCrmAAxN",
+    "deploymentUrl": "https://baroform-fixed-ke789vhve-baroform.vercel.app",
+    "environment": "Preview"
+  },
+  "summary": {
+    "completed": 20,
+    "actualModelCalls": 17,
+    "retries": 0,
+    "paths": {
+      "deterministic_metadata_normalization": 7,
+      "partial_repair": 4,
+      "hard_fallback": 3,
+      "request_failure": 3,
+      "clarification": 3,
+      "clean_model_success": 0
+    },
+    "automaticFatalCases": 10,
+    "manualProductFailures": 8,
+    "evaluatorFalsePositives": 2,
+    "aggregateTokenUsageFromVercelLogs": {
+      "input": 295109,
+      "cachedInput": 15442,
+      "output": 49756,
+      "total": 344865,
+      "estimatedCostUsd": 1.449368
+    },
+    "latencyMsFromVercelLogs": {
+      "averageModel": 25199,
+      "p95Model": 36316,
+      "maxModel": 36316,
+      "averageEndpoint": 26865,
+      "p95Endpoint": 38802,
+      "maxEndpoint": 40706
+    }
+  },
+  "security": {
+    "containsApiKey": false,
+    "containsAuthorizationHeader": false,
+    "containsCookie": false,
+    "containsFullDeveloperPrompt": false
+  },
+  "cases": [
+    {
+      "caseId": "fronted-ambiguous-001",
+      "input": "별마루 카페 새 메뉴 주민 조사",
+      "inputQuality": "ambiguous",
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "확인 필요"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "확인 필요"
+      ],
+      "expectedPurposeConcepts": [
+        "확인 필요"
+      ],
+      "requiredQuestionConcepts": [],
+      "actual": {
+        "respondentGroup": null,
+        "canonicalTargetPopulation": null,
+        "evaluationTarget": null,
+        "canonicalSurveyObject": "별마루 카페 새 메뉴 주민",
+        "title": null,
+        "description": null,
+        "questions": []
+      },
+      "generation": {
+        "httpStatus": 200,
+        "responseType": "clarification",
+        "responseStatus": "needs_clarification",
+        "generationSource": "clarification",
+        "classification": "clarification",
+        "fallbackReason": null,
+        "modelCallCount": 0,
+        "repairCount": 0,
+        "fallbackCount": 0,
+        "modelOutputRejected": false,
+        "errorCode": null,
+        "errorStage": null,
+        "firstFailureStage": null,
+        "responseDiagnostics": {
+          "status": "unknown",
+          "incompleteReason": null,
+          "outputParsed": false,
+          "outputItemTypes": []
+        }
+      },
+      "evaluation": {
+        "automatic": {
+          "fatalFailures": [],
+          "warnings": [],
+          "passed": true
+        },
+        "manual": {
+          "verdict": "accepted",
+          "note": "자동 판정과 수동 감사 결과가 일치함."
+        }
+      },
+      "requestId": "reg-v1-fronted-ambiguous-001-609636c6",
+      "tokenUsage": {
+        "input": 0,
+        "cachedInput": 0,
+        "output": 0,
+        "total": 0,
+        "estimatedCostUsd": 0,
+        "note": "HTTP artifact에는 토큰 집계가 없으며 실행 전체 집계는 Vercel 로그 요약에 보존됨."
+      },
+      "latencyMs": 3419
+    },
+    {
+      "caseId": "fronted-ambiguous-002",
+      "input": "다온 앱 새 기능 대학생 조사",
+      "inputQuality": "ambiguous",
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "확인 필요"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "확인 필요"
+      ],
+      "expectedPurposeConcepts": [
+        "확인 필요"
+      ],
+      "requiredQuestionConcepts": [],
+      "actual": {
+        "respondentGroup": null,
+        "canonicalTargetPopulation": null,
+        "evaluationTarget": null,
+        "canonicalSurveyObject": "다온 앱 새 기능 대학생",
+        "title": null,
+        "description": null,
+        "questions": []
+      },
+      "generation": {
+        "httpStatus": 200,
+        "responseType": "clarification",
+        "responseStatus": "needs_clarification",
+        "generationSource": "clarification",
+        "classification": "clarification",
+        "fallbackReason": null,
+        "modelCallCount": 0,
+        "repairCount": 0,
+        "fallbackCount": 0,
+        "modelOutputRejected": false,
+        "errorCode": null,
+        "errorStage": null,
+        "firstFailureStage": null,
+        "responseDiagnostics": {
+          "status": "unknown",
+          "incompleteReason": null,
+          "outputParsed": false,
+          "outputItemTypes": []
+        }
+      },
+      "evaluation": {
+        "automatic": {
+          "fatalFailures": [],
+          "warnings": [],
+          "passed": true
+        },
+        "manual": {
+          "verdict": "accepted",
+          "note": "자동 판정과 수동 감사 결과가 일치함."
+        }
+      },
+      "requestId": "reg-v1-fronted-ambiguous-002-79897550",
+      "tokenUsage": {
+        "input": 0,
+        "cachedInput": 0,
+        "output": 0,
+        "total": 0,
+        "estimatedCostUsd": 0,
+        "note": "HTTP artifact에는 토큰 집계가 없으며 실행 전체 집계는 Vercel 로그 요약에 보존됨."
+      },
+      "latencyMs": 3405
+    },
+    {
+      "caseId": "fronted-ambiguous-003",
+      "input": "늘봄센터 프로그램 학부모 조사",
+      "inputQuality": "ambiguous",
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "확인 필요"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "확인 필요"
+      ],
+      "expectedPurposeConcepts": [
+        "확인 필요"
+      ],
+      "requiredQuestionConcepts": [],
+      "actual": {
+        "respondentGroup": null,
+        "canonicalTargetPopulation": null,
+        "evaluationTarget": null,
+        "canonicalSurveyObject": "늘봄센터 프로그램 학부모",
+        "title": null,
+        "description": null,
+        "questions": []
+      },
+      "generation": {
+        "httpStatus": 200,
+        "responseType": "clarification",
+        "responseStatus": "needs_clarification",
+        "generationSource": "clarification",
+        "classification": "clarification",
+        "fallbackReason": null,
+        "modelCallCount": 0,
+        "repairCount": 0,
+        "fallbackCount": 0,
+        "modelOutputRejected": false,
+        "errorCode": null,
+        "errorStage": null,
+        "firstFailureStage": null,
+        "responseDiagnostics": {
+          "status": "unknown",
+          "incompleteReason": null,
+          "outputParsed": false,
+          "outputItemTypes": []
+        }
+      },
+      "evaluation": {
+        "automatic": {
+          "fatalFailures": [],
+          "warnings": [],
+          "passed": true
+        },
+        "manual": {
+          "verdict": "accepted",
+          "note": "자동 판정과 수동 감사 결과가 일치함."
+        }
+      },
+      "requestId": "reg-v1-fronted-ambiguous-003-9e50fbb7",
+      "tokenUsage": {
+        "input": 0,
+        "cachedInput": 0,
+        "output": 0,
+        "total": 0,
+        "estimatedCostUsd": 0,
+        "note": "HTTP artifact에는 토큰 집계가 없으며 실행 전체 집계는 Vercel 로그 요약에 보존됨."
+      },
+      "latencyMs": 3777
+    },
+    {
+      "caseId": "fronted-clear-001",
+      "input": "최근 한 달 동안 별마루 카페를 이용한 주민을 대상으로 별마루 카페의 새 메뉴 만족도를 조사하고 싶다.",
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "최근 한 달 동안 별마루 카페를 이용한 주민"
+      ],
+      "expectedEligibilityConditions": [
+        "최근 한 달 내 별마루 카페 이용"
+      ],
+      "contextEntities": [
+        "별마루 카페"
+      ],
+      "expectedSurveyObject": [
+        "별마루 카페의 새 메뉴"
+      ],
+      "expectedPurposeConcepts": [
+        "새 메뉴 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도"
+      ],
+      "actual": {
+        "respondentGroup": "최근 한 달 동안 별마루 카페를 이용한 주민",
+        "canonicalTargetPopulation": "최근 한 달 동안 별마루 카페를 이용한 주민",
+        "evaluationTarget": "별마루 카페의 새 메뉴",
+        "canonicalSurveyObject": "별마루 카페의 새 메뉴",
+        "title": "별마루 카페 새 메뉴 만족도 조사",
+        "description": "최근 한 달 동안 별마루 카페를 이용한 주민을 대상으로 새 메뉴 경험을 알아보는 설문입니다. 새 메뉴를 먹거나 마셔 본 경험을 떠올리며 답해주세요. 약 3분 정도 걸립니다.",
+        "questions": [
+          {
+            "title": "최근 한 달 동안 별마루 카페의 새 메뉴를 먹거나 마셔 본 적이 있나요?",
+            "type": "single",
+            "options": [
+              "있어요",
+              "없어요"
+            ]
+          },
+          {
+            "title": "최근 한 달 동안 별마루 카페의 새 메뉴를 얼마나 자주 먹거나 마셨나요?",
+            "type": "single",
+            "options": [
+              "1회",
+              "2~3회",
+              "4~5회",
+              "6회 이상",
+              "먹거나 마신 적 없음"
+            ]
+          },
+          {
+            "title": "별마루 카페의 새 메뉴를 선택한 이유는 무엇이었나요?",
+            "type": "multiple",
+            "options": [
+              "맛이 궁금해서",
+              "새로 나온 메뉴라서",
+              "가격이 괜찮아 보여서",
+              "주변 사람의 추천을 받아서",
+              "기존 메뉴 대신 먹거나 마셔 보고 싶어서",
+              "기타"
+            ]
+          },
+          {
+            "title": "별마루 카페의 새 메뉴에 전반적으로 얼마나 만족했나요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "새 메뉴를 먹거나 마시면서 아쉬웠던 점이 있었나요?",
+            "type": "multiple",
+            "options": [
+              "맛이 기대와 달랐어요",
+              "가격이 부담스러웠어요",
+              "양이 적거나 많게 느껴졌어요",
+              "메뉴를 고르거나 주문하기 어려웠어요",
+              "기대했던 메뉴와 다르게 느껴졌어요",
+              "아쉬운 점이 없었어요",
+              "기타"
+            ]
+          },
+          {
+            "title": "새 메뉴에서 가장 먼저 개선됐으면 하는 점은 무엇인가요?",
+            "type": "single",
+            "options": [
+              "맛",
+              "가격",
+              "양",
+              "메뉴 안내와 주문 과정",
+              "개선할 점이 없어요",
+              "기타"
+            ]
+          },
+          {
+            "title": "앞으로 별마루 카페의 새 메뉴를 다시 선택할 가능성은 어느 정도인가요?",
+            "type": "scale",
+            "options": []
+          }
+        ]
+      },
+      "generation": {
+        "httpStatus": 200,
+        "responseType": "survey",
+        "responseStatus": "ready_with_caution",
+        "generationSource": "openai",
+        "classification": "deterministic_metadata_normalization",
+        "fallbackReason": null,
+        "modelCallCount": 1,
+        "repairCount": 0,
+        "fallbackCount": 0,
+        "modelOutputRejected": false,
+        "errorCode": null,
+        "errorStage": null,
+        "firstFailureStage": null,
+        "responseDiagnostics": {
+          "status": "completed",
+          "incompleteReason": null,
+          "outputParsed": true,
+          "outputItemTypes": [
+            "message"
+          ]
+        }
+      },
+      "evaluation": {
+        "automatic": {
+          "fatalFailures": [],
+          "warnings": [],
+          "passed": true
+        },
+        "manual": {
+          "verdict": "accepted",
+          "note": "자동 판정과 수동 감사 결과가 일치함."
+        }
+      },
+      "requestId": "reg-v1-fronted-clear-001-be2794fa",
+      "tokenUsage": {
+        "input": 0,
+        "cachedInput": 0,
+        "output": 0,
+        "total": 0,
+        "estimatedCostUsd": 0,
+        "note": "HTTP artifact에는 토큰 집계가 없으며 실행 전체 집계는 Vercel 로그 요약에 보존됨."
+      },
+      "latencyMs": 38742
+    },
+    {
+      "caseId": "fronted-clear-002",
+      "input": "새 기능 만족도는 다온 앱을 최근 3개월 사용한 대학생에게 조사",
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "최근 3개월 다온 앱을 사용한 대학생"
+      ],
+      "expectedEligibilityConditions": [
+        "최근 3개월 다온 앱 사용"
+      ],
+      "contextEntities": [
+        "다온 앱"
+      ],
+      "expectedSurveyObject": [
+        "다온 앱의 새 기능"
+      ],
+      "expectedPurposeConcepts": [
+        "새 기능 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도"
+      ],
+      "actual": {
+        "respondentGroup": null,
+        "canonicalTargetPopulation": "최근 3개월 다온 앱을 사용한 대학생",
+        "evaluationTarget": null,
+        "canonicalSurveyObject": "다온 앱의 새 기능",
+        "title": null,
+        "description": null,
+        "questions": []
+      },
+      "generation": {
+        "httpStatus": 422,
+        "responseType": "error",
+        "responseStatus": "error",
+        "generationSource": "semantic_validation_fallback",
+        "classification": "request_failure",
+        "fallbackReason": "model-output-rejected",
+        "modelCallCount": 1,
+        "repairCount": 1,
+        "fallbackCount": 1,
+        "modelOutputRejected": true,
+        "errorCode": "REPAIR_EXHAUSTED",
+        "errorStage": "repair-validation",
+        "firstFailureStage": "repair-validation",
+        "responseDiagnostics": {
+          "status": "completed",
+          "incompleteReason": null,
+          "outputParsed": true,
+          "outputItemTypes": [
+            "message"
+          ]
+        }
+      },
+      "evaluation": {
+        "automatic": {
+          "fatalFailures": [
+            {
+              "code": "REQUEST_FAILURE",
+              "message": "요청 실패: 422",
+              "cluster": "request_transport",
+              "fatal": true
+            },
+            {
+              "code": "ELIGIBILITY_CHECK_MISSING",
+              "message": "응답 적격 조건을 확인하는 screening 문항이 없음",
+              "cluster": "eligibility",
+              "fatal": true
+            },
+            {
+              "code": "REQUIRED_PURPOSE_MISSING",
+              "message": "필수 조사 목적 누락: 새 기능 만족도",
+              "cluster": "purpose_coverage",
+              "fatal": true
+            },
+            {
+              "code": "REQUIRED_QUESTION_CONCEPT_MISSING",
+              "message": "필수 문항 개념 누락: 만족도",
+              "cluster": "purpose_coverage",
+              "fatal": true
+            },
+            {
+              "code": "OVERALL_SATISFACTION_MISSING",
+              "message": "만족 요소만 묻고 전반적 만족도를 직접 측정하지 않음",
+              "cluster": "purpose_coverage",
+              "fatal": true
+            },
+            {
+              "code": "QUESTION_COUNT_MISMATCH",
+              "message": "문항 수 0/7",
+              "cluster": "question_quality",
+              "fatal": true
+            }
+          ],
+          "warnings": [],
+          "passed": false
+        },
+        "manual": {
+          "verdict": "true_product_failure",
+          "note": "응답 대상·적격 조건 표기와 만족도 coverage를 복구하지 못하고 422로 종료됨."
+        }
+      },
+      "requestId": "reg-v1-fronted-clear-002-1ab93226",
+      "tokenUsage": {
+        "input": 0,
+        "cachedInput": 0,
+        "output": 0,
+        "total": 0,
+        "estimatedCostUsd": 0,
+        "note": "HTTP artifact에는 토큰 집계가 없으며 실행 전체 집계는 Vercel 로그 요약에 보존됨."
+      },
+      "latencyMs": 37974
+    },
+    {
+      "caseId": "fronted-clear-003",
+      "input": "프로그램 만족도는 늘봄센터 프로그램에 이번 학기 참여한 학부모에게 조사",
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "이번 학기 늘봄센터 프로그램에 참여한 학부모"
+      ],
+      "expectedEligibilityConditions": [
+        "이번 학기 늘봄센터 프로그램 참여"
+      ],
+      "contextEntities": [
+        "늘봄센터 프로그램"
+      ],
+      "expectedSurveyObject": [
+        "늘봄센터 프로그램"
+      ],
+      "expectedPurposeConcepts": [
+        "프로그램 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도"
+      ],
+      "actual": {
+        "respondentGroup": "이번 학기 늘봄센터 프로그램을 참여한 학부모",
+        "canonicalTargetPopulation": "이번 학기 늘봄센터 프로그램을 참여한 학부모",
+        "evaluationTarget": "늘봄센터 프로그램",
+        "canonicalSurveyObject": "늘봄센터 프로그램",
+        "title": "이번 학기 늘봄센터 프로그램을 참여한 학부모의 실제 경험 여부·전반적 만족도 조사",
+        "description": "이번 학기 늘봄센터 프로그램을 참여한 학부모의 늘봄센터 프로그램 경험과 만족도, 개선 요구를 파악하기 위한 설문입니다.",
+        "questions": [
+          {
+            "title": "이번 학기 늘봄센터 프로그램을 참여한 학부모이 있나요?",
+            "type": "single",
+            "options": [
+              "경험 있음",
+              "경험 없음"
+            ]
+          },
+          {
+            "title": "늘봄센터 프로그램에 전반적으로 얼마나 만족하나요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "늘봄센터 프로그램에서 만족한 부분을 모두 골라주세요.",
+            "type": "multiple",
+            "options": [
+              "내용과 품질",
+              "이용 편의",
+              "시간과 일정",
+              "정보와 안내",
+              "비용 대비 가치",
+              "소통과 지원",
+              "기타"
+            ]
+          },
+          {
+            "title": "늘봄센터 프로그램에서 불편했던 점을 모두 골라주세요.",
+            "type": "multiple",
+            "options": [
+              "이용 절차",
+              "시간과 일정",
+              "정보 부족",
+              "품질 편차",
+              "비용 부담",
+              "소통 부족",
+              "불편한 점 없음",
+              "기타"
+            ]
+          },
+          {
+            "title": "늘봄센터 프로그램이 기대한 수준에 얼마나 가까웠나요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "늘봄센터 프로그램에서 가장 먼저 개선되어야 할 부분은 무엇인가요?",
+            "type": "single",
+            "options": [
+              "내용과 품질",
+              "이용 편의",
+              "시간과 일정",
+              "정보와 안내",
+              "비용",
+              "소통과 지원"
+            ]
+          },
+          {
+            "title": "늘봄센터 프로그램에 대해 추가로 전하고 싶은 의견이 있다면 적어주세요.",
+            "type": "text",
+            "options": []
+          }
+        ]
+      },
+      "generation": {
+        "httpStatus": 200,
+        "responseType": "survey",
+        "responseStatus": "ready_with_caution",
+        "generationSource": "openai_question_validation_fallback",
+        "classification": "hard_fallback",
+        "fallbackReason": "model-output-rejected",
+        "modelCallCount": 1,
+        "repairCount": 0,
+        "fallbackCount": 1,
+        "modelOutputRejected": true,
+        "errorCode": null,
+        "errorStage": null,
+        "firstFailureStage": "question-validation (generationSource 근거, 정확한 code는 artifact에 없음)",
+        "responseDiagnostics": {
+          "status": "completed",
+          "incompleteReason": null,
+          "outputParsed": true,
+          "outputItemTypes": [
+            "message"
+          ]
+        }
+      },
+      "evaluation": {
+        "automatic": {
+          "fatalFailures": [
+            {
+              "code": "HARD_FALLBACK",
+              "message": "명확한 입력이 hard fallback으로 처리됨",
+              "cluster": "hard_fallback",
+              "fatal": true
+            },
+            {
+              "code": "SCHEMA_ISSUES",
+              "message": "custom, integrity.0",
+              "cluster": "schema",
+              "fatal": true
+            }
+          ],
+          "warnings": [],
+          "passed": false
+        },
+        "manual": {
+          "verdict": "true_product_failure",
+          "note": "hard fallback screener가 프로그램 참여 조건 대신 인구 집단 존재 여부를 물어 비문이 됨."
+        }
+      },
+      "requestId": "reg-v1-fronted-clear-003-31a0f9cf",
+      "tokenUsage": {
+        "input": 0,
+        "cachedInput": 0,
+        "output": 0,
+        "total": 0,
+        "estimatedCostUsd": 0,
+        "note": "HTTP artifact에는 토큰 집계가 없으며 실행 전체 집계는 Vercel 로그 요약에 보존됨."
+      },
+      "latencyMs": 22627
+    },
+    {
+      "caseId": "fronted-clear-004",
+      "input": "신제품 만족도는 해든 매장에서 최근 한 달 구매한 고객에게 조사",
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "최근 한 달 해든 매장에서 구매한 고객"
+      ],
+      "expectedEligibilityConditions": [
+        "최근 한 달 해든 매장 구매"
+      ],
+      "contextEntities": [
+        "해든 매장"
+      ],
+      "expectedSurveyObject": [
+        "신제품"
+      ],
+      "expectedPurposeConcepts": [
+        "신제품 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도"
+      ],
+      "actual": {
+        "respondentGroup": "최근 한 달 해든 매장을 구매한 고객",
+        "canonicalTargetPopulation": "최근 한 달 해든 매장을 구매한 고객",
+        "evaluationTarget": "신제품",
+        "canonicalSurveyObject": "신제품",
+        "title": "신제품 만족도는 해든 매장에서 최근 한 달 구매한 고객에게 조사",
+        "description": "최근 한 달 해든 매장을 구매한 고객의 신제품 경험과 만족도, 개선 요구를 파악하기 위한 설문입니다.",
+        "questions": [
+          {
+            "title": "해당 신제품을 직접 구매하거나 먹어본 경험이 있나요?",
+            "type": "single",
+            "options": [
+              "경험 있음",
+              "경험 없음"
+            ]
+          },
+          {
+            "title": "신제품에 전반적으로 얼마나 만족하나요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "신제품에서 만족한 부분을 모두 골라주세요.",
+            "type": "multiple",
+            "options": [
+              "내용과 품질",
+              "이용 편의",
+              "시간과 일정",
+              "정보와 안내",
+              "비용 대비 가치",
+              "소통과 지원",
+              "기타"
+            ]
+          },
+          {
+            "title": "신제품에서 불편했던 점을 모두 골라주세요.",
+            "type": "multiple",
+            "options": [
+              "이용 절차",
+              "시간과 일정",
+              "정보 부족",
+              "품질 편차",
+              "비용 부담",
+              "소통 부족",
+              "불편한 점 없음",
+              "기타"
+            ]
+          },
+          {
+            "title": "신제품이 기대한 수준에 얼마나 가까웠나요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "신제품에서 가장 먼저 개선되어야 할 부분은 무엇인가요?",
+            "type": "single",
+            "options": [
+              "내용과 품질",
+              "이용 편의",
+              "시간과 일정",
+              "정보와 안내",
+              "비용",
+              "소통과 지원"
+            ]
+          },
+          {
+            "title": "신제품에 대해 추가로 전하고 싶은 의견이 있다면 적어주세요.",
+            "type": "text",
+            "options": []
+          }
+        ]
+      },
+      "generation": {
+        "httpStatus": 200,
+        "responseType": "survey",
+        "responseStatus": "ready_with_caution",
+        "generationSource": "openai_question_validation_fallback",
+        "classification": "hard_fallback",
+        "fallbackReason": "model-output-rejected",
+        "modelCallCount": 1,
+        "repairCount": 0,
+        "fallbackCount": 1,
+        "modelOutputRejected": true,
+        "errorCode": null,
+        "errorStage": null,
+        "firstFailureStage": "question-validation (generationSource 근거, 정확한 code는 artifact에 없음)",
+        "responseDiagnostics": {
+          "status": "completed",
+          "incompleteReason": null,
+          "outputParsed": true,
+          "outputItemTypes": [
+            "message"
+          ]
+        }
+      },
+      "evaluation": {
+        "automatic": {
+          "fatalFailures": [
+            {
+              "code": "HARD_FALLBACK",
+              "message": "명확한 입력이 hard fallback으로 처리됨",
+              "cluster": "hard_fallback",
+              "fatal": true
+            },
+            {
+              "code": "SCHEMA_ISSUES",
+              "message": "custom, integrity.0",
+              "cluster": "schema",
+              "fatal": true
+            }
+          ],
+          "warnings": [],
+          "passed": false
+        },
+        "manual": {
+          "verdict": "true_product_failure",
+          "note": "매장 맥락과 구매 행동을 결합해 ‘매장을 구매한 고객’으로 응답 대상을 왜곡함."
+        }
+      },
+      "requestId": "reg-v1-fronted-clear-004-646dc71a",
+      "tokenUsage": {
+        "input": 0,
+        "cachedInput": 0,
+        "output": 0,
+        "total": 0,
+        "estimatedCostUsd": 0,
+        "note": "HTTP artifact에는 토큰 집계가 없으며 실행 전체 집계는 Vercel 로그 요약에 보존됨."
+      },
+      "latencyMs": 24988
+    },
+    {
+      "caseId": "fronted-clear-005",
+      "input": "서비스 비이용 이유는 다온 플랫폼을 사용하지 않는 직장인에게 조사",
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "다온 플랫폼을 사용하지 않는 직장인"
+      ],
+      "expectedEligibilityConditions": [
+        "다온 플랫폼 비이용"
+      ],
+      "contextEntities": [
+        "다온 플랫폼"
+      ],
+      "expectedSurveyObject": [
+        "다온 플랫폼"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유"
+      ],
+      "actual": {
+        "respondentGroup": "다온 플랫폼을 사용하지 않는 직장인",
+        "canonicalTargetPopulation": "다온 플랫폼을 사용하지 않는 직장인",
+        "evaluationTarget": "다온 플랫폼",
+        "canonicalSurveyObject": "다온 플랫폼",
+        "title": "다온 플랫폼을 사용하지 않는 직장인의 비이용 이유 조사",
+        "description": "다온 플랫폼을 현재 사용하지 않는 직장인을 대상으로, 사용하지 않는 이유와 앞으로 이용을 고려할 조건을 알아보기 위한 설문입니다. 약 3분 정도 걸립니다.",
+        "questions": [
+          {
+            "title": "현재 직장에 다니고 있으며, 다온 플랫폼을 사용하지 않고 있나요?",
+            "type": "single",
+            "options": [
+              "네, 직장에 다니고 있고 사용하지 않습니다",
+              "아니요, 다온 플랫폼을 사용하고 있습니다",
+              "아니요, 현재 직장에 다니고 있지 않습니다"
+            ]
+          },
+          {
+            "title": "다온 플랫폼에 대해 어느 정도 알고 있었나요?",
+            "type": "single",
+            "options": [
+              "처음 들어봤습니다",
+              "이름만 들어봤습니다",
+              "대략 무엇을 하는 플랫폼인지 알고 있습니다",
+              "자세히 알고 있습니다"
+            ]
+          },
+          {
+            "title": "다온 플랫폼을 사용하지 않는 이유를 모두 골라주세요",
+            "type": "multiple",
+            "options": [
+              "플랫폼이 있는지 몰랐습니다",
+              "어떤 도움을 받을 수 있는지 잘 모르겠습니다",
+              "지금 사용하는 다른 방법이나 서비스로 충분합니다",
+              "나에게 필요한 플랫폼인지 확신이 없습니다",
+              "가입하거나 시작하는 과정이 번거로울 것 같습니다",
+              "개인정보나 정보 보안이 걱정됩니다",
+              "사용할 시간이 부족합니다",
+              "기타"
+            ]
+          },
+          {
+            "title": "사용하지 않는 데 가장 큰 영향을 준 이유는 무엇인가요?",
+            "type": "single",
+            "options": [
+              "플랫폼이 있는지 몰랐습니다",
+              "어떤 도움을 받을 수 있는지 잘 모르겠습니다",
+              "지금 사용하는 다른 방법이나 서비스로 충분합니다",
+              "나에게 필요한 플랫폼인지 확신이 없습니다",
+              "가입하거나 시작하는 과정이 번거로울 것 같습니다",
+              "개인정보나 정보 보안이 걱정됩니다",
+              "사용할 시간이 부족합니다",
+              "기타"
+            ]
+          },
+          {
+            "title": "어떤 조건이 갖춰지면 다온 플랫폼을 이용해 볼 수 있나요?",
+            "type": "multiple",
+            "options": [
+              "플랫폼이 제공하는 내용과 활용 방법을 쉽게 알 수 있다면",
+              "나의 업무나 상황에 도움이 된다는 점이 분명하다면",
+              "가입과 시작 과정이 간단하다면",
+              "개인정보와 보안이 충분히 신뢰된다면",
+              "기존에 쓰는 방법이나 서비스보다 더 나은 점이 있다면",
+              "짧은 시간에도 쉽게 사용할 수 있다면",
+              "이용할 생각이 없습니다",
+              "기타"
+            ]
+          },
+          {
+            "title": "앞으로 다온 플랫폼을 이용해 볼 가능성은 어느 정도인가요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "다온 플랫폼을 이용하지 않는 이유나, 이용하려면 바뀌었으면 하는 점이 있다면 적어주세요",
+            "type": "text",
+            "options": []
+          }
+        ]
+      },
+      "generation": {
+        "httpStatus": 200,
+        "responseType": "survey",
+        "responseStatus": "ready_with_caution",
+        "generationSource": "openai",
+        "classification": "deterministic_metadata_normalization",
+        "fallbackReason": null,
+        "modelCallCount": 1,
+        "repairCount": 0,
+        "fallbackCount": 0,
+        "modelOutputRejected": false,
+        "errorCode": null,
+        "errorStage": null,
+        "firstFailureStage": null,
+        "responseDiagnostics": {
+          "status": "completed",
+          "incompleteReason": null,
+          "outputParsed": true,
+          "outputItemTypes": [
+            "message"
+          ]
+        }
+      },
+      "evaluation": {
+        "automatic": {
+          "fatalFailures": [],
+          "warnings": [],
+          "passed": true
+        },
+        "manual": {
+          "verdict": "accepted",
+          "note": "자동 판정과 수동 감사 결과가 일치함."
+        }
+      },
+      "requestId": "reg-v1-fronted-clear-005-e08e4f69",
+      "tokenUsage": {
+        "input": 0,
+        "cachedInput": 0,
+        "output": 0,
+        "total": 0,
+        "estimatedCostUsd": 0,
+        "note": "HTTP artifact에는 토큰 집계가 없으며 실행 전체 집계는 Vercel 로그 요약에 보존됨."
+      },
+      "latencyMs": 25859
+    },
+    {
+      "caseId": "fronted-clear-006",
+      "input": "시설 인식은 늘빛 체육관을 최근 두 달 이용한 주민에게 조사",
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "최근 두 달 늘빛 체육관을 이용한 주민"
+      ],
+      "expectedEligibilityConditions": [
+        "최근 두 달 늘빛 체육관 이용"
+      ],
+      "contextEntities": [
+        "늘빛 체육관"
+      ],
+      "expectedSurveyObject": [
+        "늘빛 체육관"
+      ],
+      "expectedPurposeConcepts": [
+        "시설 인식"
+      ],
+      "requiredQuestionConcepts": [
+        "인식"
+      ],
+      "actual": {
+        "respondentGroup": null,
+        "canonicalTargetPopulation": "최근 두 달 늘빛 체육관을 이용한 주민",
+        "evaluationTarget": null,
+        "canonicalSurveyObject": "늘빛 체육관",
+        "title": null,
+        "description": null,
+        "questions": []
+      },
+      "generation": {
+        "httpStatus": 422,
+        "responseType": "error",
+        "responseStatus": "error",
+        "generationSource": "semantic_validation_fallback",
+        "classification": "request_failure",
+        "fallbackReason": "model-output-rejected",
+        "modelCallCount": 1,
+        "repairCount": 1,
+        "fallbackCount": 1,
+        "modelOutputRejected": true,
+        "errorCode": "REPAIR_EXHAUSTED",
+        "errorStage": "repair-validation",
+        "firstFailureStage": "repair-validation",
+        "responseDiagnostics": {
+          "status": "completed",
+          "incompleteReason": null,
+          "outputParsed": true,
+          "outputItemTypes": [
+            "reasoning",
+            "reasoning",
+            "message"
+          ]
+        }
+      },
+      "evaluation": {
+        "automatic": {
+          "fatalFailures": [
+            {
+              "code": "REQUEST_FAILURE",
+              "message": "요청 실패: 422",
+              "cluster": "request_transport",
+              "fatal": true
+            },
+            {
+              "code": "ELIGIBILITY_CHECK_MISSING",
+              "message": "응답 적격 조건을 확인하는 screening 문항이 없음",
+              "cluster": "eligibility",
+              "fatal": true
+            },
+            {
+              "code": "REQUIRED_PURPOSE_MISSING",
+              "message": "필수 조사 목적 누락: 시설 인식",
+              "cluster": "purpose_coverage",
+              "fatal": true
+            },
+            {
+              "code": "REQUIRED_QUESTION_CONCEPT_MISSING",
+              "message": "필수 문항 개념 누락: 인식",
+              "cluster": "purpose_coverage",
+              "fatal": true
+            },
+            {
+              "code": "QUESTION_COUNT_MISMATCH",
+              "message": "문항 수 0/7",
+              "cluster": "question_quality",
+              "fatal": true
+            }
+          ],
+          "warnings": [],
+          "passed": false
+        },
+        "manual": {
+          "verdict": "true_product_failure",
+          "note": "빈도 문항의 사용자 명시 기간이 repair-validation에서 사라져 422로 종료됨."
+        }
+      },
+      "requestId": "reg-v1-fronted-clear-006-d5763f89",
+      "tokenUsage": {
+        "input": 0,
+        "cachedInput": 0,
+        "output": 0,
+        "total": 0,
+        "estimatedCostUsd": 0,
+        "note": "HTTP artifact에는 토큰 집계가 없으며 실행 전체 집계는 Vercel 로그 요약에 보존됨."
+      },
+      "latencyMs": 40706
+    },
+    {
+      "caseId": "fronted-clear-007",
+      "input": "요금제 만족도는 온새미 플랫폼을 지난 6개월 사용한 직장인에게 조사",
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "지난 6개월 온새미 플랫폼을 사용한 직장인"
+      ],
+      "expectedEligibilityConditions": [
+        "지난 6개월 온새미 플랫폼 사용"
+      ],
+      "contextEntities": [
+        "온새미 플랫폼"
+      ],
+      "expectedSurveyObject": [
+        "온새미 플랫폼의 요금제"
+      ],
+      "expectedPurposeConcepts": [
+        "요금제 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도"
+      ],
+      "actual": {
+        "respondentGroup": "지난 6개월 온새미 플랫폼을 사용한 직장인",
+        "canonicalTargetPopulation": "지난 6개월 온새미 플랫폼을 사용한 직장인",
+        "evaluationTarget": "요금제",
+        "canonicalSurveyObject": "요금제",
+        "title": "온새미 플랫폼 요금제 만족도 조사",
+        "description": "지난 6개월 동안 온새미 플랫폼을 사용한 직장인을 대상으로 요금제에 대한 의견을 알아보기 위한 설문입니다. 약 2분 정도 걸립니다.",
+        "questions": [
+          {
+            "title": "지난 6개월 동안 온새미 플랫폼을 사용한 적이 있나요?",
+            "type": "single",
+            "options": [
+              "있음",
+              "없음"
+            ]
+          },
+          {
+            "title": "온새미 플랫폼을 사용했을 당시 직장인이었나요?",
+            "type": "single",
+            "options": [
+              "예",
+              "아니요"
+            ]
+          },
+          {
+            "title": "지난 6개월 동안 온새미 플랫폼을 얼마나 자주 사용했나요?",
+            "type": "single",
+            "options": [
+              "1회",
+              "2~5회",
+              "6~11회",
+              "12~23회",
+              "24회 이상"
+            ]
+          },
+          {
+            "title": "지난 6개월 동안 어떤 요금제를 사용했나요?",
+            "type": "single",
+            "options": [
+              "무료 요금제만 사용함",
+              "유료 요금제만 사용함",
+              "무료와 유료 요금제를 모두 사용함",
+              "기억나지 않음"
+            ]
+          },
+          {
+            "title": "온새미 플랫폼 요금제에 전반적으로 얼마나 만족했나요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "온새미 플랫폼의 요금 수준에 얼마나 만족했나요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "온새미 플랫폼 요금제에서 가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요",
+            "type": "text",
+            "options": []
+          }
+        ]
+      },
+      "generation": {
+        "httpStatus": 200,
+        "responseType": "survey",
+        "responseStatus": "ready_with_caution",
+        "generationSource": "openai",
+        "classification": "deterministic_metadata_normalization",
+        "fallbackReason": null,
+        "modelCallCount": 1,
+        "repairCount": 0,
+        "fallbackCount": 0,
+        "modelOutputRejected": false,
+        "errorCode": null,
+        "errorStage": null,
+        "firstFailureStage": "evaluator survey-object coverage",
+        "responseDiagnostics": {
+          "status": "completed",
+          "incompleteReason": null,
+          "outputParsed": true,
+          "outputItemTypes": [
+            "reasoning",
+            "reasoning",
+            "message"
+          ]
+        }
+      },
+      "evaluation": {
+        "automatic": {
+          "fatalFailures": [
+            {
+              "code": "SURVEY_OBJECT_MISMATCH",
+              "message": "조사 대상 불일치: 요금제",
+              "cluster": "survey_object",
+              "fatal": true
+            }
+          ],
+          "warnings": [],
+          "passed": false
+        },
+        "manual": {
+          "verdict": "evaluator_false_positive",
+          "note": "질문은 플랫폼·요금제·만족도를 모두 측정하지만 object metadata가 ‘요금제’로 축약되어 evaluator가 오탐함."
+        }
+      },
+      "requestId": "reg-v1-fronted-clear-007-dbe4853c",
+      "tokenUsage": {
+        "input": 0,
+        "cachedInput": 0,
+        "output": 0,
+        "total": 0,
+        "estimatedCostUsd": 0,
+        "note": "HTTP artifact에는 토큰 집계가 없으며 실행 전체 집계는 Vercel 로그 요약에 보존됨."
+      },
+      "latencyMs": 36547
+    },
+    {
+      "caseId": "fronted-clear-008",
+      "input": "축제 만족도는 봄빛 축제에 지난 주 참여한 청년에게 조사",
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "지난 주 봄빛 축제에 참여한 청년"
+      ],
+      "expectedEligibilityConditions": [
+        "지난 주 봄빛 축제 참여"
+      ],
+      "contextEntities": [
+        "봄빛 축제"
+      ],
+      "expectedSurveyObject": [
+        "봄빛 축제"
+      ],
+      "expectedPurposeConcepts": [
+        "축제 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도"
+      ],
+      "actual": {
+        "respondentGroup": "지난 주 봄빛 축제를 참여한 청년",
+        "canonicalTargetPopulation": "지난 주 봄빛 축제를 참여한 청년",
+        "evaluationTarget": "봄빛 축제",
+        "canonicalSurveyObject": "봄빛 축제",
+        "title": "지난주 봄빛 축제 참여 청년 만족도 조사",
+        "description": "지난주 봄빛 축제에 참여한 청년의 경험을 알아보기 위한 설문입니다. 약 3분 정도 걸립니다.",
+        "questions": [
+          {
+            "title": "지난주에 봄빛 축제에 참여했나요?",
+            "type": "single",
+            "options": [
+              "참여했음",
+              "참여하지 않았음"
+            ]
+          },
+          {
+            "title": "지난주 봄빛 축제에 며칠 참여했나요?",
+            "type": "single",
+            "options": [
+              "1일",
+              "2일",
+              "3일 이상",
+              "기억나지 않음"
+            ]
+          },
+          {
+            "title": "봄빛 축제 전반에 얼마나 만족했나요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "축제 현장에서 필요한 정보를 찾기 쉬웠나요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "축제에 참여하는 과정은 얼마나 편리했나요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "축제에 참여하면서 불편했던 점이 있다면 모두 골라주세요",
+            "type": "multiple",
+            "options": [
+              "행사 정보를 찾기 어려웠음",
+              "이동하거나 참여하기 불편했음",
+              "대기 시간이 길었음",
+              "참여하고 싶은 활동을 찾기 어려웠음",
+              "기타",
+              "불편했던 점이 없었음"
+            ]
+          },
+          {
+            "title": "봄빛 축제에서 가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요",
+            "type": "text",
+            "options": []
+          }
+        ]
+      },
+      "generation": {
+        "httpStatus": 200,
+        "responseType": "survey",
+        "responseStatus": "ready_with_caution",
+        "generationSource": "openai",
+        "classification": "deterministic_metadata_normalization",
+        "fallbackReason": null,
+        "modelCallCount": 1,
+        "repairCount": 0,
+        "fallbackCount": 0,
+        "modelOutputRejected": false,
+        "errorCode": null,
+        "errorStage": null,
+        "firstFailureStage": null,
+        "responseDiagnostics": {
+          "status": "completed",
+          "incompleteReason": null,
+          "outputParsed": true,
+          "outputItemTypes": [
+            "reasoning",
+            "message"
+          ]
+        }
+      },
+      "evaluation": {
+        "automatic": {
+          "fatalFailures": [],
+          "warnings": [],
+          "passed": true
+        },
+        "manual": {
+          "verdict": "accepted",
+          "note": "자동 판정과 수동 감사 결과가 일치함."
+        }
+      },
+      "requestId": "reg-v1-fronted-clear-008-964864ba",
+      "tokenUsage": {
+        "input": 0,
+        "cachedInput": 0,
+        "output": 0,
+        "total": 0,
+        "estimatedCostUsd": 0,
+        "note": "HTTP artifact에는 토큰 집계가 없으며 실행 전체 집계는 Vercel 로그 요약에 보존됨."
+      },
+      "latencyMs": 31503
+    },
+    {
+      "caseId": "fronted-control-001",
+      "input": "새봄대학교 학생의 별마루 카페 이용 경험과 불편",
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 학생"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "별마루 카페"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 경험",
+        "불편"
+      ],
+      "requiredQuestionConcepts": [
+        "이용 경험",
+        "불편"
+      ],
+      "actual": {
+        "respondentGroup": "별마루 카페를 이용하거나 방문한 새봄대학교 재학생",
+        "canonicalTargetPopulation": "새봄대학교 학생",
+        "evaluationTarget": "별마루 카페",
+        "canonicalSurveyObject": "별마루 카페",
+        "title": "새봄대학교 학생의 별마루 카페 이용 경험 조사",
+        "description": "별마루 카페를 이용하거나 방문한 새봄대학교 재학생을 대상으로, 별마루 카페를 이용하거나 방문한 경험을 바탕으로 답해주세요. 응답 결과는 이용 경험과 개선이 필요한 점을 파악하는 데 활용됩니다. 약 3분 정도 걸립니다.",
+        "questions": [
+          {
+            "title": "현재 대학교 또는 대학원에 재학하거나 휴학 중이신가요?",
+            "type": "single",
+            "options": [
+              "재학 중",
+              "휴학 중",
+              "졸업 또는 수료",
+              "해당하지 않음"
+            ]
+          },
+          {
+            "title": "별마루 카페를 주로 어떤 목적으로 이용하나요?",
+            "type": "multiple",
+            "options": [
+              "음료나 음식을 구매하려고",
+              "공부하거나 과제를 하려고",
+              "쉬거나 시간을 보내려고",
+              "친구나 지인과 만나려고",
+              "수업이나 일정 사이에 잠시 들르려고",
+              "기타"
+            ]
+          },
+          {
+            "title": "별마루 카페를 전반적으로 얼마나 만족했나요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "별마루 카페를 이용하면서 불편했던 점이 있나요?",
+            "type": "multiple",
+            "options": [
+              "좌석을 이용하기 어려웠음",
+              "주문하거나 받는 데 시간이 오래 걸렸음",
+              "가격이 부담스러웠음",
+              "매장 환경이 불편했음",
+              "원하는 메뉴나 상품을 고르기 어려웠음",
+              "기타",
+              "불편했던 점이 없었음"
+            ]
+          },
+          {
+            "title": "별마루 카페에서 가장 먼저 개선됐으면 하는 점은 무엇인가요?",
+            "type": "multiple",
+            "options": [
+              "좌석과 공간 이용 환경",
+              "주문과 수령 과정",
+              "가격 수준",
+              "메뉴나 상품 구성",
+              "매장 청결과 쾌적함",
+              "기타",
+              "개선이 필요하지 않음"
+            ]
+          },
+          {
+            "title": "앞으로 별마루 카페를 다시 이용할 가능성은 어느 정도인가요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "별마루 카페에서 가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요",
+            "type": "text",
+            "options": []
+          }
+        ]
+      },
+      "generation": {
+        "httpStatus": 200,
+        "responseType": "survey",
+        "responseStatus": "ready_with_caution",
+        "generationSource": "openai_partial_repair",
+        "classification": "partial_repair",
+        "fallbackReason": null,
+        "modelCallCount": 1,
+        "repairCount": 1,
+        "fallbackCount": 0,
+        "modelOutputRejected": false,
+        "errorCode": null,
+        "errorStage": null,
+        "firstFailureStage": "partial-repair (generationSource 근거)",
+        "responseDiagnostics": {
+          "status": "completed",
+          "incompleteReason": null,
+          "outputParsed": true,
+          "outputItemTypes": [
+            "message"
+          ]
+        }
+      },
+      "evaluation": {
+        "automatic": {
+          "fatalFailures": [
+            {
+              "code": "TARGET_POPULATION_MISMATCH",
+              "message": "응답 대상 불일치: 별마루 카페를 이용하거나 방문한 새봄대학교 재학생",
+              "cluster": "target_population",
+              "fatal": true
+            },
+            {
+              "code": "REQUIRED_QUESTION_CONCEPT_MISSING",
+              "message": "필수 문항 개념 누락: 이용 경험",
+              "cluster": "purpose_coverage",
+              "fatal": true
+            }
+          ],
+          "warnings": [
+            {
+              "code": "PARTIAL_REPAIR",
+              "message": "모델 출력 일부가 복구됨",
+              "cluster": "partial_repair",
+              "fatal": false
+            }
+          ],
+          "passed": false
+        },
+        "manual": {
+          "verdict": "true_product_failure",
+          "note": "전체 학생을 카페 이용자로 축소하고 이용 여부 확인 문항을 누락함."
+        }
+      },
+      "requestId": "reg-v1-fronted-control-001-fe8e7993",
+      "tokenUsage": {
+        "input": 0,
+        "cachedInput": 0,
+        "output": 0,
+        "total": 0,
+        "estimatedCostUsd": 0,
+        "note": "HTTP artifact에는 토큰 집계가 없으며 실행 전체 집계는 Vercel 로그 요약에 보존됨."
+      },
+      "latencyMs": 26914
+    },
+    {
+      "caseId": "fronted-control-002",
+      "input": "별마루 카페 이용자의 카페 전체 만족도",
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "별마루 카페 이용자"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "별마루 카페",
+        "카페 전체"
+      ],
+      "expectedPurposeConcepts": [
+        "카페 전체 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도"
+      ],
+      "actual": {
+        "respondentGroup": "별마루 카페 이용자",
+        "canonicalTargetPopulation": "별마루 카페 이용자",
+        "evaluationTarget": "카페 전체",
+        "canonicalSurveyObject": "카페 전체",
+        "title": "별마루 카페 전체 만족도 조사",
+        "description": "별마루 카페를 이용해 본 분들의 의견을 듣고자 합니다. 응답은 카페 경험을 살피고 개선 방향을 정하는 데 활용됩니다. 약 3분 정도 걸립니다.",
+        "questions": [
+          {
+            "title": "최근 한 달 동안 별마루 카페를 얼마나 자주 방문하나요?",
+            "type": "single",
+            "options": [
+              "처음 방문했음",
+              "가끔 방문함",
+              "한 달에 1~3회 방문함",
+              "일주일에 1회 방문함",
+              "일주일에 2회 이상 방문함"
+            ]
+          },
+          {
+            "title": "별마루 카페에는 주로 어떤 목적으로 방문하나요?",
+            "type": "multiple",
+            "options": [
+              "음료나 음식을 먹기 위해",
+              "혼자 쉬거나 시간을 보내기 위해",
+              "공부하거나 일을 하기 위해",
+              "다른 사람을 만나기 위해",
+              "이동 중 잠시 들르기 위해",
+              "기타"
+            ]
+          },
+          {
+            "title": "별마루 카페 전체 경험에 얼마나 만족하나요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "카페를 이용하는 과정은 얼마나 편리했나요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "카페 공간에서 머무는 경험은 얼마나 만족스러웠나요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "별마루 카페에서 가장 먼저 개선됐으면 하는 부분은 무엇인가요?",
+            "type": "multiple",
+            "options": [
+              "음료나 음식의 품질",
+              "가격 수준",
+              "주문하거나 받는 과정",
+              "좌석과 공간 환경",
+              "직원 응대",
+              "특별히 개선할 부분이 없음",
+              "기타"
+            ]
+          },
+          {
+            "title": "별마루 카페에서 가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요",
+            "type": "text",
+            "options": []
+          }
+        ]
+      },
+      "generation": {
+        "httpStatus": 200,
+        "responseType": "survey",
+        "responseStatus": "ready_with_caution",
+        "generationSource": "openai_partial_repair",
+        "classification": "partial_repair",
+        "fallbackReason": null,
+        "modelCallCount": 1,
+        "repairCount": 1,
+        "fallbackCount": 0,
+        "modelOutputRejected": false,
+        "errorCode": null,
+        "errorStage": null,
+        "firstFailureStage": null,
+        "responseDiagnostics": {
+          "status": "completed",
+          "incompleteReason": null,
+          "outputParsed": true,
+          "outputItemTypes": [
+            "message"
+          ]
+        }
+      },
+      "evaluation": {
+        "automatic": {
+          "fatalFailures": [],
+          "warnings": [
+            {
+              "code": "PARTIAL_REPAIR",
+              "message": "모델 출력 일부가 복구됨",
+              "cluster": "partial_repair",
+              "fatal": false
+            }
+          ],
+          "passed": true
+        },
+        "manual": {
+          "verdict": "accepted",
+          "note": "자동 판정과 수동 감사 결과가 일치함."
+        }
+      },
+      "requestId": "reg-v1-fronted-control-002-46f48b09",
+      "tokenUsage": {
+        "input": 0,
+        "cachedInput": 0,
+        "output": 0,
+        "total": 0,
+        "estimatedCostUsd": 0,
+        "note": "HTTP artifact에는 토큰 집계가 없으며 실행 전체 집계는 Vercel 로그 요약에 보존됨."
+      },
+      "latencyMs": 23996
+    },
+    {
+      "caseId": "fronted-control-003",
+      "input": "별마루 카페 새 메뉴와 기존 메뉴 이용자의 만족도 비교",
+      "inputQuality": "clear",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새 메뉴와 기존 메뉴 이용자"
+      ],
+      "expectedEligibilityConditions": [],
+      "contextEntities": [],
+      "expectedSurveyObject": [
+        "별마루 카페 새 메뉴",
+        "기존 메뉴"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도 비교"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도",
+        "대상 비교"
+      ],
+      "actual": {
+        "respondentGroup": "별마루 카페 새 메뉴와 기존 메뉴 이용자",
+        "canonicalTargetPopulation": "별마루 카페 새 메뉴와 기존 메뉴 이용자",
+        "evaluationTarget": "별마루 카페 새 메뉴·기존 메뉴",
+        "canonicalSurveyObject": "별마루 카페 새 메뉴 및 기존 메뉴",
+        "title": "별마루 카페 새 메뉴와 기존 메뉴 만족도 조사",
+        "description": "별마루 카페 새 메뉴와 기존 메뉴 이용자를 대상으로, 별마루 카페의 새 메뉴와 기존 메뉴를 모두 먹어 본 경험을 바탕으로 답해주세요. 응답은 메뉴 만족도를 비교하고 개선점을 살펴보는 데 활용됩니다. 약 3분 정도 걸립니다.",
+        "questions": [
+          {
+            "title": "별마루 카페의 새 메뉴와 기존 메뉴를 모두 먹어 본 적이 있나요?",
+            "type": "single",
+            "options": [
+              "새 메뉴와 기존 메뉴를 모두 먹어 봄",
+              "새 메뉴만 먹어 봄",
+              "기존 메뉴만 먹어 봄",
+              "둘 다 먹어 본 적 없음"
+            ]
+          },
+          {
+            "title": "최근 한 달 동안 새 메뉴를 얼마나 자주 주문하나요?",
+            "type": "single",
+            "options": [
+              "처음 주문해 봄",
+              "가끔 주문함",
+              "자주 주문함",
+              "주문한 적 없음"
+            ]
+          },
+          {
+            "title": "최근 한 달 동안 기존 메뉴를 얼마나 자주 주문하나요?",
+            "type": "single",
+            "options": [
+              "처음 주문해 봄",
+              "가끔 주문함",
+              "자주 주문함",
+              "주문한 적 없음"
+            ]
+          },
+          {
+            "title": "새 메뉴에 전반적으로 얼마나 만족했나요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "기존 메뉴에 전반적으로 얼마나 만족했나요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "더 만족한 메뉴 유형을 고른 가장 큰 이유는 무엇인가요?",
+            "type": "multiple",
+            "options": [
+              "맛이 더 좋았음",
+              "가격이 더 적절했음",
+              "메뉴 구성이 더 마음에 들었음",
+              "주문하고 받는 과정이 더 편했음",
+              "특별히 더 만족한 메뉴 유형은 없었음",
+              "기타"
+            ]
+          },
+          {
+            "title": "새 메뉴나 기존 메뉴에서 가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요",
+            "type": "text",
+            "options": []
+          }
+        ]
+      },
+      "generation": {
+        "httpStatus": 200,
+        "responseType": "survey",
+        "responseStatus": "ready_with_caution",
+        "generationSource": "openai_partial_repair",
+        "classification": "partial_repair",
+        "fallbackReason": null,
+        "modelCallCount": 1,
+        "repairCount": 1,
+        "fallbackCount": 0,
+        "modelOutputRejected": false,
+        "errorCode": null,
+        "errorStage": null,
+        "firstFailureStage": "evaluator comparison coverage",
+        "responseDiagnostics": {
+          "status": "completed",
+          "incompleteReason": null,
+          "outputParsed": true,
+          "outputItemTypes": [
+            "message"
+          ]
+        }
+      },
+      "evaluation": {
+        "automatic": {
+          "fatalFailures": [
+            {
+              "code": "REQUIRED_QUESTION_CONCEPT_MISSING",
+              "message": "필수 문항 개념 누락: 대상 비교",
+              "cluster": "purpose_coverage",
+              "fatal": true
+            }
+          ],
+          "warnings": [
+            {
+              "code": "PARTIAL_REPAIR",
+              "message": "모델 출력 일부가 복구됨",
+              "cluster": "partial_repair",
+              "fatal": false
+            }
+          ],
+          "passed": false
+        },
+        "manual": {
+          "verdict": "evaluator_false_positive",
+          "note": "두 메뉴의 경험·빈도·만족도를 각각 측정하고 더 만족한 메뉴의 이유까지 묻지만 비교 표현 matcher가 이를 놓침."
+        }
+      },
+      "requestId": "reg-v1-fronted-control-003-6829142b",
+      "tokenUsage": {
+        "input": 0,
+        "cachedInput": 0,
+        "output": 0,
+        "total": 0,
+        "estimatedCostUsd": 0,
+        "note": "HTTP artifact에는 토큰 집계가 없으며 실행 전체 집계는 Vercel 로그 요약에 보존됨."
+      },
+      "latencyMs": 22184
+    },
+    {
+      "caseId": "fronted-noisy-001",
+      "input": "새 메뉴 만족도는 별마루 카페를 최근 한 달 이용한 주민한테 조사",
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "최근 한 달 별마루 카페를 이용한 주민"
+      ],
+      "expectedEligibilityConditions": [
+        "최근 한 달 별마루 카페 이용"
+      ],
+      "contextEntities": [
+        "별마루 카페"
+      ],
+      "expectedSurveyObject": [
+        "별마루 카페의 새 메뉴"
+      ],
+      "expectedPurposeConcepts": [
+        "새 메뉴 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도"
+      ],
+      "actual": {
+        "respondentGroup": "최근 한 달 별마루 카페를 이용한 주민",
+        "canonicalTargetPopulation": "최근 한 달 별마루 카페를 이용한 주민",
+        "evaluationTarget": "별마루 카페의 새 메뉴",
+        "canonicalSurveyObject": "별마루 카페의 새 메뉴",
+        "title": "별마루 카페 새 메뉴 만족도 조사",
+        "description": "최근 한 달 별마루 카페를 이용한 주민을 대상으로 새 메뉴에 대한 의견을 듣고자 합니다. 약 3분 정도 걸립니다.",
+        "questions": [
+          {
+            "title": "최근 한 달 안에 별마루 카페를 이용한 적이 있나요?",
+            "type": "single",
+            "options": [
+              "있음",
+              "없음"
+            ]
+          },
+          {
+            "title": "별마루 카페에 새 메뉴가 나왔다는 것을 알고 있었나요?",
+            "type": "single",
+            "options": [
+              "알고 있었음",
+              "이번에 처음 알았음",
+              "잘 기억나지 않음"
+            ]
+          },
+          {
+            "title": "최근 한 달 동안 별마루 카페의 새 메뉴를 먹어 본 적이 있나요?",
+            "type": "single",
+            "options": [
+              "있음",
+              "없음",
+              "잘 기억나지 않음"
+            ]
+          },
+          {
+            "title": "최근 한 달 동안 별마루 카페를 얼마나 자주 이용했나요?",
+            "type": "single",
+            "options": [
+              "1회",
+              "2~3회",
+              "4~7회",
+              "8회 이상",
+              "이용하지 않았음"
+            ]
+          },
+          {
+            "title": "먹어 본 별마루 카페의 새 메뉴는 전반적으로 어땠나요?",
+            "type": "single",
+            "options": [
+              "매우 만족스러웠음",
+              "만족스러운 편이었음",
+              "보통이었음",
+              "만족스럽지 않은 편이었음",
+              "전혀 만족스럽지 않았음",
+              "새 메뉴를 먹어 보지 않았음",
+              "잘 기억나지 않음"
+            ]
+          },
+          {
+            "title": "새 메뉴에서 가장 먼저 개선됐으면 하는 점을 골라주세요",
+            "type": "multiple",
+            "options": [
+              "맛",
+              "가격",
+              "양",
+              "메뉴 구성",
+              "메뉴 안내 방식",
+              "기타",
+              "개선할 점이 없음",
+              "새 메뉴를 먹어 보지 않았음"
+            ]
+          },
+          {
+            "title": "새 메뉴에서 가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요",
+            "type": "text",
+            "options": []
+          }
+        ]
+      },
+      "generation": {
+        "httpStatus": 200,
+        "responseType": "survey",
+        "responseStatus": "ready_with_caution",
+        "generationSource": "openai_partial_repair",
+        "classification": "partial_repair",
+        "fallbackReason": null,
+        "modelCallCount": 1,
+        "repairCount": 1,
+        "fallbackCount": 0,
+        "modelOutputRejected": false,
+        "errorCode": null,
+        "errorStage": null,
+        "firstFailureStage": "partial-repair (generationSource 근거)",
+        "responseDiagnostics": {
+          "status": "completed",
+          "incompleteReason": null,
+          "outputParsed": true,
+          "outputItemTypes": [
+            "reasoning",
+            "reasoning",
+            "message"
+          ]
+        }
+      },
+      "evaluation": {
+        "automatic": {
+          "fatalFailures": [
+            {
+              "code": "OVERALL_SATISFACTION_MISSING",
+              "message": "만족 요소만 묻고 전반적 만족도를 직접 측정하지 않음",
+              "cluster": "purpose_coverage",
+              "fatal": true
+            }
+          ],
+          "warnings": [
+            {
+              "code": "PARTIAL_REPAIR",
+              "message": "모델 출력 일부가 복구됨",
+              "cluster": "partial_repair",
+              "fatal": false
+            }
+          ],
+          "passed": false
+        },
+        "manual": {
+          "verdict": "true_product_failure",
+          "note": "만족도 측정을 ‘어땠나요’로 약화해 전반적 만족도를 직접 측정하지 않음."
+        }
+      },
+      "requestId": "reg-v1-fronted-noisy-001-325b1c2b",
+      "tokenUsage": {
+        "input": 0,
+        "cachedInput": 0,
+        "output": 0,
+        "total": 0,
+        "estimatedCostUsd": 0,
+        "note": "HTTP artifact에는 토큰 집계가 없으며 실행 전체 집계는 Vercel 로그 요약에 보존됨."
+      },
+      "latencyMs": 38168
+    },
+    {
+      "caseId": "fronted-noisy-002",
+      "input": "새 기능 만족도는 다온 앱 최근 3개월 쓴 대학생한테 조사",
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "최근 3개월 다온 앱을 쓴 대학생"
+      ],
+      "expectedEligibilityConditions": [
+        "최근 3개월 다온 앱 사용"
+      ],
+      "contextEntities": [
+        "다온 앱"
+      ],
+      "expectedSurveyObject": [
+        "다온 앱의 새 기능"
+      ],
+      "expectedPurposeConcepts": [
+        "새 기능 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도"
+      ],
+      "actual": {
+        "respondentGroup": "최근 3개월 다온 앱을 쓴 대학생",
+        "canonicalTargetPopulation": "최근 3개월 다온 앱을 쓴 대학생",
+        "evaluationTarget": "다온 앱의 새 기능",
+        "canonicalSurveyObject": "다온 앱의 새 기능",
+        "title": "새 기능 만족도는 다온 앱 최근 3개월 쓴 대학생한테 조사",
+        "description": "최근 3개월 다온 앱을 쓴 대학생의 다온 앱의 새 기능 경험과 만족도, 개선 요구를 파악하기 위한 설문입니다.",
+        "questions": [
+          {
+            "title": "최근 3개월 다온 앱을 쓴 대학생이 있나요?",
+            "type": "single",
+            "options": [
+              "경험 있음",
+              "경험 없음"
+            ]
+          },
+          {
+            "title": "다온 앱의 새 기능에 전반적으로 얼마나 만족하나요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "다온 앱의 새 기능에서 만족한 부분을 모두 골라주세요.",
+            "type": "multiple",
+            "options": [
+              "내용과 품질",
+              "이용 편의",
+              "시간과 일정",
+              "정보와 안내",
+              "비용 대비 가치",
+              "소통과 지원",
+              "기타"
+            ]
+          },
+          {
+            "title": "다온 앱의 새 기능에서 불편했던 점을 모두 골라주세요.",
+            "type": "multiple",
+            "options": [
+              "이용 절차",
+              "시간과 일정",
+              "정보 부족",
+              "품질 편차",
+              "비용 부담",
+              "소통 부족",
+              "불편한 점 없음",
+              "기타"
+            ]
+          },
+          {
+            "title": "다온 앱의 새 기능이 기대한 수준에 얼마나 가까웠나요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "다온 앱의 새 기능에서 가장 먼저 개선되어야 할 부분은 무엇인가요?",
+            "type": "single",
+            "options": [
+              "내용과 품질",
+              "이용 편의",
+              "시간과 일정",
+              "정보와 안내",
+              "비용",
+              "소통과 지원"
+            ]
+          },
+          {
+            "title": "다온 앱의 새 기능에 대해 추가로 전하고 싶은 의견이 있다면 적어주세요.",
+            "type": "text",
+            "options": []
+          }
+        ]
+      },
+      "generation": {
+        "httpStatus": 200,
+        "responseType": "survey",
+        "responseStatus": "ready_with_caution",
+        "generationSource": "semantic_validation_fallback",
+        "classification": "hard_fallback",
+        "fallbackReason": "model-output-rejected",
+        "modelCallCount": 1,
+        "repairCount": 1,
+        "fallbackCount": 1,
+        "modelOutputRejected": true,
+        "errorCode": null,
+        "errorStage": null,
+        "firstFailureStage": "semantic-validation (generationSource 근거)",
+        "responseDiagnostics": {
+          "status": "completed",
+          "incompleteReason": null,
+          "outputParsed": true,
+          "outputItemTypes": [
+            "web_search_call",
+            "reasoning",
+            "message"
+          ]
+        }
+      },
+      "evaluation": {
+        "automatic": {
+          "fatalFailures": [
+            {
+              "code": "HARD_FALLBACK",
+              "message": "명확한 입력이 hard fallback으로 처리됨",
+              "cluster": "hard_fallback",
+              "fatal": true
+            }
+          ],
+          "warnings": [],
+          "passed": false
+        },
+        "manual": {
+          "verdict": "true_product_failure",
+          "note": "최근 앱 사용 조건 대신 ‘대학생이 있나요’ 형태의 잘못된 screener를 생성함."
+        }
+      },
+      "requestId": "reg-v1-fronted-noisy-002-7964a082",
+      "tokenUsage": {
+        "input": 0,
+        "cachedInput": 0,
+        "output": 0,
+        "total": 0,
+        "estimatedCostUsd": 0,
+        "note": "HTTP artifact에는 토큰 집계가 없으며 실행 전체 집계는 Vercel 로그 요약에 보존됨."
+      },
+      "latencyMs": 38802
+    },
+    {
+      "caseId": "fronted-noisy-003",
+      "input": "프로그램 만족도는 늘봄센터 프로그램 이번 학기 참여한 학부모한테 조사",
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "이번 학기 늘봄센터 프로그램에 참여한 학부모"
+      ],
+      "expectedEligibilityConditions": [
+        "이번 학기 늘봄센터 프로그램 참여"
+      ],
+      "contextEntities": [
+        "늘봄센터 프로그램"
+      ],
+      "expectedSurveyObject": [
+        "늘봄센터 프로그램"
+      ],
+      "expectedPurposeConcepts": [
+        "프로그램 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도"
+      ],
+      "actual": {
+        "respondentGroup": "이번 학기 늘봄센터 프로그램을 참여한 학부모",
+        "canonicalTargetPopulation": "이번 학기 늘봄센터 프로그램을 참여한 학부모",
+        "evaluationTarget": "늘봄센터 프로그램",
+        "canonicalSurveyObject": "늘봄센터 프로그램",
+        "title": "늘봄센터 프로그램 만족도 조사",
+        "description": "이번 학기 늘봄센터 프로그램에 참여한 학부모님의 의견을 듣기 위한 설문입니다. 약 3분 정도 걸립니다.",
+        "questions": [
+          {
+            "title": "이번 학기에 자녀가 늘봄센터 프로그램에 참여했나요?",
+            "type": "single",
+            "options": [
+              "참여했음",
+              "참여하지 않았음"
+            ]
+          },
+          {
+            "title": "이번 학기에 자녀가 늘봄센터 프로그램에 얼마나 자주 참여했나요?",
+            "type": "single",
+            "options": [
+              "1~2회",
+              "3~5회",
+              "6~10회",
+              "11회 이상",
+              "잘 기억나지 않음"
+            ]
+          },
+          {
+            "title": "이번 학기 늘봄센터 프로그램에 전반적으로 얼마나 만족하셨나요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "프로그램이 자녀에게 도움이 되었다고 느끼시나요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "프로그램 안내를 확인하고 참여를 준비하는 과정은 어땠나요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "늘봄센터 프로그램에서 가장 먼저 개선됐으면 하는 점을 골라주세요",
+            "type": "multiple",
+            "options": [
+              "프로그램 내용",
+              "운영 시간",
+              "신청과 안내 방법",
+              "자녀별 프로그램 선택 폭",
+              "기타",
+              "개선할 점이 없음"
+            ]
+          },
+          {
+            "title": "늘봄센터 프로그램에서 가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요",
+            "type": "text",
+            "options": []
+          }
+        ]
+      },
+      "generation": {
+        "httpStatus": 200,
+        "responseType": "survey",
+        "responseStatus": "ready_with_caution",
+        "generationSource": "openai",
+        "classification": "deterministic_metadata_normalization",
+        "fallbackReason": null,
+        "modelCallCount": 1,
+        "repairCount": 0,
+        "fallbackCount": 0,
+        "modelOutputRejected": false,
+        "errorCode": null,
+        "errorStage": null,
+        "firstFailureStage": null,
+        "responseDiagnostics": {
+          "status": "completed",
+          "incompleteReason": null,
+          "outputParsed": true,
+          "outputItemTypes": [
+            "message"
+          ]
+        }
+      },
+      "evaluation": {
+        "automatic": {
+          "fatalFailures": [],
+          "warnings": [],
+          "passed": true
+        },
+        "manual": {
+          "verdict": "accepted",
+          "note": "자동 판정과 수동 감사 결과가 일치함."
+        }
+      },
+      "requestId": "reg-v1-fronted-noisy-003-42c27742",
+      "tokenUsage": {
+        "input": 0,
+        "cachedInput": 0,
+        "output": 0,
+        "total": 0,
+        "estimatedCostUsd": 0,
+        "note": "HTTP artifact에는 토큰 집계가 없으며 실행 전체 집계는 Vercel 로그 요약에 보존됨."
+      },
+      "latencyMs": 22862
+    },
+    {
+      "caseId": "fronted-noisy-004",
+      "input": "신제품 만족도는 해든 매장 최근 한 달 구매한 고객한테 조사",
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "최근 한 달 해든 매장에서 구매한 고객"
+      ],
+      "expectedEligibilityConditions": [
+        "최근 한 달 해든 매장 구매"
+      ],
+      "contextEntities": [
+        "해든 매장"
+      ],
+      "expectedSurveyObject": [
+        "신제품"
+      ],
+      "expectedPurposeConcepts": [
+        "신제품 만족도"
+      ],
+      "requiredQuestionConcepts": [
+        "만족도"
+      ],
+      "actual": {
+        "respondentGroup": "최근 한 달 해든 매장을 구매한 고객",
+        "canonicalTargetPopulation": "최근 한 달 해든 매장을 구매한 고객",
+        "evaluationTarget": "신제품",
+        "canonicalSurveyObject": "신제품",
+        "title": "해든 매장 신제품 만족도 조사",
+        "description": "최근 한 달 동안 해든 매장에서 신제품을 구매한 고객을 대상으로 구매 경험을 알아보기 위한 설문입니다. 약 3분 정도 걸립니다.",
+        "questions": [
+          {
+            "title": "최근 한 달 동안 해든 매장에서 신제품을 구매한 적이 있나요?",
+            "type": "single",
+            "options": [
+              "있음",
+              "없음",
+              "기억나지 않음"
+            ]
+          },
+          {
+            "title": "최근 한 달 동안 해든 매장에서 신제품을 몇 번 구매했나요?",
+            "type": "single",
+            "options": [
+              "1회",
+              "2~3회",
+              "4~5회",
+              "6회 이상",
+              "구매한 적 없음",
+              "기억나지 않음"
+            ]
+          },
+          {
+            "title": "신제품을 구매한 이유를 모두 골라주세요",
+            "type": "multiple",
+            "options": [
+              "신제품이라 궁금해서",
+              "평소 구매하던 제품과 달라서",
+              "가격이나 혜택이 마음에 들어서",
+              "다른 사람의 추천을 받아서",
+              "매장에서 눈에 띄어서",
+              "기타",
+              "구매한 적 없음"
+            ]
+          },
+          {
+            "title": "구매한 신제품에 전반적으로 얼마나 만족했나요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "신제품을 구매하거나 사용하면서 불편했던 점이 있었다면 모두 골라주세요",
+            "type": "multiple",
+            "options": [
+              "제품 정보를 이해하기 어려웠음",
+              "가격이 기대와 달랐음",
+              "제품 자체가 기대와 달랐음",
+              "구매 과정이 불편했음",
+              "기타",
+              "불편했던 점 없음",
+              "구매한 적 없음"
+            ]
+          },
+          {
+            "title": "신제품에서 가장 먼저 개선됐으면 하는 점은 무엇인가요?",
+            "type": "single",
+            "options": [
+              "제품의 품질이나 구성",
+              "가격",
+              "제품 정보 안내",
+              "매장에서 구매하는 과정",
+              "개선할 점 없음",
+              "기타",
+              "구매한 적 없음"
+            ]
+          },
+          {
+            "title": "앞으로 해든 매장에서 이 신제품을 다시 구매할 가능성은 어느 정도인가요?",
+            "type": "scale",
+            "options": []
+          }
+        ]
+      },
+      "generation": {
+        "httpStatus": 200,
+        "responseType": "survey",
+        "responseStatus": "ready_with_caution",
+        "generationSource": "openai",
+        "classification": "deterministic_metadata_normalization",
+        "fallbackReason": null,
+        "modelCallCount": 1,
+        "repairCount": 0,
+        "fallbackCount": 0,
+        "modelOutputRejected": false,
+        "errorCode": null,
+        "errorStage": null,
+        "firstFailureStage": null,
+        "responseDiagnostics": {
+          "status": "completed",
+          "incompleteReason": null,
+          "outputParsed": true,
+          "outputItemTypes": [
+            "message"
+          ]
+        }
+      },
+      "evaluation": {
+        "automatic": {
+          "fatalFailures": [],
+          "warnings": [],
+          "passed": true
+        },
+        "manual": {
+          "verdict": "accepted",
+          "note": "자동 판정과 수동 감사 결과가 일치함."
+        }
+      },
+      "requestId": "reg-v1-fronted-noisy-004-f0851de6",
+      "tokenUsage": {
+        "input": 0,
+        "cachedInput": 0,
+        "output": 0,
+        "total": 0,
+        "estimatedCostUsd": 0,
+        "note": "HTTP artifact에는 토큰 집계가 없으며 실행 전체 집계는 Vercel 로그 요약에 보존됨."
+      },
+      "latencyMs": 27228
+    },
+    {
+      "caseId": "fronted-noisy-005",
+      "input": "서비스 안 쓰는 이유는 다온 플랫폼 안 쓰는 직장인한테 조사",
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "다온 플랫폼을 사용하지 않는 직장인",
+        "다온 플랫폼을 안 쓰는 직장인"
+      ],
+      "expectedEligibilityConditions": [
+        "다온 플랫폼 비이용"
+      ],
+      "contextEntities": [
+        "다온 플랫폼"
+      ],
+      "expectedSurveyObject": [
+        "다온 플랫폼"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유"
+      ],
+      "requiredQuestionConcepts": [
+        "비이용 이유"
+      ],
+      "actual": {
+        "respondentGroup": "다온 플랫폼을 안 쓰는 직장인",
+        "canonicalTargetPopulation": "다온 플랫폼을 안 쓰는 직장인",
+        "evaluationTarget": "다온 플랫폼",
+        "canonicalSurveyObject": "다온 플랫폼",
+        "title": "다온 플랫폼을 사용하지 않는 직장인 조사",
+        "description": "다온 플랫폼을 안 쓰는 직장인을 대상으로, 다온 플랫폼을 사용하지 않는 이유와 앞으로 이용을 고려하게 될 조건을 알아보기 위한 설문입니다. 약 3분 정도 걸립니다.",
+        "questions": [
+          {
+            "title": "현재 직장에 다니고 있나요?",
+            "type": "single",
+            "options": [
+              "네, 현재 직장에 다니고 있습니다",
+              "아니요"
+            ]
+          },
+          {
+            "title": "다온 플랫폼을 얼마나 알고 있었나요?",
+            "type": "single",
+            "options": [
+              "이름과 어떤 서비스인지 알고 있었습니다",
+              "이름만 들어봤습니다",
+              "이번 설문을 통해 처음 알았습니다"
+            ]
+          },
+          {
+            "title": "다온 플랫폼을 사용하지 않는 이유를 모두 골라주세요",
+            "type": "multiple",
+            "options": [
+              "나에게 필요한 서비스인지 잘 모르겠습니다",
+              "어떻게 시작해야 할지 모르겠습니다",
+              "기존에 쓰는 서비스로 충분합니다",
+              "사용할 시간이 부족합니다",
+              "개인정보나 보안이 걱정됩니다",
+              "서비스 품질이나 신뢰성이 확신되지 않습니다",
+              "사용할 필요를 느끼지 못합니다",
+              "기타"
+            ]
+          },
+          {
+            "title": "가장 큰 이유 하나만 고른다면 무엇인가요?",
+            "type": "single",
+            "options": [
+              "나에게 필요한 서비스인지 잘 모르겠습니다",
+              "어떻게 시작해야 할지 모르겠습니다",
+              "기존에 쓰는 서비스로 충분합니다",
+              "사용할 시간이 부족합니다",
+              "개인정보나 보안이 걱정됩니다",
+              "서비스 품질이나 신뢰성이 확신되지 않습니다",
+              "사용할 필요를 느끼지 못합니다",
+              "기타"
+            ]
+          },
+          {
+            "title": "어떤 점이 갖춰지면 다온 플랫폼을 써볼 만하다고 느낄까요?",
+            "type": "multiple",
+            "options": [
+              "나에게 어떤 도움이 되는지 쉽게 알 수 있는 안내",
+              "처음 시작하는 방법을 알려주는 안내",
+              "신뢰할 수 있는 정보와 운영 기준",
+              "개인정보 보호에 대한 분명한 설명",
+              "기존 서비스보다 분명한 장점",
+              "짧은 시간에도 쉽게 쓸 수 있는 구성",
+              "없습니다",
+              "기타"
+            ]
+          },
+          {
+            "title": "앞으로 다온 플랫폼을 써볼 가능성은 어느 정도인가요?",
+            "type": "scale",
+            "options": []
+          },
+          {
+            "title": "다온 플랫폼을 쓰지 않는 이유나 바뀌었으면 하는 점이 있다면 적어주세요",
+            "type": "text",
+            "options": []
+          }
+        ]
+      },
+      "generation": {
+        "httpStatus": 200,
+        "responseType": "survey",
+        "responseStatus": "ready_with_caution",
+        "generationSource": "openai",
+        "classification": "deterministic_metadata_normalization",
+        "fallbackReason": null,
+        "modelCallCount": 1,
+        "repairCount": 0,
+        "fallbackCount": 0,
+        "modelOutputRejected": false,
+        "errorCode": null,
+        "errorStage": null,
+        "firstFailureStage": null,
+        "responseDiagnostics": {
+          "status": "completed",
+          "incompleteReason": null,
+          "outputParsed": true,
+          "outputItemTypes": [
+            "reasoning",
+            "web_search_call",
+            "reasoning",
+            "message"
+          ]
+        }
+      },
+      "evaluation": {
+        "automatic": {
+          "fatalFailures": [],
+          "warnings": [],
+          "passed": true
+        },
+        "manual": {
+          "verdict": "accepted",
+          "note": "자동 판정과 수동 감사 결과가 일치함."
+        }
+      },
+      "requestId": "reg-v1-fronted-noisy-005-a9b28021",
+      "tokenUsage": {
+        "input": 0,
+        "cachedInput": 0,
+        "output": 0,
+        "total": 0,
+        "estimatedCostUsd": 0,
+        "note": "HTTP artifact에는 토큰 집계가 없으며 실행 전체 집계는 Vercel 로그 요약에 보존됨."
+      },
+      "latencyMs": 35819
+    },
+    {
+      "caseId": "fronted-noisy-006",
+      "input": "시설 인식은 늘빛 체육관 최근 두 달 이용한 주민한테 조사",
+      "inputQuality": "noisy_recoverable",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "최근 두 달 늘빛 체육관을 이용한 주민"
+      ],
+      "expectedEligibilityConditions": [
+        "최근 두 달 늘빛 체육관 이용"
+      ],
+      "contextEntities": [
+        "늘빛 체육관"
+      ],
+      "expectedSurveyObject": [
+        "늘빛 체육관"
+      ],
+      "expectedPurposeConcepts": [
+        "시설 인식"
+      ],
+      "requiredQuestionConcepts": [
+        "인식"
+      ],
+      "actual": {
+        "respondentGroup": null,
+        "canonicalTargetPopulation": "최근 두 달 늘빛 체육관을 이용한 주민",
+        "evaluationTarget": null,
+        "canonicalSurveyObject": "늘빛 체육관",
+        "title": null,
+        "description": null,
+        "questions": []
+      },
+      "generation": {
+        "httpStatus": 422,
+        "responseType": "error",
+        "responseStatus": "error",
+        "generationSource": "semantic_validation_fallback",
+        "classification": "request_failure",
+        "fallbackReason": "model-output-rejected",
+        "modelCallCount": 1,
+        "repairCount": 1,
+        "fallbackCount": 1,
+        "modelOutputRejected": true,
+        "errorCode": "REPAIR_EXHAUSTED",
+        "errorStage": "repair-validation",
+        "firstFailureStage": "repair-validation",
+        "responseDiagnostics": {
+          "status": "completed",
+          "incompleteReason": null,
+          "outputParsed": true,
+          "outputItemTypes": [
+            "reasoning",
+            "web_search_call",
+            "reasoning",
+            "message"
+          ]
+        }
+      },
+      "evaluation": {
+        "automatic": {
+          "fatalFailures": [
+            {
+              "code": "REQUEST_FAILURE",
+              "message": "요청 실패: 422",
+              "cluster": "request_transport",
+              "fatal": true
+            },
+            {
+              "code": "ELIGIBILITY_CHECK_MISSING",
+              "message": "응답 적격 조건을 확인하는 screening 문항이 없음",
+              "cluster": "eligibility",
+              "fatal": true
+            },
+            {
+              "code": "REQUIRED_PURPOSE_MISSING",
+              "message": "필수 조사 목적 누락: 시설 인식",
+              "cluster": "purpose_coverage",
+              "fatal": true
+            },
+            {
+              "code": "REQUIRED_QUESTION_CONCEPT_MISSING",
+              "message": "필수 문항 개념 누락: 인식",
+              "cluster": "purpose_coverage",
+              "fatal": true
+            },
+            {
+              "code": "QUESTION_COUNT_MISMATCH",
+              "message": "문항 수 0/7",
+              "cluster": "question_quality",
+              "fatal": true
+            }
+          ],
+          "warnings": [],
+          "passed": false
+        },
+        "manual": {
+          "verdict": "true_product_failure",
+          "note": "빈도 문항의 사용자 명시 기간이 repair-validation에서 사라져 422로 종료됨."
+        }
+      },
+      "requestId": "reg-v1-fronted-noisy-006-c515a4be",
+      "tokenUsage": {
+        "input": 0,
+        "cachedInput": 0,
+        "output": 0,
+        "total": 0,
+        "estimatedCostUsd": 0,
+        "note": "HTTP artifact에는 토큰 집계가 없으며 실행 전체 집계는 Vercel 로그 요약에 보존됨."
+      },
+      "latencyMs": 31787
+    }
+  ]
+}
