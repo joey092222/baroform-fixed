@@ -81,6 +81,59 @@ export type SurveyQuestion = {
   explicitTimeframe?: string | null;
 };
 
+type SatisfactionQuestionLike = Pick<
+  SurveyQuestion,
+  | "title"
+  | "type"
+  | "options"
+  | "scaleMinLabel"
+  | "scaleMaxLabel"
+  | "measuredConstruct"
+  | "measuredVariable"
+  | "questionPurpose"
+  | "reason"
+>;
+
+export function directlyMeasuresOverallSatisfaction(
+  question: SatisfactionQuestionLike,
+) {
+  const title = question.title.trim();
+  const metadata = [
+    question.measuredConstruct,
+    question.measuredVariable,
+    question.questionPurpose,
+    question.reason,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const labels = [
+    ...(question.options ?? []),
+    question.scaleMinLabel,
+    question.scaleMaxLabel,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const asksDirectSatisfaction =
+    /(?:전반적|종합적)?\s*(?:으로\s*)?(?:얼마나\s*)?만족|만족도(?:는|가|를|을)?\s*(?:어느|얼마나)|만족(?:한|하신)\s*정도/.test(
+      title,
+    );
+  const asksOverallEvaluation =
+    /(?:전반적|종합적).*(?:어땠|어떠셨|평가)|(?:어땠|어떠셨)나요/.test(title);
+  const hasPositiveSatisfactionAnchor =
+    /(?:매우\s*)?만족(?:했|한|스러|함|이다)|좋았/.test(labels);
+  const hasNegativeSatisfactionAnchor =
+    /불만족|만족(?:하지|스럽지)\s*않|전혀\s*만족|좋지\s*않/.test(labels);
+  const hasBalancedSatisfactionScale =
+    hasPositiveSatisfactionAnchor && hasNegativeSatisfactionAnchor;
+  const metadataDeclaresSatisfaction = /전반적\s*만족|만족도/.test(metadata);
+
+  return (
+    asksDirectSatisfaction ||
+    ((asksOverallEvaluation || metadataDeclaresSatisfaction) &&
+      (question.type === "scale" || hasBalancedSatisfactionScale))
+  );
+}
+
 export function resizeSurveyQuestions(
   questions: SurveyQuestion[],
   requestedCount: number,
@@ -6497,11 +6550,7 @@ export function validateSurvey(
     brief.surveyIntent.purposeBlocks.some((block) => block.kind === "satisfaction");
   if (
     requiresDirectSatisfactionMeasure &&
-    !blueprint.aiQuestions.some((item) =>
-      /(?:전반적.*만족|얼마나\s*만족|만족도(?:는|가|를|을)?\s*(?:어느|얼마나))/.test(
-        item.title,
-      ),
-    )
+    !blueprint.aiQuestions.some(directlyMeasuresOverallSatisfaction)
   ) {
     const indirectSatisfactionQuestion = blueprint.aiQuestions.find((item) => {
       const optionText = item.options?.join(" ") ?? "";

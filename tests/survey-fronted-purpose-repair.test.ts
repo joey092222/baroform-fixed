@@ -7,6 +7,7 @@ import {
 import { parseCanonicalSurveyIntent } from "../app/survey-canonical-intent";
 import {
   analyzeSurveyPrompt,
+  directlyMeasuresOverallSatisfaction,
   parseSurveyBrief,
   validateSurvey,
 } from "../app/survey-intent";
@@ -37,7 +38,7 @@ test("fronted purpose fallback은 응답자 존재가 아니라 실제 적격 �
   }
 });
 
-test("부분 repair는 모호해진 만족도 문항을 직접 만족도 문항으로 복구한다", () => {
+test("만족도 응답 척도가 명확한 자연스러운 평가 문항은 추가 repair하지 않는다", () => {
   const input = "새 메뉴 만족도는 한결 카페를 최근 한 달 이용한 주민에게 조사";
   const canonical = parseCanonicalSurveyIntent(input);
   const fallback = analyzeSurveyPrompt(input, canonical);
@@ -75,9 +76,7 @@ test("부분 repair는 모호해진 만족도 문항을 직접 만족도 문항�
     parseSurveyBrief(input, canonical),
     modelSurvey,
   ).filter((issue) => issue.includes("전반적 만족도를 직접 측정"));
-  assert.deepEqual(qualityIssues, [
-    "문항 5의 전반적 만족도를 직접 측정하지 않습니다.",
-  ]);
+  assert.deepEqual(qualityIssues, []);
   const repaired = repairInvalidQuestions({
     survey: modelSurvey,
     intent: canonical.surveyIntent,
@@ -87,12 +86,49 @@ test("부분 repair는 모호해진 만족도 문항을 직접 만족도 문항�
     getFallback: () => fallback,
   });
 
-  assert.deepEqual(repaired.repairedQuestionIds, [5]);
-  assert.match(repaired.survey.aiQuestions[4]?.title ?? "", /만족/);
-  assert.doesNotMatch(repaired.survey.aiQuestions[4]?.title ?? "", /어땠나요/);
-  for (const index of [0, 1, 2, 3, 5, 6]) {
+  assert.deepEqual(repaired.repairedQuestionIds, []);
+  for (const index of [0, 1, 2, 3, 4, 5, 6]) {
     assert.deepEqual(repaired.survey.aiQuestions[index], modelSurvey.aiQuestions[index]);
   }
+});
+
+test("만족도 coverage는 중요도·재이용 의향을 직접 만족도로 오인하지 않는다", () => {
+  assert.equal(
+    directlyMeasuresOverallSatisfaction({
+      title: "새 메뉴에서 가장 중요하게 생각하는 요소는 무엇인가요?",
+      type: "multiple",
+      options: ["맛", "가격", "양", "기타"],
+      reason: "개선 우선순위를 파악함.",
+    }),
+    false,
+  );
+  assert.equal(
+    directlyMeasuresOverallSatisfaction({
+      title: "새 메뉴를 다시 이용할 의향이 있나요?",
+      type: "scale",
+      scaleMinLabel: "전혀 없음",
+      scaleMaxLabel: "매우 높음",
+      measuredVariable: "재이용 의향",
+      reason: "향후 이용 의향을 측정함.",
+    }),
+    false,
+  );
+  assert.equal(
+    directlyMeasuresOverallSatisfaction({
+      title: "이용한 새 메뉴는 종합적으로 어땠나요?",
+      type: "single",
+      options: [
+        "매우 만족했음",
+        "만족한 편이었음",
+        "보통이었음",
+        "만족하지 않은 편이었음",
+        "전혀 만족하지 않았음",
+      ],
+      measuredVariable: "새 메뉴 전반적 만족도",
+      reason: "전반적 만족도를 측정함.",
+    }),
+    true,
+  );
 });
 
 test("중복 문항 repair는 canonical 위치의 조사 목적을 복구하고 정상 문항을 보존한다", () => {
