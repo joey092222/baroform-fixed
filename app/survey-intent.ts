@@ -3077,16 +3077,6 @@ function usageBlueprint(subject: string, brief?: SurveyBrief): SurveyBlueprint {
         ],
       ),
     );
-  } else if (targetRespondents && /대학|학생/.test(targetRespondents)) {
-    questions.push(
-      question(
-        questions.length + 1,
-        "현재 대학교 또는 대학원에 재학하거나 휴학 중이신가요?",
-        "응답자가 조사 대상인 대학생에 해당하는지 먼저 확인해 결과 해석의 기준을 세워요.",
-        "single",
-        ["재학 중", "휴학 중", "졸업 또는 수료", "해당하지 않음"],
-      ),
-    );
   }
 
   questions.push(
@@ -4430,10 +4420,139 @@ function abilityIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
   };
 }
 
+function eligibilityExperienceQuestion(intent: SurveyIntent, object: string) {
+  const activity = intent.activities[0]?.text.trim() ?? "";
+  const compactAction = activity.match(
+    /^(.+?)(사용|이용|방문|참여|참가|구매|시식)$/,
+  );
+  const action = (() => {
+    if (!activity) return "";
+    if (!compactAction) return activity;
+    const target = compactAction[1].trim();
+    const verb = compactAction[2];
+    if (/(?:을|를|에|에서)$/.test(target)) return `${target} ${verb}`;
+    const particle = /^(?:참여|참가)$/.test(verb)
+      ? "에"
+      : /^(?:구매)$/.test(verb) && /(?:매장|상점|가게|몰|마트)$/.test(target)
+        ? "에서"
+        : labelWithParticle(target, "을", "를").slice(target.length);
+    return `${target}${particle} ${verb}`;
+  })();
+  const period = intent.explicitTimeframe?.trim();
+  if (/(?:시식|먹어\s*본|먹어본)/.test(intent.eligibilityCondition ?? "")) {
+    return `${labelWithParticle(object, "을", "를")} 직접 구매하거나 먹어본 경험이 있나요?`;
+  }
+  if (action) {
+    return `${period ? `${period} 동안 ` : ""}${action}한 적이 있나요?`;
+  }
+  if (intent.eligibilityCondition) {
+    return `${intent.eligibilityCondition}에 해당하시나요?`;
+  }
+  return `${labelWithParticle(object, "을", "를")} 직접 경험한 적이 있나요?`;
+}
+
 function perceptionIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
   const intent = brief.surveyIntent;
   const object = intentObjectForQuestion(intent, brief.researchSubject);
   const questions: SurveyQuestion[] = [];
+  const facilityPerception = ["place", "facility", "university_building"].includes(
+    brief.parsedSurveyContext.entityType,
+  );
+  if (facilityPerception) {
+    if (intent.screeningRequired) {
+      questions.push(
+        question(
+          questions.length + 1,
+          eligibilityExperienceQuestion(intent, object),
+          "시설 인식을 해석하는 데 필요한 실제 이용 조건을 확인함.",
+          "single",
+          ["예", "아니요"],
+        ),
+      );
+      questions.push(
+        question(
+          questions.length + 1,
+          `${intent.explicitTimeframe ? `${intent.explicitTimeframe} 동안 ` : "평소 "}${labelWithParticle(object, "을", "를")} 얼마나 자주 이용하나요?`,
+          "시설 이용 빈도를 같은 기간 기준으로 구분해 인식 차이를 해석함.",
+          "single",
+          ["거의 매일", "주 3~4회", "주 1~2회", "월 1~3회", "거의 이용하지 않음"],
+        ),
+      );
+    }
+    questions.push(
+      question(
+        questions.length + 1,
+        `${object}에 대해 전반적으로 어떤 인상을 가지고 있나요?`,
+        "시설에 대한 전반적인 인식을 직접 측정함.",
+        "scale",
+      ),
+      question(
+        questions.length + 2,
+        `${object}의 긍정적인 이미지에 해당하는 요소를 모두 골라주세요.`,
+        "시설 인식을 만드는 긍정 요인을 구분함.",
+        "multiple",
+        ["접근하기 편리함", "시설이 쾌적함", "안전하게 느껴짐", "운영 안내가 충분함", "지역에 유용함", "긍정적인 점 없음", "기타"],
+      ),
+      question(
+        questions.length + 3,
+        `${object}에 대해 아쉽거나 부정적으로 느끼는 요소를 모두 골라주세요.`,
+        "시설 인식을 낮추는 구체적인 요인을 파악함.",
+        "multiple",
+        ["접근이 불편함", "시설이 낡거나 불편함", "혼잡함", "안전이 우려됨", "운영 안내가 부족함", "부정적인 점 없음", "기타"],
+      ),
+      question(
+        questions.length + 4,
+        `${object}의 이용 환경이 주민에게 얼마나 편리하다고 느끼나요?`,
+        "시설의 이용 편의에 대한 인식을 측정함.",
+        "scale",
+      ),
+      question(
+        questions.length + 5,
+        `${object}에 대한 인식이 더 좋아지려면 가장 먼저 달라져야 할 점을 적어주세요.`,
+        "시설 인식을 개선할 구체적인 의견을 수집함.",
+        "text",
+        undefined,
+        false,
+      ),
+    );
+    if (!intent.screeningRequired) {
+      questions.splice(
+        Math.max(0, questions.length - 1),
+        0,
+        question(
+          0,
+          `${topicWithParticle(object, "이", "가")} 지역 주민에게 얼마나 필요한 시설이라고 생각하나요?`,
+          "시설의 필요성과 공공적 가치를 측정함.",
+          "scale",
+        ),
+      );
+    }
+    const normalizedQuestions = questions.slice(0, 7).map((item, index) => ({
+      ...item,
+      id: index + 1,
+    }));
+    return {
+      kind: "awareness",
+      intentLabel: "시설 인식·이미지",
+      subject: object,
+      title: brief.surveyTitle,
+      description: `${brief.targetRespondents}의 ${object}에 대한 전반적 인식과 긍정·부정 이미지 및 개선 요구를 파악하기 위한 설문입니다.`,
+      templateTitle: brief.surveyTitle,
+      templateSummary: "실제 이용 조건을 확인하고 시설에 대한 인식과 이미지를 직접 측정해요.",
+      detectedSignals: [
+        `응답 대상 · ${brief.targetRespondents}`,
+        `조사 대상 · ${object}`,
+        "측정 개념 · 시설 인식",
+      ],
+      templateQuestions: normalizedQuestions.slice(0, 5),
+      aiQuestions: normalizedQuestions,
+      respondentGroup: brief.targetRespondents,
+      evaluationTarget: object,
+      goal: intent.purpose ?? brief.researchGoal,
+      assumptions: [],
+      domain: brief.domain,
+    };
+  }
   if (/전\s*연령대|모든\s*연령대/.test(intent.targetPopulation ?? "")) {
     questions.push(ageRangeQuestion(1));
   }
@@ -4477,6 +4596,14 @@ function perceptionIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
       `앞으로 ${labelWithParticle(object, "을", "를")} 사용할 의향이 어느 정도인가요?`,
       "현재 경험과 무관하게 향후 이용 의향을 확인함.",
       "scale",
+    ),
+    question(
+      questions.length + 7,
+      `${object}에 대한 생각이나 우려를 더 적어주세요.`,
+      "선택지에 담기지 않은 인식과 태도의 근거를 수집함.",
+      "text",
+      undefined,
+      false,
     ),
   );
   const normalizedQuestions = questions.slice(0, 7).map((item, index) => ({
@@ -4674,13 +4801,13 @@ function multipleTargetIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
         ? `${targets.join("·")} 중 평소 더 많은 시간을 쓰는 활동은 무엇인가요?`
         : usageTargets
           ? `${targets.join("·")} 중 더 자주 이용하는 대상은 무엇인가요?`
-          : `${targets.join("·")} 중 더 자주 하는 활동은 무엇인가요?`,
+          : `${targets.join("·")} 중 전반적 만족도가 더 높은 대상은 무엇인가요?`,
       "대상별 응답과 함께 실제 행동 우선순위를 확인함.",
       "single",
       [
         ...targets,
-        usageTargets ? "비슷하게 이용함" : "비슷한 정도로 함",
-        usageTargets ? "이용한 적 없음" : "해당 활동을 하지 않음",
+        usageTargets ? "비슷하게 이용함" : "만족도가 비슷함",
+        usageTargets ? "이용한 적 없음" : "비교하기 어려움",
       ],
     ),
     question(
@@ -4692,6 +4819,20 @@ function multipleTargetIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
     ),
     question(
       questions.length + 3,
+      `${targets.join("·")} 사이에서 ${comparisonDimension} 차이가 가장 컸던 부분은 무엇인가요?`,
+      "대상 간 평가 차이가 나타난 구체적인 영역을 확인함.",
+      "single",
+      ["내용과 품질", "이용 편의", "정보와 안내", "응답과 지원", "비용 대비 가치", "접근성", "차이를 느끼지 못함"],
+    ),
+    question(
+      questions.length + 4,
+      `${targets.join("·")} 중 개선이 더 필요하다고 느끼는 대상은 무엇인가요?`,
+      "비교 결과를 개선 우선순위로 연결함.",
+      "single",
+      [...targets, "비슷하게 개선이 필요함", "개선이 필요하지 않음"],
+    ),
+    question(
+      questions.length + 5,
       usageTargets
         ? `${labelWithParticle(targets.join("·"), "을", "를")} 이용하면서 불편했던 점이나 개선 의견을 적어주세요.`
         : `${targets.join("·")} 활동에서 불편했던 점이나 개선 의견을 적어주세요.`,
@@ -4749,43 +4890,12 @@ function satisfactionIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
     return multipleTargetIntentBlueprint(brief);
   }
   const object = intentObjectForQuestion(intent, brief.researchSubject);
-  const eligibilityActivity = intent.activities[0];
-  const eligibilityAction = (() => {
-    const activity = eligibilityActivity?.text.trim() ?? "";
-    if (!activity) return "";
-    const compactAction = activity.match(
-      /^(.+?)(사용|이용|방문|참여|참가|구매|시식)$/,
-    );
-    if (!compactAction) return activity;
-    const target = compactAction[1].trim();
-    const verb = compactAction[2];
-    if (/(?:을|를|에|에서)$/.test(target)) {
-      return `${target} ${verb}`;
-    }
-    const particle = /^(?:참여|참가)$/.test(verb)
-      ? "에"
-      : /^(?:구매)$/.test(verb) && /(?:매장|상점|가게|몰|마트)$/.test(target)
-        ? "에서"
-        : labelWithParticle(target, "을", "를").slice(target.length);
-    return `${target}${particle} ${verb}`;
-  })();
-  const eligibilityPeriod = intent.explicitTimeframe?.trim();
-  const tastingEligibility = /(?:시식|먹어\s*본|먹어본)/.test(
-    intent.eligibilityCondition ?? "",
-  );
-  const experienceQuestion = intent.eligibilityCondition
-    ? tastingEligibility
-      ? `${labelWithParticle(object, "을", "를")} 직접 구매하거나 먹어본 경험이 있나요?`
-      : eligibilityAction
-      ? `${eligibilityPeriod ? `${eligibilityPeriod} 동안 ` : ""}${eligibilityAction}한 적이 있나요?`
-      : `${intent.eligibilityCondition}에 해당하시나요?`
-    : `${labelWithParticle(object, "을", "를")} 직접 경험한 적이 있나요?`;
   const questions: SurveyQuestion[] = [];
   if (intent.screeningRequired) {
     questions.push(
       question(
         1,
-        experienceQuestion,
+        eligibilityExperienceQuestion(intent, object),
         "만족도를 평가할 수 있는 실제 경험 여부를 확인함.",
         "single",
         ["경험 있음", "경험 없음"],
@@ -4828,6 +4938,12 @@ function satisfactionIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
     ),
     question(
       questions.length + 6,
+      `${labelWithParticle(object, "을", "를")} 주변 사람에게 추천할 의향이 어느 정도인가요?`,
+      "전반적 만족이 추천 의향으로 이어지는지 확인함.",
+      "scale",
+    ),
+    question(
+      questions.length + 7,
       `${object}에 대해 추가로 전하고 싶은 의견이 있다면 적어주세요.`,
       "선택지에 담기지 않은 구체적인 개선 의견을 수집함.",
       "text",
@@ -5859,6 +5975,19 @@ function semanticIntentBlueprint(brief: SurveyBrief) {
   const nonUser = nonUserIntentBlueprint(brief);
   if (nonUser) return nonUser;
   if (!shouldPreferSurveyIntent(brief.surveyIntent)) return null;
+  const primaryPurposeKind = brief.surveyIntent.purposeBlocks[0]?.kind;
+  const includesUsagePurpose = brief.surveyIntent.purposeBlocks.some(
+    (purpose) => purpose.kind === "usage_experience",
+  );
+  if (
+    primaryPurposeKind === "attitude_perception" &&
+    !includesUsagePurpose &&
+    !brief.surveyIntent.constructs.some((construct) =>
+      /이용\s*(?:여부|빈도|경험)|사용\s*(?:여부|빈도|경험)/.test(construct),
+    )
+  ) {
+    return perceptionIntentBlueprint(brief);
+  }
   switch (brief.surveyIntent.objectKind) {
     case "decision_support":
       return decisionSupportIntentBlueprint(brief);
