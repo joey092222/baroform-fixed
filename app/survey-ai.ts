@@ -74,6 +74,7 @@ import {
   recordSurveyModelOutputRejection,
   recordSurveyQuestionOutcome,
   recordSurveyPostprocessTrace,
+  recordSurveyRepairAudit,
   recordSurveyPlanCoverageTrace,
   recordSurveyRepair,
   recordSurveySchemaDiagnostics,
@@ -2832,6 +2833,10 @@ export function parseSurveyDraftResponse(
   }
   recordSurveyPostprocessTrace(trace, {
     final: blueprint.aiQuestions.map((item) => item.title),
+  });
+  recordSurveyRepairAudit(trace, {
+    before: normalizedAiQuestions,
+    final: blueprint.aiQuestions,
   });
 
   const researchLimitations = Array.isArray(result.researchLimitations)

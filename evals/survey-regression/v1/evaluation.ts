@@ -233,6 +233,8 @@ export function classifyGenerationPath(input: {
   fallbackCount: number;
   fallbackReason: string | null;
   normalizedMetadataPaths: string[];
+  metadataOnlyNormalization?: boolean;
+  respondentFacingContentChanged?: boolean;
   outputParsed?: boolean;
 }): GenerationPath {
   const modelCallCount = input.modelCallCount ?? 0;
@@ -269,10 +271,17 @@ export function classifyGenerationPath(input: {
   ) {
     return "hard_fallback";
   }
-  if (input.repairCount > 0 || /partial_repair/.test(input.generationSource ?? "")) {
+  if (
+    input.repairCount > 0 ||
+    input.respondentFacingContentChanged ||
+    /partial_repair/.test(input.generationSource ?? "")
+  ) {
     return "partial_repair";
   }
-  if (input.normalizedMetadataPaths.length > 0) {
+  if (
+    input.metadataOnlyNormalization ||
+    input.normalizedMetadataPaths.length > 0
+  ) {
     return "deterministic_metadata_normalization";
   }
   return "clean_model_success";

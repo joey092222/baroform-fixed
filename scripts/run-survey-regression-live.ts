@@ -45,6 +45,12 @@ type TraceSnapshot = {
   repairCount?: unknown;
   fallbackCount?: unknown;
   normalizedInternalMetadataPaths?: unknown;
+  questionsBeforeRepairHash?: unknown;
+  questionsAfterRepairHash?: unknown;
+  changedQuestionIds?: unknown;
+  changedFieldsByQuestion?: unknown;
+  metadataOnlyNormalization?: unknown;
+  respondentFacingContentChanged?: unknown;
   modelOutputRejectedAt?: unknown;
   modelOutputRejectionCode?: unknown;
   semanticViolationCodes?: unknown;
@@ -296,6 +302,23 @@ function traceFromResponse(response: Response): TraceSnapshot {
       headers,
       "x-baroform-normalized-metadata",
     ),
+    questionsBeforeRepairHash: headers.get("x-baroform-before-repair-hash"),
+    questionsAfterRepairHash: headers.get("x-baroform-after-repair-hash"),
+    changedQuestionIds: headerStrings(
+      headers,
+      "x-baroform-changed-question-ids",
+    ),
+    changedFieldsByQuestion: Object.fromEntries(
+      (headers.get("x-baroform-changed-question-fields") ?? "")
+        .split("|")
+        .map((item) => item.split(":"))
+        .filter((item) => item.length === 2 && item[0])
+        .map(([id, fields]) => [id, (fields ?? "").split("+").filter(Boolean)]),
+    ),
+    metadataOnlyNormalization:
+      headers.get("x-baroform-metadata-only-normalization") === "true",
+    respondentFacingContentChanged:
+      headers.get("x-baroform-respondent-content-changed") === "true",
     modelOutputRejectedAt: headers.get("x-baroform-model-rejected-at"),
     modelOutputRejectionCode: headers.get("x-baroform-model-rejection-code"),
     semanticViolationCodes: headerStrings(
@@ -618,6 +641,7 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
       text(finalBody.stage) || text(finalTrace.errorStage) ||
       text(initialTrace.errorStage) || null;
     const normalizedMetadataPaths = strings(finalTrace.normalizedInternalMetadataPaths);
+    const changedFieldsByQuestion = record(finalTrace.changedFieldsByQuestion) ?? {};
     const modelCallCount = Math.max(
       numberValue(initialTrace.modelCallCount),
       numberValue(finalTrace.modelCallCount),
@@ -649,6 +673,18 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
       retryCount: numberValue(usage.retryCount),
       fallbackReason,
       normalizedMetadataPaths,
+      questionsBeforeRepairHash: text(finalTrace.questionsBeforeRepairHash) || null,
+      questionsAfterRepairHash: text(finalTrace.questionsAfterRepairHash) || null,
+      changedQuestionIds: strings(finalTrace.changedQuestionIds),
+      changedFieldsByQuestion: Object.fromEntries(
+        Object.entries(changedFieldsByQuestion).map(([id, fields]) => [
+          id,
+          strings(fields),
+        ]),
+      ),
+      metadataOnlyNormalization: finalTrace.metadataOnlyNormalization === true,
+      respondentFacingContentChanged:
+        finalTrace.respondentFacingContentChanged === true,
       modelOutputRejected: Boolean(finalTrace.modelOutputRejectedAt),
       canonicalTargetPopulation: canonical.surveyIntent.targetPopulation,
       finalRespondentGroup: text(blueprint?.respondentGroup) || null,
@@ -716,6 +752,13 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
       retryCount: numberValue(usage.retryCount),
       fallbackReason: text(trace.fallbackReason) || null,
       normalizedMetadataPaths: strings(trace.normalizedInternalMetadataPaths),
+      questionsBeforeRepairHash: text(trace.questionsBeforeRepairHash) || null,
+      questionsAfterRepairHash: text(trace.questionsAfterRepairHash) || null,
+      changedQuestionIds: strings(trace.changedQuestionIds),
+      changedFieldsByQuestion: {},
+      metadataOnlyNormalization: trace.metadataOnlyNormalization === true,
+      respondentFacingContentChanged:
+        trace.respondentFacingContentChanged === true,
       modelOutputRejected: Boolean(trace.modelOutputRejectedAt),
       canonicalTargetPopulation: canonical.surveyIntent.targetPopulation,
       finalRespondentGroup: null,

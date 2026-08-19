@@ -47,6 +47,12 @@ export type GenerationDiagnostics = {
   originalQuestionCount: number | null;
   repairedQuestionIds: string[];
   preservedQuestionIds: string[];
+  questionsBeforeRepairHash: string | null;
+  questionsAfterRepairHash: string | null;
+  changedQuestionIds: string[];
+  changedFieldsByQuestion: Record<string, string[]>;
+  metadataOnlyNormalization: boolean;
+  respondentFacingContentChanged: boolean;
   intentMode: "single" | "composite" | null;
   purposeKinds: string[];
   purposeBlockCount: number;
@@ -122,6 +128,12 @@ export type SurveyGenerationTrace = {
   originalQuestionCount: number | null;
   repairedQuestionIds: string[];
   preservedQuestionIds: string[];
+  questionsBeforeRepairHash: string | null;
+  questionsAfterRepairHash: string | null;
+  changedQuestionIds: string[];
+  changedFieldsByQuestion: Record<string, string[]>;
+  metadataOnlyNormalization: boolean;
+  respondentFacingContentChanged: boolean;
   rawUserInput: string | null;
   normalizedInput: string | null;
   parsedSurveyContext: ParsedSurveyContext | null;
@@ -225,6 +237,12 @@ export function createSurveyGenerationTrace(
     originalQuestionCount: null,
     repairedQuestionIds: [],
     preservedQuestionIds: [],
+    questionsBeforeRepairHash: null,
+    questionsAfterRepairHash: null,
+    changedQuestionIds: [],
+    changedFieldsByQuestion: {},
+    metadataOnlyNormalization: false,
+    respondentFacingContentChanged: false,
     rawUserInput: null,
     normalizedInput: null,
     parsedSurveyContext: null,
@@ -517,6 +535,126 @@ export function recordSurveyPostprocessTrace(
   }
 }
 
+type RepairAuditQuestion = Record<string, unknown> & { id?: unknown };
+
+const respondentFacingQuestionFields = new Set([
+  "title",
+  "text",
+  "type",
+  "options",
+  "scale",
+  "scaleMin",
+  "scaleMax",
+  "scaleMinLabel",
+  "scaleMaxLabel",
+  "showIf",
+  "show_if",
+  "required",
+  "description",
+  "helperText",
+  "helper_text",
+  "explicitTimeframe",
+  "referencePeriod",
+  "reference_period",
+]);
+
+function stableAuditValue(value: unknown): string {
+  if (value === null || value === undefined) return "null";
+  if (typeof value === "string" || typeof value === "boolean") {
+    return JSON.stringify(value);
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? String(value) : "null";
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(stableAuditValue).join(",")}]`;
+  }
+  if (typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .filter(([, item]) => item !== undefined && typeof item !== "function")
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => `${JSON.stringify(key)}:${stableAuditValue(item)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(String(value));
+}
+
+function auditHash(value: unknown) {
+  const input = stableAuditValue(value);
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+function auditQuestionId(question: RepairAuditQuestion, index: number) {
+  const value = question.id;
+  return typeof value === "string" || typeof value === "number"
+    ? String(value)
+    : String(index + 1);
+}
+
+export function recordSurveyRepairAudit(
+  trace: SurveyGenerationTrace | undefined,
+  details: { before: RepairAuditQuestion[]; final: RepairAuditQuestion[] },
+) {
+  if (!trace) return;
+  trace.questionsBeforeRepairHash = auditHash(details.before);
+  trace.questionsAfterRepairHash = auditHash(details.final);
+
+  const before = new Map(
+    details.before.map((question, index) => [
+      auditQuestionId(question, index),
+      question,
+    ]),
+  );
+  const final = new Map(
+    details.final.map((question, index) => [
+      auditQuestionId(question, index),
+      question,
+    ]),
+  );
+  const ids = [...new Set([...before.keys(), ...final.keys()])].sort();
+  const changedFieldsByQuestion: Record<string, string[]> = {};
+  let respondentFacingContentChanged = false;
+
+  for (const id of ids) {
+    const previous = before.get(id);
+    const current = final.get(id);
+    const fields = previous && current
+      ? [...new Set([...Object.keys(previous), ...Object.keys(current)])]
+          .filter(
+            (field) =>
+              stableAuditValue(previous[field]) !== stableAuditValue(current[field]),
+          )
+          .sort()
+      : [previous ? "__removed" : "__added"];
+    if (fields.length === 0) continue;
+    changedFieldsByQuestion[id] = fields;
+    if (
+      fields.some(
+        (field) =>
+          field === "__added" ||
+          field === "__removed" ||
+          respondentFacingQuestionFields.has(field),
+      )
+    ) {
+      respondentFacingContentChanged = true;
+    }
+  }
+
+  trace.changedFieldsByQuestion = changedFieldsByQuestion;
+  trace.changedQuestionIds = Object.keys(changedFieldsByQuestion);
+  trace.respondentFacingContentChanged = respondentFacingContentChanged;
+  trace.metadataOnlyNormalization =
+    !respondentFacingContentChanged &&
+    trace.repairCount === 0 &&
+    (trace.changedQuestionIds.length > 0 ||
+      trace.normalizedInternalMetadataPaths.length > 0);
+}
+
 export function recordSurveyGenerationSource(
   trace: SurveyGenerationTrace | undefined,
   source: GenerationSource,
@@ -804,6 +942,17 @@ export function surveyGenerationTraceSnapshot(trace: SurveyGenerationTrace) {
     originalQuestionCount: trace.originalQuestionCount,
     repairedQuestionIds: [...trace.repairedQuestionIds],
     preservedQuestionIds: [...trace.preservedQuestionIds],
+    questionsBeforeRepairHash: trace.questionsBeforeRepairHash,
+    questionsAfterRepairHash: trace.questionsAfterRepairHash,
+    changedQuestionIds: [...trace.changedQuestionIds],
+    changedFieldsByQuestion: Object.fromEntries(
+      Object.entries(trace.changedFieldsByQuestion).map(([id, fields]) => [
+        id,
+        [...fields],
+      ]),
+    ),
+    metadataOnlyNormalization: trace.metadataOnlyNormalization,
+    respondentFacingContentChanged: trace.respondentFacingContentChanged,
     rawUserInput: trace.rawUserInput,
     normalizedInput: trace.normalizedInput,
     parsedSurveyContext: trace.parsedSurveyContext,
@@ -930,6 +1079,12 @@ export function surveyGenerationLogSnapshot(trace: SurveyGenerationTrace) {
     modelQuestionTypes: snapshot.modelQuestionTypes,
     modelQuestionStructureIssues: snapshot.modelQuestionStructureIssues,
     normalizedInternalMetadataPaths: snapshot.normalizedInternalMetadataPaths,
+    questionsBeforeRepairHash: snapshot.questionsBeforeRepairHash,
+    questionsAfterRepairHash: snapshot.questionsAfterRepairHash,
+    changedQuestionIds: snapshot.changedQuestionIds,
+    changedFieldsByQuestion: snapshot.changedFieldsByQuestion,
+    metadataOnlyNormalization: snapshot.metadataOnlyNormalization,
+    respondentFacingContentChanged: snapshot.respondentFacingContentChanged,
     initialMissingRequiredBlockIds: snapshot.initialMissingRequiredBlockIds,
     finalMissingRequiredBlockIds: snapshot.finalMissingRequiredBlockIds,
     initialIncompatibleQuestionIds: snapshot.initialIncompatibleQuestionIds,

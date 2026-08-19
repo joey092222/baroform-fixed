@@ -411,6 +411,21 @@ function traceHeaders(trace: SurveyGenerationTrace) {
     ),
     "x-baroform-repaired-question-ids": snapshot.repairedQuestionIds.join(","),
     "x-baroform-preserved-question-ids": snapshot.preservedQuestionIds.join(","),
+    "x-baroform-before-repair-hash": snapshot.questionsBeforeRepairHash ?? "",
+    "x-baroform-after-repair-hash": snapshot.questionsAfterRepairHash ?? "",
+    "x-baroform-changed-question-ids": snapshot.changedQuestionIds.join(","),
+    "x-baroform-changed-question-fields": Object.entries(
+      snapshot.changedFieldsByQuestion,
+    )
+      .map(([id, fields]) => `${id}:${fields.join("+")}`)
+      .join("|")
+      .slice(0, 1200),
+    "x-baroform-metadata-only-normalization": String(
+      snapshot.metadataOnlyNormalization,
+    ),
+    "x-baroform-respondent-content-changed": String(
+      snapshot.respondentFacingContentChanged,
+    ),
     "x-baroform-stage-history": snapshot.stageHistory
       .map((item) => item.stage)
       .join(","),

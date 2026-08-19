@@ -126,6 +126,12 @@ export type SurveyRegressionResult = {
   retryCount: number;
   fallbackReason: string | null;
   normalizedMetadataPaths: string[];
+  questionsBeforeRepairHash: string | null;
+  questionsAfterRepairHash: string | null;
+  changedQuestionIds: string[];
+  changedFieldsByQuestion: Record<string, string[]>;
+  metadataOnlyNormalization: boolean;
+  respondentFacingContentChanged: boolean;
   modelOutputRejected: boolean;
   classification: GenerationPath;
   canonicalTargetPopulation: string | null;

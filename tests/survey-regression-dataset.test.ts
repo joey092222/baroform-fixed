@@ -91,7 +91,19 @@ test("생성 경로 fixture 여섯 종류를 상호 배타적으로 분류한다
     "deterministic_metadata_normalization",
   );
   assert.equal(
+    classifyGenerationPath({ ...base, metadataOnlyNormalization: true }),
+    "deterministic_metadata_normalization",
+  );
+  assert.equal(
     classifyGenerationPath({ ...base, generationSource: "openai_partial_repair", repairCount: 1 }),
+    "partial_repair",
+  );
+  assert.equal(
+    classifyGenerationPath({ ...base, respondentFacingContentChanged: true }),
+    "partial_repair",
+  );
+  assert.equal(
+    classifyGenerationPath({ ...base, repairCount: 1 }),
     "partial_repair",
   );
   assert.equal(
