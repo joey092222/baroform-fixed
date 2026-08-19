@@ -59,3 +59,22 @@ test("문항이 그대로인데 repairCount만 증가한 경우를 숨기지 않
   assert.equal(snapshot.respondentFacingContentChanged, false);
   assert.equal(snapshot.repairCount, 1);
 });
+
+test("질문 문구가 그대로인 기준 기간 메타데이터 연결은 내용 수정으로 세지 않는다", () => {
+  const trace = createSurveyGenerationTrace("audit-reference-period-metadata");
+  recordSurveyRepairAudit(trace, {
+    before: [{ id: "Q1", title: "평소 얼마나 자주 이용하나요?" }],
+    final: [
+      {
+        id: "Q1",
+        title: "평소 얼마나 자주 이용하나요?",
+        explicitTimeframe: "평소",
+      },
+    ],
+  });
+  const snapshot = surveyGenerationTraceSnapshot(trace);
+
+  assert.equal(snapshot.metadataOnlyNormalization, true);
+  assert.equal(snapshot.respondentFacingContentChanged, false);
+  assert.deepEqual(snapshot.changedFieldsByQuestion.Q1, ["explicitTimeframe"]);
+});

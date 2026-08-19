@@ -553,9 +553,6 @@ const respondentFacingQuestionFields = new Set([
   "description",
   "helperText",
   "helper_text",
-  "explicitTimeframe",
-  "referencePeriod",
-  "reference_period",
 ]);
 
 function stableAuditValue(value: unknown): string {
