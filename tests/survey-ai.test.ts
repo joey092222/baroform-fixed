@@ -1921,33 +1921,25 @@ test("검색을 요청하지 않은 생성에서는 검색 전용 품질 메타�
   );
 });
 
-test("정규화할 수 없는 모델 품질 거절은 정확한 단계와 issue path를 trace에 남긴다", () => {
+test("모델 품질 self-report가 false여도 결정적 서버 검증을 통과한 설문은 승인한다", () => {
   const payload = structuredReadyPayload();
   payload.output_parsed.quality_check.all_logic_paths_valid = false;
+  payload.output_parsed.quality_check.respondent_path_simulation_passed = false;
+  payload.output_parsed.quality_check.double_barreled_questions_removed = false;
   const trace = createSurveyGenerationTrace("trace-model-integrity-rejection");
 
-  assert.throws(
-    () =>
-      parseSurveyDraftResponse(
-        payload,
-        "대학생의 이동 경험과 불편 조사",
-        7,
-        "전학년",
-        false,
-        trace,
-      ),
-    /완료되지 않은 품질 검사/,
+  const result = parseSurveyDraftResponse(
+    payload,
+    "대학생 네이버웹툰 이용 현황 조사",
+    7,
+    "전학년",
+    false,
+    trace,
   );
+  assert.match(result.status, /^ready/);
   const diagnostics = surveyGenerationTraceSnapshot(trace);
-  assert.equal(
-    diagnostics.modelOutputRejectedAt,
-    "generation_integrity_validation",
-  );
-  assert.equal(
-    diagnostics.modelOutputRejectionCode,
-    "MODEL_OUTPUT_INTEGRITY_INVALID",
-  );
-  assert.deepEqual(diagnostics.modelOutputRejectionIssuePaths, ["integrity.0"]);
+  assert.equal(diagnostics.modelOutputRejectedAt, null);
+  assert.equal(diagnostics.modelOutputRejectionCode, null);
 });
 
 for (const surveyCase of [

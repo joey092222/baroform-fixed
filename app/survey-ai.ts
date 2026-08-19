@@ -473,22 +473,9 @@ function generationIntegrityIssues(
   ) {
     issues.push("검색 실패 결과는 주의 상태로 표시해야 합니다.");
   }
-  const failedQualityChecks = Object.entries(generation.quality_check)
-    .filter(
-      ([key, value]) =>
-        key !== "warnings" &&
-        value !== true &&
-        !(
-          key === "all_named_entities_searched" &&
-          options?.webSearchRequested === false
-        ),
-    )
-    .map(([key]) => key);
-  if (failedQualityChecks.length > 0) {
-    issues.push(
-      `완료되지 않은 품질 검사가 있습니다: ${failedQualityChecks.join(", ")}`,
-    );
-  }
+  // quality_check is the model's self-report, not proof that the generated
+  // survey is valid. Structural, respondent-copy, semantic, plan-coverage and
+  // final acceptance validators below are the authoritative server gates.
   return [...new Set(issues)];
 }
 
