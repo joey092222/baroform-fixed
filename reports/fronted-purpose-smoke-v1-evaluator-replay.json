@@ -1,0 +1,393 @@
+{
+  "sourceBaseline": "fronted-purpose-smoke-v1",
+  "replayType": "stored-results-evaluator-only",
+  "openAiCalls": 0,
+  "before": {
+    "truePositive": 8,
+    "falsePositive": 2,
+    "trueNegative": 10,
+    "falseNegative": 0
+  },
+  "after": {
+    "truePositive": 8,
+    "falsePositive": 0,
+    "trueNegative": 12,
+    "falseNegative": 0
+  },
+  "cases": [
+    {
+      "caseId": "fronted-ambiguous-001",
+      "manualVerdict": "accepted",
+      "truthFailure": false,
+      "before": {
+        "predictedFailure": false,
+        "fatalCodes": []
+      },
+      "after": {
+        "predictedFailure": false,
+        "fatalCodes": [],
+        "warnings": []
+      },
+      "actualQuestionsChanged": false
+    },
+    {
+      "caseId": "fronted-ambiguous-002",
+      "manualVerdict": "accepted",
+      "truthFailure": false,
+      "before": {
+        "predictedFailure": false,
+        "fatalCodes": []
+      },
+      "after": {
+        "predictedFailure": false,
+        "fatalCodes": [],
+        "warnings": []
+      },
+      "actualQuestionsChanged": false
+    },
+    {
+      "caseId": "fronted-ambiguous-003",
+      "manualVerdict": "accepted",
+      "truthFailure": false,
+      "before": {
+        "predictedFailure": false,
+        "fatalCodes": []
+      },
+      "after": {
+        "predictedFailure": false,
+        "fatalCodes": [],
+        "warnings": []
+      },
+      "actualQuestionsChanged": false
+    },
+    {
+      "caseId": "fronted-clear-001",
+      "manualVerdict": "accepted",
+      "truthFailure": false,
+      "before": {
+        "predictedFailure": false,
+        "fatalCodes": []
+      },
+      "after": {
+        "predictedFailure": false,
+        "fatalCodes": [],
+        "warnings": []
+      },
+      "actualQuestionsChanged": false
+    },
+    {
+      "caseId": "fronted-clear-002",
+      "manualVerdict": "true_product_failure",
+      "truthFailure": true,
+      "before": {
+        "predictedFailure": true,
+        "fatalCodes": [
+          "REQUEST_FAILURE",
+          "ELIGIBILITY_CHECK_MISSING",
+          "REQUIRED_PURPOSE_MISSING",
+          "REQUIRED_QUESTION_CONCEPT_MISSING",
+          "OVERALL_SATISFACTION_MISSING",
+          "QUESTION_COUNT_MISMATCH"
+        ]
+      },
+      "after": {
+        "predictedFailure": true,
+        "fatalCodes": [
+          "REQUEST_FAILURE",
+          "ELIGIBILITY_CHECK_MISSING",
+          "REQUIRED_PURPOSE_MISSING",
+          "REQUIRED_QUESTION_CONCEPT_MISSING",
+          "OVERALL_SATISFACTION_MISSING",
+          "QUESTION_COUNT_MISMATCH"
+        ],
+        "warnings": []
+      },
+      "actualQuestionsChanged": false
+    },
+    {
+      "caseId": "fronted-clear-003",
+      "manualVerdict": "true_product_failure",
+      "truthFailure": true,
+      "before": {
+        "predictedFailure": true,
+        "fatalCodes": [
+          "HARD_FALLBACK",
+          "SCHEMA_ISSUES"
+        ]
+      },
+      "after": {
+        "predictedFailure": true,
+        "fatalCodes": [
+          "HARD_FALLBACK"
+        ],
+        "warnings": []
+      },
+      "actualQuestionsChanged": false
+    },
+    {
+      "caseId": "fronted-clear-004",
+      "manualVerdict": "true_product_failure",
+      "truthFailure": true,
+      "before": {
+        "predictedFailure": true,
+        "fatalCodes": [
+          "HARD_FALLBACK",
+          "SCHEMA_ISSUES"
+        ]
+      },
+      "after": {
+        "predictedFailure": true,
+        "fatalCodes": [
+          "HARD_FALLBACK"
+        ],
+        "warnings": []
+      },
+      "actualQuestionsChanged": false
+    },
+    {
+      "caseId": "fronted-clear-005",
+      "manualVerdict": "accepted",
+      "truthFailure": false,
+      "before": {
+        "predictedFailure": false,
+        "fatalCodes": []
+      },
+      "after": {
+        "predictedFailure": false,
+        "fatalCodes": [],
+        "warnings": []
+      },
+      "actualQuestionsChanged": false
+    },
+    {
+      "caseId": "fronted-clear-006",
+      "manualVerdict": "true_product_failure",
+      "truthFailure": true,
+      "before": {
+        "predictedFailure": true,
+        "fatalCodes": [
+          "REQUEST_FAILURE",
+          "ELIGIBILITY_CHECK_MISSING",
+          "REQUIRED_PURPOSE_MISSING",
+          "REQUIRED_QUESTION_CONCEPT_MISSING",
+          "QUESTION_COUNT_MISMATCH"
+        ]
+      },
+      "after": {
+        "predictedFailure": true,
+        "fatalCodes": [
+          "REQUEST_FAILURE",
+          "ELIGIBILITY_CHECK_MISSING",
+          "REQUIRED_PURPOSE_MISSING",
+          "REQUIRED_QUESTION_CONCEPT_MISSING",
+          "QUESTION_COUNT_MISMATCH"
+        ],
+        "warnings": []
+      },
+      "actualQuestionsChanged": false
+    },
+    {
+      "caseId": "fronted-clear-007",
+      "manualVerdict": "evaluator_false_positive",
+      "truthFailure": false,
+      "before": {
+        "predictedFailure": true,
+        "fatalCodes": [
+          "SURVEY_OBJECT_MISMATCH"
+        ]
+      },
+      "after": {
+        "predictedFailure": false,
+        "fatalCodes": [],
+        "warnings": []
+      },
+      "actualQuestionsChanged": false
+    },
+    {
+      "caseId": "fronted-clear-008",
+      "manualVerdict": "accepted",
+      "truthFailure": false,
+      "before": {
+        "predictedFailure": false,
+        "fatalCodes": []
+      },
+      "after": {
+        "predictedFailure": false,
+        "fatalCodes": [],
+        "warnings": []
+      },
+      "actualQuestionsChanged": false
+    },
+    {
+      "caseId": "fronted-control-001",
+      "manualVerdict": "true_product_failure",
+      "truthFailure": true,
+      "before": {
+        "predictedFailure": true,
+        "fatalCodes": [
+          "TARGET_POPULATION_MISMATCH",
+          "REQUIRED_QUESTION_CONCEPT_MISSING"
+        ]
+      },
+      "after": {
+        "predictedFailure": true,
+        "fatalCodes": [
+          "TARGET_POPULATION_MISMATCH",
+          "REQUIRED_QUESTION_CONCEPT_MISSING"
+        ],
+        "warnings": [
+          "PARTIAL_REPAIR"
+        ]
+      },
+      "actualQuestionsChanged": false
+    },
+    {
+      "caseId": "fronted-control-002",
+      "manualVerdict": "accepted",
+      "truthFailure": false,
+      "before": {
+        "predictedFailure": false,
+        "fatalCodes": []
+      },
+      "after": {
+        "predictedFailure": false,
+        "fatalCodes": [],
+        "warnings": [
+          "PARTIAL_REPAIR"
+        ]
+      },
+      "actualQuestionsChanged": false
+    },
+    {
+      "caseId": "fronted-control-003",
+      "manualVerdict": "evaluator_false_positive",
+      "truthFailure": false,
+      "before": {
+        "predictedFailure": true,
+        "fatalCodes": [
+          "REQUIRED_QUESTION_CONCEPT_MISSING"
+        ]
+      },
+      "after": {
+        "predictedFailure": false,
+        "fatalCodes": [],
+        "warnings": [
+          "PARTIAL_REPAIR"
+        ]
+      },
+      "actualQuestionsChanged": false
+    },
+    {
+      "caseId": "fronted-noisy-001",
+      "manualVerdict": "true_product_failure",
+      "truthFailure": true,
+      "before": {
+        "predictedFailure": true,
+        "fatalCodes": [
+          "OVERALL_SATISFACTION_MISSING"
+        ]
+      },
+      "after": {
+        "predictedFailure": true,
+        "fatalCodes": [
+          "OVERALL_SATISFACTION_MISSING"
+        ],
+        "warnings": [
+          "PARTIAL_REPAIR"
+        ]
+      },
+      "actualQuestionsChanged": false
+    },
+    {
+      "caseId": "fronted-noisy-002",
+      "manualVerdict": "true_product_failure",
+      "truthFailure": true,
+      "before": {
+        "predictedFailure": true,
+        "fatalCodes": [
+          "HARD_FALLBACK"
+        ]
+      },
+      "after": {
+        "predictedFailure": true,
+        "fatalCodes": [
+          "HARD_FALLBACK"
+        ],
+        "warnings": []
+      },
+      "actualQuestionsChanged": false
+    },
+    {
+      "caseId": "fronted-noisy-003",
+      "manualVerdict": "accepted",
+      "truthFailure": false,
+      "before": {
+        "predictedFailure": false,
+        "fatalCodes": []
+      },
+      "after": {
+        "predictedFailure": false,
+        "fatalCodes": [],
+        "warnings": []
+      },
+      "actualQuestionsChanged": false
+    },
+    {
+      "caseId": "fronted-noisy-004",
+      "manualVerdict": "accepted",
+      "truthFailure": false,
+      "before": {
+        "predictedFailure": false,
+        "fatalCodes": []
+      },
+      "after": {
+        "predictedFailure": false,
+        "fatalCodes": [],
+        "warnings": []
+      },
+      "actualQuestionsChanged": false
+    },
+    {
+      "caseId": "fronted-noisy-005",
+      "manualVerdict": "accepted",
+      "truthFailure": false,
+      "before": {
+        "predictedFailure": false,
+        "fatalCodes": []
+      },
+      "after": {
+        "predictedFailure": false,
+        "fatalCodes": [],
+        "warnings": []
+      },
+      "actualQuestionsChanged": false
+    },
+    {
+      "caseId": "fronted-noisy-006",
+      "manualVerdict": "true_product_failure",
+      "truthFailure": true,
+      "before": {
+        "predictedFailure": true,
+        "fatalCodes": [
+          "REQUEST_FAILURE",
+          "ELIGIBILITY_CHECK_MISSING",
+          "REQUIRED_PURPOSE_MISSING",
+          "REQUIRED_QUESTION_CONCEPT_MISSING",
+          "QUESTION_COUNT_MISMATCH"
+        ]
+      },
+      "after": {
+        "predictedFailure": true,
+        "fatalCodes": [
+          "REQUEST_FAILURE",
+          "ELIGIBILITY_CHECK_MISSING",
+          "REQUIRED_PURPOSE_MISSING",
+          "REQUIRED_QUESTION_CONCEPT_MISSING",
+          "QUESTION_COUNT_MISMATCH"
+        ],
+        "warnings": []
+      },
+      "actualQuestionsChanged": false
+    }
+  ]
+}

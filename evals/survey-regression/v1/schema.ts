@@ -130,7 +130,12 @@ export type SurveyRegressionResult = {
   finalEvaluationTarget: string | null;
   title: string | null;
   description: string | null;
-  questions: Array<{ title: string; type: string | null; options: string[] }>;
+  questions: Array<{
+    title: string;
+    type: string | null;
+    options: string[];
+    reason?: string | null;
+  }>;
   questionsBeforePostprocess: string[];
   schemaIssues: string[];
   semanticIssues: string[];

@@ -131,20 +131,54 @@ export function conceptPresent(concept: string, corpus: string) {
 const surveyPurposePollutionPattern =
   /(?:만족도|인지도|인식|이미지|수요|필요성|의향|이유|원인|장벽|개선(?:점|의견|요구)?|평가)/u;
 
-function surveyObjectRoleCompatible(actual: string, candidates: string[]) {
-  if (!semanticTextMatch(actual, candidates)) return false;
+function surveyObjectRoleCompatible(
+  actual: string,
+  candidates: string[],
+  semanticCorpus: string,
+) {
+  if (!actual.trim()) return false;
   const normalizedActual = normalize(actual);
   return candidates.some((candidate) => {
     const normalizedCandidate = normalize(candidate);
-    if (!normalizedActual.includes(normalizedCandidate)) return false;
     const actualHasPurposeSuffix = surveyPurposePollutionPattern.test(actual.trim());
     const candidateHasPurposeSuffix = surveyPurposePollutionPattern.test(candidate.trim());
-    return !actualHasPurposeSuffix || candidateHasPurposeSuffix;
+    if (actualHasPurposeSuffix && !candidateHasPurposeSuffix) return false;
+    if (!semanticTextMatch(semanticCorpus, [candidate])) return false;
+    if (semanticTextMatch(actual, [candidate])) return true;
+
+    const candidateTokens = meaningfulTokens(candidate);
+    const actualTokens = meaningfulTokens(actual);
+    const candidateHead = candidateTokens.at(-1);
+    if (!candidateHead || actualTokens.length === 0) return false;
+    return (
+      normalizedActual.includes(normalize(candidateHead)) &&
+      actualTokens.every((token) => normalizedCandidate.includes(normalize(token)))
+    );
   });
 }
 
+const comparisonSignalPatterns = [
+  ...conceptPatterns["대상 비교"],
+  /더\s*(?:만족|선호|좋|편|도움|적합)/,
+  /(?:둘|두\s*대상|두\s*메뉴|두\s*서비스).*(?:중|비교|차이)/,
+  /각각.*(?:만족|평가|점수|정도)/,
+];
+
+function comparisonCoveragePresent(
+  semanticCorpus: string,
+  expectedTargets: string[],
+) {
+  if (!comparisonSignalPatterns.some((pattern) => pattern.test(semanticCorpus))) {
+    return false;
+  }
+  if (expectedTargets.length < 2) return true;
+  return expectedTargets.every((target) =>
+    semanticTextMatch(semanticCorpus, [target]),
+  );
+}
+
 function screeningQuestionPresent(
-  questions: Array<{ title: string; options: string[] }>,
+  questions: Array<{ title: string; options: string[]; reason?: string | null }>,
 ) {
   return questions.some((question) => {
     const visible = `${question.title}\n${question.options.join("\n")}`;
@@ -226,7 +260,7 @@ export function evaluateSemanticResult(
   const warnings: SurveyRegressionIssue[] = [];
   const questionTitleText = result.questions.map((item) => item.title).join("\n");
   const questionText = result.questions
-    .map((item) => [item.title, ...item.options].join(" "))
+    .map((item) => [item.title, ...item.options, item.reason ?? ""].join(" "))
     .join("\n");
   const targetText =
     result.finalRespondentGroup ?? result.canonicalTargetPopulation ?? "";
@@ -287,7 +321,11 @@ export function evaluateSemanticResult(
       ? testCase.expectedSurveyObject.every((expected) =>
           semanticTextMatch(allText, [expected]),
         )
-      : surveyObjectRoleCompatible(objectText, testCase.expectedSurveyObject);
+      : surveyObjectRoleCompatible(
+          objectText,
+          testCase.expectedSurveyObject,
+          allText,
+        );
   if (!surveyObjectMatches) {
     fatalFailures.push(issue("SURVEY_OBJECT_MISMATCH", `조사 대상 불일치: ${objectText}`, "survey_object"));
   }
@@ -349,7 +387,11 @@ export function evaluateSemanticResult(
     }
   }
   for (const concept of testCase.requiredQuestionConcepts) {
-    if (!conceptPresent(concept, questionText)) {
+    const present =
+      concept === "대상 비교"
+        ? comparisonCoveragePresent(questionText, testCase.expectedSurveyObject)
+        : conceptPresent(concept, questionText);
+    if (!present) {
       fatalFailures.push(issue("REQUIRED_QUESTION_CONCEPT_MISSING", `필수 문항 개념 누락: ${concept}`, concept.includes("시간") ? "reference_period" : "purpose_coverage"));
     }
   }

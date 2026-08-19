@@ -82,6 +82,7 @@ type BlueprintQuestion = {
   title?: unknown;
   type?: unknown;
   options?: unknown;
+  reason?: unknown;
 };
 
 type Blueprint = {
@@ -448,6 +449,7 @@ function blueprintQuestions(blueprint: Blueprint | null) {
     title: text(item.title),
     type: text(item.type) || null,
     options: strings(item.options),
+    reason: text(item.reason) || null,
   })).filter((item) => item.title);
 }
 
