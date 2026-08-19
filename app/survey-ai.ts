@@ -2748,7 +2748,7 @@ export function buildSurveyAiRequest(
     surveyArchetype: parsedBrief.parsedSurveyContext.surveyArchetype,
     isUsageObject: parsedBrief.parsedSurveyContext.isUsageObject,
   };
-  const developerContext = [
+  const developerContextWithDerivedContext = [
     useWebSearch
       ? "다음 정보를 바탕으로 필요한 웹 검색과 설문 생성을 한 번에 수행하라."
       : "다음 정보를 바탕으로 외부 검색 없이 설문을 생성하라.",
@@ -2855,6 +2855,13 @@ export function buildSurveyAiRequest(
       ? "검색, 설계, 응답자 경로 시뮬레이션과 품질검사를 이 한 번의 응답 안에서 끝내고 JSON Schema에 맞는 최종 결과만 반환한다."
       : "설계, 응답자 경로 시뮬레이션과 품질검사를 이 한 번의 응답 안에서 끝내고 JSON Schema에 맞는 최종 결과만 반환한다.",
   ].join("\n");
+  const developerContext = prompt
+    ? developerContextWithDerivedContext.split(prompt).join("[사용자 원문은 user 메시지 참조]")
+    : developerContextWithDerivedContext;
+  const surveyInstructions = buildSurveyAiInstructions(surveyMode);
+  const instructions = prompt
+    ? surveyInstructions.split(prompt).join("[사용자 원문은 user 메시지 참조]")
+    : surveyInstructions;
 
   const userContent =
     referenceImages.length > 0 || referenceFiles.length > 0
@@ -2902,7 +2909,7 @@ export function buildSurveyAiRequest(
       : {}),
     store: false,
     max_output_tokens: maxOutputTokens,
-    instructions: buildSurveyAiInstructions(surveyMode),
+    instructions,
     input,
     text: {
       format: zodTextFormat(

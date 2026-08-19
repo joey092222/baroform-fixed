@@ -36,6 +36,16 @@ const virtualEntityInputs = [
 
 const allInvariantInputs = [...representativeInputs, ...virtualEntityInputs] as const;
 
+const regressionInvariantInputs = [
+  "동아리 안 한 신입생한테 학교 적응이랑 가입 안 한 이유 물어보기",
+  "자전거와 전동킥보드로 출퇴근하는 사람들의 이동 시간과 안전 경험 비교",
+  "네웹 안 쓰는 대학생들 왜 안 쓰는지랑 앞으로 쓸 생각 있는지",
+  "새봄대학교 심리학과 1학년의 이번 학기 온라인 강의 만족도",
+  "통계학 강의와 프로그래밍 강의가 데이터 분석 자신감에 미치는 영향을 비교",
+  "시설 이용",
+  "서비스 개선",
+] as const;
+
 test("허용된 줄바꿈 정규화와 trim 외에는 사용자 원문을 바꾸지 않는다", () => {
   for (const input of representativeInputs) {
     assert.equal(normalizeUserInput(input), input);
@@ -92,7 +102,7 @@ test("실제 API route도 userInput 원문과 클라이언트 requestId를 그�
 });
 
 test("대표·가상 입력은 OpenAI의 별도 user role에 정확히 한 번만 포함된다", () => {
-  for (const input of allInvariantInputs) {
+  for (const input of [...allInvariantInputs, ...regressionInvariantInputs]) {
     const request = buildSurveyAiRequest(input, null, "gpt-test", {
       surveyMode: "standard",
       questionCount: 7,
