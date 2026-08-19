@@ -1,0 +1,3548 @@
+{
+  "schemaVersion": 3,
+  "baselineId": "fronted-purpose-v3-partial-repair-baseline",
+  "immutable": true,
+  "capturedAt": "2026-08-19",
+  "source": {
+    "branch": "codex/fix-survey-regression-root-causes-v1",
+    "commit": "42dccef5f32568f5078429d29917fdb5418b7384",
+    "runs": [
+      "fronted-purpose-remediation-42dccef-a1",
+      "fronted-purpose-remediation-42dccef-rate-retry-a1"
+    ],
+    "environment": "Preview",
+    "note": "첫 실행의 429 사례만 허용된 1회 재시도 결과로 교체함"
+  },
+  "summary": {
+    "completed": 20,
+    "expectedSurveys": 17,
+    "expectedClarifications": 3,
+    "paths": {
+      "clarification": 3,
+      "deterministic_metadata_normalization": 13,
+      "partial_repair": 4
+    },
+    "fatalCases": 0,
+    "actualModelCalls": 17,
+    "infrastructureRetries": 9,
+    "aggregateUsageFromPreviewLogs": {
+      "inputTokens": 292879,
+      "outputTokens": 49294,
+      "totalTokens": 342173,
+      "webSearchCalls": 3,
+      "estimatedCostUsd": 1.436845
+    },
+    "modelLatencyMsFromPreviewLogs": {
+      "average": 31027,
+      "p95": 84430,
+      "maximum": 84430
+    }
+  },
+  "security": {
+    "containsApiKey": false,
+    "containsAuthorizationHeader": false,
+    "containsCookie": false,
+    "containsPreviewShareToken": false,
+    "containsFullDeveloperPrompt": false
+  },
+  "cases": [
+    {
+      "caseId": "fronted-ambiguous-001",
+      "input": "별마루 카페 새 메뉴 주민 조사",
+      "expected": {
+        "id": "fronted-ambiguous-001",
+        "split": "dev",
+        "stratum": "clarification",
+        "category": "fronted_purpose_eligibility",
+        "difficulty": "hard",
+        "surveyMode": "standard",
+        "questionCount": 7,
+        "input": "별마루 카페 새 메뉴 주민 조사",
+        "expectedOutcome": "clarification",
+        "expectedTargetPopulation": [
+          "확인 필요"
+        ],
+        "expectedSurveyObject": [
+          "확인 필요"
+        ],
+        "expectedPurposeConcepts": [
+          "확인 필요"
+        ],
+        "inputQuality": "ambiguous",
+        "contextEntities": [],
+        "expectedEligibilityConditions": [],
+        "screeningExpected": false,
+        "forbiddenPurposeConcepts": [],
+        "mustPreserveTerms": [],
+        "mustPreserveNegation": false,
+        "requiredQuestionConcepts": [],
+        "forbiddenTargetExpansions": [],
+        "forbiddenSurveyObjects": [],
+        "forbiddenQuestionConcepts": [
+          "generic filler",
+          "무관한 인구통계"
+        ],
+        "clarificationExpected": true,
+        "expectedIntentModes": [
+          "single"
+        ],
+        "expectedTargetCardinality": "single",
+        "expectedArchetypes": [
+          "satisfaction"
+        ],
+        "tags": [
+          "clarification"
+        ],
+        "notes": "v1.1 목적 선행·적격 조건 역할 분리 smoke fixture"
+      },
+      "requestId": "8f961851-6927-4b3f-8e0f-67b7ca41e371",
+      "httpStatus": 200,
+      "responseType": "clarification",
+      "responseStatus": "needs_clarification",
+      "generationSource": "clarification",
+      "fallbackReason": null,
+      "classification": "clarification",
+      "modelCallCount": 0,
+      "repairCount": 0,
+      "fallbackCount": 0,
+      "normalizedMetadataPaths": [],
+      "finalRespondentGroup": null,
+      "finalEvaluationTarget": null,
+      "title": null,
+      "description": null,
+      "questions": [],
+      "questionsBeforePostprocess": [],
+      "schemaIssues": [],
+      "semanticIssues": [],
+      "qualityIssues": [],
+      "fatalFailures": [],
+      "warnings": [],
+      "repairEvidence": null,
+      "latencyMs": 264
+    },
+    {
+      "caseId": "fronted-ambiguous-002",
+      "input": "다온 앱 새 기능 대학생 조사",
+      "expected": {
+        "id": "fronted-ambiguous-002",
+        "split": "dev",
+        "stratum": "clarification",
+        "category": "fronted_purpose_eligibility",
+        "difficulty": "hard",
+        "surveyMode": "standard",
+        "questionCount": 7,
+        "input": "다온 앱 새 기능 대학생 조사",
+        "expectedOutcome": "clarification",
+        "expectedTargetPopulation": [
+          "확인 필요"
+        ],
+        "expectedSurveyObject": [
+          "확인 필요"
+        ],
+        "expectedPurposeConcepts": [
+          "확인 필요"
+        ],
+        "inputQuality": "ambiguous",
+        "contextEntities": [],
+        "expectedEligibilityConditions": [],
+        "screeningExpected": false,
+        "forbiddenPurposeConcepts": [],
+        "mustPreserveTerms": [],
+        "mustPreserveNegation": false,
+        "requiredQuestionConcepts": [],
+        "forbiddenTargetExpansions": [],
+        "forbiddenSurveyObjects": [],
+        "forbiddenQuestionConcepts": [
+          "generic filler",
+          "무관한 인구통계"
+        ],
+        "clarificationExpected": true,
+        "expectedIntentModes": [
+          "single"
+        ],
+        "expectedTargetCardinality": "single",
+        "expectedArchetypes": [
+          "satisfaction"
+        ],
+        "tags": [
+          "clarification"
+        ],
+        "notes": "v1.1 목적 선행·적격 조건 역할 분리 smoke fixture"
+      },
+      "requestId": "769aa770-63f5-40d3-9d34-b7bcc05573e5",
+      "httpStatus": 200,
+      "responseType": "clarification",
+      "responseStatus": "needs_clarification",
+      "generationSource": "clarification",
+      "fallbackReason": null,
+      "classification": "clarification",
+      "modelCallCount": 0,
+      "repairCount": 0,
+      "fallbackCount": 0,
+      "normalizedMetadataPaths": [],
+      "finalRespondentGroup": null,
+      "finalEvaluationTarget": null,
+      "title": null,
+      "description": null,
+      "questions": [],
+      "questionsBeforePostprocess": [],
+      "schemaIssues": [],
+      "semanticIssues": [],
+      "qualityIssues": [],
+      "fatalFailures": [],
+      "warnings": [],
+      "repairEvidence": null,
+      "latencyMs": 260
+    },
+    {
+      "caseId": "fronted-ambiguous-003",
+      "input": "늘봄센터 프로그램 학부모 조사",
+      "expected": {
+        "id": "fronted-ambiguous-003",
+        "split": "dev",
+        "stratum": "clarification",
+        "category": "fronted_purpose_eligibility",
+        "difficulty": "hard",
+        "surveyMode": "standard",
+        "questionCount": 7,
+        "input": "늘봄센터 프로그램 학부모 조사",
+        "expectedOutcome": "clarification",
+        "expectedTargetPopulation": [
+          "확인 필요"
+        ],
+        "expectedSurveyObject": [
+          "확인 필요"
+        ],
+        "expectedPurposeConcepts": [
+          "확인 필요"
+        ],
+        "inputQuality": "ambiguous",
+        "contextEntities": [],
+        "expectedEligibilityConditions": [],
+        "screeningExpected": false,
+        "forbiddenPurposeConcepts": [],
+        "mustPreserveTerms": [],
+        "mustPreserveNegation": false,
+        "requiredQuestionConcepts": [],
+        "forbiddenTargetExpansions": [],
+        "forbiddenSurveyObjects": [],
+        "forbiddenQuestionConcepts": [
+          "generic filler",
+          "무관한 인구통계"
+        ],
+        "clarificationExpected": true,
+        "expectedIntentModes": [
+          "single"
+        ],
+        "expectedTargetCardinality": "single",
+        "expectedArchetypes": [
+          "satisfaction"
+        ],
+        "tags": [
+          "clarification"
+        ],
+        "notes": "v1.1 목적 선행·적격 조건 역할 분리 smoke fixture"
+      },
+      "requestId": "feaa50fa-6a23-4bb5-a163-7f6fe10042e4",
+      "httpStatus": 200,
+      "responseType": "clarification",
+      "responseStatus": "needs_clarification",
+      "generationSource": "clarification",
+      "fallbackReason": null,
+      "classification": "clarification",
+      "modelCallCount": 0,
+      "repairCount": 0,
+      "fallbackCount": 0,
+      "normalizedMetadataPaths": [],
+      "finalRespondentGroup": null,
+      "finalEvaluationTarget": null,
+      "title": null,
+      "description": null,
+      "questions": [],
+      "questionsBeforePostprocess": [],
+      "schemaIssues": [],
+      "semanticIssues": [],
+      "qualityIssues": [],
+      "fatalFailures": [],
+      "warnings": [],
+      "repairEvidence": null,
+      "latencyMs": 242
+    },
+    {
+      "caseId": "fronted-clear-001",
+      "input": "최근 한 달 동안 별마루 카페를 이용한 주민을 대상으로 별마루 카페의 새 메뉴 만족도를 조사하고 싶다.",
+      "expected": {
+        "id": "fronted-clear-001",
+        "split": "dev",
+        "stratum": "complex_relation",
+        "category": "fronted_purpose_eligibility",
+        "difficulty": "medium",
+        "surveyMode": "standard",
+        "questionCount": 7,
+        "input": "최근 한 달 동안 별마루 카페를 이용한 주민을 대상으로 별마루 카페의 새 메뉴 만족도를 조사하고 싶다.",
+        "expectedOutcome": "survey",
+        "expectedTargetPopulation": [
+          "최근 한 달 동안 별마루 카페를 이용한 주민"
+        ],
+        "expectedSurveyObject": [
+          "별마루 카페의 새 메뉴"
+        ],
+        "expectedPurposeConcepts": [
+          "새 메뉴 만족도"
+        ],
+        "inputQuality": "clear",
+        "contextEntities": [
+          "별마루 카페"
+        ],
+        "expectedEligibilityConditions": [
+          "최근 한 달 내 별마루 카페 이용"
+        ],
+        "screeningExpected": true,
+        "forbiddenPurposeConcepts": [],
+        "mustPreserveTerms": [
+          "별마루 카페",
+          "새 메뉴"
+        ],
+        "mustPreserveNegation": false,
+        "requiredQuestionConcepts": [
+          "만족도"
+        ],
+        "forbiddenTargetExpansions": [],
+        "forbiddenSurveyObjects": [],
+        "forbiddenQuestionConcepts": [
+          "generic filler",
+          "무관한 인구통계"
+        ],
+        "clarificationExpected": false,
+        "expectedIntentModes": [
+          "single"
+        ],
+        "expectedTargetCardinality": "single",
+        "expectedArchetypes": [
+          "satisfaction"
+        ],
+        "tags": [
+          "timeframe"
+        ],
+        "notes": "v1.1 목적 선행·적격 조건 역할 분리 smoke fixture"
+      },
+      "requestId": "cff30e25-3158-4f15-b541-36cfb55543fa",
+      "httpStatus": 200,
+      "responseType": "survey",
+      "responseStatus": "ready_with_caution",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "classification": "partial_repair",
+      "modelCallCount": 1,
+      "repairCount": 1,
+      "fallbackCount": 0,
+      "normalizedMetadataPaths": [
+        "quality_check.all_named_entities_searched",
+        "survey.sections.0.id",
+        "survey.sections.1.id",
+        "survey.sections.2.id",
+        "survey.questions.0.id",
+        "survey.questions.0.section_id",
+        "survey.questions.0.options.0.id",
+        "survey.questions.0.options.1.id",
+        "survey.questions.1.id",
+        "survey.questions.1.section_id",
+        "survey.questions.1.options.0.id",
+        "survey.questions.1.options.1.id",
+        "survey.questions.1.options.2.id",
+        "survey.questions.2.id",
+        "survey.questions.2.section_id",
+        "survey.questions.2.options.0.id",
+        "survey.questions.2.options.1.id",
+        "survey.questions.2.options.2.id",
+        "survey.questions.2.options.3.id",
+        "survey.questions.2.options.4.id",
+        "survey.questions.3.id",
+        "survey.questions.3.section_id",
+        "survey.questions.3.options.0.id",
+        "survey.questions.3.options.1.id",
+        "survey.questions.3.options.2.id",
+        "survey.questions.3.options.3.id",
+        "survey.questions.3.options.4.id",
+        "survey.questions.3.options.5.id",
+        "survey.questions.3.options.6.id",
+        "survey.questions.4.id",
+        "survey.questions.4.section_id",
+        "survey.questions.4.options.0.id",
+        "survey.questions.4.options.1.id",
+        "survey.questions.4.options.2.id",
+        "survey.questions.4.options.3.id",
+        "survey.questions.4.options.4.id",
+        "survey.questions.4.options.5.id",
+        "survey.questions.4.options.6.id",
+        "survey.questions.4.validation",
+        "survey.questions.5.id",
+        "survey.question"
+      ],
+      "finalRespondentGroup": "최근 한 달 동안 별마루 카페를 이용한 주민",
+      "finalEvaluationTarget": "별마루 카페의 새 메뉴",
+      "title": "별마루 카페 새 메뉴 만족도 조사",
+      "description": "최근 한 달 동안 별마루 카페를 이용한 주민의 새 메뉴 경험과 만족도를 알아보기 위한 설문입니다. 약 3분 정도 걸립니다.",
+      "questions": [
+        {
+          "title": "최근 한 달 동안 별마루 카페에 방문한 적이 있나요?",
+          "type": "single",
+          "options": [
+            "있음",
+            "없음"
+          ],
+          "reason": "최근 한 달 내 카페 방문 경험이 있는 응답자를 구분함."
+        },
+        {
+          "title": "최근 한 달 동안 별마루 카페의 새 메뉴를 맛본 적이 있나요?",
+          "type": "single",
+          "options": [
+            "있음",
+            "없음",
+            "잘 기억나지 않음"
+          ],
+          "reason": "새 메뉴를 맛본 응답자를 구분함."
+        },
+        {
+          "title": "별마루 카페의 새 메뉴에 전반적으로 얼마나 만족하나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "전반적 만족도를 공통 척도로 측정함."
+        },
+        {
+          "title": "맛본 새 메뉴는 전반적으로 어땠나요?",
+          "type": "single",
+          "options": [
+            "매우 만족했음",
+            "만족한 편이었음",
+            "보통이었음",
+            "만족하지 않은 편이었음",
+            "전혀 만족하지 않았음",
+            "새 메뉴를 맛보지 않았음",
+            "잘 기억나지 않음"
+          ],
+          "reason": "새 메뉴의 전반적인 만족도 수준을 파악함."
+        },
+        {
+          "title": "새 메뉴를 맛보며 좋았거나 아쉬웠던 점을 모두 골라주세요",
+          "type": "multiple",
+          "options": [
+            "맛",
+            "가격",
+            "양 또는 크기",
+            "새 메뉴의 종류",
+            "특별히 좋거나 아쉬운 점이 없었음",
+            "새 메뉴를 맛보지 않았음",
+            "기타"
+          ],
+          "reason": "새 메뉴 평가와 관련된 주요 경험 요소를 파악함."
+        },
+        {
+          "title": "새 메뉴에서 가장 먼저 바뀌었으면 하는 점은 무엇인가요?",
+          "type": "single",
+          "options": [
+            "맛",
+            "가격",
+            "양 또는 크기",
+            "새 메뉴의 종류",
+            "바꿀 점이 없음",
+            "새 메뉴를 맛보지 않았음",
+            "기타"
+          ],
+          "reason": "새 메뉴 개선에 우선 반영할 요소를 파악함."
+        },
+        {
+          "title": "새 메뉴를 맛보며 느낀 점이나 바라는 점이 있다면 적어주세요",
+          "type": "text",
+          "options": [],
+          "reason": "선택지에 담기지 않은 새 메뉴 관련 의견을 수집함."
+        }
+      ],
+      "questionsBeforePostprocess": [],
+      "schemaIssues": [],
+      "semanticIssues": [],
+      "qualityIssues": [],
+      "fatalFailures": [],
+      "warnings": [
+        {
+          "code": "PARTIAL_REPAIR",
+          "message": "모델 출력 일부가 복구됨",
+          "cluster": "partial_repair",
+          "fatal": false
+        }
+      ],
+      "repairEvidence": {
+        "issue": "전반적 만족도를 직접 측정하지 않는다는 quality issue",
+        "observed": "기존 직접 만족도 척도 뒤에 유사 만족도 선택 문항이 추가됨"
+      },
+      "latencyMs": 57787
+    },
+    {
+      "caseId": "fronted-clear-002",
+      "input": "새 기능 만족도는 다온 앱을 최근 3개월 사용한 대학생에게 조사",
+      "expected": {
+        "id": "fronted-clear-002",
+        "split": "dev",
+        "stratum": "complex_relation",
+        "category": "fronted_purpose_eligibility",
+        "difficulty": "medium",
+        "surveyMode": "standard",
+        "questionCount": 7,
+        "input": "새 기능 만족도는 다온 앱을 최근 3개월 사용한 대학생에게 조사",
+        "expectedOutcome": "survey",
+        "expectedTargetPopulation": [
+          "최근 3개월 다온 앱을 사용한 대학생"
+        ],
+        "expectedSurveyObject": [
+          "다온 앱의 새 기능"
+        ],
+        "expectedPurposeConcepts": [
+          "새 기능 만족도"
+        ],
+        "inputQuality": "clear",
+        "contextEntities": [
+          "다온 앱"
+        ],
+        "expectedEligibilityConditions": [
+          "최근 3개월 다온 앱 사용"
+        ],
+        "screeningExpected": true,
+        "forbiddenPurposeConcepts": [],
+        "mustPreserveTerms": [
+          "다온 앱",
+          "새 기능"
+        ],
+        "mustPreserveNegation": false,
+        "requiredQuestionConcepts": [
+          "만족도"
+        ],
+        "forbiddenTargetExpansions": [],
+        "forbiddenSurveyObjects": [],
+        "forbiddenQuestionConcepts": [
+          "generic filler",
+          "무관한 인구통계"
+        ],
+        "clarificationExpected": false,
+        "expectedIntentModes": [
+          "single"
+        ],
+        "expectedTargetCardinality": "single",
+        "expectedArchetypes": [
+          "satisfaction"
+        ],
+        "tags": [
+          "timeframe"
+        ],
+        "notes": "v1.1 목적 선행·적격 조건 역할 분리 smoke fixture"
+      },
+      "requestId": "f3c1d085-36b4-4669-8cd9-f5d4020e2177",
+      "httpStatus": 200,
+      "responseType": "survey",
+      "responseStatus": "ready_with_caution",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "classification": "partial_repair",
+      "modelCallCount": 1,
+      "repairCount": 1,
+      "fallbackCount": 0,
+      "normalizedMetadataPaths": [
+        "quality_check.all_named_entities_searched",
+        "survey.sections.0.id",
+        "survey.sections.1.id",
+        "survey.sections.2.id",
+        "survey.questions.0.id",
+        "survey.questions.0.section_id",
+        "survey.questions.0.options.0.id",
+        "survey.questions.0.options.1.id",
+        "survey.questions.1.id",
+        "survey.questions.1.section_id",
+        "survey.questions.1.options.0.id",
+        "survey.questions.1.options.1.id",
+        "survey.questions.1.options.2.id",
+        "survey.questions.1.options.3.id",
+        "survey.questions.1.options.4.id",
+        "survey.questions.2.id",
+        "survey.questions.2.section_id",
+        "survey.questions.2.options.0.id",
+        "survey.questions.2.options.1.id",
+        "survey.questions.2.options.2.id",
+        "survey.questions.2.options.3.id",
+        "survey.questions.3.id",
+        "survey.questions.3.section_id",
+        "survey.questions.4.id",
+        "survey.questions.4.section_id",
+        "survey.questions.5.id",
+        "survey.questions.5.section_id",
+        "survey.questions.5.options.0.id",
+        "survey.questions.5.options.1.id",
+        "survey.questions.5.options.2.id",
+        "survey.questions.5.options.3.id",
+        "survey.questions.5.options.4.id",
+        "survey.questions.5.options.5.id",
+        "survey.questions.5.options.6.id",
+        "survey.questions.5.validation",
+        "survey.questions.6.id",
+        "survey.questions.6.section_id"
+      ],
+      "finalRespondentGroup": "최근 3개월 다온 앱을 사용한 대학생",
+      "finalEvaluationTarget": "다온 앱의 새 기능",
+      "title": "다온 앱 새 기능 만족도 조사",
+      "description": "최근 3개월 동안 다온 앱을 사용한 대학생을 대상으로 새 기능에 대한 의견을 듣고자 합니다. 약 3분 정도 걸립니다.",
+      "questions": [
+        {
+          "title": "최근 3개월 동안 다온 앱을 사용했나요?",
+          "type": "single",
+          "options": [
+            "네, 사용했습니다",
+            "아니요, 사용하지 않았습니다"
+          ],
+          "reason": "최근 3개월 내 다온 앱 사용 여부를 확인함."
+        },
+        {
+          "title": "최근 3개월 동안 다온 앱을 얼마나 자주 사용했나요?",
+          "type": "single",
+          "options": [
+            "월 1회 미만",
+            "월 1~3회",
+            "주 1회",
+            "주 2~3회",
+            "주 4회 이상"
+          ],
+          "reason": "다온 앱 사용 빈도를 파악함."
+        },
+        {
+          "title": "다온 앱의 새 기능에서 만족한 부분을 모두 골라주세요.",
+          "type": "multiple",
+          "options": [
+            "내용과 품질",
+            "이용 편의",
+            "시간과 일정",
+            "정보와 안내",
+            "비용 대비 가치",
+            "소통과 지원",
+            "기타"
+          ],
+          "reason": "만족을 만드는 구체적인 요인을 파악함."
+        },
+        {
+          "title": "다온 앱의 새 기능에 전반적으로 얼마나 만족했나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "새 기능에 대한 전반적 만족도를 측정함."
+        },
+        {
+          "title": "새 기능을 사용하는 과정은 얼마나 편리했나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "새 기능 사용 과정의 편리함을 측정함."
+        },
+        {
+          "title": "새 기능을 사용하면서 불편했던 점이 있었나요?",
+          "type": "multiple",
+          "options": [
+            "새 기능을 어디서 찾는지 알기 어려웠습니다",
+            "사용 방법을 이해하기 어려웠습니다",
+            "원하는 기능을 수행하는 데 시간이 오래 걸렸습니다",
+            "오류나 멈춤 현상이 있었습니다",
+            "기대했던 것만큼 도움이 되지 않았습니다",
+            "기타",
+            "불편했던 점이 없었습니다"
+          ],
+          "reason": "새 기능 사용 중 발생한 불편 요인을 파악함."
+        },
+        {
+          "title": "다온 앱의 새 기능에서 가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요",
+          "type": "text",
+          "options": [],
+          "reason": "선택지에 없는 구체적인 개선 의견을 수집함."
+        }
+      ],
+      "questionsBeforePostprocess": [],
+      "schemaIssues": [],
+      "semanticIssues": [],
+      "qualityIssues": [],
+      "fatalFailures": [],
+      "warnings": [
+        {
+          "code": "PARTIAL_REPAIR",
+          "message": "모델 출력 일부가 복구됨",
+          "cluster": "partial_repair",
+          "fatal": false
+        }
+      ],
+      "repairEvidence": {
+        "issue": "PREDICATE_ENTITY_MISMATCH",
+        "observed": "canonical 대상의 문맥상 축약 표현을 관계 불일치로 판정함"
+      },
+      "latencyMs": 45898
+    },
+    {
+      "caseId": "fronted-clear-003",
+      "input": "프로그램 만족도는 늘봄센터 프로그램에 이번 학기 참여한 학부모에게 조사",
+      "expected": {
+        "id": "fronted-clear-003",
+        "split": "dev",
+        "stratum": "complex_relation",
+        "category": "fronted_purpose_eligibility",
+        "difficulty": "medium",
+        "surveyMode": "standard",
+        "questionCount": 7,
+        "input": "프로그램 만족도는 늘봄센터 프로그램에 이번 학기 참여한 학부모에게 조사",
+        "expectedOutcome": "survey",
+        "expectedTargetPopulation": [
+          "이번 학기 늘봄센터 프로그램에 참여한 학부모"
+        ],
+        "expectedSurveyObject": [
+          "늘봄센터 프로그램"
+        ],
+        "expectedPurposeConcepts": [
+          "프로그램 만족도"
+        ],
+        "inputQuality": "clear",
+        "contextEntities": [
+          "늘봄센터 프로그램"
+        ],
+        "expectedEligibilityConditions": [
+          "이번 학기 늘봄센터 프로그램 참여"
+        ],
+        "screeningExpected": true,
+        "forbiddenPurposeConcepts": [],
+        "mustPreserveTerms": [
+          "늘봄센터"
+        ],
+        "mustPreserveNegation": false,
+        "requiredQuestionConcepts": [
+          "만족도"
+        ],
+        "forbiddenTargetExpansions": [],
+        "forbiddenSurveyObjects": [],
+        "forbiddenQuestionConcepts": [
+          "generic filler",
+          "무관한 인구통계"
+        ],
+        "clarificationExpected": false,
+        "expectedIntentModes": [
+          "single"
+        ],
+        "expectedTargetCardinality": "single",
+        "expectedArchetypes": [
+          "satisfaction"
+        ],
+        "tags": [
+          "timeframe"
+        ],
+        "notes": "v1.1 목적 선행·적격 조건 역할 분리 smoke fixture"
+      },
+      "requestId": "69386765-91f6-4feb-849a-a3b18a57b205",
+      "httpStatus": 200,
+      "responseType": "survey",
+      "responseStatus": "ready_with_caution",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "classification": "deterministic_metadata_normalization",
+      "modelCallCount": 1,
+      "repairCount": 0,
+      "fallbackCount": 0,
+      "normalizedMetadataPaths": [
+        "survey.sections.0.id",
+        "survey.sections.1.id",
+        "survey.sections.2.id",
+        "survey.questions.0.id",
+        "survey.questions.0.section_id",
+        "survey.questions.0.options.0.id",
+        "survey.questions.0.options.1.id",
+        "survey.questions.1.id",
+        "survey.questions.1.section_id",
+        "survey.questions.1.options.0.id",
+        "survey.questions.1.options.1.id",
+        "survey.questions.1.options.2.id",
+        "survey.questions.1.options.3.id",
+        "survey.questions.1.options.4.id",
+        "survey.questions.2.id",
+        "survey.questions.2.section_id",
+        "survey.questions.3.id",
+        "survey.questions.3.section_id",
+        "survey.questions.4.id",
+        "survey.questions.4.section_id",
+        "survey.questions.4.options.0.id",
+        "survey.questions.4.options.1.id",
+        "survey.questions.4.options.2.id",
+        "survey.questions.4.options.3.id",
+        "survey.questions.4.options.4.id",
+        "survey.questions.4.options.5.id",
+        "survey.questions.4.validation",
+        "survey.questions.5.id",
+        "survey.questions.5.section_id",
+        "survey.questions.5.options.0.id",
+        "survey.questions.5.options.1.id",
+        "survey.questions.5.options.2.id",
+        "survey.questions.5.options.3.id",
+        "survey.questions.5.options.4.id",
+        "survey.questions.5.options.5.id",
+        "survey.questions.6.id",
+        "survey.questions.6.section_id"
+      ],
+      "finalRespondentGroup": "이번 학기 늘봄센터 프로그램에 참여한 학부모",
+      "finalEvaluationTarget": "늘봄센터 프로그램",
+      "title": "늘봄센터 프로그램 만족도 조사",
+      "description": "이번 학기 늘봄센터 프로그램에 참여한 학부모님의 의견을 듣고자 합니다. 응답에는 약 3분이 걸립니다.",
+      "questions": [
+        {
+          "title": "이번 학기에 자녀가 늘봄센터 프로그램에 참여했나요?",
+          "type": "single",
+          "options": [
+            "참여했음",
+            "참여하지 않았음"
+          ],
+          "reason": "이번 학기 프로그램 참여 학부모인지 확인함."
+        },
+        {
+          "title": "이번 학기에 자녀가 늘봄센터 프로그램에 얼마나 자주 참여했나요?",
+          "type": "single",
+          "options": [
+            "1~2회",
+            "3~5회",
+            "6~9회",
+            "10회 이상",
+            "정확히 기억나지 않음"
+          ],
+          "reason": "프로그램 참여 정도를 파악함."
+        },
+        {
+          "title": "이번 학기 늘봄센터 프로그램에 전반적으로 얼마나 만족하셨나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "프로그램의 전반적인 만족도를 파악함."
+        },
+        {
+          "title": "자녀가 프로그램 활동에 즐겁게 참여했다고 느끼셨나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "자녀의 활동 참여 경험을 파악함."
+        },
+        {
+          "title": "프로그램에 참여하면서 불편했던 점이 있었나요?",
+          "type": "multiple",
+          "options": [
+            "프로그램 시간대가 맞지 않았음",
+            "신청하거나 안내를 확인하는 과정이 불편했음",
+            "프로그램 내용이 기대와 달랐음",
+            "자녀가 참여하기 어려워했음",
+            "기타",
+            "불편했던 점이 없었음"
+          ],
+          "reason": "프로그램 참여 과정의 불편 요인을 파악함."
+        },
+        {
+          "title": "가장 먼저 개선됐으면 하는 점은 무엇인가요?",
+          "type": "single",
+          "options": [
+            "프로그램 시간대",
+            "신청 및 안내 방식",
+            "프로그램 내용",
+            "자녀의 참여를 돕는 방식",
+            "현재도 충분함",
+            "기타"
+          ],
+          "reason": "가장 우선해야 할 개선 영역을 파악함."
+        },
+        {
+          "title": "늘봄센터 프로그램에 바라는 점이 있다면 적어주세요",
+          "type": "text",
+          "options": [],
+          "reason": "선택지에 담기지 않은 개선 의견을 수집함."
+        }
+      ],
+      "questionsBeforePostprocess": [],
+      "schemaIssues": [],
+      "semanticIssues": [],
+      "qualityIssues": [],
+      "fatalFailures": [],
+      "warnings": [],
+      "repairEvidence": null,
+      "latencyMs": 21024
+    },
+    {
+      "caseId": "fronted-clear-004",
+      "input": "신제품 만족도는 해든 매장에서 최근 한 달 구매한 고객에게 조사",
+      "expected": {
+        "id": "fronted-clear-004",
+        "split": "dev",
+        "stratum": "complex_relation",
+        "category": "fronted_purpose_eligibility",
+        "difficulty": "medium",
+        "surveyMode": "standard",
+        "questionCount": 7,
+        "input": "신제품 만족도는 해든 매장에서 최근 한 달 구매한 고객에게 조사",
+        "expectedOutcome": "survey",
+        "expectedTargetPopulation": [
+          "최근 한 달 해든 매장에서 구매한 고객"
+        ],
+        "expectedSurveyObject": [
+          "신제품"
+        ],
+        "expectedPurposeConcepts": [
+          "신제품 만족도"
+        ],
+        "inputQuality": "clear",
+        "contextEntities": [
+          "해든 매장"
+        ],
+        "expectedEligibilityConditions": [
+          "최근 한 달 해든 매장 구매"
+        ],
+        "screeningExpected": true,
+        "forbiddenPurposeConcepts": [],
+        "mustPreserveTerms": [
+          "해든 매장",
+          "신제품"
+        ],
+        "mustPreserveNegation": false,
+        "requiredQuestionConcepts": [
+          "만족도"
+        ],
+        "forbiddenTargetExpansions": [],
+        "forbiddenSurveyObjects": [],
+        "forbiddenQuestionConcepts": [
+          "generic filler",
+          "무관한 인구통계"
+        ],
+        "clarificationExpected": false,
+        "expectedIntentModes": [
+          "single"
+        ],
+        "expectedTargetCardinality": "single",
+        "expectedArchetypes": [
+          "satisfaction"
+        ],
+        "tags": [
+          "timeframe"
+        ],
+        "notes": "v1.1 목적 선행·적격 조건 역할 분리 smoke fixture"
+      },
+      "requestId": "8c82491a-7146-46fa-9908-007ab18653d5",
+      "httpStatus": 200,
+      "responseType": "survey",
+      "responseStatus": "ready_with_caution",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "classification": "deterministic_metadata_normalization",
+      "modelCallCount": 1,
+      "repairCount": 0,
+      "fallbackCount": 0,
+      "normalizedMetadataPaths": [
+        "quality_check.all_named_entities_searched",
+        "survey.sections.0.id",
+        "survey.sections.1.id",
+        "survey.sections.2.id",
+        "survey.questions.0.id",
+        "survey.questions.0.section_id",
+        "survey.questions.0.options.0.id",
+        "survey.questions.0.options.1.id",
+        "survey.questions.0.options.2.id",
+        "survey.questions.1.id",
+        "survey.questions.1.section_id",
+        "survey.questions.1.options.0.id",
+        "survey.questions.1.options.1.id",
+        "survey.questions.1.options.2.id",
+        "survey.questions.1.options.3.id",
+        "survey.questions.1.options.4.id",
+        "survey.questions.1.options.5.id",
+        "survey.questions.2.id",
+        "survey.questions.2.section_id",
+        "survey.questions.2.options.0.id",
+        "survey.questions.2.options.1.id",
+        "survey.questions.2.options.2.id",
+        "survey.questions.2.options.3.id",
+        "survey.questions.2.options.4.id",
+        "survey.questions.2.options.5.id",
+        "survey.questions.2.validation",
+        "survey.questions.3.id",
+        "survey.questions.3.section_id",
+        "survey.questions.4.id",
+        "survey.questions.4.section_id",
+        "survey.questions.4.options.0.id",
+        "survey.questions.4.options.1.id",
+        "survey.questions.4.options.2.id",
+        "survey.questions.4.options.3.id",
+        "survey.questions.4.options.4.id",
+        "survey.questions.4.options.5.id",
+        "survey.questions.5.id",
+        "survey.questions.5.section_id",
+        "survey.questions.5.options.0.id",
+        "survey.questions.5.options.1.id",
+        "survey.questions."
+      ],
+      "finalRespondentGroup": "최근 한 달 해든 매장에서 구매한 고객",
+      "finalEvaluationTarget": "신제품",
+      "title": "해든 매장 신제품 만족도 조사",
+      "description": "최근 한 달 동안 해든 매장에서 신제품을 구매한 고객의 의견을 듣고자 합니다. 설문은 약 2분 정도 걸립니다.",
+      "questions": [
+        {
+          "title": "최근 한 달 동안 해든 매장에서 신제품을 구매한 적이 있나요?",
+          "type": "single",
+          "options": [
+            "네, 구매했어요",
+            "아니요, 구매하지 않았어요",
+            "잘 기억나지 않아요"
+          ],
+          "reason": "응답자의 신제품 구매 경험을 확인함."
+        },
+        {
+          "title": "최근 한 달 동안 해든 매장에서 신제품을 몇 번 구매했나요?",
+          "type": "single",
+          "options": [
+            "1회",
+            "2~3회",
+            "4~5회",
+            "6회 이상",
+            "구매하지 않았어요",
+            "잘 기억나지 않아요"
+          ],
+          "reason": "신제품 구매 빈도를 파악함."
+        },
+        {
+          "title": "신제품을 구매한 가장 큰 이유는 무엇이었나요?",
+          "type": "multiple",
+          "options": [
+            "새로운 제품이라 궁금해서",
+            "가격이나 할인 혜택이 마음에 들어서",
+            "직원이나 지인의 추천을 받아서",
+            "기존에 구매하던 제품의 대안이 필요해서",
+            "기타",
+            "구매하지 않았어요"
+          ],
+          "reason": "신제품을 선택한 이유를 파악함."
+        },
+        {
+          "title": "구매한 신제품에 전반적으로 얼마나 만족했나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "신제품의 전반적인 만족도를 측정함."
+        },
+        {
+          "title": "신제품이 구매 전 기대와 비교해 어땠나요?",
+          "type": "single",
+          "options": [
+            "기대보다 훨씬 좋았어요",
+            "기대보다 조금 좋았어요",
+            "기대와 비슷했어요",
+            "기대보다 조금 아쉬웠어요",
+            "기대보다 훨씬 아쉬웠어요",
+            "구매 전 기대가 없었어요"
+          ],
+          "reason": "신제품이 구매 전 기대를 충족했는지 파악함."
+        },
+        {
+          "title": "신제품에서 가장 먼저 개선됐으면 하는 점은 무엇인가요?",
+          "type": "multiple",
+          "options": [
+            "제품의 품질",
+            "가격",
+            "제품 정보 안내",
+            "구매할 수 있는 매장 또는 시점",
+            "기타",
+            "개선할 점이 없어요"
+          ],
+          "reason": "신제품에서 우선 개선할 영역을 파악함."
+        },
+        {
+          "title": "신제품에 대해 좋았던 점이나 아쉬웠던 점이 있다면 적어주세요",
+          "type": "text",
+          "options": [],
+          "reason": "선택지에 담기지 않은 만족 또는 불만족 이유를 수집함."
+        }
+      ],
+      "questionsBeforePostprocess": [],
+      "schemaIssues": [],
+      "semanticIssues": [],
+      "qualityIssues": [],
+      "fatalFailures": [],
+      "warnings": [],
+      "repairEvidence": null,
+      "latencyMs": 23521
+    },
+    {
+      "caseId": "fronted-clear-005",
+      "input": "서비스 비이용 이유는 다온 플랫폼을 사용하지 않는 직장인에게 조사",
+      "expected": {
+        "id": "fronted-clear-005",
+        "split": "dev",
+        "stratum": "complex_relation",
+        "category": "fronted_purpose_eligibility",
+        "difficulty": "medium",
+        "surveyMode": "standard",
+        "questionCount": 7,
+        "input": "서비스 비이용 이유는 다온 플랫폼을 사용하지 않는 직장인에게 조사",
+        "expectedOutcome": "survey",
+        "expectedTargetPopulation": [
+          "다온 플랫폼을 사용하지 않는 직장인"
+        ],
+        "expectedSurveyObject": [
+          "다온 플랫폼"
+        ],
+        "expectedPurposeConcepts": [
+          "비이용 이유"
+        ],
+        "inputQuality": "clear",
+        "contextEntities": [
+          "다온 플랫폼"
+        ],
+        "expectedEligibilityConditions": [
+          "다온 플랫폼 비이용"
+        ],
+        "screeningExpected": true,
+        "forbiddenPurposeConcepts": [],
+        "mustPreserveTerms": [
+          "다온 플랫폼"
+        ],
+        "mustPreserveNegation": true,
+        "requiredQuestionConcepts": [
+          "비이용 이유"
+        ],
+        "forbiddenTargetExpansions": [],
+        "forbiddenSurveyObjects": [],
+        "forbiddenQuestionConcepts": [
+          "generic filler",
+          "무관한 인구통계"
+        ],
+        "clarificationExpected": false,
+        "expectedIntentModes": [
+          "single"
+        ],
+        "expectedTargetCardinality": "single",
+        "expectedArchetypes": [
+          "attitude"
+        ],
+        "tags": [
+          "timeframe",
+          "negation"
+        ],
+        "notes": "v1.1 목적 선행·적격 조건 역할 분리 smoke fixture"
+      },
+      "requestId": "ede8dec4-d28a-497e-948e-ae76f0d91a24",
+      "httpStatus": 200,
+      "responseType": "survey",
+      "responseStatus": "ready_with_caution",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "classification": "deterministic_metadata_normalization",
+      "modelCallCount": 1,
+      "repairCount": 0,
+      "fallbackCount": 0,
+      "normalizedMetadataPaths": [
+        "quality_check.all_named_entities_searched",
+        "survey.sections.0.id",
+        "survey.sections.1.id",
+        "survey.sections.2.id",
+        "survey.questions.0.id",
+        "survey.questions.0.section_id",
+        "survey.questions.0.options.0.id",
+        "survey.questions.0.options.1.id",
+        "survey.questions.1.id",
+        "survey.questions.1.section_id",
+        "survey.questions.1.options.0.id",
+        "survey.questions.1.options.1.id",
+        "survey.questions.1.options.2.id",
+        "survey.questions.2.id",
+        "survey.questions.2.section_id",
+        "survey.questions.2.options.0.id",
+        "survey.questions.2.options.1.id",
+        "survey.questions.2.options.2.id",
+        "survey.questions.2.options.3.id",
+        "survey.questions.3.id",
+        "survey.questions.3.section_id",
+        "survey.questions.3.options.0.id",
+        "survey.questions.3.options.1.id",
+        "survey.questions.3.options.2.id",
+        "survey.questions.3.options.3.id",
+        "survey.questions.3.options.4.id",
+        "survey.questions.3.options.5.id",
+        "survey.questions.3.options.6.id",
+        "survey.questions.3.validation",
+        "survey.questions.4.id",
+        "survey.questions.4.section_id",
+        "survey.questions.4.options.0.id",
+        "survey.questions.4.options.1.id",
+        "survey.questions.4.options.2.id",
+        "survey.questions.4.options.3.id",
+        "survey.questions.4.options.4.id",
+        "survey.questions.4.options.5.id",
+        "survey.questions.4.options.6.id",
+        "survey.questions.5.id",
+        "survey.questions.5.section_id",
+        "survey.questions."
+      ],
+      "finalRespondentGroup": "다온 플랫폼을 사용하지 않는 직장인",
+      "finalEvaluationTarget": "다온 플랫폼",
+      "title": "다온 플랫폼을 사용하지 않는 직장인의 비이용 이유 조사",
+      "description": "다온 플랫폼을 사용하지 않는 직장인을 대상으로, 사용하지 않는 이유와 앞으로 사용을 고려할 조건을 알아보기 위한 설문입니다. 약 3분 정도 걸립니다.",
+      "questions": [
+        {
+          "title": "현재 직장에 다니고 있나요?",
+          "type": "single",
+          "options": [
+            "네, 현재 직장에 다니고 있습니다.",
+            "아니요, 현재 직장에 다니고 있지 않습니다."
+          ],
+          "reason": "현재 직장인 응답자인지 확인함."
+        },
+        {
+          "title": "다온 플랫폼을 현재 사용하고 있나요?",
+          "type": "single",
+          "options": [
+            "현재 사용하고 있습니다.",
+            "현재 사용하고 있지 않습니다.",
+            "잘 모르겠습니다."
+          ],
+          "reason": "다온 플랫폼 비이용자인지 확인함."
+        },
+        {
+          "title": "다온 플랫폼에 대해 얼마나 알고 있었나요?",
+          "type": "single",
+          "options": [
+            "처음 들어봤습니다.",
+            "이름만 들어봤습니다.",
+            "어떤 플랫폼인지 대략 알고 있습니다.",
+            "어떤 기능을 제공하는지 잘 알고 있습니다."
+          ],
+          "reason": "다온 플랫폼에 대한 사전 인지 수준을 파악함."
+        },
+        {
+          "title": "다온 플랫폼을 사용하지 않는 이유를 모두 골라주세요",
+          "type": "multiple",
+          "options": [
+            "다온 플랫폼을 잘 몰라서",
+            "지금 사용하는 방법이나 서비스로 충분해서",
+            "나에게 필요한 플랫폼인지 모르겠어서",
+            "사용 방법이 복잡할 것 같아서",
+            "개인정보나 보안이 걱정돼서",
+            "사용할 시간이나 계기가 없어서",
+            "기타"
+          ],
+          "reason": "다온 플랫폼을 사용하지 않는 주요 이유를 파악함."
+        },
+        {
+          "title": "다온 플랫폼 사용을 가장 망설이게 하는 점은 무엇인가요?",
+          "type": "single",
+          "options": [
+            "플랫폼이 나에게 어떤 도움이 되는지 알기 어려움",
+            "가입하거나 시작하는 과정이 번거로울 것 같음",
+            "개인정보나 보안이 걱정됨",
+            "기존에 쓰는 방법을 바꾸고 싶지 않음",
+            "사용할 필요를 느끼지 못함",
+            "특별히 망설이는 점은 없음",
+            "기타"
+          ],
+          "reason": "비이용을 지속시키는 가장 큰 우려를 확인함."
+        },
+        {
+          "title": "앞으로 다온 플랫폼을 사용할 가능성은 어느 정도인가요?",
+          "type": "scale",
+          "options": [],
+          "reason": "다온 플랫폼의 잠재적 사용 가능성을 파악함."
+        },
+        {
+          "title": "다온 플랫폼을 사용해 볼 마음이 생기려면 무엇이 달라져야 하는지 적어주세요",
+          "type": "text",
+          "options": [],
+          "reason": "사용을 고려하게 만드는 구체적인 조건을 수집함."
+        }
+      ],
+      "questionsBeforePostprocess": [],
+      "schemaIssues": [],
+      "semanticIssues": [],
+      "qualityIssues": [],
+      "fatalFailures": [],
+      "warnings": [],
+      "repairEvidence": null,
+      "latencyMs": 24556
+    },
+    {
+      "caseId": "fronted-clear-006",
+      "input": "시설 인식은 늘빛 체육관을 최근 두 달 이용한 주민에게 조사",
+      "expected": {
+        "id": "fronted-clear-006",
+        "split": "dev",
+        "stratum": "complex_relation",
+        "category": "fronted_purpose_eligibility",
+        "difficulty": "medium",
+        "surveyMode": "standard",
+        "questionCount": 7,
+        "input": "시설 인식은 늘빛 체육관을 최근 두 달 이용한 주민에게 조사",
+        "expectedOutcome": "survey",
+        "expectedTargetPopulation": [
+          "최근 두 달 늘빛 체육관을 이용한 주민"
+        ],
+        "expectedSurveyObject": [
+          "늘빛 체육관"
+        ],
+        "expectedPurposeConcepts": [
+          "시설 인식"
+        ],
+        "inputQuality": "clear",
+        "contextEntities": [
+          "늘빛 체육관"
+        ],
+        "expectedEligibilityConditions": [
+          "최근 두 달 늘빛 체육관 이용"
+        ],
+        "screeningExpected": true,
+        "forbiddenPurposeConcepts": [],
+        "mustPreserveTerms": [
+          "늘빛 체육관"
+        ],
+        "mustPreserveNegation": false,
+        "requiredQuestionConcepts": [
+          "인식"
+        ],
+        "forbiddenTargetExpansions": [],
+        "forbiddenSurveyObjects": [],
+        "forbiddenQuestionConcepts": [
+          "generic filler",
+          "무관한 인구통계"
+        ],
+        "clarificationExpected": false,
+        "expectedIntentModes": [
+          "single"
+        ],
+        "expectedTargetCardinality": "single",
+        "expectedArchetypes": [
+          "attitude"
+        ],
+        "tags": [
+          "timeframe"
+        ],
+        "notes": "v1.1 목적 선행·적격 조건 역할 분리 smoke fixture"
+      },
+      "requestId": "15abc541-1b05-401b-86b6-9e835bd59a02",
+      "httpStatus": 200,
+      "responseType": "survey",
+      "responseStatus": "ready_with_caution",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "classification": "deterministic_metadata_normalization",
+      "modelCallCount": 1,
+      "repairCount": 0,
+      "fallbackCount": 0,
+      "normalizedMetadataPaths": [
+        "quality_check.all_named_entities_searched",
+        "survey.sections.0.id",
+        "survey.sections.1.id",
+        "survey.sections.2.id",
+        "survey.questions.0.id",
+        "survey.questions.0.section_id",
+        "survey.questions.0.options.0.id",
+        "survey.questions.0.options.1.id",
+        "survey.questions.1.id",
+        "survey.questions.1.section_id",
+        "survey.questions.1.options.0.id",
+        "survey.questions.1.options.1.id",
+        "survey.questions.1.options.2.id",
+        "survey.questions.1.options.3.id",
+        "survey.questions.1.options.4.id",
+        "survey.questions.2.id",
+        "survey.questions.2.section_id",
+        "survey.questions.2.options.0.id",
+        "survey.questions.2.options.1.id",
+        "survey.questions.2.options.2.id",
+        "survey.questions.2.options.3.id",
+        "survey.questions.2.options.4.id",
+        "survey.questions.2.validation",
+        "survey.questions.3.id",
+        "survey.questions.3.section_id",
+        "survey.questions.4.id",
+        "survey.questions.4.section_id",
+        "survey.questions.5.id",
+        "survey.questions.5.section_id",
+        "survey.questions.5.options.0.id",
+        "survey.questions.5.options.1.id",
+        "survey.questions.5.options.2.id",
+        "survey.questions.5.options.3.id",
+        "survey.questions.5.options.4.id",
+        "survey.questions.5.options.5.id",
+        "survey.questions.5.options.6.id",
+        "survey.questions.5.validation",
+        "survey.questions.6.id",
+        "survey.questions.6.section_id"
+      ],
+      "finalRespondentGroup": "최근 두 달 늘빛 체육관을 이용한 주민",
+      "finalEvaluationTarget": "늘빛 체육관",
+      "title": "늘빛 체육관 이용자 인식 조사",
+      "description": "최근 두 달 동안 늘빛 체육관을 이용한 주민의 의견을 듣고자 합니다. 설문은 약 3분 정도 걸립니다.",
+      "questions": [
+        {
+          "title": "최근 두 달 동안 늘빛 체육관을 이용해 본 적이 있나요?",
+          "type": "single",
+          "options": [
+            "있음",
+            "없음"
+          ],
+          "reason": "최근 이용 경험이 있는 응답자를 확인함."
+        },
+        {
+          "title": "최근 두 달 동안 늘빛 체육관을 얼마나 자주 이용했나요?",
+          "type": "single",
+          "options": [
+            "1회",
+            "2~3회",
+            "4~7회",
+            "8~15회",
+            "16회 이상"
+          ],
+          "reason": "최근 두 달의 이용 빈도를 파악함."
+        },
+        {
+          "title": "늘빛 체육관을 이용한 주된 목적을 모두 골라주세요",
+          "type": "multiple",
+          "options": [
+            "개인 운동",
+            "단체 운동 또는 모임",
+            "수업 또는 프로그램 참여",
+            "경기 또는 행사 관람",
+            "기타"
+          ],
+          "reason": "주요 이용 목적을 파악함."
+        },
+        {
+          "title": "가장 최근 이용 경험을 기준으로, 늘빛 체육관에 대해 전반적으로 어떻게 느꼈나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "시설에 대한 전반적 인식을 측정함."
+        },
+        {
+          "title": "늘빛 체육관을 이용하는 과정은 얼마나 편리했나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "시설 이용 과정의 편리성을 파악함."
+        },
+        {
+          "title": "늘빛 체육관에서 개선이 필요하다고 느낀 점을 모두 골라주세요",
+          "type": "multiple",
+          "options": [
+            "시설 상태",
+            "청결 상태",
+            "이용 시간 또는 운영 안내",
+            "혼잡 정도",
+            "이용 방법 안내",
+            "기타",
+            "개선이 필요하지 않음"
+          ],
+          "reason": "이용자가 느낀 개선 필요 사항을 파악함."
+        },
+        {
+          "title": "늘빛 체육관에서 가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요",
+          "type": "text",
+          "options": [],
+          "reason": "선택지에 담기지 않은 구체적인 개선 의견을 수집함."
+        }
+      ],
+      "questionsBeforePostprocess": [],
+      "schemaIssues": [],
+      "semanticIssues": [],
+      "qualityIssues": [],
+      "fatalFailures": [],
+      "warnings": [],
+      "repairEvidence": null,
+      "latencyMs": 21268
+    },
+    {
+      "caseId": "fronted-clear-007",
+      "input": "요금제 만족도는 온새미 플랫폼을 지난 6개월 사용한 직장인에게 조사",
+      "expected": {
+        "id": "fronted-clear-007",
+        "split": "dev",
+        "stratum": "complex_relation",
+        "category": "fronted_purpose_eligibility",
+        "difficulty": "medium",
+        "surveyMode": "standard",
+        "questionCount": 7,
+        "input": "요금제 만족도는 온새미 플랫폼을 지난 6개월 사용한 직장인에게 조사",
+        "expectedOutcome": "survey",
+        "expectedTargetPopulation": [
+          "지난 6개월 온새미 플랫폼을 사용한 직장인"
+        ],
+        "expectedSurveyObject": [
+          "온새미 플랫폼의 요금제"
+        ],
+        "expectedPurposeConcepts": [
+          "요금제 만족도"
+        ],
+        "inputQuality": "clear",
+        "contextEntities": [
+          "온새미 플랫폼"
+        ],
+        "expectedEligibilityConditions": [
+          "지난 6개월 온새미 플랫폼 사용"
+        ],
+        "screeningExpected": true,
+        "forbiddenPurposeConcepts": [],
+        "mustPreserveTerms": [
+          "온새미 플랫폼",
+          "요금제"
+        ],
+        "mustPreserveNegation": false,
+        "requiredQuestionConcepts": [
+          "만족도"
+        ],
+        "forbiddenTargetExpansions": [],
+        "forbiddenSurveyObjects": [],
+        "forbiddenQuestionConcepts": [
+          "generic filler",
+          "무관한 인구통계"
+        ],
+        "clarificationExpected": false,
+        "expectedIntentModes": [
+          "single"
+        ],
+        "expectedTargetCardinality": "single",
+        "expectedArchetypes": [
+          "satisfaction"
+        ],
+        "tags": [
+          "timeframe"
+        ],
+        "notes": "v1.1 목적 선행·적격 조건 역할 분리 smoke fixture"
+      },
+      "requestId": "2eacac37-5983-4405-9068-d189a9dfb253",
+      "httpStatus": 200,
+      "responseType": "survey",
+      "responseStatus": "ready_with_caution",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "classification": "deterministic_metadata_normalization",
+      "modelCallCount": 1,
+      "repairCount": 0,
+      "fallbackCount": 0,
+      "normalizedMetadataPaths": [
+        "quality_check.all_named_entities_searched",
+        "survey.sections.0.id",
+        "survey.sections.1.id",
+        "survey.sections.2.id",
+        "survey.questions.0.id",
+        "survey.questions.0.section_id",
+        "survey.questions.0.options.0.id",
+        "survey.questions.0.options.1.id",
+        "survey.questions.1.id",
+        "survey.questions.1.section_id",
+        "survey.questions.1.options.0.id",
+        "survey.questions.1.options.1.id",
+        "survey.questions.1.options.2.id",
+        "survey.questions.1.options.3.id",
+        "survey.questions.1.options.4.id",
+        "survey.questions.2.id",
+        "survey.questions.2.section_id",
+        "survey.questions.2.options.0.id",
+        "survey.questions.2.options.1.id",
+        "survey.questions.2.options.2.id",
+        "survey.questions.3.id",
+        "survey.questions.3.section_id",
+        "survey.questions.4.id",
+        "survey.questions.4.section_id",
+        "survey.questions.5.id",
+        "survey.questions.5.section_id",
+        "survey.questions.6.id",
+        "survey.questions.6.section_id"
+      ],
+      "finalRespondentGroup": "지난 6개월 온새미 플랫폼을 사용한 직장인",
+      "finalEvaluationTarget": "요금제",
+      "title": "온새미 플랫폼 요금제 만족도 조사",
+      "description": "지난 6개월 동안 온새미 플랫폼을 사용한 직장인을 대상으로 요금제 경험을 알아보기 위한 설문입니다. 약 3분 정도 걸립니다.",
+      "questions": [
+        {
+          "title": "지난 6개월 동안 온새미 플랫폼을 사용한 적이 있나요?",
+          "type": "single",
+          "options": [
+            "네, 사용한 적이 있습니다.",
+            "아니요, 사용한 적이 없습니다."
+          ],
+          "reason": "분석 대상에 해당하는 응답을 구분함."
+        },
+        {
+          "title": "지난 6개월 동안 온새미 플랫폼을 얼마나 자주 사용했나요?",
+          "type": "single",
+          "options": [
+            "월 1회 미만",
+            "월 1~3회",
+            "주 1회",
+            "주 2~4회",
+            "주 5회 이상"
+          ],
+          "reason": "사용 빈도별 요금제 평가를 비교함."
+        },
+        {
+          "title": "현재 적용 중인 요금제를 알고 있나요?",
+          "type": "single",
+          "options": [
+            "정확히 알고 있습니다.",
+            "대략 알고 있습니다.",
+            "잘 모르겠습니다."
+          ],
+          "reason": "요금제 인지 수준에 따른 평가 차이를 확인함."
+        },
+        {
+          "title": "현재 이용 중인 요금제에 전반적으로 얼마나 만족하나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "요금제의 전반적 만족 수준을 측정함."
+        },
+        {
+          "title": "현재 요금 수준에 얼마나 만족하나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "요금 수준에 대한 만족도를 측정함."
+        },
+        {
+          "title": "현재 요금제는 업무에 필요한 사용 범위에 얼마나 잘 맞나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "요금제의 업무상 적합성을 측정함."
+        },
+        {
+          "title": "요금제에서 가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요",
+          "type": "text",
+          "options": [],
+          "reason": "선택지에 없는 개선 요구를 수집함."
+        }
+      ],
+      "questionsBeforePostprocess": [],
+      "schemaIssues": [],
+      "semanticIssues": [],
+      "qualityIssues": [],
+      "fatalFailures": [],
+      "warnings": [],
+      "repairEvidence": null,
+      "latencyMs": 25942
+    },
+    {
+      "caseId": "fronted-clear-008",
+      "input": "축제 만족도는 봄빛 축제에 지난 주 참여한 청년에게 조사",
+      "expected": {
+        "id": "fronted-clear-008",
+        "split": "dev",
+        "stratum": "complex_relation",
+        "category": "fronted_purpose_eligibility",
+        "difficulty": "medium",
+        "surveyMode": "standard",
+        "questionCount": 7,
+        "input": "축제 만족도는 봄빛 축제에 지난 주 참여한 청년에게 조사",
+        "expectedOutcome": "survey",
+        "expectedTargetPopulation": [
+          "지난 주 봄빛 축제에 참여한 청년"
+        ],
+        "expectedSurveyObject": [
+          "봄빛 축제"
+        ],
+        "expectedPurposeConcepts": [
+          "축제 만족도"
+        ],
+        "inputQuality": "clear",
+        "contextEntities": [
+          "봄빛 축제"
+        ],
+        "expectedEligibilityConditions": [
+          "지난 주 봄빛 축제 참여"
+        ],
+        "screeningExpected": true,
+        "forbiddenPurposeConcepts": [],
+        "mustPreserveTerms": [
+          "봄빛 축제"
+        ],
+        "mustPreserveNegation": false,
+        "requiredQuestionConcepts": [
+          "만족도"
+        ],
+        "forbiddenTargetExpansions": [],
+        "forbiddenSurveyObjects": [],
+        "forbiddenQuestionConcepts": [
+          "generic filler",
+          "무관한 인구통계"
+        ],
+        "clarificationExpected": false,
+        "expectedIntentModes": [
+          "single"
+        ],
+        "expectedTargetCardinality": "single",
+        "expectedArchetypes": [
+          "satisfaction"
+        ],
+        "tags": [
+          "timeframe"
+        ],
+        "notes": "v1.1 목적 선행·적격 조건 역할 분리 smoke fixture"
+      },
+      "requestId": "248d2e5b-7f5b-4e6b-b51b-535bc33a5ae0",
+      "httpStatus": 200,
+      "responseType": "survey",
+      "responseStatus": "ready_with_caution",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "classification": "deterministic_metadata_normalization",
+      "modelCallCount": 1,
+      "repairCount": 0,
+      "fallbackCount": 0,
+      "normalizedMetadataPaths": [
+        "quality_check.all_named_entities_searched",
+        "survey.sections.0.id",
+        "survey.sections.1.id",
+        "survey.sections.2.id",
+        "survey.questions.0.id",
+        "survey.questions.0.section_id",
+        "survey.questions.0.options.0.id",
+        "survey.questions.0.options.1.id",
+        "survey.questions.1.id",
+        "survey.questions.1.section_id",
+        "survey.questions.1.options.0.id",
+        "survey.questions.1.options.1.id",
+        "survey.questions.1.options.2.id",
+        "survey.questions.1.options.3.id",
+        "survey.questions.2.id",
+        "survey.questions.2.section_id",
+        "survey.questions.2.options.0.id",
+        "survey.questions.2.options.1.id",
+        "survey.questions.2.options.2.id",
+        "survey.questions.2.options.3.id",
+        "survey.questions.2.options.4.id",
+        "survey.questions.3.id",
+        "survey.questions.3.section_id",
+        "survey.questions.4.id",
+        "survey.questions.4.section_id",
+        "survey.questions.4.options.0.id",
+        "survey.questions.4.options.1.id",
+        "survey.questions.4.options.2.id",
+        "survey.questions.4.options.3.id",
+        "survey.questions.4.options.4.id",
+        "survey.questions.4.options.5.id",
+        "survey.questions.4.options.6.id",
+        "survey.questions.4.validation",
+        "survey.questions.5.id",
+        "survey.questions.5.section_id",
+        "survey.questions.5.options.0.id",
+        "survey.questions.5.options.1.id",
+        "survey.questions.5.options.2.id",
+        "survey.questions.5.options.3.id",
+        "survey.questions.5.options.4.id",
+        "survey.questions."
+      ],
+      "finalRespondentGroup": "지난 주 봄빛 축제에 참여한 청년",
+      "finalEvaluationTarget": "봄빛 축제",
+      "title": "봄빛 축제 만족도 조사",
+      "description": "지난 주 봄빛 축제에 참여한 청년의 경험을 알아보기 위한 설문입니다. 약 3분 정도 걸립니다.",
+      "questions": [
+        {
+          "title": "지난 주 봄빛 축제에 직접 참여했나요?",
+          "type": "single",
+          "options": [
+            "네, 참여했습니다",
+            "아니요, 참여하지 않았습니다"
+          ],
+          "reason": "지난 주 축제에 실제로 참여했는지 확인함."
+        },
+        {
+          "title": "지난 주 봄빛 축제에 며칠 참여했나요?",
+          "type": "single",
+          "options": [
+            "1일",
+            "2일",
+            "3일 이상",
+            "참여하지 않았습니다"
+          ],
+          "reason": "축제 참여 일수를 파악함."
+        },
+        {
+          "title": "축제 현장에 얼마나 오래 머물렀나요?",
+          "type": "single",
+          "options": [
+            "1시간 미만",
+            "1시간 이상 2시간 미만",
+            "2시간 이상 4시간 미만",
+            "4시간 이상",
+            "참여하지 않았습니다"
+          ],
+          "reason": "축제 참여 시간의 분포를 파악함."
+        },
+        {
+          "title": "봄빛 축제 전반에 얼마나 만족했나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "축제 전반의 만족도를 측정함."
+        },
+        {
+          "title": "축제에 참여하면서 불편했던 점이 있었나요?",
+          "type": "multiple",
+          "options": [
+            "현장이 너무 혼잡했습니다",
+            "안내를 찾거나 이해하기 어려웠습니다",
+            "기다리는 시간이 길었습니다",
+            "휴식할 공간이 부족했습니다",
+            "이동하기 불편했습니다",
+            "기타",
+            "불편했던 점이 없었습니다"
+          ],
+          "reason": "참여자가 겪은 불편 요인을 파악함."
+        },
+        {
+          "title": "다음 축제에서 가장 먼저 개선됐으면 하는 점은 무엇인가요?",
+          "type": "single",
+          "options": [
+            "현장 혼잡 관리",
+            "안내와 정보 제공",
+            "대기 시간 관리",
+            "휴식 공간",
+            "이동 편의",
+            "기타"
+          ],
+          "reason": "참여자가 가장 중요하게 생각하는 개선 항목을 파악함."
+        },
+        {
+          "title": "다음 봄빛 축제에서 가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요",
+          "type": "text",
+          "options": [],
+          "reason": "선택지로 포착되지 않은 구체적인 개선 의견을 수집함."
+        }
+      ],
+      "questionsBeforePostprocess": [],
+      "schemaIssues": [],
+      "semanticIssues": [],
+      "qualityIssues": [],
+      "fatalFailures": [],
+      "warnings": [],
+      "repairEvidence": null,
+      "latencyMs": 31661
+    },
+    {
+      "caseId": "fronted-control-001",
+      "input": "새봄대학교 학생의 별마루 카페 이용 경험과 불편",
+      "expected": {
+        "id": "fronted-control-001",
+        "split": "dev",
+        "stratum": "complex_relation",
+        "category": "fronted_purpose_eligibility",
+        "difficulty": "medium",
+        "surveyMode": "standard",
+        "questionCount": 7,
+        "input": "새봄대학교 학생의 별마루 카페 이용 경험과 불편",
+        "expectedOutcome": "survey",
+        "expectedTargetPopulation": [
+          "새봄대학교 학생"
+        ],
+        "expectedSurveyObject": [
+          "별마루 카페"
+        ],
+        "expectedPurposeConcepts": [
+          "이용 경험",
+          "불편"
+        ],
+        "inputQuality": "clear",
+        "contextEntities": [],
+        "expectedEligibilityConditions": [],
+        "screeningExpected": false,
+        "forbiddenPurposeConcepts": [],
+        "mustPreserveTerms": [
+          "별마루 카페"
+        ],
+        "mustPreserveNegation": false,
+        "requiredQuestionConcepts": [
+          "이용 경험",
+          "불편"
+        ],
+        "forbiddenTargetExpansions": [],
+        "forbiddenSurveyObjects": [],
+        "forbiddenQuestionConcepts": [
+          "generic filler",
+          "무관한 인구통계"
+        ],
+        "clarificationExpected": false,
+        "expectedIntentModes": [
+          "single"
+        ],
+        "expectedTargetCardinality": "single",
+        "expectedArchetypes": [
+          "service_usage",
+          "facility_usage"
+        ],
+        "tags": [],
+        "notes": "v1.1 목적 선행·적격 조건 역할 분리 smoke fixture"
+      },
+      "requestId": "598f3867-384d-480f-9cda-2bc160603f73",
+      "httpStatus": 200,
+      "responseType": "survey",
+      "responseStatus": "ready_with_caution",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "classification": "partial_repair",
+      "modelCallCount": 1,
+      "repairCount": 1,
+      "fallbackCount": 0,
+      "normalizedMetadataPaths": [
+        "quality_check.all_named_entities_searched",
+        "survey.sections.0.id",
+        "survey.sections.1.id",
+        "survey.questions.0.id",
+        "survey.questions.0.section_id",
+        "survey.questions.0.options.0.id",
+        "survey.questions.0.options.1.id",
+        "survey.questions.1.id",
+        "survey.questions.1.section_id",
+        "survey.questions.1.options.0.id",
+        "survey.questions.1.options.1.id",
+        "survey.questions.1.options.2.id",
+        "survey.questions.1.options.3.id",
+        "survey.questions.1.options.4.id",
+        "survey.questions.1.options.5.id",
+        "survey.questions.2.id",
+        "survey.questions.2.section_id",
+        "survey.questions.2.options.0.id",
+        "survey.questions.2.options.1.id",
+        "survey.questions.2.options.2.id",
+        "survey.questions.2.options.3.id",
+        "survey.questions.2.options.4.id",
+        "survey.questions.2.options.5.id",
+        "survey.questions.2.validation",
+        "survey.questions.3.id",
+        "survey.questions.3.section_id",
+        "survey.questions.4.id",
+        "survey.questions.4.section_id",
+        "survey.questions.4.options.0.id",
+        "survey.questions.4.options.1.id",
+        "survey.questions.4.options.2.id",
+        "survey.questions.4.options.3.id",
+        "survey.questions.4.options.4.id",
+        "survey.questions.4.options.5.id",
+        "survey.questions.4.options.6.id",
+        "survey.questions.4.validation",
+        "survey.questions.5.id",
+        "survey.questions.5.section_id",
+        "survey.questions.5.options.0.id",
+        "survey.questions.5.options.1.id",
+        "survey.q"
+      ],
+      "finalRespondentGroup": "새봄대학교 재학생",
+      "finalEvaluationTarget": "별마루 카페",
+      "title": "새봄대학교 학생의 별마루 카페 이용 경험과 불편 조사",
+      "description": "새봄대학교 재학생을 대상으로, 별마루 카페를 어떻게 이용하고 있는지와 개선이 필요한 점을 알아보기 위한 설문입니다. 이용해 본 적이 없는 경우에도 일부 문항에 답할 수 있습니다. 약 3분 정도 걸립니다.",
+      "questions": [
+        {
+          "title": "별마루 카페를 이용한 적이 있나요?",
+          "type": "single",
+          "options": [
+            "예",
+            "아니요"
+          ],
+          "reason": "이용 경험이 있는 응답자와 비이용자의 답변을 함께 해석함."
+        },
+        {
+          "title": "평소 별마루 카페를 얼마나 자주 이용하나요?",
+          "type": "single",
+          "options": [
+            "이용해 본 적 없음",
+            "월 1회 미만",
+            "월 1~3회",
+            "주 1회",
+            "주 2~3회",
+            "주 4회 이상"
+          ],
+          "reason": "별마루 카페의 이용 빈도 분포를 파악함."
+        },
+        {
+          "title": "별마루 카페를 이용하는 주된 이유를 모두 골라주세요",
+          "type": "multiple",
+          "options": [
+            "음료나 음식을 먹기 위해",
+            "공부하거나 과제를 하기 위해",
+            "친구나 지인을 만나기 위해",
+            "쉬거나 시간을 보내기 위해",
+            "기타",
+            "이용해 본 적 없음"
+          ],
+          "reason": "별마루 카페를 찾는 주요 목적을 파악함."
+        },
+        {
+          "title": "가장 최근 이용 경험을 기준으로 동안 별마루 카페를 이용해 본 적이 있다면, 전반적으로 얼마나 만족했나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "별마루 카페 이용 경험의 전반적 만족도를 파악함."
+        },
+        {
+          "title": "별마루 카페를 이용하면서 불편했던 점이 있다면 모두 골라주세요",
+          "type": "multiple",
+          "options": [
+            "원하는 때에 이용하기 어려움",
+            "가격이 부담됨",
+            "공간이나 좌석을 이용하기 불편함",
+            "주문하거나 받는 과정이 불편함",
+            "특별히 불편한 점 없음",
+            "기타",
+            "이용해 본 적 없음"
+          ],
+          "reason": "이용 과정에서 나타나는 주요 불편을 파악함."
+        },
+        {
+          "title": "별마루 카페에서 가장 먼저 개선됐으면 하는 점은 무엇인가요?",
+          "type": "single",
+          "options": [
+            "이용하기 편한 시간이나 방식",
+            "가격 수준",
+            "공간과 좌석 환경",
+            "주문하거나 받는 과정",
+            "잘 모르겠음",
+            "기타"
+          ],
+          "reason": "응답자가 가장 중요하게 생각하는 개선 영역을 파악함."
+        },
+        {
+          "title": "별마루 카페에서 가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요",
+          "type": "text",
+          "options": [],
+          "reason": "선택지에 담기지 않은 개선 의견을 수집함."
+        }
+      ],
+      "questionsBeforePostprocess": [],
+      "schemaIssues": [],
+      "semanticIssues": [],
+      "qualityIssues": [],
+      "fatalFailures": [],
+      "warnings": [
+        {
+          "code": "PARTIAL_REPAIR",
+          "message": "모델 출력 일부가 복구됨",
+          "cluster": "partial_repair",
+          "fatal": false
+        }
+      ],
+      "repairEvidence": {
+        "issue": "UNNECESSARY_SCREENING",
+        "observed": "전체 학생 대상 이용 여부 routing을 탈락형 screening으로 판정함"
+      },
+      "latencyMs": 37468
+    },
+    {
+      "caseId": "fronted-control-002",
+      "input": "별마루 카페 이용자의 카페 전체 만족도",
+      "expected": {
+        "id": "fronted-control-002",
+        "split": "dev",
+        "stratum": "complex_relation",
+        "category": "fronted_purpose_eligibility",
+        "difficulty": "medium",
+        "surveyMode": "standard",
+        "questionCount": 7,
+        "input": "별마루 카페 이용자의 카페 전체 만족도",
+        "expectedOutcome": "survey",
+        "expectedTargetPopulation": [
+          "별마루 카페 이용자"
+        ],
+        "expectedSurveyObject": [
+          "별마루 카페",
+          "카페 전체"
+        ],
+        "expectedPurposeConcepts": [
+          "카페 전체 만족도"
+        ],
+        "inputQuality": "clear",
+        "contextEntities": [],
+        "expectedEligibilityConditions": [],
+        "screeningExpected": false,
+        "forbiddenPurposeConcepts": [],
+        "mustPreserveTerms": [
+          "별마루 카페"
+        ],
+        "mustPreserveNegation": false,
+        "requiredQuestionConcepts": [
+          "만족도"
+        ],
+        "forbiddenTargetExpansions": [],
+        "forbiddenSurveyObjects": [],
+        "forbiddenQuestionConcepts": [
+          "generic filler",
+          "무관한 인구통계"
+        ],
+        "clarificationExpected": false,
+        "expectedIntentModes": [
+          "single"
+        ],
+        "expectedTargetCardinality": "single",
+        "expectedArchetypes": [
+          "satisfaction"
+        ],
+        "tags": [],
+        "notes": "v1.1 목적 선행·적격 조건 역할 분리 smoke fixture"
+      },
+      "requestId": "daf84cd0-d2b9-41d3-8e3f-8fd727ce5d81",
+      "httpStatus": 200,
+      "responseType": "survey",
+      "responseStatus": "ready_with_caution",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "classification": "deterministic_metadata_normalization",
+      "modelCallCount": 1,
+      "repairCount": 0,
+      "fallbackCount": 0,
+      "normalizedMetadataPaths": [
+        "quality_check.all_named_entities_searched",
+        "survey.sections.0.id",
+        "survey.sections.1.id",
+        "survey.sections.2.id",
+        "survey.questions.0.id",
+        "survey.questions.0.section_id",
+        "survey.questions.0.options.0.id",
+        "survey.questions.0.options.1.id",
+        "survey.questions.0.options.2.id",
+        "survey.questions.0.options.3.id",
+        "survey.questions.0.options.4.id",
+        "survey.questions.1.id",
+        "survey.questions.1.section_id",
+        "survey.questions.1.options.0.id",
+        "survey.questions.1.options.1.id",
+        "survey.questions.1.options.2.id",
+        "survey.questions.1.options.3.id",
+        "survey.questions.1.options.4.id",
+        "survey.questions.2.id",
+        "survey.questions.2.section_id",
+        "survey.questions.3.id",
+        "survey.questions.3.section_id",
+        "survey.questions.4.id",
+        "survey.questions.4.section_id",
+        "survey.questions.5.id",
+        "survey.questions.5.section_id",
+        "survey.questions.5.options.0.id",
+        "survey.questions.5.options.1.id",
+        "survey.questions.5.options.2.id",
+        "survey.questions.5.options.3.id",
+        "survey.questions.5.options.4.id",
+        "survey.questions.5.options.5.id",
+        "survey.questions.6.id",
+        "survey.questions.6.section_id"
+      ],
+      "finalRespondentGroup": "별마루 카페 이용자",
+      "finalEvaluationTarget": "카페 전체",
+      "title": "별마루 카페 만족도 조사",
+      "description": "별마루 카페 이용자를 대상으로, 별마루 카페를 방문해 본 경험을 바탕으로 카페 전반에 대한 의견을 들려주세요. 약 2분 정도 걸립니다.",
+      "questions": [
+        {
+          "title": "평소 별마루 카페를 얼마나 자주 방문하나요?",
+          "type": "single",
+          "options": [
+            "주 4회 이상",
+            "주 2~3회",
+            "주 1회",
+            "월 1~3회",
+            "월 1회 미만"
+          ],
+          "reason": "응답자의 별마루 카페 방문 빈도를 파악함."
+        },
+        {
+          "title": "별마루 카페를 주로 어떤 목적으로 방문하나요?",
+          "type": "single",
+          "options": [
+            "공부하거나 일을 하기 위해",
+            "누군가를 만나기 위해",
+            "잠시 쉬거나 시간을 보내기 위해",
+            "음료나 음식을 먹기 위해",
+            "기타"
+          ],
+          "reason": "주요 방문 목적을 파악함."
+        },
+        {
+          "title": "별마루 카페 전체에 얼마나 만족하나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "카페 전체에 대한 전반적 만족도를 측정함."
+        },
+        {
+          "title": "카페 안의 분위기는 어땠나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "카페 분위기에 대한 만족도를 파악함."
+        },
+        {
+          "title": "카페 내부는 얼마나 청결했나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "카페 내부 청결에 대한 경험을 파악함."
+        },
+        {
+          "title": "가장 먼저 개선됐으면 하는 점은 무엇인가요?",
+          "type": "single",
+          "options": [
+            "카페 안의 분위기",
+            "내부 청결 상태",
+            "좌석과 공간 구성",
+            "메뉴와 가격",
+            "직원 응대",
+            "기타"
+          ],
+          "reason": "이용자가 가장 중요하게 생각하는 개선 항목을 파악함."
+        },
+        {
+          "title": "별마루 카페에서 가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요",
+          "type": "text",
+          "options": [],
+          "reason": "선택지에 담기지 않은 개선 의견을 수집함."
+        }
+      ],
+      "questionsBeforePostprocess": [],
+      "schemaIssues": [],
+      "semanticIssues": [],
+      "qualityIssues": [],
+      "fatalFailures": [],
+      "warnings": [],
+      "repairEvidence": null,
+      "latencyMs": 85382
+    },
+    {
+      "caseId": "fronted-control-003",
+      "input": "별마루 카페 새 메뉴와 기존 메뉴 이용자의 만족도 비교",
+      "expected": {
+        "id": "fronted-control-003",
+        "split": "dev",
+        "stratum": "complex_relation",
+        "category": "fronted_purpose_eligibility",
+        "difficulty": "medium",
+        "surveyMode": "standard",
+        "questionCount": 7,
+        "input": "별마루 카페 새 메뉴와 기존 메뉴 이용자의 만족도 비교",
+        "expectedOutcome": "survey",
+        "expectedTargetPopulation": [
+          "새 메뉴와 기존 메뉴 이용자"
+        ],
+        "expectedSurveyObject": [
+          "별마루 카페 새 메뉴",
+          "기존 메뉴"
+        ],
+        "expectedPurposeConcepts": [
+          "만족도 비교"
+        ],
+        "inputQuality": "clear",
+        "contextEntities": [],
+        "expectedEligibilityConditions": [],
+        "screeningExpected": false,
+        "forbiddenPurposeConcepts": [],
+        "mustPreserveTerms": [
+          "별마루 카페",
+          "새 메뉴",
+          "기존 메뉴"
+        ],
+        "mustPreserveNegation": false,
+        "requiredQuestionConcepts": [
+          "만족도",
+          "대상 비교"
+        ],
+        "forbiddenTargetExpansions": [],
+        "forbiddenSurveyObjects": [],
+        "forbiddenQuestionConcepts": [
+          "generic filler",
+          "무관한 인구통계"
+        ],
+        "clarificationExpected": false,
+        "expectedIntentModes": [
+          "single"
+        ],
+        "expectedTargetCardinality": "multiple",
+        "expectedArchetypes": [
+          "satisfaction",
+          "mixed"
+        ],
+        "tags": [
+          "multiple_targets"
+        ],
+        "notes": "v1.1 목적 선행·적격 조건 역할 분리 smoke fixture"
+      },
+      "requestId": "0c77aafb-75c5-4fb5-8857-1e3ba8c41004",
+      "httpStatus": 200,
+      "responseType": "survey",
+      "responseStatus": "ready_with_caution",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "classification": "deterministic_metadata_normalization",
+      "modelCallCount": 1,
+      "repairCount": 0,
+      "fallbackCount": 0,
+      "normalizedMetadataPaths": [
+        "quality_check.all_named_entities_searched",
+        "survey.sections.0.id",
+        "survey.sections.1.id",
+        "survey.sections.2.id",
+        "survey.questions.0.id",
+        "survey.questions.0.section_id",
+        "survey.questions.0.options.0.id",
+        "survey.questions.0.options.1.id",
+        "survey.questions.0.options.2.id",
+        "survey.questions.0.options.3.id",
+        "survey.questions.1.id",
+        "survey.questions.1.section_id",
+        "survey.questions.1.options.0.id",
+        "survey.questions.1.options.1.id",
+        "survey.questions.1.options.2.id",
+        "survey.questions.1.options.3.id",
+        "survey.questions.1.options.4.id",
+        "survey.questions.1.options.5.id",
+        "survey.questions.1.validation",
+        "survey.questions.2.id",
+        "survey.questions.2.section_id",
+        "survey.questions.3.id",
+        "survey.questions.3.section_id",
+        "survey.questions.4.id",
+        "survey.questions.4.section_id",
+        "survey.questions.4.options.0.id",
+        "survey.questions.4.options.1.id",
+        "survey.questions.4.options.2.id",
+        "survey.questions.4.options.3.id",
+        "survey.questions.5.id",
+        "survey.questions.5.section_id",
+        "survey.questions.5.options.0.id",
+        "survey.questions.5.options.1.id",
+        "survey.questions.5.options.2.id",
+        "survey.questions.5.options.3.id",
+        "survey.questions.5.options.4.id",
+        "survey.questions.5.options.5.id",
+        "survey.questions.5.validation",
+        "survey.questions.6.id",
+        "survey.questions.6.section_id"
+      ],
+      "finalRespondentGroup": "별마루 카페 새 메뉴와 기존 메뉴 이용자",
+      "finalEvaluationTarget": "별마루 카페 새 메뉴·기존 메뉴",
+      "title": "별마루 카페 새 메뉴와 기존 메뉴 만족도 비교",
+      "description": "별마루 카페 새 메뉴와 기존 메뉴 이용자를 대상으로, 별마루 카페의 새 메뉴와 기존 메뉴를 모두 먹어 본 분의 의견을 듣고자 합니다. 가장 최근 경험을 떠올리며 답해주세요. 약 3분 정도 걸립니다.",
+      "questions": [
+        {
+          "title": "별마루 카페의 새 메뉴와 기존 메뉴를 모두 먹어 본 적이 있나요?",
+          "type": "single",
+          "options": [
+            "새 메뉴와 기존 메뉴를 모두 먹어 봄",
+            "새 메뉴만 먹어 봄",
+            "기존 메뉴만 먹어 봄",
+            "둘 다 먹어 본 적 없음"
+          ],
+          "reason": "새 메뉴와 기존 메뉴를 모두 경험한 응답자를 구분함."
+        },
+        {
+          "title": "새 메뉴를 선택한 이유는 무엇이었나요?",
+          "type": "multiple",
+          "options": [
+            "새로 나와서 궁금했음",
+            "맛이나 구성이 마음에 들었음",
+            "가격이 적절해 보였음",
+            "주변 사람의 추천을 받았음",
+            "기존 메뉴와 다른 선택을 해보고 싶었음",
+            "기타"
+          ],
+          "reason": "새 메뉴를 선택하게 된 주요 이유를 파악함."
+        },
+        {
+          "title": "새 메뉴는 전반적으로 얼마나 만족스러웠나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "새 메뉴의 전반적인 만족도를 측정함."
+        },
+        {
+          "title": "기존 메뉴는 전반적으로 얼마나 만족스러웠나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "기존 메뉴의 전반적인 만족도를 측정함."
+        },
+        {
+          "title": "두 메뉴 중 어느 쪽이 더 만족스러웠나요?",
+          "type": "single",
+          "options": [
+            "새 메뉴가 더 만족스러웠음",
+            "기존 메뉴가 더 만족스러웠음",
+            "두 메뉴가 비슷했음",
+            "비교하기 어려움"
+          ],
+          "reason": "새 메뉴와 기존 메뉴 중 더 만족스러운 메뉴를 파악함."
+        },
+        {
+          "title": "새 메뉴에서 아쉬웠던 점은 무엇이었나요?",
+          "type": "multiple",
+          "options": [
+            "맛이 기대와 달랐음",
+            "양이 적거나 많게 느껴졌음",
+            "가격이 부담스럽게 느껴졌음",
+            "기존 메뉴와 차이가 크지 않았음",
+            "아쉬운 점이 없었음",
+            "기타"
+          ],
+          "reason": "새 메뉴에서 개선이 필요한 부분을 파악함."
+        },
+        {
+          "title": "앞으로 새 메뉴를 다시 선택할 가능성은 어느 정도인가요?",
+          "type": "scale",
+          "options": [],
+          "reason": "새 메뉴를 다시 선택할 가능성을 파악함."
+        }
+      ],
+      "questionsBeforePostprocess": [],
+      "schemaIssues": [],
+      "semanticIssues": [],
+      "qualityIssues": [],
+      "fatalFailures": [],
+      "warnings": [],
+      "repairEvidence": null,
+      "latencyMs": 23336
+    },
+    {
+      "caseId": "fronted-noisy-001",
+      "input": "새 메뉴 만족도는 별마루 카페를 최근 한 달 이용한 주민한테 조사",
+      "expected": {
+        "id": "fronted-noisy-001",
+        "split": "dev",
+        "stratum": "complex_relation",
+        "category": "fronted_purpose_eligibility",
+        "difficulty": "hard",
+        "surveyMode": "standard",
+        "questionCount": 7,
+        "input": "새 메뉴 만족도는 별마루 카페를 최근 한 달 이용한 주민한테 조사",
+        "expectedOutcome": "survey",
+        "expectedTargetPopulation": [
+          "최근 한 달 별마루 카페를 이용한 주민"
+        ],
+        "expectedSurveyObject": [
+          "별마루 카페의 새 메뉴"
+        ],
+        "expectedPurposeConcepts": [
+          "새 메뉴 만족도"
+        ],
+        "inputQuality": "noisy_recoverable",
+        "contextEntities": [
+          "별마루 카페"
+        ],
+        "expectedEligibilityConditions": [
+          "최근 한 달 별마루 카페 이용"
+        ],
+        "screeningExpected": true,
+        "forbiddenPurposeConcepts": [],
+        "mustPreserveTerms": [
+          "별마루 카페",
+          "새 메뉴"
+        ],
+        "mustPreserveNegation": false,
+        "requiredQuestionConcepts": [
+          "만족도"
+        ],
+        "forbiddenTargetExpansions": [],
+        "forbiddenSurveyObjects": [],
+        "forbiddenQuestionConcepts": [
+          "generic filler",
+          "무관한 인구통계"
+        ],
+        "clarificationExpected": false,
+        "expectedIntentModes": [
+          "single"
+        ],
+        "expectedTargetCardinality": "single",
+        "expectedArchetypes": [
+          "satisfaction"
+        ],
+        "tags": [
+          "noisy_input",
+          "timeframe"
+        ],
+        "notes": "v1.1 목적 선행·적격 조건 역할 분리 smoke fixture"
+      },
+      "requestId": "739149ab-cb4f-434f-86f0-91e6b9554550",
+      "httpStatus": 200,
+      "responseType": "survey",
+      "responseStatus": "ready_with_caution",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "classification": "deterministic_metadata_normalization",
+      "modelCallCount": 1,
+      "repairCount": 0,
+      "fallbackCount": 0,
+      "normalizedMetadataPaths": [
+        "quality_check.all_named_entities_searched",
+        "survey.sections.0.id",
+        "survey.sections.1.id",
+        "survey.sections.2.id",
+        "survey.questions.0.id",
+        "survey.questions.0.section_id",
+        "survey.questions.0.options.0.id",
+        "survey.questions.0.options.1.id",
+        "survey.questions.1.id",
+        "survey.questions.1.section_id",
+        "survey.questions.1.options.0.id",
+        "survey.questions.1.options.1.id",
+        "survey.questions.1.options.2.id",
+        "survey.questions.1.options.3.id",
+        "survey.questions.1.options.4.id",
+        "survey.questions.2.id",
+        "survey.questions.2.section_id",
+        "survey.questions.2.options.0.id",
+        "survey.questions.2.options.1.id",
+        "survey.questions.2.options.2.id",
+        "survey.questions.3.id",
+        "survey.questions.3.section_id",
+        "survey.questions.4.id",
+        "survey.questions.4.section_id",
+        "survey.questions.5.id",
+        "survey.questions.5.section_id",
+        "survey.questions.5.options.0.id",
+        "survey.questions.5.options.1.id",
+        "survey.questions.5.options.2.id",
+        "survey.questions.5.options.3.id",
+        "survey.questions.5.options.4.id",
+        "survey.questions.5.options.5.id",
+        "survey.questions.5.validation",
+        "survey.questions.6.id",
+        "survey.questions.6.section_id"
+      ],
+      "finalRespondentGroup": "최근 한 달 별마루 카페를 이용한 주민",
+      "finalEvaluationTarget": "별마루 카페의 새 메뉴",
+      "title": "별마루 카페 새 메뉴 만족도 조사",
+      "description": "최근 한 달 동안 별마루 카페를 이용한 주민을 대상으로 새 메뉴에 대한 의견을 듣고 있습니다. 약 2분 정도 걸립니다.",
+      "questions": [
+        {
+          "title": "최근 한 달 동안 별마루 카페를 이용한 적이 있나요?",
+          "type": "single",
+          "options": [
+            "있음",
+            "없음"
+          ],
+          "reason": "최근 한 달 별마루 카페 이용자를 확인함."
+        },
+        {
+          "title": "최근 한 달 동안 별마루 카페를 얼마나 자주 이용했나요?",
+          "type": "single",
+          "options": [
+            "1회",
+            "2~3회",
+            "4~7회",
+            "8회 이상",
+            "이용한 적 없음"
+          ],
+          "reason": "별마루 카페 이용 빈도를 파악함."
+        },
+        {
+          "title": "별마루 카페의 새 메뉴를 먹거나 마셔 본 적이 있나요?",
+          "type": "single",
+          "options": [
+            "있음",
+            "없음",
+            "잘 기억나지 않음"
+          ],
+          "reason": "새 메뉴를 실제로 경험했는지 확인함."
+        },
+        {
+          "title": "별마루 카페의 새 메뉴에 전반적으로 얼마나 만족했나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "새 메뉴에 대한 전반적 만족도를 측정함."
+        },
+        {
+          "title": "새 메뉴의 맛은 어땠나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "새 메뉴 맛에 대한 평가를 파악함."
+        },
+        {
+          "title": "새 메뉴에서 가장 먼저 개선됐으면 하는 점을 골라주세요",
+          "type": "multiple",
+          "options": [
+            "맛",
+            "가격",
+            "양 또는 크기",
+            "메뉴 설명이나 안내",
+            "개선할 점이 없음",
+            "기타"
+          ],
+          "reason": "새 메뉴의 주요 개선 요구를 파악함."
+        },
+        {
+          "title": "새 메뉴에 대해 남기고 싶은 의견이 있다면 적어주세요",
+          "type": "text",
+          "options": [],
+          "reason": "선택지에 담기지 않은 새 메뉴 의견을 수집함."
+        }
+      ],
+      "questionsBeforePostprocess": [],
+      "schemaIssues": [],
+      "semanticIssues": [],
+      "qualityIssues": [],
+      "fatalFailures": [],
+      "warnings": [],
+      "repairEvidence": null,
+      "latencyMs": 32844
+    },
+    {
+      "caseId": "fronted-noisy-002",
+      "input": "새 기능 만족도는 다온 앱 최근 3개월 쓴 대학생한테 조사",
+      "expected": {
+        "id": "fronted-noisy-002",
+        "split": "dev",
+        "stratum": "complex_relation",
+        "category": "fronted_purpose_eligibility",
+        "difficulty": "hard",
+        "surveyMode": "standard",
+        "questionCount": 7,
+        "input": "새 기능 만족도는 다온 앱 최근 3개월 쓴 대학생한테 조사",
+        "expectedOutcome": "survey",
+        "expectedTargetPopulation": [
+          "최근 3개월 다온 앱을 쓴 대학생"
+        ],
+        "expectedSurveyObject": [
+          "다온 앱의 새 기능"
+        ],
+        "expectedPurposeConcepts": [
+          "새 기능 만족도"
+        ],
+        "inputQuality": "noisy_recoverable",
+        "contextEntities": [
+          "다온 앱"
+        ],
+        "expectedEligibilityConditions": [
+          "최근 3개월 다온 앱 사용"
+        ],
+        "screeningExpected": true,
+        "forbiddenPurposeConcepts": [],
+        "mustPreserveTerms": [
+          "다온 앱",
+          "새 기능"
+        ],
+        "mustPreserveNegation": false,
+        "requiredQuestionConcepts": [
+          "만족도"
+        ],
+        "forbiddenTargetExpansions": [],
+        "forbiddenSurveyObjects": [],
+        "forbiddenQuestionConcepts": [
+          "generic filler",
+          "무관한 인구통계"
+        ],
+        "clarificationExpected": false,
+        "expectedIntentModes": [
+          "single"
+        ],
+        "expectedTargetCardinality": "single",
+        "expectedArchetypes": [
+          "satisfaction"
+        ],
+        "tags": [
+          "noisy_input",
+          "timeframe"
+        ],
+        "notes": "v1.1 목적 선행·적격 조건 역할 분리 smoke fixture"
+      },
+      "requestId": "f082d2e6-bb97-453a-96a8-f2b4b886cb57",
+      "httpStatus": 200,
+      "responseType": "survey",
+      "responseStatus": "ready_with_caution",
+      "generationSource": "openai_partial_repair",
+      "fallbackReason": null,
+      "classification": "partial_repair",
+      "modelCallCount": 1,
+      "repairCount": 1,
+      "fallbackCount": 0,
+      "normalizedMetadataPaths": [
+        "research.sources.0.id",
+        "survey.sections.0.id",
+        "survey.sections.1.id",
+        "survey.sections.2.id",
+        "survey.questions.0.id",
+        "survey.questions.0.section_id",
+        "survey.questions.0.options.0.id",
+        "survey.questions.0.options.1.id",
+        "survey.questions.0.options.2.id",
+        "survey.questions.1.id",
+        "survey.questions.1.section_id",
+        "survey.questions.1.options.0.id",
+        "survey.questions.1.options.1.id",
+        "survey.questions.1.options.2.id",
+        "survey.questions.1.options.3.id",
+        "survey.questions.1.options.4.id",
+        "survey.questions.1.options.5.id",
+        "survey.questions.2.id",
+        "survey.questions.2.section_id",
+        "survey.questions.2.options.0.id",
+        "survey.questions.2.options.1.id",
+        "survey.questions.2.options.2.id",
+        "survey.questions.2.options.3.id",
+        "survey.questions.3.id",
+        "survey.questions.3.section_id",
+        "survey.questions.4.id",
+        "survey.questions.4.section_id",
+        "survey.questions.5.id",
+        "survey.questions.5.section_id",
+        "survey.questions.5.options.0.id",
+        "survey.questions.5.options.1.id",
+        "survey.questions.5.options.2.id",
+        "survey.questions.5.options.3.id",
+        "survey.questions.5.options.4.id",
+        "survey.questions.5.options.5.id",
+        "survey.questions.5.options.6.id",
+        "survey.questions.5.options.7.id",
+        "survey.questions.5.validation",
+        "survey.questions.6.id",
+        "survey.questions.6.section_id"
+      ],
+      "finalRespondentGroup": "최근 3개월 다온 앱을 쓴 대학생",
+      "finalEvaluationTarget": "다온 앱의 새 기능",
+      "title": "다온 앱 새 기능 만족도 조사",
+      "description": "최근 3개월 동안 다온 앱을 사용한 대학생을 대상으로 새 기능에 대한 의견을 알아보는 설문입니다. 약 3분 정도 걸립니다.",
+      "questions": [
+        {
+          "title": "현재 대학에 다니고 있나요?",
+          "type": "single",
+          "options": [
+            "재학 중이다",
+            "휴학 중이다",
+            "대학생이 아니다"
+          ],
+          "reason": "대학생 응답자인지 확인함."
+        },
+        {
+          "title": "최근 3개월 동안 다온 앱을 얼마나 자주 사용했나요?",
+          "type": "single",
+          "options": [
+            "1회",
+            "2~3회",
+            "월 1~3회",
+            "주 1회",
+            "주 2회 이상",
+            "사용한 적 없다"
+          ],
+          "reason": "다온 앱 사용 빈도를 파악함."
+        },
+        {
+          "title": "다온 앱의 새 기능에서 만족한 부분을 모두 골라주세요.",
+          "type": "multiple",
+          "options": [
+            "내용과 품질",
+            "이용 편의",
+            "시간과 일정",
+            "정보와 안내",
+            "비용 대비 가치",
+            "소통과 지원",
+            "기타"
+          ],
+          "reason": "만족을 만드는 구체적인 요인을 파악함."
+        },
+        {
+          "title": "다온 앱의 새 기능에 전반적으로 얼마나 만족했나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "새 기능의 전반적인 만족도를 측정함."
+        },
+        {
+          "title": "새 기능은 다온 앱을 사용하는 데 얼마나 도움이 되었나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "새 기능의 체감 유용성을 파악함."
+        },
+        {
+          "title": "새 기능을 사용할 때 불편했던 점이 있다면 모두 골라주세요",
+          "type": "multiple",
+          "options": [
+            "어떻게 쓰는지 알기 어려웠다",
+            "원하는 기능이나 정보를 찾기 어려웠다",
+            "화면 구성이나 안내가 이해하기 어려웠다",
+            "속도가 느리거나 오류가 있었다",
+            "기대했던 만큼 필요하지 않았다",
+            "기타",
+            "불편한 점이 없었다",
+            "새 기능을 사용하지 않았다"
+          ],
+          "reason": "새 기능에서 개선이 필요한 불편 요인을 파악함."
+        },
+        {
+          "title": "다온 앱의 새 기능에서 가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요",
+          "type": "text",
+          "options": [],
+          "reason": "선택지에 없는 개선 의견을 수집함."
+        }
+      ],
+      "questionsBeforePostprocess": [],
+      "schemaIssues": [],
+      "semanticIssues": [],
+      "qualityIssues": [],
+      "fatalFailures": [],
+      "warnings": [
+        {
+          "code": "PARTIAL_REPAIR",
+          "message": "모델 출력 일부가 복구됨",
+          "cluster": "partial_repair",
+          "fatal": false
+        }
+      ],
+      "repairEvidence": {
+        "issue": "PREDICATE_ENTITY_MISMATCH",
+        "observed": "noisy 입력에서도 canonical 대상의 축약 표현을 관계 불일치로 판정함"
+      },
+      "latencyMs": 45085
+    },
+    {
+      "caseId": "fronted-noisy-003",
+      "input": "프로그램 만족도는 늘봄센터 프로그램 이번 학기 참여한 학부모한테 조사",
+      "expected": {
+        "id": "fronted-noisy-003",
+        "split": "dev",
+        "stratum": "complex_relation",
+        "category": "fronted_purpose_eligibility",
+        "difficulty": "hard",
+        "surveyMode": "standard",
+        "questionCount": 7,
+        "input": "프로그램 만족도는 늘봄센터 프로그램 이번 학기 참여한 학부모한테 조사",
+        "expectedOutcome": "survey",
+        "expectedTargetPopulation": [
+          "이번 학기 늘봄센터 프로그램에 참여한 학부모"
+        ],
+        "expectedSurveyObject": [
+          "늘봄센터 프로그램"
+        ],
+        "expectedPurposeConcepts": [
+          "프로그램 만족도"
+        ],
+        "inputQuality": "noisy_recoverable",
+        "contextEntities": [
+          "늘봄센터 프로그램"
+        ],
+        "expectedEligibilityConditions": [
+          "이번 학기 늘봄센터 프로그램 참여"
+        ],
+        "screeningExpected": true,
+        "forbiddenPurposeConcepts": [],
+        "mustPreserveTerms": [
+          "늘봄센터"
+        ],
+        "mustPreserveNegation": false,
+        "requiredQuestionConcepts": [
+          "만족도"
+        ],
+        "forbiddenTargetExpansions": [],
+        "forbiddenSurveyObjects": [],
+        "forbiddenQuestionConcepts": [
+          "generic filler",
+          "무관한 인구통계"
+        ],
+        "clarificationExpected": false,
+        "expectedIntentModes": [
+          "single"
+        ],
+        "expectedTargetCardinality": "single",
+        "expectedArchetypes": [
+          "satisfaction"
+        ],
+        "tags": [
+          "noisy_input",
+          "timeframe"
+        ],
+        "notes": "v1.1 목적 선행·적격 조건 역할 분리 smoke fixture"
+      },
+      "requestId": "680267b4-e71c-4ccb-a13d-4c3b590da8fb",
+      "httpStatus": 200,
+      "responseType": "survey",
+      "responseStatus": "ready_with_caution",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "classification": "deterministic_metadata_normalization",
+      "modelCallCount": 1,
+      "repairCount": 0,
+      "fallbackCount": 0,
+      "normalizedMetadataPaths": [
+        "quality_check.all_named_entities_searched",
+        "survey.sections.0.id",
+        "survey.sections.1.id",
+        "survey.sections.2.id",
+        "survey.questions.0.id",
+        "survey.questions.0.section_id",
+        "survey.questions.0.options.0.id",
+        "survey.questions.0.options.1.id",
+        "survey.questions.0.options.2.id",
+        "survey.questions.1.id",
+        "survey.questions.1.section_id",
+        "survey.questions.1.options.0.id",
+        "survey.questions.1.options.1.id",
+        "survey.questions.1.options.2.id",
+        "survey.questions.1.options.3.id",
+        "survey.questions.1.options.4.id",
+        "survey.questions.2.id",
+        "survey.questions.2.section_id",
+        "survey.questions.3.id",
+        "survey.questions.3.section_id",
+        "survey.questions.4.id",
+        "survey.questions.4.section_id",
+        "survey.questions.5.id",
+        "survey.questions.5.section_id",
+        "survey.questions.5.options.0.id",
+        "survey.questions.5.options.1.id",
+        "survey.questions.5.options.2.id",
+        "survey.questions.5.options.3.id",
+        "survey.questions.5.options.4.id",
+        "survey.questions.5.options.5.id",
+        "survey.questions.6.id",
+        "survey.questions.6.section_id"
+      ],
+      "finalRespondentGroup": "이번 학기 늘봄센터 프로그램에 참여한 학부모",
+      "finalEvaluationTarget": "늘봄센터 프로그램",
+      "title": "늘봄센터 프로그램 만족도 조사",
+      "description": "이번 학기 늘봄센터 프로그램에 참여한 학부모님의 의견을 듣기 위한 설문입니다. 응답에는 약 3분이 걸립니다.",
+      "questions": [
+        {
+          "title": "이번 학기에 자녀가 늘봄센터 프로그램에 참여했나요?",
+          "type": "single",
+          "options": [
+            "참여했음",
+            "참여하지 않았음",
+            "잘 모르겠음"
+          ],
+          "reason": "이번 학기 참여 학부모 응답을 구분함."
+        },
+        {
+          "title": "이번 학기에 자녀는 늘봄센터 프로그램에 얼마나 자주 참여했나요?",
+          "type": "single",
+          "options": [
+            "1~2회",
+            "3~5회",
+            "6~9회",
+            "10회 이상",
+            "잘 모르겠음"
+          ],
+          "reason": "프로그램 참여 정도를 파악함."
+        },
+        {
+          "title": "이번 학기 늘봄센터 프로그램에 전반적으로 얼마나 만족하셨나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "프로그램의 전반적 만족도를 측정함."
+        },
+        {
+          "title": "프로그램 일정과 관련한 안내는 이해하기 쉬웠나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "프로그램 안내의 이해하기 쉬운 정도를 파악함."
+        },
+        {
+          "title": "자녀가 프로그램에 참여하는 과정은 얼마나 편리했나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "프로그램 참여 과정의 편리성을 파악함."
+        },
+        {
+          "title": "늘봄센터 프로그램에서 가장 먼저 개선됐으면 하는 점은 무엇인가요?",
+          "type": "single",
+          "options": [
+            "프로그램 일정 안내",
+            "신청하거나 참여하는 과정",
+            "프로그램 내용",
+            "자녀의 참여 시간",
+            "개선할 점이 없음",
+            "기타"
+          ],
+          "reason": "우선적으로 개선할 영역을 확인함."
+        },
+        {
+          "title": "늘봄센터 프로그램에서 가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요",
+          "type": "text",
+          "options": [],
+          "reason": "선택지에 담기지 않은 개선 의견을 수집함."
+        }
+      ],
+      "questionsBeforePostprocess": [],
+      "schemaIssues": [],
+      "semanticIssues": [],
+      "qualityIssues": [],
+      "fatalFailures": [],
+      "warnings": [],
+      "repairEvidence": null,
+      "latencyMs": 19400
+    },
+    {
+      "caseId": "fronted-noisy-004",
+      "input": "신제품 만족도는 해든 매장 최근 한 달 구매한 고객한테 조사",
+      "expected": {
+        "id": "fronted-noisy-004",
+        "split": "dev",
+        "stratum": "complex_relation",
+        "category": "fronted_purpose_eligibility",
+        "difficulty": "hard",
+        "surveyMode": "standard",
+        "questionCount": 7,
+        "input": "신제품 만족도는 해든 매장 최근 한 달 구매한 고객한테 조사",
+        "expectedOutcome": "survey",
+        "expectedTargetPopulation": [
+          "최근 한 달 해든 매장에서 구매한 고객"
+        ],
+        "expectedSurveyObject": [
+          "신제품"
+        ],
+        "expectedPurposeConcepts": [
+          "신제품 만족도"
+        ],
+        "inputQuality": "noisy_recoverable",
+        "contextEntities": [
+          "해든 매장"
+        ],
+        "expectedEligibilityConditions": [
+          "최근 한 달 해든 매장 구매"
+        ],
+        "screeningExpected": true,
+        "forbiddenPurposeConcepts": [],
+        "mustPreserveTerms": [
+          "해든 매장",
+          "신제품"
+        ],
+        "mustPreserveNegation": false,
+        "requiredQuestionConcepts": [
+          "만족도"
+        ],
+        "forbiddenTargetExpansions": [],
+        "forbiddenSurveyObjects": [],
+        "forbiddenQuestionConcepts": [
+          "generic filler",
+          "무관한 인구통계"
+        ],
+        "clarificationExpected": false,
+        "expectedIntentModes": [
+          "single"
+        ],
+        "expectedTargetCardinality": "single",
+        "expectedArchetypes": [
+          "satisfaction"
+        ],
+        "tags": [
+          "noisy_input",
+          "timeframe"
+        ],
+        "notes": "v1.1 목적 선행·적격 조건 역할 분리 smoke fixture"
+      },
+      "requestId": "913b27cf-b81f-4a79-b8ca-d37326b0736b",
+      "httpStatus": 200,
+      "responseType": "survey",
+      "responseStatus": "ready_with_caution",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "classification": "deterministic_metadata_normalization",
+      "modelCallCount": 1,
+      "repairCount": 0,
+      "fallbackCount": 0,
+      "normalizedMetadataPaths": [
+        "quality_check.all_named_entities_searched",
+        "survey.sections.0.id",
+        "survey.sections.1.id",
+        "survey.sections.2.id",
+        "survey.questions.0.id",
+        "survey.questions.0.section_id",
+        "survey.questions.0.options.0.id",
+        "survey.questions.0.options.1.id",
+        "survey.questions.0.options.2.id",
+        "survey.questions.1.id",
+        "survey.questions.1.section_id",
+        "survey.questions.1.options.0.id",
+        "survey.questions.1.options.1.id",
+        "survey.questions.1.options.2.id",
+        "survey.questions.1.options.3.id",
+        "survey.questions.1.options.4.id",
+        "survey.questions.1.options.5.id",
+        "survey.questions.2.id",
+        "survey.questions.2.section_id",
+        "survey.questions.2.options.0.id",
+        "survey.questions.2.options.1.id",
+        "survey.questions.2.options.2.id",
+        "survey.questions.2.options.3.id",
+        "survey.questions.2.options.4.id",
+        "survey.questions.2.options.5.id",
+        "survey.questions.2.options.6.id",
+        "survey.questions.2.validation",
+        "survey.questions.3.id",
+        "survey.questions.3.section_id",
+        "survey.questions.4.id",
+        "survey.questions.4.section_id",
+        "survey.questions.4.options.0.id",
+        "survey.questions.4.options.1.id",
+        "survey.questions.4.options.2.id",
+        "survey.questions.4.options.3.id",
+        "survey.questions.4.options.4.id",
+        "survey.questions.4.options.5.id",
+        "survey.questions.5.id",
+        "survey.questions.5.section_id",
+        "survey.questions.5.options.0.id",
+        "survey.questions."
+      ],
+      "finalRespondentGroup": "최근 한 달 해든 매장에서 구매한 고객",
+      "finalEvaluationTarget": "신제품",
+      "title": "해든 매장 신제품 만족도 조사",
+      "description": "최근 한 달 동안 해든 매장에서 신제품을 구매한 고객을 대상으로 진행하는 설문입니다. 응답은 신제품 개선에 참고합니다. 약 2~3분 정도 걸립니다.",
+      "questions": [
+        {
+          "title": "최근 한 달 동안 해든 매장에서 신제품을 구매한 적이 있나요?",
+          "type": "single",
+          "options": [
+            "있음",
+            "없음",
+            "잘 기억나지 않음"
+          ],
+          "reason": "최근 한 달 신제품 구매 고객인지 확인함."
+        },
+        {
+          "title": "최근 한 달 동안 해든 매장에서 신제품을 몇 번 구매했나요?",
+          "type": "single",
+          "options": [
+            "1회",
+            "2회",
+            "3~4회",
+            "5회 이상",
+            "구매한 적 없음",
+            "잘 기억나지 않음"
+          ],
+          "reason": "신제품 구매 빈도를 파악함."
+        },
+        {
+          "title": "신제품을 구매한 이유를 모두 골라주세요",
+          "type": "multiple",
+          "options": [
+            "새로운 제품이라 궁금해서",
+            "평소 구매하던 제품과 함께 사려고",
+            "가격이나 혜택이 마음에 들어서",
+            "다른 사람의 추천을 받아서",
+            "매장에서 보고 즉흥적으로 구매해서",
+            "기타",
+            "구매한 적 없음"
+          ],
+          "reason": "신제품을 구매하게 된 계기를 파악함."
+        },
+        {
+          "title": "구매한 신제품에 전반적으로 얼마나 만족했나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "신제품의 전반적인 만족도를 측정함."
+        },
+        {
+          "title": "신제품이 기대와 비교해 어땠나요?",
+          "type": "single",
+          "options": [
+            "기대보다 훨씬 좋았음",
+            "기대보다 좋았음",
+            "기대와 비슷했음",
+            "기대보다 아쉬웠음",
+            "기대보다 훨씬 아쉬웠음",
+            "기대하지 않고 구매했음"
+          ],
+          "reason": "신제품이 구매 전 기대를 충족했는지 파악함."
+        },
+        {
+          "title": "신제품에서 가장 먼저 개선됐으면 하는 점을 최대 2개 골라주세요",
+          "type": "multiple",
+          "options": [
+            "제품의 품질",
+            "가격",
+            "제품에 대한 설명",
+            "구매할 수 있는 매장 또는 재고",
+            "포장 또는 구성",
+            "기타",
+            "개선할 점 없음"
+          ],
+          "reason": "신제품 개선이 필요한 항목을 우선순위로 파악함."
+        },
+        {
+          "title": "신제품에 대해 좋았던 점이나 아쉬웠던 점이 있다면 적어주세요",
+          "type": "text",
+          "options": [],
+          "reason": "선택지로 파악하기 어려운 만족과 개선 의견을 수집함."
+        }
+      ],
+      "questionsBeforePostprocess": [],
+      "schemaIssues": [],
+      "semanticIssues": [],
+      "qualityIssues": [],
+      "fatalFailures": [],
+      "warnings": [],
+      "repairEvidence": null,
+      "latencyMs": 24463
+    },
+    {
+      "caseId": "fronted-noisy-005",
+      "input": "서비스 안 쓰는 이유는 다온 플랫폼 안 쓰는 직장인한테 조사",
+      "expected": {
+        "id": "fronted-noisy-005",
+        "split": "dev",
+        "stratum": "complex_relation",
+        "category": "fronted_purpose_eligibility",
+        "difficulty": "hard",
+        "surveyMode": "standard",
+        "questionCount": 7,
+        "input": "서비스 안 쓰는 이유는 다온 플랫폼 안 쓰는 직장인한테 조사",
+        "expectedOutcome": "survey",
+        "expectedTargetPopulation": [
+          "다온 플랫폼을 사용하지 않는 직장인",
+          "다온 플랫폼을 안 쓰는 직장인"
+        ],
+        "expectedSurveyObject": [
+          "다온 플랫폼"
+        ],
+        "expectedPurposeConcepts": [
+          "비이용 이유"
+        ],
+        "inputQuality": "noisy_recoverable",
+        "contextEntities": [
+          "다온 플랫폼"
+        ],
+        "expectedEligibilityConditions": [
+          "다온 플랫폼 비이용"
+        ],
+        "screeningExpected": true,
+        "forbiddenPurposeConcepts": [],
+        "mustPreserveTerms": [
+          "다온 플랫폼"
+        ],
+        "mustPreserveNegation": true,
+        "requiredQuestionConcepts": [
+          "비이용 이유"
+        ],
+        "forbiddenTargetExpansions": [],
+        "forbiddenSurveyObjects": [],
+        "forbiddenQuestionConcepts": [
+          "generic filler",
+          "무관한 인구통계"
+        ],
+        "clarificationExpected": false,
+        "expectedIntentModes": [
+          "single"
+        ],
+        "expectedTargetCardinality": "single",
+        "expectedArchetypes": [
+          "attitude"
+        ],
+        "tags": [
+          "noisy_input",
+          "timeframe",
+          "negation"
+        ],
+        "notes": "v1.1 목적 선행·적격 조건 역할 분리 smoke fixture"
+      },
+      "requestId": "921f58e1-c1ba-457c-81c3-a18e573ab67f",
+      "httpStatus": 200,
+      "responseType": "survey",
+      "responseStatus": "ready_with_caution",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "classification": "deterministic_metadata_normalization",
+      "modelCallCount": 1,
+      "repairCount": 0,
+      "fallbackCount": 0,
+      "normalizedMetadataPaths": [
+        "research.sources.0.id",
+        "survey.sections.0.id",
+        "survey.sections.1.id",
+        "survey.sections.2.id",
+        "survey.questions.0.id",
+        "survey.questions.0.section_id",
+        "survey.questions.0.options.0.id",
+        "survey.questions.0.options.1.id",
+        "survey.questions.1.id",
+        "survey.questions.1.section_id",
+        "survey.questions.1.options.0.id",
+        "survey.questions.1.options.1.id",
+        "survey.questions.1.options.2.id",
+        "survey.questions.2.id",
+        "survey.questions.2.section_id",
+        "survey.questions.2.options.0.id",
+        "survey.questions.2.options.1.id",
+        "survey.questions.2.options.2.id",
+        "survey.questions.2.options.3.id",
+        "survey.questions.2.options.4.id",
+        "survey.questions.2.options.5.id",
+        "survey.questions.3.id",
+        "survey.questions.3.section_id",
+        "survey.questions.3.options.0.id",
+        "survey.questions.3.options.1.id",
+        "survey.questions.3.options.2.id",
+        "survey.questions.3.options.3.id",
+        "survey.questions.3.options.4.id",
+        "survey.questions.3.options.5.id",
+        "survey.questions.3.options.6.id",
+        "survey.questions.4.id",
+        "survey.questions.4.section_id",
+        "survey.questions.4.options.0.id",
+        "survey.questions.4.options.1.id",
+        "survey.questions.4.options.2.id",
+        "survey.questions.4.options.3.id",
+        "survey.questions.4.options.4.id",
+        "survey.questions.4.options.5.id",
+        "survey.questions.4.options.6.id",
+        "survey.questions.4.options.7.id",
+        "survey.questions.4.opti"
+      ],
+      "finalRespondentGroup": "다온 플랫폼을 안 쓰는 직장인",
+      "finalEvaluationTarget": "다온 플랫폼",
+      "title": "다온 플랫폼을 사용하지 않는 직장인 조사",
+      "description": "이 설문은 직장인이 다온 플랫폼을 사용하지 않는 이유와 앞으로 사용을 고려할 조건을 알아보기 위한 조사입니다. 약 3분 정도 걸립니다.",
+      "questions": [
+        {
+          "title": "현재 다온 플랫폼을 사용하고 있지 않나요?",
+          "type": "single",
+          "options": [
+            "네, 현재 사용하지 않습니다",
+            "아니요, 현재 사용하고 있습니다"
+          ],
+          "reason": "현재 미사용 응답자인지 확인함."
+        },
+        {
+          "title": "다온 플랫폼을 알고 있었나요?",
+          "type": "single",
+          "options": [
+            "이름과 어떤 플랫폼인지 알고 있었습니다",
+            "이름만 들어봤습니다",
+            "이번 설문을 통해 처음 알았습니다"
+          ],
+          "reason": "플랫폼 인지 수준을 구분함."
+        },
+        {
+          "title": "다온 플랫폼에 대한 정보는 주로 어디에서 접했나요?",
+          "type": "single",
+          "options": [
+            "회사 동료나 지인",
+            "검색이나 온라인 기사",
+            "SNS나 온라인 커뮤니티",
+            "광고나 홍보물",
+            "접한 적 없음",
+            "기타"
+          ],
+          "reason": "플랫폼을 알게 되는 경로를 파악함."
+        },
+        {
+          "title": "다온 플랫폼을 사용하지 않는 가장 큰 이유는 무엇인가요?",
+          "type": "single",
+          "options": [
+            "필요성을 느끼지 못해서",
+            "어떤 도움을 받을 수 있는지 잘 몰라서",
+            "이미 다른 방법이나 서비스를 쓰고 있어서",
+            "가입하거나 시작하는 과정이 번거로울 것 같아서",
+            "개인정보나 정보의 신뢰성이 걱정돼서",
+            "사용할 시간이나 여유가 없어서",
+            "기타"
+          ],
+          "reason": "사용을 막는 가장 큰 요인을 파악함."
+        },
+        {
+          "title": "다온 플랫폼을 사용하지 않게 만드는 요인을 모두 골라주세요",
+          "type": "multiple",
+          "options": [
+            "플랫폼의 목적이나 특징이 분명하지 않음",
+            "나에게 필요한 내용이 있을지 확신이 없음",
+            "사용 방법이 어렵거나 낯설 것 같음",
+            "개인정보 제공이 부담스러움",
+            "정보나 운영 주체를 신뢰하기 어려움",
+            "다른 서비스만으로 충분함",
+            "사용할 계기나 추천이 없음",
+            "특별히 없음",
+            "기타"
+          ],
+          "reason": "중복되는 미사용 장벽을 폭넓게 파악함."
+        },
+        {
+          "title": "어떤 조건이 갖춰지면 다온 플랫폼을 써 볼 마음이 가장 생길까요?",
+          "type": "single",
+          "options": [
+            "내게 필요한 정보나 혜택이 분명해질 때",
+            "사용 방법을 쉽게 안내해 줄 때",
+            "신뢰할 수 있는 추천이나 후기를 볼 수 있을 때",
+            "개인정보 보호 방식이 명확해질 때",
+            "다른 서비스보다 나은 점이 분명해질 때",
+            "사용할 생각이 없음",
+            "기타"
+          ],
+          "reason": "사용을 고려하게 만드는 우선 조건을 파악함."
+        },
+        {
+          "title": "다온 플랫폼이 바뀌거나 보완됐으면 하는 점이 있다면 적어주세요",
+          "type": "text",
+          "options": [],
+          "reason": "선택지로 포착되지 않은 미사용 이유와 개선 의견을 수집함."
+        }
+      ],
+      "questionsBeforePostprocess": [],
+      "schemaIssues": [],
+      "semanticIssues": [],
+      "qualityIssues": [],
+      "fatalFailures": [],
+      "warnings": [],
+      "repairEvidence": null,
+      "latencyMs": 43671
+    },
+    {
+      "caseId": "fronted-noisy-006",
+      "input": "시설 인식은 늘빛 체육관 최근 두 달 이용한 주민한테 조사",
+      "expected": {
+        "id": "fronted-noisy-006",
+        "split": "dev",
+        "stratum": "complex_relation",
+        "category": "fronted_purpose_eligibility",
+        "difficulty": "hard",
+        "surveyMode": "standard",
+        "questionCount": 7,
+        "input": "시설 인식은 늘빛 체육관 최근 두 달 이용한 주민한테 조사",
+        "expectedOutcome": "survey",
+        "expectedTargetPopulation": [
+          "최근 두 달 늘빛 체육관을 이용한 주민"
+        ],
+        "expectedSurveyObject": [
+          "늘빛 체육관"
+        ],
+        "expectedPurposeConcepts": [
+          "시설 인식"
+        ],
+        "inputQuality": "noisy_recoverable",
+        "contextEntities": [
+          "늘빛 체육관"
+        ],
+        "expectedEligibilityConditions": [
+          "최근 두 달 늘빛 체육관 이용"
+        ],
+        "screeningExpected": true,
+        "forbiddenPurposeConcepts": [],
+        "mustPreserveTerms": [
+          "늘빛 체육관"
+        ],
+        "mustPreserveNegation": false,
+        "requiredQuestionConcepts": [
+          "인식"
+        ],
+        "forbiddenTargetExpansions": [],
+        "forbiddenSurveyObjects": [],
+        "forbiddenQuestionConcepts": [
+          "generic filler",
+          "무관한 인구통계"
+        ],
+        "clarificationExpected": false,
+        "expectedIntentModes": [
+          "single"
+        ],
+        "expectedTargetCardinality": "single",
+        "expectedArchetypes": [
+          "attitude"
+        ],
+        "tags": [
+          "noisy_input",
+          "timeframe"
+        ],
+        "notes": "v1.1 목적 선행·적격 조건 역할 분리 smoke fixture"
+      },
+      "requestId": "d2ea73cc-7832-4a20-8802-4be9e7c20b6c",
+      "httpStatus": 200,
+      "responseType": "survey",
+      "responseStatus": "ready_with_caution",
+      "generationSource": "openai",
+      "fallbackReason": null,
+      "classification": "deterministic_metadata_normalization",
+      "modelCallCount": 1,
+      "repairCount": 0,
+      "fallbackCount": 0,
+      "normalizedMetadataPaths": [
+        "survey.sections.0.id",
+        "survey.sections.1.id",
+        "survey.sections.2.id",
+        "survey.questions.0.id",
+        "survey.questions.0.section_id",
+        "survey.questions.0.options.0.id",
+        "survey.questions.0.options.1.id",
+        "survey.questions.1.id",
+        "survey.questions.1.section_id",
+        "survey.questions.1.options.0.id",
+        "survey.questions.1.options.1.id",
+        "survey.questions.1.options.2.id",
+        "survey.questions.1.options.3.id",
+        "survey.questions.1.options.4.id",
+        "survey.questions.2.id",
+        "survey.questions.2.section_id",
+        "survey.questions.2.options.0.id",
+        "survey.questions.2.options.1.id",
+        "survey.questions.2.options.2.id",
+        "survey.questions.2.options.3.id",
+        "survey.questions.2.options.4.id",
+        "survey.questions.2.validation",
+        "survey.questions.3.id",
+        "survey.questions.3.section_id",
+        "survey.questions.4.id",
+        "survey.questions.4.section_id",
+        "survey.questions.5.id",
+        "survey.questions.5.section_id",
+        "survey.questions.5.options.0.id",
+        "survey.questions.5.options.1.id",
+        "survey.questions.5.options.2.id",
+        "survey.questions.5.options.3.id",
+        "survey.questions.5.options.4.id",
+        "survey.questions.5.options.5.id",
+        "survey.questions.6.id",
+        "survey.questions.6.section_id"
+      ],
+      "finalRespondentGroup": "최근 두 달 늘빛 체육관을 이용한 주민",
+      "finalEvaluationTarget": "늘빛 체육관",
+      "title": "늘빛 체육관 이용자 인식 조사",
+      "description": "최근 두 달 동안 늘빛 체육관을 이용한 주민의 의견을 알아보기 위한 설문입니다. 약 3분 정도 걸립니다.",
+      "questions": [
+        {
+          "title": "최근 두 달 동안 늘빛 체육관을 이용해 본 적이 있나요?",
+          "type": "single",
+          "options": [
+            "있음",
+            "없음"
+          ],
+          "reason": "최근 이용자 응답인지 확인함."
+        },
+        {
+          "title": "최근 두 달 동안 늘빛 체육관을 얼마나 자주 이용했나요?",
+          "type": "single",
+          "options": [
+            "1회",
+            "2~3회",
+            "4~7회",
+            "8회 이상",
+            "이용한 적 없음"
+          ],
+          "reason": "최근 이용 빈도를 파악함."
+        },
+        {
+          "title": "늘빛 체육관을 이용한 주된 목적을 모두 골라주세요",
+          "type": "multiple",
+          "options": [
+            "운동 또는 체력 관리",
+            "개인 운동 연습",
+            "모임 또는 동호회 활동",
+            "경기 또는 행사 참여",
+            "기타"
+          ],
+          "reason": "주요 이용 목적을 파악함."
+        },
+        {
+          "title": "늘빛 체육관에 대해 전반적으로 어떻게 느꼈나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "시설에 대한 전반적 인식을 측정함."
+        },
+        {
+          "title": "시설 내부 환경은 얼마나 만족스러웠나요?",
+          "type": "scale",
+          "options": [],
+          "reason": "시설 내부 환경에 대한 만족도를 파악함."
+        },
+        {
+          "title": "늘빛 체육관에서 가장 먼저 개선됐으면 하는 점은 무엇인가요?",
+          "type": "single",
+          "options": [
+            "시설의 청결과 관리 상태",
+            "운동 공간의 쾌적함",
+            "이용 편의성",
+            "안내와 정보 제공",
+            "특별히 개선할 점 없음",
+            "기타"
+          ],
+          "reason": "이용자가 우선적으로 원하는 개선 영역을 파악함."
+        },
+        {
+          "title": "늘빛 체육관을 더 좋게 만들기 위해 바뀌었으면 하는 점이 있다면 적어주세요",
+          "type": "text",
+          "options": [],
+          "reason": "선택지로 파악하기 어려운 개선 의견을 수집함."
+        }
+      ],
+      "questionsBeforePostprocess": [],
+      "schemaIssues": [],
+      "semanticIssues": [],
+      "qualityIssues": [],
+      "fatalFailures": [],
+      "warnings": [],
+      "repairEvidence": null,
+      "latencyMs": 32883
+    }
+  ]
+}
