@@ -177,6 +177,26 @@ function comparisonCoveragePresent(
   );
 }
 
+function directSatisfactionMeasurementPresent(
+  questions: SurveyRegressionResult["questions"],
+) {
+  return questions.some((question) => {
+    if (
+      !/(?:전반적으로\s*)?얼마나\s*만족|전반적인\s*만족/u.test(
+        question.title,
+      )
+    ) {
+      return false;
+    }
+    if (question.type === "scale") return true;
+    if (question.type !== "single") return false;
+    const satisfactionChoices = question.options.filter((option) =>
+      /만족|보통/u.test(option),
+    );
+    return satisfactionChoices.length >= 3;
+  });
+}
+
 function screeningQuestionPresent(
   questions: Array<{ title: string; options: string[]; reason?: string | null }>,
 ) {
@@ -477,11 +497,7 @@ export function evaluateSemanticResult(
   }
   if (
     testCase.requiredQuestionConcepts.includes("만족도") &&
-    !result.questions.some(
-      (item) =>
-        item.type === "scale" &&
-        /(?:전반적으로\s*)?얼마나\s*만족|전반적인\s*만족/u.test(item.title),
-    )
+    !directSatisfactionMeasurementPresent(result.questions)
   ) {
     fatalFailures.push(
       issue(

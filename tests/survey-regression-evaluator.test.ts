@@ -202,6 +202,73 @@ test("두 대상을 각각 측정하고 더 만족한 대상을 고르게 하면
   );
 });
 
+test("명시적인 5점 단일선택 만족도 문항도 직접 만족도 측정으로 인정한다", () => {
+  const evaluated = evaluateSemanticResult(
+    frontedCase("fronted-clear-004"),
+    result({
+      finalRespondentGroup: "최근 한 달 해든 매장에서 구매한 고객",
+      finalEvaluationTarget: "신제품",
+      title: "해든 매장 신제품 만족도 조사",
+      description: "최근 구매 고객의 신제품 만족도를 살펴봅니다.",
+      questions: [
+        question("최근 한 달 안에 해든 매장에서 구매한 적이 있나요?"),
+        question("최근 한 달 동안 해든 매장에서 얼마나 자주 구매했나요?"),
+        question("최근 한 달 안에 해든 매장에서 신제품을 구매해 본 적이 있나요?"),
+        question("구매한 신제품에 전반적으로 얼마나 만족했나요?", "single", [
+          "매우 만족",
+          "만족하는 편",
+          "보통",
+          "만족하지 않는 편",
+          "전혀 만족하지 않음",
+          "구매하지 않아 평가하기 어려움",
+        ]),
+        question("신제품의 가격은 어떻게 느껴졌나요?"),
+        question("신제품 만족도에 가장 큰 영향을 준 것은 무엇인가요?"),
+        question("신제품에서 가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요", "text"),
+      ],
+    }),
+  );
+  assert.equal(
+    evaluated.fatalFailures.some((item) => item.code === "OVERALL_SATISFACTION_MISSING"),
+    false,
+  );
+});
+
+test("두 대상의 단일선택 만족도와 직접 비교 문항을 모두 coverage로 인정한다", () => {
+  const evaluated = evaluateSemanticResult(
+    frontedCase("fronted-control-003"),
+    result({
+      finalRespondentGroup: "별마루 카페 새 메뉴와 기존 메뉴 이용자",
+      finalEvaluationTarget: "별마루 카페 새 메뉴·기존 메뉴",
+      title: "별마루 카페 새 메뉴와 기존 메뉴 만족도 조사",
+      description: "새 메뉴와 기존 메뉴의 만족도를 비교합니다.",
+      questions: [
+        question("별마루 카페에서 어떤 메뉴를 먹어 본 적이 있나요?"),
+        question("새 메뉴를 고를 때 중요하게 생각한 점은 무엇인가요?"),
+        question("기존 메뉴를 고를 때 중요하게 생각한 점은 무엇인가요?"),
+        question("별마루 카페 새 메뉴에 전반적으로 얼마나 만족했나요?", "single", [
+          "전혀 만족하지 않음", "만족하지 않는 편", "보통", "만족하는 편", "매우 만족",
+        ]),
+        question("별마루 카페 기존 메뉴에 전반적으로 얼마나 만족했나요?", "single", [
+          "전혀 만족하지 않음", "만족하지 않는 편", "보통", "만족하는 편", "매우 만족",
+        ]),
+        question("새 메뉴와 기존 메뉴 중 어느 쪽이 더 만족스러웠나요?"),
+        question("새 메뉴나 기존 메뉴에서 가장 먼저 바뀌었으면 하는 점은 무엇인가요?", "text"),
+      ],
+    }),
+  );
+  const codes = new Set(evaluated.fatalFailures.map((item) => item.code));
+  assert.equal(codes.has("OVERALL_SATISFACTION_MISSING"), false);
+  assert.equal(
+    evaluated.fatalFailures.some(
+      (item) =>
+        item.code === "REQUIRED_QUESTION_CONCEPT_MISSING" &&
+        item.message.includes("대상 비교"),
+    ),
+    false,
+  );
+});
+
 test("비교 대상 하나가 질문에서 빠지면 비교 coverage를 통과시키지 않는다", () => {
   const evaluated = evaluateSemanticResult(
     frontedCase("fronted-control-003"),
