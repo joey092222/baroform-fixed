@@ -134,6 +134,13 @@ function parseArguments() {
   if (maxCases !== null && (!Number.isInteger(maxCases) || maxCases < 1)) {
     throw new Error("INVALID_MAX_CASES");
   }
+  const caseIds = (args.get("case-ids") ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (caseIds.some((value) => !/^[A-Za-z0-9._-]{3,100}$/.test(value))) {
+    throw new Error("INVALID_CASE_IDS");
+  }
   const remotePreview = Boolean(deployment);
   if (remotePreview && (!expectedBuildSha || !vercelPnpm)) {
     throw new Error("REMOTE_PREVIEW_ARGUMENTS_REQUIRED");
@@ -147,6 +154,7 @@ function parseArguments() {
     vercelPnpm,
     remotePreview,
     maxCases,
+    caseIds,
   };
 }
 
@@ -661,10 +669,17 @@ const datasets = await Promise.all([
 const allCases = mergeDatasets(...datasets);
 const quality = validateDatasetQuality(allCases);
 if (quality.errors.length > 0) throw new Error(quality.errors.join("\n"));
+const requestedCaseIds = new Set(args.caseIds);
 const selectedCases = allCases
   .filter((item) => args.split === "all" || item.split === args.split)
+  .filter((item) => requestedCaseIds.size === 0 || requestedCaseIds.has(item.id))
   .slice(0, args.maxCases ?? undefined);
-const projection = projectLiveEvaluationCost(allCases);
+if (requestedCaseIds.size > 0 && selectedCases.length !== requestedCaseIds.size) {
+  const selectedIds = new Set(selectedCases.map((item) => item.id));
+  const missing = [...requestedCaseIds].filter((id) => !selectedIds.has(id));
+  throw new Error(`UNKNOWN_OR_FILTERED_CASE_IDS:${missing.join(",")}`);
+}
+const projection = projectLiveEvaluationCost(selectedCases);
 if (!projection.withinCap) {
   throw new Error(
     `LIVE_EVAL_COST_CAP_EXCEEDED:${projection.projectedCostUsd.toFixed(6)}:${liveEvaluationCostCapUsd}`,
