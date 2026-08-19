@@ -594,6 +594,11 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
 
     const initialTrace = traceSnapshots.get(requestId) ?? {};
     const usage = usageLogs.get(requestId) ?? {};
+    const serverRequestId =
+      text(finalBody.requestId) ||
+      text(finalTrace.requestId) ||
+      text(initialTrace.requestId) ||
+      requestId;
     const blueprint = record(finalBody.blueprint) as Blueprint | null;
     const questions = blueprintQuestions(blueprint);
     const canonical = parseCanonicalSurveyIntent(
@@ -630,7 +635,7 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
       split: testCase.split,
       input: testCase.input,
       expected: testCase,
-      requestId,
+      requestId: serverRequestId,
       model: text(usage.actualModel) || text(usage.requestedModel) || null,
       httpStatus: finalResponse.status,
       responseType: text(finalBody.type) || null,
@@ -684,6 +689,8 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
   } catch (error) {
     const trace = traceSnapshots.get(requestId) ?? finalTrace;
     const usage = usageLogs.get(requestId) ?? {};
+    const serverRequestId =
+      text(finalBody.requestId) || text(trace.requestId) || requestId;
     const canonical = parseCanonicalSurveyIntent(
       testCase.input,
       testCase.surveyMode === "research" ? "research" : "general",
@@ -693,7 +700,7 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
       split: testCase.split,
       input: testCase.input,
       expected: testCase,
-      requestId,
+      requestId: serverRequestId,
       model: text(usage.actualModel) || text(usage.requestedModel) || null,
       httpStatus: finalResponse?.status ?? null,
       responseType: "error",
