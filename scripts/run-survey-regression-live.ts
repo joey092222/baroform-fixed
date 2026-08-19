@@ -128,6 +128,7 @@ function parseArguments() {
   if (!/^[A-Za-z0-9._-]{3,100}$/.test(runId)) throw new Error("INVALID_RUN_ID");
   const deployment = args.get("deployment") ?? null;
   const expectedBuildSha = args.get("expected-build-sha") ?? null;
+  const expectedBranch = args.get("expected-branch") ?? null;
   const vercelPnpm = args.get("vercel-pnpm") ?? null;
   const maxCasesRaw = args.get("max-cases") ?? null;
   const maxCases = maxCasesRaw === null ? null : Number(maxCasesRaw);
@@ -142,7 +143,7 @@ function parseArguments() {
     throw new Error("INVALID_CASE_IDS");
   }
   const remotePreview = Boolean(deployment);
-  if (remotePreview && (!expectedBuildSha || !vercelPnpm)) {
+  if (remotePreview && (!expectedBuildSha || !expectedBranch || !vercelPnpm)) {
     throw new Error("REMOTE_PREVIEW_ARGUMENTS_REQUIRED");
   }
   return {
@@ -151,6 +152,7 @@ function parseArguments() {
     estimateOnly: args.get("estimate-only") === "true",
     deployment,
     expectedBuildSha,
+    expectedBranch,
     vercelPnpm,
     remotePreview,
     maxCases,
@@ -251,22 +253,25 @@ function traceFromResponse(response: Response): TraceSnapshot {
 
 function parseVercelCurlResponse(raw: string) {
   const trimmed = raw.trim();
-  let envelope: { response?: unknown; requestId?: unknown } | null = null;
-  try {
-    envelope = JSON.parse(trimmed) as { response?: unknown; requestId?: unknown };
-  } catch {
-    const marker = trimmed.lastIndexOf('{"response"');
-    if (marker >= 0) {
-      envelope = JSON.parse(trimmed.slice(marker)) as {
-        response?: unknown;
-        requestId?: unknown;
-      };
+  let wire = trimmed;
+  if (!trimmed.startsWith("HTTP/")) {
+    let envelope: { response?: unknown; requestId?: unknown } | null = null;
+    try {
+      envelope = JSON.parse(trimmed) as { response?: unknown; requestId?: unknown };
+    } catch {
+      const marker = trimmed.lastIndexOf('{"response"');
+      if (marker >= 0) {
+        envelope = JSON.parse(trimmed.slice(marker)) as {
+          response?: unknown;
+          requestId?: unknown;
+        };
+      }
     }
+    if (!envelope || typeof envelope.response !== "string") {
+      throw new Error("VERCEL_CURL_CONTRACT_INVALID");
+    }
+    wire = envelope.response;
   }
-  if (!envelope || typeof envelope.response !== "string") {
-    throw new Error("VERCEL_CURL_CONTRACT_INVALID");
-  }
-  const wire = envelope.response;
   const statusStart = wire.lastIndexOf("HTTP/");
   if (statusStart < 0) throw new Error("VERCEL_CURL_HTTP_STATUS_MISSING");
   const crlfEnd = wire.indexOf("\r\n\r\n", statusStart);
@@ -298,7 +303,12 @@ async function vercelPreviewRequest(
   method: "GET" | "POST",
   body?: string,
 ) {
-  if (!args.deployment || !args.vercelPnpm || !args.expectedBuildSha) {
+  if (
+    !args.deployment ||
+    !args.vercelPnpm ||
+    !args.expectedBuildSha ||
+    !args.expectedBranch
+  ) {
     throw new Error("REMOTE_PREVIEW_NOT_CONFIGURED");
   }
   const commandArguments = [
@@ -308,7 +318,6 @@ async function vercelPreviewRequest(
     path,
     "--deployment",
     args.deployment,
-    "--trace",
     "--json",
     "--",
     "--request",
@@ -347,6 +356,7 @@ async function vercelPreviewRequest(
     child.stdout.on("data", (chunk: string) => {
       stdout += chunk;
     });
+    child.stderr.resume();
     child.on("error", () => reject(new Error("VERCEL_CURL_SPAWN_FAILED")));
     child.on("close", (code) => {
       if (code === 0) resolveOutput(stdout);
@@ -363,7 +373,7 @@ async function vercelPreviewRequest(
   if (environment !== "preview") {
     throw new Error(`REMOTE_ENVIRONMENT_NOT_PREVIEW:${environment ?? "missing"}`);
   }
-  if (branch !== "codex/trace-ai-input-distortion") {
+  if (branch !== args.expectedBranch) {
     throw new Error(`REMOTE_BRANCH_MISMATCH:${branch ?? "missing"}`);
   }
   return response;
