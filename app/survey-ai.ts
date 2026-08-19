@@ -1570,6 +1570,143 @@ function questionIndexesFromQualityIssues(
   return indexes;
 }
 
+type RepairQuestionConcept =
+  | "screening"
+  | "frequency"
+  | "satisfaction"
+  | "pain"
+  | "improvement"
+  | "need_demand"
+  | "expectation"
+  | "time_context"
+  | "usage_purpose"
+  | "open_evidence"
+  | "other";
+
+function repairQuestionCorpus(question: SurveyQuestion) {
+  return [
+    question.title,
+    question.reason,
+    question.measuredVariable,
+    question.measuredConstruct,
+    question.questionPurpose,
+    ...(question.options ?? []),
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function inferRepairQuestionConcept(
+  question: SurveyQuestion,
+): RepairQuestionConcept {
+  const corpus = repairQuestionCorpus(question);
+  const optionText = question.options?.join(" ") ?? "";
+  if (isRecurringFrequencyQuestion(question)) return "frequency";
+  if (
+    /(?:적이|경험이)\s*(?:있|없)|해당하시나요|해당하나요/.test(question.title)
+  ) {
+    return "screening";
+  }
+  if (
+    /만족/.test(question.title) ||
+    /만족도/.test(
+      `${question.measuredVariable ?? ""} ${question.measuredConstruct ?? ""}`,
+    ) ||
+    (optionText.match(/만족/g)?.length ?? 0) >= 2
+  ) {
+    return "satisfaction";
+  }
+  if (/수요|필요(?:성|한가|하다고|하나요)|도입\s*(?:의향|필요)/.test(corpus)) {
+    return "need_demand";
+  }
+  if (/불편|어려움|문제점|장벽/.test(corpus)) return "pain";
+  if (/개선|보완|바라는\s*(?:점|기능)|필요한\s*(?:점|기능)/.test(corpus)) {
+    return "improvement";
+  }
+  if (/기대(?:한|와|에)|예상했던/.test(corpus)) return "expectation";
+  if (/시간대|주로\s*언제|요일/.test(corpus)) return "time_context";
+  if (/이용\s*목적|사용\s*목적|주로\s*어떤\s*(?:이유|상황)/.test(corpus)) {
+    return "usage_purpose";
+  }
+  if (question.type === "text" || /추가.*의견|자유롭게/.test(corpus)) {
+    return "open_evidence";
+  }
+  return "other";
+}
+
+function repairConceptMatchScore(
+  concept: RepairQuestionConcept,
+  candidate: SurveyQuestion,
+) {
+  if (inferRepairQuestionConcept(candidate) !== concept) return -1;
+  if (
+    concept === "satisfaction" &&
+    /(?:전반적.*만족|얼마나\s*만족)/.test(candidate.title)
+  ) {
+    return 100;
+  }
+  if (concept === "frequency" && isRecurringFrequencyQuestion(candidate)) {
+    return 90;
+  }
+  if (
+    concept === "need_demand" &&
+    /(?:얼마나\s*필요|필요성|도입\s*(?:수요|필요))/.test(candidate.title)
+  ) {
+    return 100;
+  }
+  if (concept === "screening" && /(?:적이|경험이)\s*(?:있|없)/.test(candidate.title)) {
+    return 80;
+  }
+  return 50;
+}
+
+function selectFallbackQuestionForRepair(
+  original: SurveyQuestion,
+  fallbackQuestions: SurveyQuestion[],
+  index: number,
+) {
+  const originalOptions = new Set(
+    (original.options ?? []).map((option) => option.replace(/\s+/g, "").trim()),
+  );
+  const optionMatchedQuestion = fallbackQuestions
+    .map((candidate, candidateIndex) => ({
+      candidate,
+      candidateIndex,
+      overlap: (candidate.options ?? []).filter((option) =>
+        originalOptions.has(option.replace(/\s+/g, "").trim()),
+      ).length,
+    }))
+    .filter((item) => item.overlap >= 2)
+    .sort(
+      (left, right) =>
+        right.overlap - left.overlap || left.candidateIndex - right.candidateIndex,
+    )[0]?.candidate;
+  if (optionMatchedQuestion) return optionMatchedQuestion;
+
+  const concept = inferRepairQuestionConcept(original);
+  if (concept === "other") {
+    return (
+      fallbackQuestions[index] ??
+      fallbackQuestions.at(-1) ??
+      original
+    );
+  }
+  const ranked = fallbackQuestions
+    .map((candidate, candidateIndex) => ({
+      candidate,
+      candidateIndex,
+      score: repairConceptMatchScore(concept, candidate),
+    }))
+    .filter((item) => item.score >= 0)
+    .sort((left, right) => right.score - left.score || left.candidateIndex - right.candidateIndex);
+  return (
+    ranked[0]?.candidate ??
+    fallbackQuestions[index] ??
+    fallbackQuestions.at(-1) ??
+    original
+  );
+}
+
 function planBasedReplacement(
   original: SurveyQuestion,
   fallbackQuestion: SurveyQuestion,
@@ -1578,7 +1715,13 @@ function planBasedReplacement(
   index: number,
 ): SurveyQuestion {
   const askableBlocks = plan.blocks.filter((item) => item.directlyAskable);
-  const block = askableBlocks[index] ?? askableBlocks.at(-1);
+  const matchingBlock = askableBlocks.find((item) =>
+    questionCoversSurveyPlanBlock(fallbackQuestion, item),
+  );
+  const declaredBlock = askableBlocks.find(
+    (item) => item.id === original.planBlockId,
+  );
+  const block = matchingBlock ?? declaredBlock ?? askableBlocks[index] ?? askableBlocks.at(-1);
   const replacement: SurveyQuestion = {
     ...fallbackQuestion,
     id: original.id,
@@ -1697,9 +1840,14 @@ export function repairInvalidQuestions({
       return question;
     }
     repairedQuestionIds.push(question.id);
+    const fallbackQuestion = selectFallbackQuestionForRepair(
+      question,
+      fallbackQuestions,
+      index,
+    );
     return planBasedReplacement(
       question,
-      fallbackQuestions[index] ?? fallbackQuestions.at(-1) ?? question,
+      fallbackQuestion,
       plan,
       intent,
       index,

@@ -4749,10 +4749,36 @@ function satisfactionIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
     return multipleTargetIntentBlueprint(brief);
   }
   const object = intentObjectForQuestion(intent, brief.researchSubject);
+  const eligibilityActivity = intent.activities[0];
+  const eligibilityAction = (() => {
+    const activity = eligibilityActivity?.text.trim() ?? "";
+    if (!activity) return "";
+    const compactAction = activity.match(
+      /^(.+?)(사용|이용|방문|참여|참가|구매|시식)$/,
+    );
+    if (!compactAction) return activity;
+    const target = compactAction[1].trim();
+    const verb = compactAction[2];
+    if (/(?:을|를|에|에서)$/.test(target)) {
+      return `${target} ${verb}`;
+    }
+    const particle = /^(?:참여|참가)$/.test(verb)
+      ? "에"
+      : /^(?:구매)$/.test(verb) && /(?:매장|상점|가게|몰|마트)$/.test(target)
+        ? "에서"
+        : labelWithParticle(target, "을", "를").slice(target.length);
+    return `${target}${particle} ${verb}`;
+  })();
+  const eligibilityPeriod = intent.explicitTimeframe?.trim();
+  const tastingEligibility = /(?:시식|먹어\s*본|먹어본)/.test(
+    intent.eligibilityCondition ?? "",
+  );
   const experienceQuestion = intent.eligibilityCondition
-    ? /(?:먹어본|시식|구매)/.test(intent.targetPopulation ?? "")
-      ? `해당 ${labelWithParticle(object, "을", "를")} 직접 구매하거나 먹어본 경험이 있나요?`
-      : `${intent.eligibilityCondition}이 있나요?`
+    ? tastingEligibility
+      ? `${labelWithParticle(object, "을", "를")} 직접 구매하거나 먹어본 경험이 있나요?`
+      : eligibilityAction
+      ? `${eligibilityPeriod ? `${eligibilityPeriod} 동안 ` : ""}${eligibilityAction}한 적이 있나요?`
+      : `${intent.eligibilityCondition}에 해당하시나요?`
     : `${labelWithParticle(object, "을", "를")} 직접 경험한 적이 있나요?`;
   const questions: SurveyQuestion[] = [];
   if (intent.screeningRequired) {
@@ -6333,6 +6359,34 @@ export function validateSurvey(
           }
         }
       }
+    }
+  }
+
+  const requiresDirectSatisfactionMeasure =
+    brief.surveyIntent.objectKind === "satisfaction_evaluation" ||
+    brief.surveyIntent.constructs.some((construct) => /만족/.test(construct)) ||
+    brief.surveyIntent.purposeBlocks.some((block) => block.kind === "satisfaction");
+  if (
+    requiresDirectSatisfactionMeasure &&
+    !blueprint.aiQuestions.some((item) =>
+      /(?:전반적.*만족|얼마나\s*만족|만족도(?:는|가|를|을)?\s*(?:어느|얼마나))/.test(
+        item.title,
+      ),
+    )
+  ) {
+    const indirectSatisfactionQuestion = blueprint.aiQuestions.find((item) => {
+      const optionText = item.options?.join(" ") ?? "";
+      return (
+        /만족/.test(
+          `${item.measuredVariable ?? ""} ${item.measuredConstruct ?? ""} ${item.questionPurpose ?? ""}`,
+        ) ||
+        (optionText.match(/만족/g)?.length ?? 0) >= 2
+      );
+    });
+    if (indirectSatisfactionQuestion) {
+      issues.push(
+        `문항 ${indirectSatisfactionQuestion.id}의 전반적 만족도를 직접 측정하지 않습니다.`,
+      );
     }
   }
 
