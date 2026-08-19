@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -18,6 +18,7 @@ import {
 import {
   assertNoSecrets,
   classifyGenerationPath,
+  evaluateSemanticResult,
   redactSecrets,
 } from "../evals/survey-regression/v1/evaluation";
 import {
@@ -29,6 +30,7 @@ import {
   writeCheckpoint,
 } from "../evals/survey-regression/v1/runner-utils";
 import { surveyRegressionCaseSchema } from "../evals/survey-regression/v1/schema";
+import { auditedSurveyRegressionDatasetSchema } from "../evals/survey-regression/v1.1/schema";
 
 test("100개 층화 데이터셋의 스키마와 분포가 고정돼 있다", () => {
   assert.equal(devCases.length, 80);
@@ -158,4 +160,68 @@ test("secret redaction이 API key와 Authorization을 감춘다", () => {
   assert.doesNotMatch(redacted, /token-example/);
   assert.throws(() => assertNoSecrets(source), /SECRET_PATTERN_DETECTED/);
   assert.doesNotThrow(() => assertNoSecrets("synthetic survey result"));
+});
+
+test("v1.1 감사본은 원본 100건을 보존하며 입력 품질과 의미 역할을 동결한다", async () => {
+  const [devRaw, holdoutRaw] = await Promise.all([
+    readFile(join(process.cwd(), "evals/survey-regression/v1.1/dev.json"), "utf8"),
+    readFile(join(process.cwd(), "evals/survey-regression/v1.1/holdout.json"), "utf8"),
+  ]);
+  const datasets = [devRaw, holdoutRaw].map((raw) =>
+    auditedSurveyRegressionDatasetSchema.parse(JSON.parse(raw)),
+  );
+  const auditedCases = datasets.flatMap((dataset) => dataset.cases);
+  const audited = auditedCases.find((item) => item.id === "dev-complex-011");
+
+  assert.equal(datasets[0].cases.length, 80);
+  assert.equal(datasets[1].cases.length, 20);
+  assert.equal(auditedCases.length, 100);
+  assert.equal(auditedCases.filter((item) => item.inputQuality === "clear").length, 73);
+  assert.equal(auditedCases.filter((item) => item.inputQuality === "noisy_recoverable").length, 19);
+  assert.equal(auditedCases.filter((item) => item.inputQuality === "ambiguous").length, 8);
+  assert.equal(auditedCases.filter((item) => item.inputQuality === "invalid_test_sentence").length, 0);
+  assert.ok(audited);
+  assert.equal(audited.inputQuality, "noisy_recoverable");
+  assert.deepEqual(audited.contextEntities, ["별마루 카페"]);
+  assert.deepEqual(audited.expectedEligibilityConditions, ["최근 한 달 내 별마루 카페 이용"]);
+  assert.deepEqual(audited.expectedSurveyObject, ["별마루 카페의 새 메뉴"]);
+  assert.deepEqual(audited.expectedPurposeConcepts, ["새 메뉴 만족도"]);
+  assert.deepEqual(audited.requiredQuestionConcepts, ["만족도"]);
+  assert.equal(audited.screeningExpected, true);
+});
+
+test("evaluator는 적격 조건·조사 대상·조사 목적 누락을 서로 다른 코드로 판정한다", async () => {
+  const devRaw = await readFile(
+    join(process.cwd(), "evals/survey-regression/v1.1/dev.json"),
+    "utf8",
+  );
+  const dataset = auditedSurveyRegressionDatasetSchema.parse(JSON.parse(devRaw));
+  const audited = dataset.cases.find((item) => item.id === "dev-complex-011");
+  assert.ok(audited);
+
+  const broken = evaluateSemanticResult(audited, {
+    classification: "partial_repair",
+    httpStatus: 200,
+    responseType: "survey",
+    canonicalTargetPopulation: null,
+    finalRespondentGroup: "관련 경험이 있는 응답자",
+    canonicalSurveyObject: null,
+    finalEvaluationTarget: "새 메뉴 만족도는 별마루 카페",
+    title: "별마루 카페 새 메뉴 만족도 조사",
+    description: "별마루 카페의 새 메뉴 만족도를 확인합니다.",
+    questions: [
+      { title: "새 메뉴에 얼마나 만족하시나요?", type: "scale", options: ["1", "2", "3", "4", "5"] },
+    ],
+    schemaIssues: [],
+    semanticIssues: [],
+    qualityIssues: [],
+  });
+  const codes = broken.fatalFailures.map((item) => item.code);
+
+  assert.ok(codes.includes("TARGET_POPULATION_MISMATCH"));
+  assert.ok(codes.includes("ELIGIBILITY_CONDITION_DROPPED"));
+  assert.ok(codes.includes("ELIGIBILITY_CHECK_MISSING"));
+  assert.ok(codes.includes("SURVEY_OBJECT_MISMATCH"));
+  assert.equal(codes.includes("REQUIRED_PURPOSE_MISSING"), false);
+  assert.equal(codes.includes("REQUIRED_QUESTION_CONCEPT_MISSING"), false);
 });

@@ -1,0 +1,2715 @@
+{
+  "summary": {
+    "total": 100,
+    "oldAutomaticFailures": 90,
+    "auditedAutomaticFailures": 95,
+    "oldRequiredConceptMissing": 70,
+    "trueRequiredPurposeMissing": 43,
+    "eligibilityMissing": 12,
+    "evaluatorFalsePositive": 4,
+    "datasetSpecificationError": 1,
+    "surveyObjectMismatch": 37,
+    "old": {
+      "tp": 83,
+      "fp": 4,
+      "tn": 1,
+      "fn": 9,
+      "precision": 0.9540229885057471,
+      "recall": 0.9021739130434783
+    },
+    "audited": {
+      "tp": 92,
+      "fp": 0,
+      "tn": 5,
+      "fn": 0,
+      "precision": 1,
+      "recall": 1
+    }
+  },
+  "rows": [
+    {
+      "caseId": "dev-clarify-001",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "EXPECTED_CLARIFICATION_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "CLARIFICATION_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상이나 구체적 조사 대상이 빠진 모호한 입력에 clarification 대신 임의의 설문을 생성해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-clarify-002",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "EXPECTED_CLARIFICATION_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "CLARIFICATION_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상이나 구체적 조사 대상이 빠진 모호한 입력에 clarification 대신 임의의 설문을 생성해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-clarify-003",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "EXPECTED_CLARIFICATION_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "CLARIFICATION_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상이나 구체적 조사 대상이 빠진 모호한 입력에 clarification 대신 임의의 설문을 생성해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-clarify-004",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "EXPECTED_CLARIFICATION_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "CLARIFICATION_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상이나 구체적 조사 대상이 빠진 모호한 입력에 clarification 대신 임의의 설문을 생성해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-clarify-005",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "EXPECTED_CLARIFICATION_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "CLARIFICATION_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상이나 구체적 조사 대상이 빠진 모호한 입력에 clarification 대신 임의의 설문을 생성해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-clarify-006",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "EXPECTED_CLARIFICATION_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "CLARIFICATION_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상이나 구체적 조사 대상이 빠진 모호한 입력에 clarification 대신 임의의 설문을 생성해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-complex-001",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상 '관련 경험이 있는 응답자'이 기대 대상 '새봄대학교 중앙도서관 이용자'의 소속·이용·비이용 조건을 보존하지 못해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "서비스 필요성",
+        "이용 의향"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-complex-002",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "NAMED_TERM_LOST",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "ELIGIBILITY_CONDITION_DROPPED",
+        "NAMED_TERM_LOST",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "모델 출력을 폐기하고 일반 로컬 blueprint로 대체했으며 최종 문항에도 조사 목적 전체 삽입 또는 필수 목적 누락이 남아 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "구매 빈도",
+        "비용"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-complex-003",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '인지도, 비이용 이유, 이용 의향'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "비이용 이유",
+        "이용 의향"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-complex-004",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '이용 패턴, 불편, 재등록 의향'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "이용 빈도",
+        "이용 의향"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-complex-005",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상 '관련 경험이 있는 응답자'이 기대 대상 '새봄대학교 구성원'의 소속·이용·비이용 조건을 보존하지 못해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-complex-006",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "ELIGIBILITY_CONDITION_DROPPED",
+        "ELIGIBILITY_CHECK_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "모델 출력을 폐기하고 일반 로컬 blueprint로 대체했으며 최종 문항에도 조사 목적 전체 삽입 또는 필수 목적 누락이 남아 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": true,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-complex-007",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "HARD_FALLBACK"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "GENERIC_FILLER"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "모델 출력을 폐기하고 일반 로컬 blueprint로 대체했으며 최종 문항에도 조사 목적 전체 삽입 또는 필수 목적 누락이 남아 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-complex-008",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "모델 출력을 폐기하고 일반 로컬 blueprint로 대체했으며 최종 문항에도 조사 목적 전체 삽입 또는 필수 목적 누락이 남아 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "학습 효과",
+        "참여 의향",
+        "대상 비교"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-complex-009",
+      "oldAutomaticFailure": false,
+      "oldFatalCodes": [],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "SURVEY_OBJECT_MISMATCH",
+        "MALFORMED_SEMANTIC_PHRASE"
+      ],
+      "manualJudgment": "evaluator_false_negative",
+      "manualRationale": "문항은 이동 경험을 측정하지만 evaluationTarget이 '에게 ... 묻고 싶어'라는 요청 문장을 그대로 포함해 조사 대상 metadata가 손상됐는데 자동 통과함.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-complex-010",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUEST_FAILURE",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "REQUEST_FAILURE",
+        "ELIGIBILITY_CHECK_MISSING",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "HTTP 422에서 설문 7문항을 반환하지 못해 의미 품질과 무관하게 실제 요청 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "비이용 이유",
+        "원하는 기능"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": true,
+      "purposeMissing": true,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-complex-011",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "ELIGIBILITY_CHECK_MISSING",
+        "SURVEY_OBJECT_MISMATCH"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상 '관련 경험이 있는 응답자'이 기대 대상 '최근 한 달 동안 별마루 카페를 이용한 주민'의 소속·이용·비이용 조건을 보존하지 못해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "이용 경험"
+      ],
+      "removedRequiredConcepts": [
+        "이용 경험"
+      ],
+      "eligibilityMissing": true,
+      "purposeMissing": false,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": true
+    },
+    {
+      "caseId": "dev-complex-012",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '동아리 안 한 신입생한테 학교 적응이랑 가입 안 한 이유 물어보기'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "비이용 이유"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-complex-013",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "모델 출력을 폐기하고 일반 로컬 blueprint로 대체했으며 최종 문항에도 조사 목적 전체 삽입 또는 필수 목적 누락이 남아 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "비용",
+        "구매 빈도"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-complex-014",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUEST_FAILURE",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "REQUEST_FAILURE",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "HTTP 422에서 설문 7문항을 반환하지 못해 의미 품질과 무관하게 실제 요청 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "수면 시간",
+        "빈도"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-complex-015",
+      "oldAutomaticFailure": false,
+      "oldFatalCodes": [],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "ELIGIBILITY_CONDITION_DROPPED",
+        "ELIGIBILITY_CHECK_MISSING",
+        "MALFORMED_SEMANTIC_PHRASE",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING"
+      ],
+      "manualJudgment": "evaluator_false_negative",
+      "manualRationale": "'학교생활 만족도에 미치는은'과 '교통수단별에'처럼 핵심 관계 문항이 문법·의미상 깨졌는데 자동 통과함.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": true,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-complex-016",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "HARD_FALLBACK"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "MALFORMED_SEMANTIC_PHRASE",
+        "REQUIRED_PURPOSE_MISSING",
+        "OVERALL_SATISFACTION_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "모델 출력을 폐기하고 일반 로컬 blueprint로 대체했으며 최종 문항에도 조사 목적 전체 삽입 또는 필수 목적 누락이 남아 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-001",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "SURVEY_OBJECT_MISMATCH"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상 '관련 경험이 있는 응답자'이 기대 대상 '새봄대학교 심리학과 1학년'의 소속·이용·비이용 조건을 보존하지 못해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-002",
+      "oldAutomaticFailure": false,
+      "oldFatalCodes": [],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "GENERIC_FILLER"
+      ],
+      "manualJudgment": "evaluator_false_negative",
+      "manualRationale": "대상을 야간 강좌 수강 직장인에서 전체 직장인으로 넓히고 첫 문항에 조사 목적 전체를 삽입했는데 자동 통과함.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-003",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '향후'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "비이용 이유",
+        "참여 의향"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-004",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "UNEXPECTED_CLARIFICATION"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "UNEXPECTED_CLARIFICATION"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "최종 evaluationTarget이 비어 있어 설문이 무엇을 측정하는지 공개 metadata와 후속 분석 단계에서 보존되지 않는 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-005",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "ambiguous_specification",
+      "manualRationale": "원문은 접근성과 이동 불편만 요구하지만 fixture가 소요 시간을 필수로 지정해 자동 실패의 일부가 평가 specification 과잉에서 발생함.",
+      "groundTruth": "excluded",
+      "oldRequiredMissing": [
+        "이동 빈도",
+        "이동 수단",
+        "소요 시간"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-006",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "GENERIC_FILLER"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '환승역 혼잡과 이동 안전 체감'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "이동 수단"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-007",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '휠체어 이용자가 공공도서관'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "방문 경험"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-008",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "GENERIC_FILLER"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '자전거와 전동킥보드로 출퇴근하는 사람들의 이동 시간과 안전 경험 비교'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "소요 시간"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-009",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_CONCEPT_MISSING",
+        "FORBIDDEN_CONCEPT_PRESENT",
+        "GENERIC_FILLER"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "FORBIDDEN_CONCEPT_PRESENT",
+        "GENERIC_FILLER"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "모델 출력을 폐기하고 일반 로컬 blueprint로 대체했으며 최종 문항에도 조사 목적 전체 삽입 또는 필수 목적 누락이 남아 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "이용 빈도"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-010",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_PURPOSE_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상 '관련 경험이 있는 응답자'이 기대 대상 '재택근무자'의 소속·이용·비이용 조건을 보존하지 못해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-011",
+      "oldAutomaticFailure": false,
+      "oldFatalCodes": [],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "GENERIC_FILLER"
+      ],
+      "manualJudgment": "evaluator_false_negative",
+      "manualRationale": "비구매자 대상 설문에서 구매 여부를 다시 묻고 일반 상황 filler를 추가해 대상 조건과 문항 효율이 훼손됐는데 자동 통과함.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-012",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "GENERIC_FILLER",
+        "OVERALL_SATISFACTION_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "모델 출력을 폐기하고 일반 로컬 blueprint로 대체했으며 최종 문항에도 조사 목적 전체 삽입 또는 필수 목적 누락이 남아 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "만족도"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-013",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '새봄대학교'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "이용 경험",
+        "사용성",
+        "불편"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-014",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "GENERIC_FILLER",
+        "OVERALL_SATISFACTION_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "모델 출력을 폐기하고 일반 로컬 blueprint로 대체했으며 최종 문항에도 조사 목적 전체 삽입 또는 필수 목적 누락이 남아 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "이용 경험",
+        "만족도"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-015",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUEST_FAILURE",
+        "NAMED_TERM_LOST",
+        "NEGATION_LOST",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH",
+        "SCHEMA_ISSUES"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "REQUEST_FAILURE",
+        "TARGET_POPULATION_MISMATCH",
+        "ELIGIBILITY_CHECK_MISSING",
+        "NAMED_TERM_LOST",
+        "NEGATION_LOST",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH",
+        "SCHEMA_ISSUES"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "HTTP 422에서 설문 7문항을 반환하지 못해 의미 품질과 무관하게 실제 요청 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "비이용 이유",
+        "불편"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": true,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-016",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUEST_FAILURE",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH",
+        "SEMANTIC_ISSUES"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "REQUEST_FAILURE",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH",
+        "SEMANTIC_ISSUES"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "HTTP 422에서 설문 7문항을 반환하지 못해 의미 품질과 무관하게 실제 요청 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "사용성",
+        "이용 의향",
+        "대상 비교"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-017",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUEST_FAILURE",
+        "SURVEY_OBJECT_MISMATCH",
+        "NAMED_TERM_LOST",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "REQUEST_FAILURE",
+        "SURVEY_OBJECT_MISMATCH",
+        "CONTEXT_ENTITY_MISMATCH",
+        "CONTEXT_ENTITY_MISMATCH",
+        "NAMED_TERM_LOST",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "OVERALL_SATISFACTION_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "HTTP 500에서 설문 7문항을 반환하지 못해 의미 품질과 무관하게 실제 요청 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "참여 경험",
+        "만족도",
+        "참여 의향"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-018",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '미가입 이유와 관심 활동'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "비이용 이유",
+        "선호"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-019",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '봄꽃 축제'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "참여 경험",
+        "인식"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-020",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": false,
+      "auditedFatalCodes": [],
+      "manualJudgment": "evaluator_false_positive",
+      "manualRationale": "참여 프로그램을 먼저 구분한 뒤 도움 정도와 만족도를 같은 척도로 측정해 집단 비교가 가능하므로 목적 coverage 실패 판정이 오탐임.",
+      "groundTruth": "pass",
+      "oldRequiredMissing": [
+        "참여 경험",
+        "학습 효과",
+        "대상 비교"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": true,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-021",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUEST_FAILURE",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "REQUEST_FAILURE",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "OVERALL_SATISFACTION_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "HTTP 422에서 설문 7문항을 반환하지 못해 의미 품질과 무관하게 실제 요청 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "공정성",
+        "의사소통",
+        "만족도"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-022",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '인지도와 이용 장벽'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "비이용 이유"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-023",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '원격근무 팀원의 협업 도구 피로와 소속감'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "피로",
+        "소속감"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-024",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "ambiguous_specification",
+      "manualRationale": "원문은 시간관리와 스트레스를 요구하지만 fixture가 실제 시간 사용량까지 필수로 지정해 기대값이 원문보다 과도하게 구체적임.",
+      "groundTruth": "excluded",
+      "oldRequiredMissing": [
+        "시간 사용"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-025",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "GENERIC_FILLER"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "모델 출력을 폐기하고 일반 로컬 blueprint로 대체했으며 최종 문항에도 조사 목적 전체 삽입 또는 필수 목적 누락이 남아 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "구매 빈도"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-026",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": false,
+      "auditedFatalCodes": [],
+      "manualJudgment": "evaluator_false_positive",
+      "manualRationale": "미구매 이유와 최대 추가 지불 의향을 명시적으로 묻고 있어 비이용 이유와 비용 개념 누락 판정이 오탐임.",
+      "groundTruth": "pass",
+      "oldRequiredMissing": [
+        "비이용 이유",
+        "비용"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": true,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-027",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUEST_FAILURE",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "REQUEST_FAILURE",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "OVERALL_SATISFACTION_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "HTTP 422에서 설문 7문항을 반환하지 못해 의미 품질과 무관하게 실제 요청 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "이용 빈도",
+        "만족도",
+        "대상 비교"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-028",
+      "oldAutomaticFailure": false,
+      "oldFatalCodes": [],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "MISPLACED_SCREENING_QUESTION"
+      ],
+      "manualJudgment": "evaluator_false_negative",
+      "manualRationale": "공공자전거 이용 여부 스크리너가 마지막에 배치되어 앞선 경험 문항의 응답 적격성을 보장하지 못하는데 자동 통과함.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-029",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "HARD_FALLBACK"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_PURPOSE_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "모델 출력을 폐기하고 일반 로컬 blueprint로 대체했으며 최종 문항에도 조사 목적 전체 삽입 또는 필수 목적 누락이 남아 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-030",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "HARD_FALLBACK",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "GENERIC_FILLER"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "모델 출력을 폐기하고 일반 로컬 blueprint로 대체했으며 최종 문항에도 조사 목적 전체 삽입 또는 필수 목적 누락이 남아 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "이용 시간",
+        "피로"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-031",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "ELIGIBILITY_CONDITION_DROPPED",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상 '관련 경험이 있는 응답자'이 기대 대상 '주 1회도 운동하지 않는 성인'의 소속·이용·비이용 조건을 보존하지 못해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "비이용 이유"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-general-032",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUEST_FAILURE",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "REQUEST_FAILURE",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "OVERALL_SATISFACTION_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "HTTP 422에서 설문 7문항을 반환하지 못해 의미 품질과 무관하게 실제 요청 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "시간 사용",
+        "만족도",
+        "대상 비교"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-noisy-001",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상 '관련 경험이 있는 응답자'이 기대 대상 '새봄대학교 구성원'의 소속·이용·비이용 조건을 보존하지 못해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-noisy-002",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "ambiguous_specification",
+      "manualRationale": "원문은 주간 커피 지출만 명시하지만 fixture가 구매 빈도까지 필수로 요구해 통과 여부를 단정할 수 없는 specification 문제임.",
+      "groundTruth": "excluded",
+      "oldRequiredMissing": [
+        "구매 빈도"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-noisy-003",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상 '관련 경험이 있는 응답자'이 기대 대상 '동아리에 가입하지 않은 사람'의 소속·이용·비이용 조건을 보존하지 못해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "비이용 이유",
+        "참여 의향"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-noisy-004",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상 '관련 경험이 있는 응답자'이 기대 대상 '온새미 앱 사용자'의 소속·이용·비이용 조건을 보존하지 못해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "이용 경험"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-noisy-005",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '배달 안시킨 1인가구 왜'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "비이용 이유"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-noisy-006",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상 '관련 경험이 있는 응답자'이 기대 대상 '팀플 경험자'의 소속·이용·비이용 조건을 보존하지 못해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-past-001",
+      "oldAutomaticFailure": false,
+      "oldFatalCodes": [],
+      "auditedAutomaticFailure": false,
+      "auditedFatalCodes": [],
+      "manualJudgment": "true_pass",
+      "manualRationale": "응답 대상과 경영대라는 조사 대상이 정확하고 만족도·불편·개선 요구를 자연스러운 7개 문항으로 측정해 자동 통과가 타당함.",
+      "groundTruth": "pass",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-past-002",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "SURVEY_OBJECT_MISMATCH"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상 '관련 경험이 있는 응답자'이 기대 대상 '연세대 경영대생'의 소속·이용·비이용 조건을 보존하지 못해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "불편"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-past-003",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상 '관련 경험이 있는 응답자'이 기대 대상 '경영대생'의 소속·이용·비이용 조건을 보존하지 못해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-past-004",
+      "oldAutomaticFailure": false,
+      "oldFatalCodes": [],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ],
+      "manualJudgment": "evaluator_false_negative",
+      "manualRationale": "비이용 경영대생이라는 핵심 응답 대상을 '관련 경험이 있는 응답자'로 일반화해 metadata 계약을 잃었는데 자동 통과함.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-past-005",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "모델 출력을 폐기하고 일반 로컬 blueprint로 대체했으며 최종 문항에도 조사 목적 전체 삽입 또는 필수 목적 누락이 남아 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "이동 빈도"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-past-006",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUEST_FAILURE",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "REQUEST_FAILURE",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "HTTP 422에서 설문 7문항을 반환하지 못해 의미 품질과 무관하게 실제 요청 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "이동 수단",
+        "소요 시간",
+        "불편"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-past-007",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '지난달 연세대 재학생이 대우관'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "이동 빈도",
+        "혼잡"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-past-008",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUEST_FAILURE",
+        "NEGATION_LOST",
+        "REQUIRED_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH",
+        "SCHEMA_ISSUES"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "REQUEST_FAILURE",
+        "NEGATION_LOST",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH",
+        "SCHEMA_ISSUES"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "HTTP 422에서 설문 7문항을 반환하지 못해 의미 품질과 무관하게 실제 요청 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "비이용 이유"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-past-009",
+      "oldAutomaticFailure": false,
+      "oldFatalCodes": [],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ],
+      "manualJudgment": "evaluator_false_negative",
+      "manualRationale": "전체 대학생 대상 입력을 네이버 웹툰 이용자로 축소하여 비이용자의 현황을 수집할 수 없는데 자동 통과함.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-past-010",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "SURVEY_OBJECT_MISMATCH"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "ELIGIBILITY_CONDITION_DROPPED",
+        "SURVEY_OBJECT_MISMATCH",
+        "CONTEXT_ENTITY_MISMATCH",
+        "GENERIC_FILLER"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상 '네웹 안 쓰는 대학생'이 기대 대상 '네이버 웹툰을 이용하지 않는 대학생'의 소속·이용·비이용 조건을 보존하지 못해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-past-011",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "모델 출력을 폐기하고 일반 로컬 blueprint로 대체했으며 최종 문항에도 조사 목적 전체 삽입 또는 필수 목적 누락이 남아 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "이용 경험"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-past-012",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUEST_FAILURE",
+        "NAMED_TERM_LOST",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH",
+        "SCHEMA_ISSUES"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "REQUEST_FAILURE",
+        "SURVEY_OBJECT_MISMATCH",
+        "CONTEXT_ENTITY_MISMATCH",
+        "NAMED_TERM_LOST",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "OVERALL_SATISFACTION_MISSING",
+        "QUESTION_COUNT_MISMATCH",
+        "SCHEMA_ISSUES"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "HTTP 422에서 설문 7문항을 반환하지 못해 의미 품질과 무관하게 실제 요청 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "이용 빈도",
+        "만족도",
+        "대상 비교"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-past-013",
+      "oldAutomaticFailure": false,
+      "oldFatalCodes": [],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH"
+      ],
+      "manualJudgment": "evaluator_false_negative",
+      "manualRationale": "전체 연세대학교 학생 대상 입력을 한경관 학식 이용자로 축소하여 비이용 경험 경로를 배제했는데 자동 통과함.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-past-014",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "NEGATION_LOST",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": false,
+      "auditedFatalCodes": [],
+      "manualJudgment": "evaluator_false_positive",
+      "manualRationale": "응답 대상·제목·설명·모든 핵심 문항이 한경관 학식을 먹지 않는 조건을 보존하므로 부정 표현 손실과 비이용 이유 누락 판정이 오탐임.",
+      "groundTruth": "pass",
+      "oldRequiredMissing": [
+        "비이용 이유"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": true,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-past-015",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "GENERIC_FILLER",
+        "OVERALL_SATISFACTION_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "모델 출력을 폐기하고 일반 로컬 blueprint로 대체했으며 최종 문항에도 조사 목적 전체 삽입 또는 필수 목적 누락이 남아 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "이용 빈도"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-past-016",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_CONCEPT_MISSING",
+        "FORBIDDEN_CONCEPT_PRESENT",
+        "GENERIC_FILLER"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "FORBIDDEN_CONCEPT_PRESENT",
+        "GENERIC_FILLER"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "모델 출력을 폐기하고 일반 로컬 blueprint로 대체했으며 최종 문항에도 조사 목적 전체 삽입 또는 필수 목적 누락이 남아 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "선택 이유"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-past-017",
+      "oldAutomaticFailure": false,
+      "oldFatalCodes": [],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "ELIGIBILITY_CHECK_MISSING",
+        "DUPLICATE_CONSTRUCT",
+        "OVERALL_SATISFACTION_MISSING"
+      ],
+      "manualJudgment": "evaluator_false_negative",
+      "manualRationale": "전반적 만족도를 직접 측정하지 않고 불편 문항을 중복 배치해 핵심 목적 coverage와 문항 품질이 부족한데 자동 통과함.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": true,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-past-018",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "ELIGIBILITY_CONDITION_DROPPED",
+        "ELIGIBILITY_CHECK_MISSING",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상 '맛나샘 안 가는 학생'이 기대 대상 '맛나샘을 이용하지 않는 학생'의 소속·이용·비이용 조건을 보존하지 못해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "비이용 이유"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": true,
+      "purposeMissing": true,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-past-019",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "SURVEY_OBJECT_MISMATCH"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '방문 빈도와 음식'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "이용 빈도"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "dev-past-020",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "OVERALL_SATISFACTION_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '맛나샘 학생들 맛 서비스 둘다 어떤지 불편도'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "만족도"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "holdout-clarify-001",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "EXPECTED_CLARIFICATION_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "CLARIFICATION_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상이나 구체적 조사 대상이 빠진 모호한 입력에 clarification 대신 임의의 설문을 생성해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "holdout-clarify-002",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "EXPECTED_CLARIFICATION_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "CLARIFICATION_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상이나 구체적 조사 대상이 빠진 모호한 입력에 clarification 대신 임의의 설문을 생성해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "holdout-complex-001",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "모델 출력을 폐기하고 일반 로컬 blueprint로 대체했으며 최종 문항에도 조사 목적 전체 삽입 또는 필수 목적 누락이 남아 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "이용 의향"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "holdout-complex-002",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "HARD_FALLBACK",
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "모델 출력을 폐기하고 일반 로컬 blueprint로 대체했으며 최종 문항에도 조사 목적 전체 삽입 또는 필수 목적 누락이 남아 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "소요 시간",
+        "대상 비교"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "holdout-complex-003",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "HARD_FALLBACK",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "모델 출력을 폐기하고 일반 로컬 blueprint로 대체했으며 최종 문항에도 조사 목적 전체 삽입 또는 필수 목적 누락이 남아 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "구매 빈도"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "holdout-complex-004",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "ELIGIBILITY_CHECK_MISSING",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '이유와 개선점을 묻기'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "비이용 이유",
+        "개선 요구"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": true,
+      "purposeMissing": true,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "holdout-general-001",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '한울대학교 교양 수업 수강생의 토론'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "참여 경험"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "holdout-general-002",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '접근 장벽'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "비이용 이유",
+        "접근성"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "holdout-general-003",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '방문 빈도와 대기'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "이용 빈도"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "holdout-general-004",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUEST_FAILURE",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH",
+        "SCHEMA_ISSUES"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "REQUEST_FAILURE",
+        "TARGET_POPULATION_MISMATCH",
+        "ELIGIBILITY_CHECK_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "OVERALL_SATISFACTION_MISSING",
+        "QUESTION_COUNT_MISMATCH",
+        "SCHEMA_ISSUES"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "HTTP 422에서 설문 7문항을 반환하지 못해 의미 품질과 무관하게 실제 요청 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "만족도",
+        "대상 비교"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": true,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "holdout-general-005",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '불참 이유와 관심 주제'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "비이용 이유",
+        "선호"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "holdout-general-006",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "ELIGIBILITY_CHECK_MISSING",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상 '관련 경험이 있는 응답자'이 기대 대상 '회의에 참여하지 못한 프로젝트 팀원'의 소속·이용·비이용 조건을 보존하지 못해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "비이용 이유"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": true,
+      "purposeMissing": true,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "holdout-general-007",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상 '관련 경험이 있는 응답자'이 기대 대상 '반려동물 가구'의 소속·이용·비이용 조건을 보존하지 못해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "구매 빈도"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "holdout-general-008",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "NEGATION_LOST",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '주말에 영상 콘텐츠를 보지 않는 성인의 여가 선택 이유'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "비이용 이유",
+        "선호"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "holdout-noisy-001",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "NEGATION_LOST",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "NEGATION_LOST",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "GENERIC_FILLER"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상 '관련 경험이 있는 응답자'이 기대 대상 '늘봄관에 가지 않는 한울대학교 학생'의 소속·이용·비이용 조건을 보존하지 못해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "비이용 이유"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "holdout-noisy-002",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "NEGATION_LOST",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "ELIGIBILITY_CHECK_MISSING",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "응답 대상 '관련 경험이 있는 응답자'이 기대 대상 '다온 앱을 최근 사용하지 않는 사람'의 소속·이용·비이용 조건을 보존하지 못해 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "비이용 이유",
+        "이용 의향"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": true,
+      "purposeMissing": true,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "holdout-past-001",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": false,
+      "auditedFatalCodes": [],
+      "manualJudgment": "evaluator_false_positive",
+      "manualRationale": "한울대 경영학부 학생과 한울대학교 경영학부 학생은 동등하며 만족도·불편·개선 요구 문항도 모두 존재해 자동 실패가 오탐임.",
+      "groundTruth": "pass",
+      "oldRequiredMissing": [
+        "개선 요구"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": true,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "holdout-past-002",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "TARGET_POPULATION_MISMATCH",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "evaluationTarget '늘봄관 통학 및'가 실제 조사 대상 대신 목적어 조각·요청 문장·측정 항목을 담아 의미 역할이 최초부터 어긋난 실제 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "이동 빈도",
+        "소요 시간",
+        "혼잡"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": false,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "holdout-past-003",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUEST_FAILURE",
+        "NAMED_TERM_LOST",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "REQUEST_FAILURE",
+        "NAMED_TERM_LOST",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "OVERALL_SATISFACTION_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "HTTP 422에서 설문 7문항을 반환하지 못해 의미 품질과 무관하게 실제 요청 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "이용 경험",
+        "이용 빈도",
+        "만족도",
+        "불편"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": false,
+      "purposeMissing": true,
+      "surveyObjectMismatch": false,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    },
+    {
+      "caseId": "holdout-past-004",
+      "oldAutomaticFailure": true,
+      "oldFatalCodes": [
+        "REQUEST_FAILURE",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_CONCEPT_MISSING",
+        "REQUIRED_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ],
+      "auditedAutomaticFailure": true,
+      "auditedFatalCodes": [
+        "REQUEST_FAILURE",
+        "ELIGIBILITY_CHECK_MISSING",
+        "SURVEY_OBJECT_MISMATCH",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_PURPOSE_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "QUESTION_COUNT_MISMATCH"
+      ],
+      "manualJudgment": "true_failure",
+      "manualRationale": "HTTP 422에서 설문 7문항을 반환하지 못해 의미 품질과 무관하게 실제 요청 실패임.",
+      "groundTruth": "failure",
+      "oldRequiredMissing": [
+        "비이용 이유",
+        "서비스 필요성"
+      ],
+      "removedRequiredConcepts": [],
+      "eligibilityMissing": true,
+      "purposeMissing": true,
+      "surveyObjectMismatch": true,
+      "evaluatorFalsePositive": false,
+      "datasetSpecificationError": false
+    }
+  ]
+}

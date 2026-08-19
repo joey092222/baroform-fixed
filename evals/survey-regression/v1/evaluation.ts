@@ -45,6 +45,8 @@ const conceptPatterns: Record<string, RegExp[]> = {
   빈도: [/빈도/, /횟수/, /얼마나\s*자주/],
   비용: [/비용/, /가격/, /요금/, /지출/, /부담/],
   "비이용 이유": [/이용하지\s*않는\s*이유/, /사용하지\s*않는\s*이유/, /참여하지\s*않는\s*이유/, /구매하지\s*않는\s*이유/, /(?:사|먹|보|쓰)지\s*않는.*이유/, /가입하지\s*않는\s*이유/, /방문하지\s*않는\s*이유/, /보지\s*않는\s*이유/, /비이용\s*이유/, /미구매\s*이유/, /불참\s*이유/, /장벽/],
+  "미구매 이유": [/미구매\s*(?:이유|요인)/, /구매하지\s*않는\s*이유/, /사지\s*않는\s*이유/],
+  "가격 수용도": [/가격\s*수용도/, /얼마나\s*더\s*(?:내|지불)/, /추가\s*비용/, /지불\s*의향/],
   "이용 의향": [/이용\s*의향/, /사용\s*의향/, /다시\s*(?:이용|사용)/, /쓸\s*생각/],
   "참여 의향": [/참여\s*의향/, /가입\s*의향/, /재참여/, /참가할\s*생각/],
   "서비스 필요성": [/필요/, /도입\s*수요/, /수요/],
@@ -124,6 +126,38 @@ export function conceptPresent(concept: string, corpus: string) {
   if (mapped) return mapped.some((pattern) => pattern.test(corpus));
   const tokens = meaningfulTokens(concept);
   return tokens.length > 0 && tokens.every((token) => normalize(corpus).includes(normalize(token)));
+}
+
+const surveyPurposePollutionPattern =
+  /(?:만족도|인지도|인식|이미지|수요|필요성|의향|이유|원인|장벽|개선(?:점|의견|요구)?|평가)/u;
+
+function surveyObjectRoleCompatible(actual: string, candidates: string[]) {
+  if (!semanticTextMatch(actual, candidates)) return false;
+  const normalizedActual = normalize(actual);
+  return candidates.some((candidate) => {
+    const normalizedCandidate = normalize(candidate);
+    if (!normalizedActual.includes(normalizedCandidate)) return false;
+    const actualHasPurposeSuffix = surveyPurposePollutionPattern.test(actual.trim());
+    const candidateHasPurposeSuffix = surveyPurposePollutionPattern.test(candidate.trim());
+    return !actualHasPurposeSuffix || candidateHasPurposeSuffix;
+  });
+}
+
+function screeningQuestionPresent(
+  questions: Array<{ title: string; options: string[] }>,
+) {
+  return questions.some((question) => {
+    const visible = `${question.title}\n${question.options.join("\n")}`;
+    const asksEligibility =
+      /(?:이용|사용|참여|참가|가입|구매|방문|시청|주문|수강|통학|운동|클릭|먹)(?:한\s*적|해\s*본|한\s*경험|하고\s*있|하지\s*않|여부)|(?:현재|최근).*(?:해당|맞(?:나요|습니까)|있(?:나요|습니까))/u.test(
+        visible,
+      );
+    const hasStatusChoices =
+      /(?:경험|이용|사용|참여|방문|구매).*(?:있음|없음)|(?:예|네).*(?:아니요|아님)|해당함.*해당하지\s*않음/u.test(
+        visible,
+      );
+    return asksEligibility || hasStatusChoices;
+  });
 }
 
 function issue(
@@ -208,7 +242,7 @@ export function evaluateSemanticResult(
 
   if (testCase.clarificationExpected) {
     if (result.responseType !== "clarification") {
-      fatalFailures.push(issue("EXPECTED_CLARIFICATION_MISSING", "모호한 입력에 설문을 억지 생성함", "clarification"));
+      fatalFailures.push(issue("CLARIFICATION_MISSING", "모호한 입력에 설문을 억지 생성함", "clarification"));
     }
     return { fatalFailures, warnings };
   }
@@ -225,8 +259,48 @@ export function evaluateSemanticResult(
   if (!targetPopulationMatch(targetText, testCase.expectedTargetPopulation)) {
     fatalFailures.push(issue("TARGET_POPULATION_MISMATCH", `응답 대상 불일치: ${targetText}`, "target_population"));
   }
-  if (!semanticTextMatch(objectText, testCase.expectedSurveyObject)) {
+  for (const condition of testCase.expectedEligibilityConditions ?? []) {
+    if (!semanticTextMatch(`${targetText}\n${questionText}`, [condition])) {
+      fatalFailures.push(
+        issue(
+          "ELIGIBILITY_CONDITION_DROPPED",
+          `응답 적격 조건 손실: ${condition}`,
+          "eligibility",
+        ),
+      );
+    }
+  }
+  if (
+    testCase.screeningExpected === true &&
+    !screeningQuestionPresent(result.questions)
+  ) {
+    fatalFailures.push(
+      issue(
+        "ELIGIBILITY_CHECK_MISSING",
+        "응답 적격 조건을 확인하는 screening 문항이 없음",
+        "eligibility",
+      ),
+    );
+  }
+  const surveyObjectMatches =
+    testCase.expectedTargetCardinality === "multiple"
+      ? testCase.expectedSurveyObject.every((expected) =>
+          semanticTextMatch(allText, [expected]),
+        )
+      : surveyObjectRoleCompatible(objectText, testCase.expectedSurveyObject);
+  if (!surveyObjectMatches) {
     fatalFailures.push(issue("SURVEY_OBJECT_MISMATCH", `조사 대상 불일치: ${objectText}`, "survey_object"));
+  }
+  for (const entity of testCase.contextEntities ?? []) {
+    if (!semanticTextMatch(allText, [entity])) {
+      fatalFailures.push(
+        issue(
+          "CONTEXT_ENTITY_MISMATCH",
+          `맥락 장소·서비스 손실: ${entity}`,
+          "context_entity",
+        ),
+      );
+    }
   }
   const malformedSemanticText = `${objectText}\n${questionTitleText}`;
   if (
@@ -260,9 +334,34 @@ export function evaluateSemanticResult(
   if (testCase.mustPreserveNegation && !negationPattern.test(allText)) {
     fatalFailures.push(issue("NEGATION_LOST", "비이용·비참여·미구매 조건이 최종 설문에서 사라짐", "negation"));
   }
+  const purposeText = [result.title, result.description, questionText]
+    .filter(Boolean)
+    .join("\n");
+  for (const concept of testCase.expectedPurposeConcepts) {
+    if (!conceptPresent(concept, purposeText)) {
+      fatalFailures.push(
+        issue(
+          "REQUIRED_PURPOSE_MISSING",
+          `필수 조사 목적 누락: ${concept}`,
+          "purpose_coverage",
+        ),
+      );
+    }
+  }
   for (const concept of testCase.requiredQuestionConcepts) {
     if (!conceptPresent(concept, questionText)) {
-      fatalFailures.push(issue("REQUIRED_CONCEPT_MISSING", `필수 문항 개념 누락: ${concept}`, concept.includes("시간") ? "reference_period" : "purpose_coverage"));
+      fatalFailures.push(issue("REQUIRED_QUESTION_CONCEPT_MISSING", `필수 문항 개념 누락: ${concept}`, concept.includes("시간") ? "reference_period" : "purpose_coverage"));
+    }
+  }
+  for (const concept of testCase.forbiddenPurposeConcepts ?? []) {
+    if (conceptPresent(concept, purposeText)) {
+      fatalFailures.push(
+        issue(
+          "FORBIDDEN_PURPOSE_ADDED",
+          `입력에 없는 조사 목적이 추가됨: ${concept}`,
+          "purpose_coverage",
+        ),
+      );
     }
   }
   for (const concept of testCase.forbiddenQuestionConcepts) {
