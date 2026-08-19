@@ -65,8 +65,27 @@ export type SemanticQuestionLike = {
   title?: string;
   text?: string;
   reason?: string;
+  measuredConstruct?: string;
+  measuredVariable?: string;
+  questionPurpose?: string;
+  purposeBlockId?: string;
+  measuredEntityIds?: string[];
   analysis?: { purpose?: string } | null;
 };
+
+export type SurveySemanticReferenceContext = {
+  canonicalObjects?: string[];
+  contextEntities?: string[];
+  purposeTargets?: string[];
+  targetCardinality?: "single" | "multiple";
+};
+
+export type QuestionObjectReferenceResolution =
+  | "canonical"
+  | "contextual_alias"
+  | "context_entity"
+  | "ambiguous"
+  | "unresolved";
 
 const normalizeWhitespace = (value: string) =>
   value
@@ -74,6 +93,152 @@ const normalizeWhitespace = (value: string) =>
     .replace(/\s+/g, " ")
     .replace(/[.!?。]+$/g, "")
     .trim();
+
+const normalizeObjectReference = (value: string) =>
+  normalizeWhitespace(value)
+    .replace(/^(?:해당|이|그)\s+/, "")
+    .replace(/(?:은|는|이|가|을|를|에|에서|의)$/g, "")
+    .replace(/\s+/g, "")
+    .toLocaleLowerCase("ko-KR");
+
+function inferredContextEntity(primaryEntity: string) {
+  const possessive = primaryEntity.match(/^(.+?)의\s+(.+)$/);
+  if (possessive?.[1] && possessive[2]) {
+    return { context: possessive[1].trim(), objectHead: possessive[2].trim() };
+  }
+  const compound = primaryEntity.match(
+    /^(.+?\s*(?:앱|어플|플랫폼|서비스|매장|센터|카페|시설))\s+(.+?(?:기능|메뉴|제품|프로그램))$/,
+  );
+  return compound?.[1] && compound[2]
+    ? { context: compound[1].trim(), objectHead: compound[2].trim() }
+    : null;
+}
+
+export function canonicalObjectAliases(
+  context: ParsedSurveyContext,
+  references: SurveySemanticReferenceContext = {},
+) {
+  const canonicalObjects = [
+    ...(references.canonicalObjects ?? []),
+    context.primaryEntity,
+  ]
+    .map((item) => item.trim())
+    .filter((item, index, items) => item && items.indexOf(item) === index);
+  if (
+    references.targetCardinality === "multiple" ||
+    canonicalObjects.length !== 1
+  ) {
+    return canonicalObjects;
+  }
+  const primary = canonicalObjects[0];
+  const inferred = inferredContextEntity(primary);
+  const suffix = primary.match(
+    /(?:^|\s)(새\s*기능|해당\s*기능|신제품|새\s*메뉴|프로그램)$/,
+  )?.[1];
+  const objectHead = (inferred?.objectHead ?? suffix)?.match(
+    /(기능|신제품|메뉴|프로그램)$/,
+  )?.[1];
+  return [primary, inferred?.objectHead, suffix, objectHead]
+    .filter((item): item is string => Boolean(item?.trim()))
+    .map((item) => item.trim())
+    .filter((item, index, items) => items.indexOf(item) === index);
+}
+
+export function resolveQuestionObjectReference(
+  context: ParsedSurveyContext,
+  question: SemanticQuestionLike,
+  references: SurveySemanticReferenceContext = {},
+): QuestionObjectReferenceResolution {
+  const title = question.title ?? question.text ?? "";
+  const normalizedTitle = normalizeObjectReference(title);
+  const canonicalObjects = [
+    ...(references.canonicalObjects ?? []),
+    context.primaryEntity,
+  ]
+    .map((item) => item.trim())
+    .filter((item, index, items) => item && items.indexOf(item) === index);
+  const aliases = canonicalObjectAliases(context, references);
+  const fullObject = canonicalObjects.find((item) =>
+    normalizedTitle.includes(normalizeObjectReference(item)),
+  );
+  if (fullObject) return "canonical";
+
+  if (
+    references.targetCardinality === "multiple" ||
+    canonicalObjects.length !== 1
+  ) {
+    return aliases.some((item) =>
+      normalizedTitle.includes(normalizeObjectReference(item)),
+    )
+      ? "ambiguous"
+      : "unresolved";
+  }
+
+  const contextualAlias = aliases
+    .slice(1)
+    .find((item) => normalizedTitle.includes(normalizeObjectReference(item)));
+  if (contextualAlias) return "contextual_alias";
+
+  const inferred = inferredContextEntity(canonicalObjects[0]);
+  const contextEntities = [
+    ...(references.contextEntities ?? []),
+    ...(inferred?.context ? [inferred.context] : []),
+  ]
+    .map((item) => item.trim())
+    .filter((item, index, items) => item && items.indexOf(item) === index);
+  return contextEntities.some((item) =>
+    normalizedTitle.includes(normalizeObjectReference(item)),
+  )
+    ? "context_entity"
+    : "unresolved";
+}
+
+export function predicateEntityMatchesCanonicalObject(
+  context: ParsedSurveyContext,
+  question: SemanticQuestionLike,
+  references: SurveySemanticReferenceContext = {},
+) {
+  const resolution = resolveQuestionObjectReference(
+    context,
+    question,
+    references,
+  );
+  if (resolution === "ambiguous" || resolution === "unresolved") return false;
+  const title = question.title ?? question.text ?? "";
+  const corpus = [
+    title,
+    question.measuredConstruct,
+    question.measuredVariable,
+    question.questionPurpose,
+    question.reason,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const isUsageContextQuestion =
+    /(?:이용|사용)(?:한|해\s*본)?\s*(?:적|경험)|얼마나\s*자주\s*(?:이용|사용)|(?:이용|사용)\s*빈도/.test(
+      corpus,
+    );
+  const isSatisfactionQuestion = /만족|종합적\s*평가|전반적.*어땠/.test(corpus);
+  const usagePredicateIsIncompatibleWithEntity =
+    isUsageContextQuestion &&
+    (context.surveyArchetype === "mobility_experience" ||
+      context.surveyArchetype === "learning_experience" ||
+      context.surveyArchetype === "relationship_experience" ||
+      ["movement", "learning", "relationship", "category_set"].includes(
+        context.entityType,
+      ));
+  if (usagePredicateIsIncompatibleWithEntity) return false;
+  if (
+    resolution === "context_entity" &&
+    context.surveyArchetype === "satisfaction" &&
+    isSatisfactionQuestion &&
+    !isUsageContextQuestion
+  ) {
+    return false;
+  }
+  if (resolution === "context_entity") return isUsageContextQuestion;
+  return true;
+}
 
 export function normalizeSurveyRequest(value: string) {
   let normalized = normalizeWhitespace(value);
@@ -416,6 +581,7 @@ export function canUseUsageBlueprint(
 export function lintSurveyQuestionSemantics(
   context: ParsedSurveyContext,
   questions: SemanticQuestionLike[],
+  references: SurveySemanticReferenceContext = {},
 ) {
   const issues: SurveySemanticLintIssue[] = [];
   const add = (
@@ -461,13 +627,28 @@ export function lintSurveyQuestionSemantics(
     }
 
     if (!context.isUsageObject) {
-      const entityMentioned =
-        !context.primaryEntity || title.includes(context.primaryEntity);
+      const referenceResolution = resolveQuestionObjectReference(
+        context,
+        question,
+        references,
+      );
+      const entityMentioned = referenceResolution !== "unresolved";
+      const predicateMatchesObject = predicateEntityMatchesCanonicalObject(
+        context,
+        question,
+        references,
+      );
       const incompatibleUsage =
         entityMentioned &&
+        !predicateMatchesObject &&
         /(?:이용|사용)(?:한|해\s*본)?\s*(?:적|경험)|얼마나\s*자주\s*(?:이용|사용)|(?:이용|사용)\s*빈도/.test(
           title,
         );
+      const contextualObjectMismatch =
+        referenceResolution === "context_entity" &&
+        context.surveyArchetype === "satisfaction" &&
+        !predicateMatchesObject &&
+        /만족|종합적\s*평가|전반적.*어땠/.test(combined);
       const abstractObjectUsage =
         /(?:경험|인식|태도|만족도|의견|생각)(?:에\s*대해)?(?:를|을)?\s*(?:이용|사용)/.test(
           title,
@@ -475,7 +656,12 @@ export function lintSurveyQuestionSemantics(
       const genericUsageAnalysis =
         context.surveyArchetype === "mobility_experience" &&
         /이용\s*경험이\s*있는.*비이용자|이용\s*빈도를\s*구간별/.test(reason);
-      if (incompatibleUsage || abstractObjectUsage || genericUsageAnalysis) {
+      if (
+        incompatibleUsage ||
+        contextualObjectMismatch ||
+        abstractObjectUsage ||
+        genericUsageAnalysis
+      ) {
         add(
           "PREDICATE_ENTITY_MISMATCH",
           question,

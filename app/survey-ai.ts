@@ -2790,6 +2790,14 @@ export function parseSurveyDraftResponse(
     const finalSemanticIssues = lintSurveyQuestionSemantics(
       brief.parsedSurveyContext,
       blueprint.aiQuestions,
+      {
+        canonicalObjects: brief.surveyIntent.objects.map((item) => item.text),
+        contextEntities: brief.surveyIntent.contexts.map((item) => item.text),
+        purposeTargets: brief.surveyIntent.purposeBlocks
+          .map((item) => item.target)
+          .filter((item): item is string => Boolean(item)),
+        targetCardinality: brief.surveyIntent.targetCardinality,
+      },
     );
     validationIssues.push(
       ...finalSemanticIssues.map((item) => `${item.code}: ${item.message}`),

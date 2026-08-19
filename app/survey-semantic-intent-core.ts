@@ -1746,6 +1746,14 @@ export function validateSurveyIntentCandidate(
   for (const issue of lintSurveyQuestionSemantics(
     intent.semanticContext,
     candidate.questions,
+    {
+      canonicalObjects: intent.objects.map((item) => item.text),
+      contextEntities: intent.contexts.map((item) => item.text),
+      purposeTargets: intent.purposeBlocks
+        .map((item) => item.target)
+        .filter((item): item is string => Boolean(item)),
+      targetCardinality: intent.targetCardinality,
+    },
   )) {
     pushViolation(violations, {
       code: issue.code,
