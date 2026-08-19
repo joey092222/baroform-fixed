@@ -374,6 +374,11 @@ type ResolvedRelationalClause = {
   isUsageObject: boolean;
   includesNonUsers: boolean;
   purposeKinds: SurveyIntent["purposeBlocks"][number]["kind"][];
+  contextEntity?: CanonicalEntity | null;
+  eligibilityCondition?: string | null;
+  screeningRequired?: boolean;
+  screeningReason?: string | null;
+  explicitTimeframe?: string | null;
 };
 
 type ResolvedComparisonClause = {
@@ -386,6 +391,269 @@ type ResolvedComparisonClause = {
 
 const relationalAudienceHead =
   "(?:학부생|대학원생|재학생|휴학생|대학생|학생|일반인|직장인|취업준비생|구직자|고령층|청년층|청년|성인|사람|교직원|교수|교사|이용자|사용자|소비자|고객|주민|구성원|팀원|참가자|참여자|가입자|가구|학부모|대생|학과생|전공생)";
+
+const relationalTimeframePattern =
+  "(?:(?:최근|지난)\\s+(?:\\d+|한|두|세|네)\\s*(?:일|주|주일|개월|달|학기|년)|(?:이번|지난)\\s*(?:주|달|월|학기|학년도|연도))(?:\\s*(?:간|동안))?";
+
+const frontedPurposePattern =
+  "(?:만족도|평가|인지도|인지|인식|이미지|비이용\\s*이유|미사용\\s*이유|불참\\s*이유|안\\s*(?:쓰는|사용하는|이용하는)\\s*이유|이용\\s*의향|참여\\s*의향|구매\\s*의향|수요|필요성|개선(?:점|의견|요구)?)";
+
+type QualifiedRespondent = {
+  audience: string;
+  contextText: string;
+  activityPhrase: string;
+  activityKind: SurveyActivityKind | null;
+  negative: boolean;
+  timeframe: string | null;
+  evidence: string;
+};
+
+function stripPurposeMetric(value: string) {
+  const normalized = normalize(value);
+  const match = normalized.match(
+    new RegExp(`^(.+?)\\s+(${frontedPurposePattern})$`),
+  );
+  return {
+    subject: normalize(match?.[1] ?? normalized),
+    construct: normalize(match?.[2] ?? normalized),
+  };
+}
+
+function activityKindFromQualifier(value: string): SurveyActivityKind | null {
+  if (/참여|참가/.test(value)) return "attend";
+  if (/구매/.test(value)) return "purchase";
+  if (/방문/.test(value)) return "use";
+  if (/이용|사용|쓰/.test(value)) return "use";
+  return null;
+}
+
+function resolveQualifiedRespondent(value: string): QualifiedRespondent | null {
+  const normalized = normalize(value)
+    .replace(/^(?:은|는)\s+/, "")
+    .replace(/\s*(?:을|를)?\s*대상(?:으로)?\s*$/u, "")
+    .trim();
+  const match = normalized.match(
+    new RegExp(
+      `^(${relationalTimeframePattern})?\\s*(.{1,100}?)(?:을|를|에|에서)?\\s*(${relationalTimeframePattern})?\\s*(이용한|사용한|쓴|써본|방문한|참여한|참가한|구매한|이용하지\\s*않는|사용하지\\s*않는|쓰지\\s*않는|안\\s*(?:쓰는|사용하는|이용하는)|방문하지\\s*않는|참여하지\\s*않는|구매하지\\s*않는)\\s+(.*?${relationalAudienceHead})(?:들)?$`,
+    ),
+  );
+  if (!match) return null;
+  const contextText = normalize(match[2]);
+  const timeframe = normalize(match[1] ?? match[3] ?? "") || null;
+  const qualifier = normalize(match[4]);
+  const audienceHead = normalize(match[5]);
+  const negative = /지\s*않|^안\s*/.test(qualifier);
+  const qualifiedAudience = normalize(
+    `${timeframe ? `${timeframe} ` : ""}${withAccusativeParticle(contextText)} ${qualifier} ${audienceHead}`,
+  );
+  return {
+    audience: qualifiedAudience,
+    contextText,
+    activityPhrase: qualifier,
+    activityKind: activityKindFromQualifier(qualifier),
+    negative,
+    timeframe,
+    evidence: normalized,
+  };
+}
+
+function shouldJoinContextAndSubject(input: {
+  context: string;
+  subject: string;
+  activityKind: SurveyActivityKind | null;
+}) {
+  if (!input.subject || input.subject === input.context) return false;
+  if (input.activityKind === "purchase" && /매장|상점|가게|마트|몰$/.test(input.context)) {
+    return false;
+  }
+  if (input.context.endsWith(input.subject)) return false;
+  return /(?:기능|메뉴|공간|좌석|시설|프로그램|서비스|제품|상품|콘텐츠|강의|수업)$/u.test(
+    input.subject,
+  );
+}
+
+function purposeKindFromConstruct(
+  construct: string,
+): SurveyIntent["purposeBlocks"][number]["kind"] {
+  if (/만족|평가/.test(construct)) return "satisfaction";
+  if (/수요|필요|의향|개선/.test(construct)) return "need_demand";
+  if (/이유|원인|장벽|인지|인식|이미지/.test(construct)) {
+    return "attitude_perception";
+  }
+  return "attitude_perception";
+}
+
+function resolveFrontedPurposeRespondentClause(
+  normalizedInput: string,
+): ResolvedRelationalClause | null {
+  const match = normalizedInput.match(
+    new RegExp(
+      `^(.{1,80}?${frontedPurposePattern})(?:은|는)\\s+(.+?)(?:에게|한테|대상(?:으로)?)(?:\\s*(?:조사|질문|물어).*)?$`,
+    ),
+  );
+  if (!match) return null;
+  const purposePhrase = normalize(match[1]);
+  const qualified = resolveQualifiedRespondent(match[2]);
+  if (!qualified) return null;
+
+  const { subject, construct } = stripPurposeMetric(purposePhrase);
+  const contextType = inferRelationalEntityType(
+    qualified.contextText,
+    qualified.activityPhrase,
+  );
+  const resolvedContextType = contextType === "unknown" ? "service" : contextType;
+  const genericSubject = /^(?:서비스|프로그램|플랫폼|앱|어플|제품|상품|시설|공간)$/.test(
+    subject,
+  );
+  const objectText = genericSubject || qualified.contextText.endsWith(subject)
+    ? qualified.contextText
+    : shouldJoinContextAndSubject({
+          context: qualified.contextText,
+          subject,
+          activityKind: qualified.activityKind,
+        })
+      ? `${qualified.contextText}의 ${subject}`
+      : subject;
+  const objectType = objectText === qualified.contextText
+    ? resolvedContextType
+    : inferRelationalEntityType(objectText);
+  const resolvedObjectType = objectType === "unknown" ? "construct" : objectType;
+  const purposeKind = purposeKindFromConstruct(construct);
+  const negativePurpose =
+    qualified.negative || /비이용|미사용|불참|안\s*(?:쓰|사용|이용)/.test(construct);
+
+  return {
+    audience: qualified.audience,
+    audienceEvidence: qualified.evidence,
+    primaryEntity: canonicalEntity(
+      objectText,
+      resolvedObjectType,
+      "primary_entity",
+      [normalizedInput, "목적 선행 표현과 응답자 관형절을 역할별로 분리"],
+    ),
+    contextEntity: canonicalEntity(
+      qualified.contextText,
+      resolvedContextType,
+      "context",
+      [qualified.evidence],
+    ),
+    entityType: resolvedObjectType,
+    objectKind: purposeKind === "satisfaction"
+      ? "satisfaction_evaluation"
+      : negativePurpose
+        ? "attitude_perception"
+        : relationalObjectKind(resolvedObjectType),
+    activity: qualified.activityKind && !qualified.negative
+      ? `${qualified.contextText} ${qualified.activityPhrase.replace(/한$/, "")}`
+      : null,
+    activityKind: qualified.negative ? null : qualified.activityKind,
+    researchGoal: `${objectText}의 ${construct} 파악`,
+    researchConstructs: [construct],
+    surveyArchetype: purposeKind === "satisfaction"
+      ? "satisfaction"
+      : negativePurpose
+        ? "attitude"
+        : usageArchetype(resolvedObjectType),
+    isUsageObject: false,
+    includesNonUsers: negativePurpose,
+    purposeKinds: [purposeKind],
+    eligibilityCondition: qualified.audience,
+    screeningRequired: true,
+    screeningReason: `${qualified.audience}에 해당하는지 확인해야 함`,
+    explicitTimeframe: qualified.timeframe,
+  };
+}
+
+function resolvePrequalifiedPurposeClause(
+  normalizedInput: string,
+): ResolvedRelationalClause | null {
+  const prefiltered = normalizedInput.match(
+    /^(?:이미\s*)?사전\s*선별된\s+(.+?)(?:에게|을\s*대상(?:으로)?)\s+(.+)$/u,
+  );
+  const match = normalizedInput.match(
+    /^(.+?)(?:을|를)\s*대상(?:으로)?\s+(.+?)\s*(?:조사|파악)?$/u,
+  );
+  if (!match && !prefiltered) return null;
+  const rawQualified = normalize(prefiltered?.[1] ?? match?.[1] ?? "");
+  const normalizedQualified = prefiltered
+    ? rawQualified.replace(
+        new RegExp(
+          `^(${relationalTimeframePattern})?\\s*(.{1,100}?)\\s+(이용|사용|방문|참여|참가|구매)\\s+(.*?${relationalAudienceHead})(?:들)?$`,
+        ),
+        (_all, timeframe: string | undefined, context: string, activity: string, audience: string) =>
+          normalize(
+            `${timeframe ? `${timeframe} ` : ""}${withAccusativeParticle(context)} ${activity}한 ${audience}`,
+          ),
+      )
+    : rawQualified;
+  const qualified = resolveQualifiedRespondent(normalizedQualified);
+  if (!qualified) return null;
+  const purposePhrase = normalize(prefiltered?.[2] ?? match?.[2] ?? "")
+    .replace(/\s*(?:조사|파악)\s*$/u, "")
+    .replace(/(?:을|를)$/u, "");
+  if (!new RegExp(`${frontedPurposePattern}$`).test(purposePhrase)) return null;
+  const { subject, construct } = stripPurposeMetric(purposePhrase);
+  const contextType = inferRelationalEntityType(
+    qualified.contextText,
+    qualified.activityPhrase,
+  );
+  const resolvedContextType = contextType === "unknown" ? "service" : contextType;
+  const objectText = subject || qualified.contextText;
+  const objectType = inferRelationalEntityType(objectText);
+  const resolvedObjectType = objectType === "unknown" ? "construct" : objectType;
+  const purposeKind = purposeKindFromConstruct(construct);
+
+  return {
+    audience: qualified.audience,
+    audienceEvidence: qualified.evidence,
+    primaryEntity: canonicalEntity(
+      objectText,
+      resolvedObjectType,
+      "primary_entity",
+      [normalizedInput, "사전 적격 응답자와 후행 조사 목적을 분리"],
+    ),
+    contextEntity: canonicalEntity(
+      qualified.contextText,
+      resolvedContextType,
+      "context",
+      [qualified.evidence],
+    ),
+    entityType: resolvedObjectType,
+    objectKind: purposeKind === "satisfaction"
+      ? "satisfaction_evaluation"
+      : relationalObjectKind(resolvedObjectType),
+    activity: qualified.activityKind && !qualified.negative
+      ? `${qualified.contextText} ${qualified.activityPhrase.replace(/한$/, "")}`
+      : null,
+    activityKind: qualified.negative ? null : qualified.activityKind,
+    researchGoal: `${objectText}의 ${construct} 파악`,
+    researchConstructs: [construct],
+    surveyArchetype: purposeKind === "satisfaction" ? "satisfaction" : "attitude",
+    isUsageObject: false,
+    includesNonUsers: qualified.negative,
+    purposeKinds: [purposeKind],
+    eligibilityCondition: qualified.audience,
+    screeningRequired: !prefiltered,
+    screeningReason: prefiltered
+      ? null
+      : `${qualified.audience}에 해당하는지 확인해야 함`,
+    explicitTimeframe: qualified.timeframe,
+  };
+}
+
+function isBareRoleAmbiguousRequest(normalizedInput: string) {
+  const hasAudienceNoun = new RegExp(relationalAudienceHead).test(normalizedInput);
+  const hasSurveyMeta = /(?:설문\s*)?조사$/u.test(normalizedInput);
+  const hasRoleConnector =
+    /(?:을|를)\s*대상|(?:에게|한테)|(?:이|가|은|는|의)\s+|(?:이용|사용|방문|참여|구매)(?:한|하는|하지)/u.test(
+      normalizedInput,
+    );
+  const hasMeasurementCue =
+    /(?:만족도|평가|인지도|인식|이미지|빈도|경험|이유|수요|필요성|의향|개선|비교|관계|시간|행태|현황|실태)/u.test(
+      normalizedInput,
+    );
+  return hasAudienceNoun && hasSurveyMeta && !hasRoleConnector && !hasMeasurementCue;
+}
 
 function inferRelationalEntityType(
   value: string,
@@ -1031,6 +1299,10 @@ function resolveConcretePossessiveClause(
 function resolveRelationalClause(
   normalizedInput: string,
 ): ResolvedRelationalClause | null {
+  const frontedPurpose = resolveFrontedPurposeRespondentClause(normalizedInput);
+  if (frontedPurpose) return frontedPurpose;
+  const prequalifiedPurpose = resolvePrequalifiedPurposeClause(normalizedInput);
+  if (prequalifiedPurpose) return prequalifiedPurpose;
   const qualifiedAudience = resolveQualifiedAudienceClause(normalizedInput);
   if (qualifiedAudience) return qualifiedAudience;
   const colloquialMovement = resolveColloquialMovementClause(normalizedInput);
@@ -1882,6 +2154,29 @@ function reconcileRelationalClauseIntent(
           ? "construct"
           : "concrete_object"),
   );
+  const contextEntity = resolved.contextEntity
+    ? intentEntity(resolved.contextEntity, "context")
+    : null;
+  const eligibilityEntity = resolved.eligibilityCondition
+    ? {
+        id: stableId("eligibility", resolved.eligibilityCondition),
+        text: resolved.eligibilityCondition,
+        normalizedText: resolved.eligibilityCondition,
+        role: "eligibility" as const,
+        source: "explicit" as const,
+        confidence: 0.98,
+      }
+    : base.eligibilityEntity;
+  const timeframeEntity = resolved.explicitTimeframe
+    ? {
+        id: stableId("timeframe", resolved.explicitTimeframe),
+        text: resolved.explicitTimeframe,
+        normalizedText: resolved.explicitTimeframe,
+        role: "timeframe" as const,
+        source: "explicit" as const,
+        confidence: 0.98,
+      }
+    : base.explicitTimeframeEntity;
   const activityEntity =
     resolved.activity && resolved.activityKind
       ? {
@@ -1904,6 +2199,9 @@ function reconcileRelationalClauseIntent(
   }));
   const retainedDecisionEntities = base.entities.filter((item) =>
     ["decision_option", "unmet_need", "context"].includes(item.role),
+  );
+  const retainedContexts = base.contexts.filter(
+    (item) => normalize(item.text) !== normalize(contextEntity?.text ?? ""),
   );
   const purposeBlocks = resolved.purposeKinds.map((kind, index) => ({
     id: `purpose-${kind}-${index + 1}`,
@@ -1967,7 +2265,10 @@ function reconcileRelationalClauseIntent(
       entities: [
         audienceEntity,
         objectEntity,
+        ...(contextEntity ? [contextEntity] : []),
         ...(activityEntity ? [activityEntity] : []),
+        ...(eligibilityEntity ? [eligibilityEntity] : []),
+        ...(timeframeEntity ? [timeframeEntity] : []),
         ...constructEntities,
         ...retainedDecisionEntities,
       ],
@@ -1984,9 +2285,14 @@ function reconcileRelationalClauseIntent(
         resolved.objectKind === "composite"
           ? "composite"
           : "single_evaluation",
-      screeningRequired: base.screeningRequired,
-      screeningReason: base.screeningReason,
-      eligibilityCondition: base.eligibilityCondition ?? resolved.audience,
+      contexts: [...(contextEntity ? [contextEntity] : []), ...retainedContexts],
+      explicitTimeframe: resolved.explicitTimeframe ?? base.explicitTimeframe,
+      explicitTimeframeEntity: timeframeEntity,
+      screeningRequired: resolved.screeningRequired ?? base.screeningRequired,
+      screeningReason: resolved.screeningReason ?? base.screeningReason,
+      eligibilityCondition:
+        resolved.eligibilityCondition ?? base.eligibilityCondition ?? resolved.audience,
+      eligibilityEntity,
       includesNonUsers: resolved.includesNonUsers,
       ambiguityLevel: "low",
       requiresCreatorClarification: false,
@@ -2001,6 +2307,7 @@ export function parseCanonicalSurveyIntent(
   studyType: SurveyIntentStudyType = "general",
 ): CanonicalSurveyIntent {
   const normalizedInput = normalizeSurveyRequest(rawInput);
+  const bareRoleAmbiguity = isBareRoleAmbiguousRequest(normalizedInput);
   const initialContext = parseSurveyGenerationContextCore(rawInput);
   let surveyIntent = parseSurveyIntentFromCanonicalSource(rawInput, studyType, {
     semanticContext: initialContext,
@@ -2023,6 +2330,7 @@ export function parseCanonicalSurveyIntent(
       ));
   const preservesExplicitActivityObject = Boolean(
     relationalClause &&
+      !relationalClause.eligibilityCondition &&
       surveyIntent.activities.some((activity) => activity.source === "explicit") &&
       surveyIntent.objects.some((object) => {
         if (!["survey_instrument", "study_method"].includes(object.role)) {
@@ -2296,6 +2604,17 @@ export function parseCanonicalSurveyIntent(
     };
   }
 
+  if (bareRoleAmbiguity) {
+    surveyIntent = {
+      ...surveyIntent,
+      ambiguityLevel: "high",
+      requiresCreatorClarification: true,
+      missingInformation: [
+        "누구에게 무엇을 물어볼지와 확인하려는 내용을 구분해 알려주세요.",
+      ],
+    };
+  }
+
   const audience = surveyIntent.targetPopulation
     ? canonicalEntity(
         surveyIntent.targetPopulation,
@@ -2313,6 +2632,14 @@ export function parseCanonicalSurveyIntent(
       item.role === "category_set" ? "category_set" : "primary_entity",
       [item.text],
       satisfaction?.primaryEntity.candidates ?? [],
+    ),
+  );
+  const canonicalContexts = surveyIntent.contexts.map((item) =>
+    canonicalEntity(
+      item.text,
+      inferRelationalEntityType(item.text),
+      "context",
+      [item.text],
     ),
   );
   const canonicalActivities = surveyIntent.activities.map((item) => ({
@@ -2355,7 +2682,14 @@ export function parseCanonicalSurveyIntent(
         code: relationFailure,
         candidates: ambiguityCandidates,
       }
-    : satisfaction?.ambiguity ?? {
+    : bareRoleAmbiguity
+      ? {
+          level: "high",
+          requiresClarification: true,
+          code: "ENTITY_RESOLUTION_AMBIGUOUS",
+          candidates: ambiguityCandidates,
+        }
+      : satisfaction?.ambiguity ?? {
         level: surveyIntent.ambiguityLevel,
         requiresClarification: surveyIntent.requiresCreatorClarification,
         code: null,
@@ -2369,6 +2703,7 @@ export function parseCanonicalSurveyIntent(
     entities: [
       ...(audience ? [audience] : []),
       ...canonicalObjects,
+      ...canonicalContexts,
       ...constructs.map((construct) =>
         canonicalEntity(
           construct.name,
