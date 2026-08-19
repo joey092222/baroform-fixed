@@ -163,6 +163,57 @@ test("secret redaction이 API key와 Authorization을 감춘다", () => {
   assert.doesNotThrow(() => assertNoSecrets("synthetic survey result"));
 });
 
+test("실제 모델 호출 전 Preview rate limit은 제품 요청 실패와 분리한다", () => {
+  const base = {
+    responseType: "error",
+    generationSource: null,
+    repairCount: 0,
+    fallbackCount: 0,
+    fallbackReason: null,
+    normalizedMetadataPaths: [] as string[],
+    outputParsed: false,
+  };
+  assert.equal(
+    classifyGenerationPath({
+      ...base,
+      httpStatus: 429,
+      responseCode: "RATE_LIMITED",
+      modelCallCount: 0,
+    }),
+    "environment_rate_limited",
+  );
+  assert.equal(
+    classifyGenerationPath({
+      ...base,
+      httpStatus: 422,
+      responseCode: "SEMANTIC_VALIDATION_FAILED",
+      modelCallCount: 1,
+    }),
+    "request_failure",
+  );
+  assert.equal(
+    classifyGenerationPath({
+      ...base,
+      httpStatus: 500,
+      responseCode: "MODEL_REQUEST_FAILED",
+      modelCallCount: 1,
+    }),
+    "request_failure",
+  );
+  assert.equal(
+    classifyGenerationPath({
+      ...base,
+      httpStatus: 200,
+      responseType: "survey",
+      responseCode: null,
+      generationSource: "initial_local_blueprint",
+      fallbackReason: "mock-mode",
+      modelCallCount: 0,
+    }),
+    "environment_runtime_inactive",
+  );
+});
+
 test("v1.1 감사본은 원본 100건을 보존하며 입력 품질과 의미 역할을 동결한다", async () => {
   const [devRaw, holdoutRaw] = await Promise.all([
     readFile(join(process.cwd(), "evals/survey-regression/v1.1/dev.json"), "utf8"),

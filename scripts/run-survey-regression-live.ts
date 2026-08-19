@@ -62,6 +62,8 @@ type TraceSnapshot = {
   finalMissingRequiredBlockIds?: unknown;
   semanticDuplicateGroups?: unknown;
   totalElapsedMs?: unknown;
+  errorCode?: unknown;
+  errorStage?: unknown;
 };
 
 type UsageLog = {
@@ -255,6 +257,8 @@ function traceFromResponse(response: Response): TraceSnapshot {
       "x-baroform-final-semantic-duplicates",
     ),
     totalElapsedMs: headerNumber(headers, "x-baroform-generation-ms"),
+    errorCode: headers.get("x-baroform-error-code"),
+    errorStage: headers.get("x-baroform-error-stage"),
   };
 }
 
@@ -518,6 +522,12 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
     const fallbackReason =
       text(finalBody.fallbackReason) || text(finalTrace.fallbackReason) ||
       text(initialTrace.fallbackReason) || null;
+    const responseCode =
+      text(finalBody.code) || text(finalTrace.errorCode) ||
+      text(initialTrace.errorCode) || null;
+    const responseStage =
+      text(finalBody.stage) || text(finalTrace.errorStage) ||
+      text(initialTrace.errorStage) || null;
     const normalizedMetadataPaths = strings(finalTrace.normalizedInternalMetadataPaths);
     const modelCallCount = Math.max(
       numberValue(initialTrace.modelCallCount),
@@ -541,6 +551,8 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
       httpStatus: finalResponse.status,
       responseType: text(finalBody.type) || null,
       responseStatus: text(finalBody.status) || null,
+      responseCode,
+      responseStage,
       generationSource,
       modelCallCount,
       repairCount,
@@ -579,7 +591,10 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
         outputItemTypes: strings(finalTrace.outputItemTypes),
       },
     };
-    const classification = classifyGenerationPath(base);
+    const classification = classifyGenerationPath({
+      ...base,
+      outputParsed: base.responseDiagnostics.outputParsed,
+    });
     const semantic = evaluateSemanticResult(testCase, { ...base, classification });
     return { ...base, classification, ...semantic };
   } catch (error) {
@@ -599,6 +614,10 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
       httpStatus: finalResponse?.status ?? null,
       responseType: "error",
       responseStatus: "error",
+      responseCode:
+        text(finalBody.code) || text(trace.errorCode) || null,
+      responseStage:
+        text(finalBody.stage) || text(trace.errorStage) || null,
       generationSource: text(trace.generationSource) || null,
       modelCallCount: numberValue(trace.modelCallCount),
       repairCount: numberValue(trace.repairCount),
@@ -634,7 +653,10 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
         outputItemTypes: strings(trace.outputItemTypes),
       },
     };
-    const classification = classifyGenerationPath(base);
+    const classification = classifyGenerationPath({
+      ...base,
+      outputParsed: base.responseDiagnostics.outputParsed,
+    });
     const semantic = evaluateSemanticResult(testCase, { ...base, classification });
     semantic.fatalFailures.unshift({
       code: "REQUEST_FAILURE",
@@ -759,12 +781,22 @@ try {
       if (
         args.remotePreview &&
         checkpoint.completedCaseIds.length === 0 &&
+        result.classification !== "environment_rate_limited" &&
         (result.modelCallCount < 1 ||
           result.fallbackReason === "api-key-missing" ||
           result.generationSource === "initial_local_blueprint")
       ) {
         throw new Error(
           `REMOTE_OPENAI_RUNTIME_NOT_ACTIVE:${result.generationSource ?? "unknown"}:${result.fallbackReason ?? "none"}:${result.modelCallCount}`,
+        );
+      }
+      if (
+        args.remotePreview &&
+        checkpoint.completedCaseIds.length === 0 &&
+        result.classification === "environment_rate_limited"
+      ) {
+        throw new Error(
+          `RATE_WINDOW_STILL_ACTIVE:${result.requestId ?? "unknown"}`,
         );
       }
       if (checkpoint.completedCaseIds.includes(result.caseId)) {

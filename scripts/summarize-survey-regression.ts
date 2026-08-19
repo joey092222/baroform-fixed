@@ -46,6 +46,8 @@ const generationPaths: GenerationPath[] = [
   "hard_fallback",
   "request_failure",
   "clarification",
+  "environment_rate_limited",
+  "environment_runtime_inactive",
 ];
 
 function count(path: GenerationPath, split?: "dev" | "holdout") {
@@ -101,6 +103,11 @@ const criteria = {
   noFatal: fatalFailures.length === 0,
   noClearHardFallback: clearResults.every((item) => item.classification !== "hard_fallback"),
   noRequestFailure: results.every((item) => item.classification !== "request_failure"),
+  noEnvironmentFailures: results.every(
+    (item) =>
+      item.classification !== "environment_rate_limited" &&
+      item.classification !== "environment_runtime_inactive",
+  ),
   clarificationPerfect:
     clarificationResults.length === 8 &&
     clarificationResults.every((item) => item.classification === "clarification" && item.fatalFailures.length === 0),

@@ -79,6 +79,8 @@ export const generationPathSchema = z.enum([
   "hard_fallback",
   "request_failure",
   "clarification",
+  "environment_rate_limited",
+  "environment_runtime_inactive",
 ]);
 
 export type GenerationPath = z.infer<typeof generationPathSchema>;
@@ -115,6 +117,8 @@ export type SurveyRegressionResult = {
   httpStatus: number | null;
   responseType: string | null;
   responseStatus: string | null;
+  responseCode?: string | null;
+  responseStage?: string | null;
   generationSource: string | null;
   modelCallCount: number;
   repairCount: number;

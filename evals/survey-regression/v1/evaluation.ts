@@ -206,12 +206,33 @@ function issue(
 export function classifyGenerationPath(input: {
   httpStatus: number | null;
   responseType: string | null;
+  responseCode?: string | null;
   generationSource: string | null;
+  modelCallCount?: number;
   repairCount: number;
   fallbackCount: number;
   fallbackReason: string | null;
   normalizedMetadataPaths: string[];
+  outputParsed?: boolean;
 }): GenerationPath {
+  const modelCallCount = input.modelCallCount ?? 0;
+  const outputParsed = input.outputParsed ?? false;
+  if (
+    modelCallCount === 0 &&
+    !outputParsed &&
+    (input.httpStatus === 429 || input.responseCode === "RATE_LIMITED")
+  ) {
+    return "environment_rate_limited";
+  }
+  if (
+    modelCallCount === 0 &&
+    !outputParsed &&
+    (input.fallbackReason === "api-key-missing" ||
+      input.fallbackReason === "mock-mode" ||
+      input.generationSource === "initial_local_blueprint")
+  ) {
+    return "environment_runtime_inactive";
+  }
   if (input.responseType === "clarification") return "clarification";
   if (
     input.httpStatus === null ||
@@ -273,6 +294,13 @@ export function evaluateSemanticResult(
     result.description,
     questionText,
   ].filter(Boolean).join("\n");
+
+  if (
+    result.classification === "environment_rate_limited" ||
+    result.classification === "environment_runtime_inactive"
+  ) {
+    return { fatalFailures, warnings };
+  }
 
   if (testCase.clarificationExpected) {
     if (result.responseType !== "clarification") {
