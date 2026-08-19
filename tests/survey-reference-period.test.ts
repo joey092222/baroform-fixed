@@ -73,6 +73,48 @@ test("사용자가 지정한 기간이 모델 기간보다 우선한다", () => 
   assert.doesNotMatch(result.title, /최근 한 달/);
 });
 
+test("한글 수사로 쓴 사용자 기간도 중복 없이 모델 기간보다 우선한다", () => {
+  const result = ensureVisibleReferencePeriod(
+    frequencyQuestion(
+      "최근 한 달 동안 솔빛관을 얼마나 자주 이용하시나요?",
+      "최근 한 달",
+    ),
+    {
+      userExplicitTimeframe: "최근 두 달",
+      eligibilityTimeframe: "최근 두 달",
+      modelReferencePeriod: "최근 한 달",
+    },
+  );
+
+  assert.equal(result.explicitTimeframe, "최근 두 달");
+  assert.equal(
+    result.title,
+    "최근 두 달 동안 솔빛관을 얼마나 자주 이용하시나요?",
+  );
+  assert.equal(result.title.match(/최근 두 달/g)?.length, 1);
+  assert.doesNotMatch(result.title, /최근 한 달/);
+});
+
+test("적격 조건의 기간은 모델과 기존 문항의 기간보다 우선한다", () => {
+  const result = ensureVisibleReferencePeriod(
+    frequencyQuestion(
+      "최근 한 달 동안 솔빛관을 얼마나 자주 이용하시나요?",
+      "최근 한 달",
+    ),
+    {
+      eligibilityTimeframe: "이번 학기",
+      modelReferencePeriod: "최근 한 달",
+      existingExplicitTimeframe: "최근 한 달",
+    },
+  );
+
+  assert.equal(result.explicitTimeframe, "이번 학기");
+  assert.equal(
+    result.title,
+    "이번 학기 동안 솔빛관을 얼마나 자주 이용하시나요?",
+  );
+});
+
 test("기간이 없는 반복 이용 빈도에는 안전한 기본 기간을 결정적으로 적용한다", () => {
   const result = ensureVisibleReferencePeriod(
     frequencyQuestion("솔빛관을 얼마나 자주 이용하시나요?"),

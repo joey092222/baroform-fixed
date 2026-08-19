@@ -84,6 +84,7 @@ import {
 import { lintSurveyQuestionSemantics } from "./survey-context";
 import {
   ensureVisibleReferencePeriod,
+  extractVisibleReferencePeriod,
   hasVisibleReferencePeriod,
   isRecurringFrequencyQuestion,
 } from "./survey-reference-period";
@@ -911,16 +912,23 @@ function canonicalizeQuestionReferencePeriods(
   questions: SurveyQuestion[],
   brief: SurveyBrief,
 ) {
+  const eligibilityTimeframe = extractVisibleReferencePeriod(
+    brief.surveyIntent.eligibilityCondition ?? "",
+  );
   return questions.map((question) => {
     const frequencyQuestion = ensureVisibleReferencePeriod(question, {
       userExplicitTimeframe: brief.surveyIntent.explicitTimeframe,
+      eligibilityTimeframe,
+      canonicalExplicitTimeframe: brief.surveyIntent.explicitTimeframe,
+      modelReferencePeriod: question.explicitTimeframe,
       existingExplicitTimeframe: question.explicitTimeframe,
       recommendedTimeframe: brief.recommendedTimeframe,
     });
     return ensureExperienceScreeningReferencePeriod(
       frequencyQuestion,
-      question.explicitTimeframe ??
-        brief.surveyIntent.explicitTimeframe ??
+      brief.surveyIntent.explicitTimeframe ??
+        eligibilityTimeframe ??
+        question.explicitTimeframe ??
         brief.recommendedTimeframe,
     );
   });
@@ -1707,6 +1715,41 @@ function selectFallbackQuestionForRepair(
   );
 }
 
+function repairReferencePeriodResolution(
+  intent: SurveyIntent,
+  original: SurveyQuestion,
+  fallbackQuestion: SurveyQuestion,
+) {
+  return {
+    userExplicitTimeframe: intent.explicitTimeframe,
+    eligibilityTimeframe: extractVisibleReferencePeriod(
+      intent.eligibilityCondition ?? "",
+    ),
+    canonicalExplicitTimeframe: intent.explicitTimeframe,
+    modelReferencePeriod: original.explicitTimeframe,
+    existingExplicitTimeframe: fallbackQuestion.explicitTimeframe,
+  };
+}
+
+function preferredRepairReferencePeriod(
+  intent: SurveyIntent,
+  original: SurveyQuestion,
+  fallbackQuestion: SurveyQuestion,
+) {
+  const resolution = repairReferencePeriodResolution(
+    intent,
+    original,
+    fallbackQuestion,
+  );
+  return (
+    resolution.userExplicitTimeframe ??
+    resolution.eligibilityTimeframe ??
+    resolution.canonicalExplicitTimeframe ??
+    resolution.modelReferencePeriod ??
+    resolution.existingExplicitTimeframe
+  );
+}
+
 function planBasedReplacement(
   original: SurveyQuestion,
   fallbackQuestion: SurveyQuestion,
@@ -1745,15 +1788,14 @@ function planBasedReplacement(
     explicitTimeframe: undefined,
   };
   const periodAwareReplacement = isRecurringFrequencyQuestion(replacement)
-    ? ensureVisibleReferencePeriod(replacement, {
-        userExplicitTimeframe: intent.explicitTimeframe,
-        existingExplicitTimeframe:
-          original.explicitTimeframe ?? fallbackQuestion.explicitTimeframe,
-      })
+    ? ensureVisibleReferencePeriod(
+        replacement,
+        repairReferencePeriodResolution(intent, original, fallbackQuestion),
+      )
     : replacement;
   return ensureExperienceScreeningReferencePeriod(
     periodAwareReplacement,
-    original.explicitTimeframe ?? intent.explicitTimeframe,
+    preferredRepairReferencePeriod(intent, original, fallbackQuestion),
   );
 }
 
@@ -1895,15 +1937,14 @@ function replacementForPlanBlock(
     explicitTimeframe: undefined,
   };
   const periodAwareReplacement = isRecurringFrequencyQuestion(replacement)
-    ? ensureVisibleReferencePeriod(replacement, {
-        userExplicitTimeframe: intent.explicitTimeframe,
-        existingExplicitTimeframe:
-          original.explicitTimeframe ?? fallbackQuestion.explicitTimeframe,
-      })
+    ? ensureVisibleReferencePeriod(
+        replacement,
+        repairReferencePeriodResolution(intent, original, fallbackQuestion),
+      )
     : replacement;
   return ensureExperienceScreeningReferencePeriod(
     periodAwareReplacement,
-    original.explicitTimeframe ?? intent.explicitTimeframe,
+    preferredRepairReferencePeriod(intent, original, fallbackQuestion),
   );
 }
 

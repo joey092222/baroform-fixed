@@ -8,6 +8,8 @@ export type ReferencePeriodQuestion = {
 
 export type ReferencePeriodResolution = {
   userExplicitTimeframe?: string | null;
+  eligibilityTimeframe?: string | null;
+  canonicalExplicitTimeframe?: string | null;
   modelReferencePeriod?: string | null;
   existingExplicitTimeframe?: string | null;
   recommendedTimeframe?: string | null;
@@ -20,7 +22,7 @@ const referencePeriodSource = [
   "오늘",
   "어제",
   "(?:이번|지난)\\s*(?:주|달|월|학기|학년도|연도)",
-  "(?:최근|지난)\\s*(?:\\d+\\s*(?:일|주|개월|달|년)|한\\s*(?:주|달|해)|일주일|한달)",
+  "(?:최근|지난)\\s*(?:\\d+\\s*(?:일|주|개월|달|년)|(?:한|두|세|네)\\s*(?:일|주|개월|달|년)|일주일|한달)",
   "가장\\s*최근\\s*[가-힣A-Za-z0-9·_-]+?(?=(?:에서|의|을|를|에|와|과|으로|로|\\s|$))",
   "하루\\s*동안",
   "일주일\\s*동안",
@@ -109,6 +111,8 @@ export function resolveQuestionReferencePeriod(
   const visiblePeriod = extractVisibleReferencePeriod(question.title);
   const candidates = [
     resolution.userExplicitTimeframe,
+    resolution.eligibilityTimeframe,
+    resolution.canonicalExplicitTimeframe,
     resolution.modelReferencePeriod,
     resolution.existingExplicitTimeframe ?? question.explicitTimeframe,
     visiblePeriod,
