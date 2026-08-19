@@ -2599,18 +2599,29 @@ export function parseSurveyDraftResponse(
     return localFallback;
   };
 
-  let validationIssues =
-    semanticViolations.length === 0
-      ? validateSurvey(prompt, brief, blueprint, evaluationTarget)
-      : [];
+  // Collect deterministic question-quality failures even when a separate
+  // semantic violation is present, so one repair pass can fix every affected
+  // question instead of discovering an overlapping range only after repair.
+  let validationIssues = validateSurvey(
+    prompt,
+    brief,
+    blueprint,
+    evaluationTarget,
+  );
   validationIssues.push(...recoverableModelIssues);
   recordSurveySemanticDiagnostics(trace, {
     qualityViolationCodes: validationIssues.map((item) =>
       item.includes(":") ? item.slice(0, item.indexOf(":")) : item,
     ),
   });
+  const hasQuestionLocalRepairIssue =
+    questionIndexesFromQualityIssues(
+      validationIssues,
+      blueprint.aiQuestions.length,
+    ).size > 0;
   const shouldRepair =
     semanticViolations.length > 0 ||
+    hasQuestionLocalRepairIssue ||
     (validationIssues.length > 0 &&
       shouldEnforceSurveyIntentValidation(brief.surveyIntent));
   let repairedQuestionIds: number[] = [];

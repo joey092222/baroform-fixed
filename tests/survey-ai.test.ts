@@ -4118,6 +4118,52 @@ test("처음 보는 서비스 설문의 중복 선택지는 해당 문항만 부
   assert.ok(diagnostics.preservedQuestionIds.length > 0);
 });
 
+test("서로 겹치는 빈도 구간은 해당 문항만 부분 수리한다", () => {
+  const prompt = "새봄대학교 학생의 별마루 카페 이용 경험과 불편";
+  const payload = structuredPayloadForRegressionPrompt(prompt);
+  const frequencyQuestion = payload.output_parsed.survey.questions.find(
+    (question) => /얼마나\s*자주|빈도/.test(question.text),
+  );
+  assert.ok(frequencyQuestion);
+  frequencyQuestion.type = "single_choice";
+  frequencyQuestion.scale = null;
+  frequencyQuestion.options = [
+    "한 학기에 1~2회",
+    "한 달에 1~3회",
+    "한 달에 4회 이상",
+    "이용하지 않음",
+  ].map((label, index) => ({
+    id: `mixed-frequency-${index + 1}`,
+    label,
+    exclusive: label === "이용하지 않음",
+    fixed_position: false,
+    allows_text: false,
+  }));
+  const trace = createSurveyGenerationTrace("recover-overlapping-frequency-ranges");
+
+  const result = parseSurveyDraftResponse(
+    payload,
+    prompt,
+    7,
+    "전학년",
+    false,
+    trace,
+  );
+  const diagnostics = surveyGenerationTraceSnapshot(trace);
+
+  assert.match(result.status, /^ready/);
+  assert.equal(diagnostics.generationSource, "openai_partial_repair");
+  assert.equal(diagnostics.fallbackCount, 0);
+  assert.deepEqual(diagnostics.repairedQuestionIds, [frequencyQuestion.id.replace("Q", "")]);
+  assert.equal(
+    result.blueprint.aiQuestions.some((question) =>
+      question.options?.includes("한 학기에 1~2회") &&
+      question.options.includes("한 달에 1~3회"),
+    ),
+    false,
+  );
+});
+
 test("처음 보는 시설 설문의 비선택형 잔여 선택지는 결정적으로 정규화한다", () => {
   const prompt = "해솔문화관 방문자의 공간 경험과 재방문 의향";
   const payload = structuredPayloadForRegressionPrompt(prompt);
