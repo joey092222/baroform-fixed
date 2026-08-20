@@ -37,7 +37,7 @@ const conceptPatterns: Record<string, RegExp[]> = {
     /이동\s*경로.*(?:명확|편리)/,
     /오가는\s*과정.*편리/,
   ],
-  불편: [/불편/, /어려운\s*점/, /장벽/],
+  불편: [/불편/, /어려(?:운|웠던)\s*점/, /어려움/, /장벽/],
   "개선 요구": [/개선/, /바라는\s*점/, /보완/, /바뀌었으면/, /달라졌으면/],
   만족도: [/만족/, /평가/],
   인식: [/인식/, /이미지/, /인상/, /어떻게\s*생각/],
@@ -63,6 +63,7 @@ const conceptPatterns: Record<string, RegExp[]> = {
   "비이용 이유": [
     /(?:이용|사용|참여|구매|가입|방문|시청)하지\s*않(?:는|은|았던)\s*(?:가장\s*큰\s*)?이유/,
     /(?:사|먹|보|쓰)지\s*않(?:는|은|았던).*이유/,
+    /(?:탈퇴|해지).*(?:이유|원인|요인)/,
     /비이용\s*이유/,
     /미구매\s*이유/,
     /불참\s*이유/,
@@ -75,15 +76,21 @@ const conceptPatterns: Record<string, RegExp[]> = {
     /비참여\s*이유/,
     /참여\s*장벽/,
   ],
-  "미구매 이유": [/미구매\s*(?:이유|요인)/, /구매하지\s*않는\s*이유/, /사지\s*않는\s*이유/],
+  "미구매 이유": [
+    /미구매\s*(?:이유|요인)/,
+    /구매하지\s*않는\s*이유/,
+    /사지\s*않는\s*이유/,
+    /구매.*(?:장벽|방해\s*요인)/,
+  ],
   "가격 수용도": [/가격\s*수용도/, /얼마나\s*더\s*(?:내|지불)/, /추가\s*비용/, /지불\s*의향/],
   "이용 의향": [
     /이용\s*의향/,
     /사용\s*의향/,
-    /다시\s*(?:이용|사용|방문|등록|구매)/,
-    /재(?:이용|방문|등록|구매)/,
-    /(?:이용|사용|방문|등록|구매)할\s*(?:가능성|생각|의향)/,
-    /쓸\s*생각/,
+    /다시\s*(?:이용|사용|방문|가입|등록|구매)/,
+    /재(?:이용|방문|가입|등록|구매)/,
+    /(?:이용|사용|방문|가입|등록|구매)할\s*(?:가능성|생각|의향)/,
+    /(?:써|사용해|이용해|방문해|가입해|구매해)\s*볼\s*(?:가능성|생각|의향)/,
+    /(?:쓸|써볼)\s*(?:가능성|생각|의향)/,
   ],
   "참여 의향": [
     /참여\s*의향/,
@@ -113,7 +120,13 @@ const conceptPatterns: Record<string, RegExp[]> = {
     /선택\s*기준/,
     /고를\s*때.*중요/,
   ],
-  "이용 목적": [/이용\s*목적/, /사용\s*목적/],
+  "이용 목적": [
+    /이용\s*목적/,
+    /사용\s*목적/,
+    /(?:방문|이용|사용)하는\s*(?:주된\s*)?이유/,
+    /가장\s*주로\s*(?:가|찾|방문)하는\s*이유/,
+    /가장\s*주로\s*가는\s*이유/,
+  ],
   선호: [/선호/, /관심\s*(?:활동|주제)/],
   충동구매: [/충동\s*구매/],
   저축: [/저축/],
@@ -121,7 +134,7 @@ const conceptPatterns: Record<string, RegExp[]> = {
 };
 
 const negationPattern =
-  /(?:이용|사용|참여|참가|가입|구매|방문|시청|주문|클릭|운동|먹|보)(?:하지\s*않|하지\s*못|한\s*적\s*없|지\s*않)|비이용|미구매|불참|미가입|비방문|비시청|비주문|안\s*(?:쓰|가|하|먹|보)|못\s*(?:쓰|가|하)/;
+  /(?:이용|사용|참여|참가|가입|구매|방문|시청|주문|클릭|운동|먹|보)(?:하지\s*않|하지\s*못|한\s*적\s*없|지\s*않)|비이용|미구매|불참|미가입|비방문|비시청|비주문|탈퇴|해지|안\s*(?:쓰|가|하|먹|보)|못\s*(?:쓰|가|하)/;
 
 const genericFillerPatterns = conceptPatterns["generic filler"];
 
@@ -182,6 +195,31 @@ function populationScopeCompatible(actual: string, expected: string) {
   const actualPositiveUser = positiveUserScopePattern.test(actual) && !actualNonUser;
   const expectedPositiveUser = positiveUserScopePattern.test(expected) && !expectedNonUser;
   return actualPositiveUser === expectedPositiveUser;
+}
+
+function eligibilityConditionPresent(actual: string, expected: string) {
+  if (semanticTextMatch(actual, [expected])) return true;
+  const expectedKind = /비이용|미사용/u.test(expected)
+    ? /(?:이용|사용)하지\s*않|안\s*쓰|비이용|미사용/u
+    : /미구매/u.test(expected)
+      ? /구매하지\s*않|사지\s*않|미구매/u
+      : /비참여|불참/u.test(expected)
+        ? /참여하지\s*않|참가하지\s*않|비참여|불참/u
+        : /해지/u.test(expected)
+          ? /해지/u
+          : /탈퇴/u.test(expected)
+            ? /탈퇴/u
+            : null;
+  if (!expectedKind || !expectedKind.test(actual)) return false;
+  const expectedEntity = expected.replace(
+    /\s*(?:비이용|미사용|미구매|비참여|불참|해지|탈퇴)\s*$/u,
+    "",
+  );
+  const entityTokens = meaningfulTokens(expectedEntity);
+  return (
+    entityTokens.length > 0 &&
+    entityTokens.every((token) => normalize(actual).includes(normalize(token)))
+  );
 }
 
 const strictPopulationQualifierPattern =
@@ -542,7 +580,7 @@ const statusQuestionPattern =
 const statusChoicePattern =
   /(?:경험|이용|사용|참여|방문|구매).*(?:있음|없음)|(?:예|네).*(?:아니요|아님)|해당함.*해당하지\s*않음/u;
 const substantiveStatusLookalikePattern =
-  /(?:얼마나\s*(?:자주|만족|편리|쉬|어렵|불편|도움|필요|안전|위험|혼잡)|몇\s*(?:번|회)|며칠|빈도|횟수|어떤\s*(?:목적|이유)|주된\s*목적|이용\s*목적)/u;
+  /(?:얼마나\s*(?:자주|만족|편리|쉬|어렵|불편|도움|필요|안전|위험|혼잡)|몇\s*(?:번|회)|며칠|빈도|횟수|어떤\s*(?:목적|이유)|주된\s*목적|이용\s*목적|알아보거나\s*비교|검토하거나\s*비교)/u;
 
 function questionMetadataText(question: EvaluatedQuestion) {
   return [
@@ -885,7 +923,7 @@ export function evaluateSemanticResult(
     fatalFailures.push(issue("TARGET_POPULATION_MISMATCH", `응답 대상 불일치: ${targetText}`, "target_population"));
   }
   for (const condition of testCase.expectedEligibilityConditions ?? []) {
-    if (!semanticTextMatch(`${targetText}\n${questionText}`, [condition])) {
+    if (!eligibilityConditionPresent(`${targetText}\n${questionText}`, condition)) {
       fatalFailures.push(
         issue(
           "ELIGIBILITY_CONDITION_DROPPED",

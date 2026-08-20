@@ -963,3 +963,21 @@ test("응답자·목적을 포함한 요청 문장 survey object와 깨진 외�
     true,
   );
 });
+
+test("자연스러운 목적·불편·재이용 표현을 evaluator가 놓치지 않는다", () => {
+  assert.equal(conceptPresent("이용 목적", "이 장소에 가장 주로 가는 이유는 무엇인가요?"), true);
+  assert.equal(conceptPresent("불편", "이용하면서 어려웠던 점은 무엇인가요?"), true);
+  assert.equal(conceptPresent("이용 의향", "앞으로 다시 가입해 볼 생각이 있나요?"), true);
+  assert.equal(conceptPresent("미구매 이유", "구매를 망설이게 한 가장 큰 장벽은 무엇인가요?"), true);
+  assert.equal(conceptPresent("비이용 이유", "서비스를 해지한 이유는 무엇인가요?"), true);
+});
+
+test("비교·검토 경험 질문은 응답자 선별 문항으로 오인하지 않는다", () => {
+  assert.equal(
+    validateScreeningQuestionPosition([
+      question("구매 전에 다른 제품을 알아보거나 비교해 본 적이 있나요?"),
+      question("구매를 망설이게 한 가장 큰 장벽은 무엇인가요?"),
+    ]),
+    null,
+  );
+});
