@@ -105,6 +105,7 @@ import {
   compareLegacyShadowToCanonicalIntentV2,
   deriveSurveyBriefFromCanonicalIntentV2,
   deriveSurveyPlanFromCanonicalIntentV2,
+  normalizeCanonicalSurveyIntentV2EvidenceSpans,
   validateCanonicalSurveyIntentV2,
   type CanonicalSurveyIntentV2,
   type LegacyIntentShadowSummary,
@@ -2461,7 +2462,14 @@ export function parseSurveyDraftResponseV2(
       "schema",
     );
   }
-  const intent = parsed.data.canonical_intent_v2;
+  const evidenceNormalization = normalizeCanonicalSurveyIntentV2EvidenceSpans(
+    parsed.data.canonical_intent_v2,
+    request.prompt,
+  );
+  const intent = evidenceNormalization.intent;
+  recordSurveyModelOutputDiagnostics(trace, {
+    normalizedInternalMetadataPaths: evidenceNormalization.normalizedPaths,
+  });
   recordCanonicalSurveyIntentV2Trace(trace, intent);
   const legacyV2Divergence = request.legacyShadow
     ? compareLegacyShadowToCanonicalIntentV2(request.legacyShadow, intent)

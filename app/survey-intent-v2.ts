@@ -351,6 +351,108 @@ function collectEvidence(intent: CanonicalSurveyIntentV2) {
   ];
 }
 
+export function normalizeCanonicalSurveyIntentV2EvidenceSpans(
+  input: CanonicalSurveyIntentV2,
+  rawUserInput: string,
+) {
+  const intent = structuredClone(input);
+  const normalizedPaths: string[] = [];
+  const holders: Array<{
+    path: string;
+    evidence: CanonicalSurveyIntentV2["evidence"];
+  }> = [
+    { path: "evidence", evidence: intent.evidence },
+    {
+      path: "target_population.evidence",
+      evidence: intent.target_population.evidence,
+    },
+    ...intent.eligibility_conditions.map((item, index) => ({
+      path: `eligibility_conditions.${index}.evidence`,
+      evidence: item.evidence,
+    })),
+    ...intent.context_entities.map((item, index) => ({
+      path: `context_entities.${index}.evidence`,
+      evidence: item.evidence,
+    })),
+    ...intent.survey_objects.map((item, index) => ({
+      path: `survey_objects.${index}.evidence`,
+      evidence: item.evidence,
+    })),
+    ...intent.activities.map((item, index) => ({
+      path: `activities.${index}.evidence`,
+      evidence: item.evidence,
+    })),
+    ...intent.purposes.map((item, index) => ({
+      path: `purposes.${index}.evidence`,
+      evidence: item.evidence,
+    })),
+    ...intent.relationships.flatMap((item, index) => [
+      {
+        path: `relationships.${index}.evidence`,
+        evidence: item.evidence,
+      },
+      {
+        path: `relationships.${index}.predictor.evidence`,
+        evidence: item.predictor.evidence,
+      },
+      {
+        path: `relationships.${index}.outcome.evidence`,
+        evidence: item.outcome.evidence,
+      },
+      ...item.comparison_targets.map((target, targetIndex) => ({
+        path: `relationships.${index}.comparison_targets.${targetIndex}.evidence`,
+        evidence: target.evidence,
+      })),
+    ]),
+    ...(intent.explicit_timeframe
+      ? [
+          {
+            path: "explicit_timeframe.evidence",
+            evidence: intent.explicit_timeframe.evidence,
+          },
+        ]
+      : []),
+    ...intent.negation_constraints.map((item, index) => ({
+      path: `negation_constraints.${index}.evidence`,
+      evidence: item.evidence,
+    })),
+  ];
+
+  for (const holder of holders) {
+    for (const [index, evidence] of holder.evidence.entries()) {
+      if (
+        evidence.start >= 0 &&
+        evidence.end > evidence.start &&
+        evidence.end <= rawUserInput.length &&
+        rawUserInput.slice(evidence.start, evidence.end) === evidence.text
+      ) {
+        continue;
+      }
+      const candidates: number[] = [];
+      let cursor = rawUserInput.indexOf(evidence.text);
+      while (cursor >= 0) {
+        candidates.push(cursor);
+        cursor = rawUserInput.indexOf(evidence.text, cursor + 1);
+      }
+      if (candidates.length === 0) continue;
+      const start = candidates.sort(
+        (left, right) =>
+          Math.abs(left - evidence.start) - Math.abs(right - evidence.start) ||
+          left - right,
+      )[0];
+      evidence.start = start;
+      evidence.end = start + evidence.text.length;
+      normalizedPaths.push(`${holder.path}.${index}.start`);
+      normalizedPaths.push(`${holder.path}.${index}.end`);
+    }
+  }
+
+  return {
+    intent,
+    normalizedPaths: [...new Set(normalizedPaths)],
+  };
+}
+
 const explicitNegationCues = [
   "비이용",
   "미이용",

@@ -12,6 +12,7 @@ import {
   canonicalSurveyIntentV2Schema,
   deriveSurveyBriefFromCanonicalIntentV2,
   deriveSurveyPlanFromCanonicalIntentV2,
+  normalizeCanonicalSurveyIntentV2EvidenceSpans,
   validateCanonicalSurveyIntentV2,
   type CanonicalSurveyIntentV2,
 } from "../app/survey-intent-v2";
@@ -345,6 +346,44 @@ test("canonical V2 consistency layer는 evidence와 UI hard constraint를 검증
   });
   assert.ok(issues.some((item) => item.code === "EVIDENCE_TEXT_MISMATCH"));
   assert.ok(issues.some((item) => item.code === "REQUEST_CONSTRAINT_MISMATCH"));
+});
+
+test("V2 evidence 좌표는 원문에 존재하는 동일 텍스트에 한해 metadata-only로 정규화한다", () => {
+  const shifted = intentFixture();
+  for (const evidence of shifted.evidence) {
+    evidence.start = 0;
+    evidence.end = evidence.text.length;
+  }
+  const normalized = normalizeCanonicalSurveyIntentV2EvidenceSpans(
+    shifted,
+    prompt,
+  );
+  assert.ok(normalized.normalizedPaths.length > 0);
+  assert.deepEqual(
+    validateCanonicalSurveyIntentV2(normalized.intent, {
+      rawUserInput: prompt,
+      surveyMode: "standard",
+      requestedQuestionCount: 2,
+    }),
+    [],
+  );
+
+  const invented = intentFixture();
+  invented.evidence[0].text = "원문에 없는 응답 대상";
+  invented.evidence[0].start = 0;
+  invented.evidence[0].end = invented.evidence[0].text.length;
+  const untouched = normalizeCanonicalSurveyIntentV2EvidenceSpans(
+    invented,
+    prompt,
+  );
+  assert.equal(untouched.normalizedPaths.length, 0);
+  assert.ok(
+    validateCanonicalSurveyIntentV2(untouched.intent, {
+      rawUserInput: prompt,
+      surveyMode: "standard",
+      requestedQuestionCount: 2,
+    }).some((item) => item.code === "EVIDENCE_TEXT_MISMATCH"),
+  );
 });
 
 test("V2 응답은 legacy parser나 fallback 없이 canonical intent에서 UI blueprint를 만든다", () => {
