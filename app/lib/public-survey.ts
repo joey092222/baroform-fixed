@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
+import { cache } from "react";
 import { getDb } from "@/db";
 import { surveys } from "@/db/schema";
 import {
@@ -105,6 +106,6 @@ const getCachedPublicSurvey = unstable_cache(
   },
 );
 
-export async function getPublicSurvey(shareToken: string) {
-  return getCachedPublicSurvey(shareToken);
-}
+export const getPublicSurvey = cache(async (shareToken: string) =>
+  getCachedPublicSurvey(shareToken),
+);

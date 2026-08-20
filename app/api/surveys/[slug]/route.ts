@@ -7,7 +7,10 @@ import {
   getPublicSurvey,
   publicSurveyCacheTag,
 } from "@/app/lib/public-survey";
-import { surveySharePath } from "@/app/survey-share";
+import {
+  surveyOpenGraphImagePath,
+  surveySharePath,
+} from "@/app/survey-share";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -104,7 +107,7 @@ export async function DELETE(
 
     revalidateTag(publicSurveyCacheTag, { expire: 0 });
     revalidatePath(surveySharePath(slug));
-    revalidatePath(`${surveySharePath(slug)}/opengraph-image`);
+    revalidatePath(surveyOpenGraphImagePath(slug));
 
     return Response.json(
       { deletedSlug: deleted[0].slug },

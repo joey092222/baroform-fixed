@@ -1,4 +1,5 @@
-import { getSiteUrl } from "@/app/survey-share";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 type OpenGraphFont = {
   name: string;
@@ -11,27 +12,27 @@ export const openGraphFontPath = "/fonts/NotoSansKR-Bold-Baroform.ttf";
 
 let fontPromise: Promise<ArrayBuffer> | null = null;
 
-async function fetchOpenGraphFont() {
-  const fontUrl = new URL(openGraphFontPath, getSiteUrl());
-  const response = await fetch(fontUrl, {
-    next: { revalidate: 86_400 },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Open Graph font request failed (${response.status})`);
-  }
-
-  const data = await response.arrayBuffer();
+async function readOpenGraphFont() {
+  const filePath = join(
+    process.cwd(),
+    "public",
+    "fonts",
+    "NotoSansKR-Bold-Baroform.ttf",
+  );
+  const data = await readFile(filePath);
   if (data.byteLength < 100_000) {
     throw new Error("Open Graph font response was incomplete");
   }
 
-  return data;
+  return data.buffer.slice(
+    data.byteOffset,
+    data.byteOffset + data.byteLength,
+  ) as ArrayBuffer;
 }
 
 export async function loadOpenGraphKoreanFonts(text: string) {
   void text;
-  fontPromise ??= fetchOpenGraphFont();
+  fontPromise ??= readOpenGraphFont();
   const data = await fontPromise;
   const font: OpenGraphFont = {
     name: "BaroformNotoKR",
