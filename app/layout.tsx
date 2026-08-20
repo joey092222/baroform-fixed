@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "@fontsource-variable/noto-sans-kr";
 import {
+  defaultOpenGraphImagePath,
   defaultSiteDescription,
   defaultSiteTitle,
   getSiteUrl,
@@ -20,12 +21,23 @@ export const metadata: Metadata = {
     description: defaultSiteDescription,
     type: "website",
     siteName: "바로폼",
+    locale: "ko_KR",
     url: "/",
+    images: [
+      {
+        url: defaultOpenGraphImagePath,
+        width: 800,
+        height: 400,
+        alt: "바로폼 설문 플랫폼",
+        type: "image/png",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: defaultSiteTitle,
     description: defaultSiteDescription,
+    images: [defaultOpenGraphImagePath],
   },
   icons: {
     icon: "/favicon.svg",

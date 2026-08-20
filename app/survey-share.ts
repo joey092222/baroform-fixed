@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 
-export const defaultSiteUrl = "https://baroform-fixed.vercel.app";
-export const defaultSiteTitle = "바로폼 | 우리 학교 설문 플랫폼";
+const localSiteUrl = "http://localhost:3000";
+const maximumShareDescriptionLength = 110;
+
+export const defaultOpenGraphImagePath = "/og/baroform-default.png";
+export const defaultSiteTitle = "바로폼 | 설문을 쉽고 빠르게";
 export const defaultSiteDescription =
-  "학교 안의 설문을 발견하고, 한 문장으로 설문을 만들고, 결과까지 바로 분석하세요.";
+  "문항 설계부터 응답 수집과 결과 확인까지, 바로폼에서 간편하게 진행하세요.";
 
 export type SurveyShareMetadataSource = {
   slug: string;
@@ -17,12 +20,22 @@ export type SurveyShareMetadataSource = {
   createdAt?: string | null;
 };
 
-function cleanShareText(value: string | null | undefined, maximum: number) {
+export function cleanShareText(
+  value: string | null | undefined,
+  maximum: number,
+) {
   return (value ?? "")
+    .replace(/<[^>]*>/g, " ")
     .replace(/[\u0000-\u001f\u007f]/g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, maximum);
+}
+
+function truncateShareText(value: string, maximum: number) {
+  const characters = Array.from(value);
+  if (characters.length <= maximum) return value;
+  return `${characters.slice(0, Math.max(1, maximum - 1)).join("").trimEnd()}…`;
 }
 
 function sentence(value: string) {
@@ -31,21 +44,47 @@ function sentence(value: string) {
 }
 
 export function getSiteUrl() {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (!configured) return new URL(defaultSiteUrl);
+  const vercelHostname =
+    process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim() ||
+    process.env.VERCEL_URL?.trim();
+  const candidates = [
+    process.env.NEXT_PUBLIC_SITE_URL?.trim(),
+    vercelHostname
+      ? /^https?:\/\//i.test(vercelHostname)
+        ? vercelHostname
+        : `https://${vercelHostname}`
+      : undefined,
+  ];
+  const isHosted =
+    process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV);
 
-  try {
-    const url = new URL(configured);
-    if (url.protocol !== "https:" && url.protocol !== "http:") {
-      return new URL(defaultSiteUrl);
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    try {
+      const url = new URL(candidate);
+      if (url.protocol !== "https:" && url.protocol !== "http:") continue;
+      if (
+        isHosted &&
+        (url.hostname === "localhost" || url.hostname === "127.0.0.1")
+      ) {
+        continue;
+      }
+      url.pathname = "/";
+      url.search = "";
+      url.hash = "";
+      return url;
+    } catch {
+      // Try the next deploy-provided URL before using the local fallback.
     }
-    url.pathname = "/";
-    url.search = "";
-    url.hash = "";
-    return url;
-  } catch {
-    return new URL(defaultSiteUrl);
   }
+
+  if (isHosted) {
+    throw new Error(
+      "NEXT_PUBLIC_SITE_URL must be a public HTTP(S) URL in hosted environments.",
+    );
+  }
+
+  return new URL(localSiteUrl);
 }
 
 export function surveySharePath(shareToken: string) {
@@ -56,36 +95,68 @@ export function surveyCanonicalUrl(shareToken: string) {
   return new URL(surveySharePath(shareToken), getSiteUrl()).toString();
 }
 
+export function surveyOpenGraphImagePath(shareToken: string) {
+  return `/api/og/survey/${encodeURIComponent(shareToken)}`;
+}
+
 export function surveyOpenGraphImageUrl(
   survey: Pick<SurveyShareMetadataSource, "slug" | "updatedAt" | "createdAt">,
 ) {
-  const url = new URL(`${surveySharePath(survey.slug)}/opengraph-image`, getSiteUrl());
+  const url = new URL(
+    surveyOpenGraphImagePath(survey.slug),
+    getSiteUrl(),
+  );
   const version = survey.updatedAt || survey.createdAt;
   if (version) url.searchParams.set("v", version);
   return url.toString();
 }
 
+export function defaultOpenGraphImageUrl() {
+  return new URL(defaultOpenGraphImagePath, getSiteUrl()).toString();
+}
+
+export function buildSurveyShareSummary(
+  survey: SurveyShareMetadataSource,
+) {
+  const suppliedDescription = cleanShareText(survey.description, 320);
+  const title = cleanShareText(survey.title, 160) || "공개 설문";
+
+  return suppliedDescription
+    ? sentence(suppliedDescription)
+    : sentence(`${title}에 관한 의견을 모으는 설문입니다`);
+}
+
 export function buildSurveyShareDescription(
   survey: SurveyShareMetadataSource,
 ) {
-  const suppliedDescription = cleanShareText(survey.description, 132);
   const audience = cleanShareText(survey.targetAudience, 64);
-  const title = cleanShareText(survey.title, 92);
-  const base = suppliedDescription
-    ? sentence(suppliedDescription)
-    : audience
-      ? `${audience} 대상 설문입니다. ${sentence(`${title}에 관한 의견을 모아요`)}`
-      : sentence(`${title}에 관한 의견을 모으는 설문입니다`);
   const duration = Math.max(1, Math.round(survey.durationMinutes || 1));
   const questionCount = Math.max(1, Math.round(survey.questionCount || 1));
+  const details = [
+    audience ? `${audience} 대상` : "",
+    `약 ${duration}분`,
+    `${questionCount}문항`,
+  ].filter(Boolean);
+  const suffix = ` · ${details.join(" · ")}`;
+  const summaryBudget = Math.max(
+    36,
+    maximumShareDescriptionLength - Array.from(suffix).length,
+  );
+  const summary = truncateShareText(
+    buildSurveyShareSummary(survey),
+    summaryBudget,
+  );
 
-  return `${base} 약 ${duration}분 · ${questionCount}문항`;
+  return truncateShareText(
+    `${summary}${suffix}`,
+    maximumShareDescriptionLength,
+  );
 }
 
 export function buildSurveyMetadata(
   survey: SurveyShareMetadataSource,
 ): Metadata {
-  const surveyTitle = cleanShareText(survey.title, 100) || "공개 설문";
+  const surveyTitle = cleanShareText(survey.title, 160) || "공개 설문";
   const title = `${surveyTitle} | 바로폼`;
   const description = buildSurveyShareDescription(survey);
   const canonical = surveyCanonicalUrl(survey.slug);
@@ -96,16 +167,17 @@ export function buildSurveyMetadata(
     description,
     alternates: { canonical },
     openGraph: {
-      title,
+      title: surveyTitle,
       description,
       type: "website",
       siteName: "바로폼",
+      locale: "ko_KR",
       url: canonical,
       images: [
         {
           url: image,
-          width: 1200,
-          height: 630,
+          width: 800,
+          height: 400,
           alt: `${surveyTitle} 설문 미리보기`,
           type: "image/png",
         },
@@ -113,7 +185,7 @@ export function buildSurveyMetadata(
     },
     twitter: {
       card: "summary_large_image",
-      title,
+      title: surveyTitle,
       description,
       images: [image],
     },
@@ -125,10 +197,9 @@ export function buildSurveyMetadata(
 }
 
 export function buildUnavailableSurveyMetadata(shareToken?: string): Metadata {
+  void shareToken;
   const siteUrl = getSiteUrl().toString();
-  const image = shareToken
-    ? new URL(`${surveySharePath(shareToken)}/opengraph-image`, getSiteUrl()).toString()
-    : undefined;
+  const image = defaultOpenGraphImageUrl();
   return {
     title: defaultSiteTitle,
     description: defaultSiteDescription,
@@ -138,16 +209,23 @@ export function buildUnavailableSurveyMetadata(shareToken?: string): Metadata {
       description: defaultSiteDescription,
       type: "website",
       siteName: "바로폼",
+      locale: "ko_KR",
       url: siteUrl,
-      images: image
-        ? [{ url: image, width: 1200, height: 630, alt: "바로폼 설문 플랫폼" }]
-        : undefined,
+      images: [
+        {
+          url: image,
+          width: 800,
+          height: 400,
+          alt: "바로폼 설문 플랫폼",
+          type: "image/png",
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",
       title: defaultSiteTitle,
       description: defaultSiteDescription,
-      images: image ? [image] : undefined,
+      images: [image],
     },
     robots: {
       index: false,
@@ -159,7 +237,7 @@ export function buildUnavailableSurveyMetadata(shareToken?: string): Metadata {
 export function fitOpenGraphTitle(title: string) {
   const clean = cleanShareText(title, 80) || "학생들의 의견을 모으는 설문";
   const characters = Array.from(clean);
-  const maximumPerLine = 22;
+  const maximumPerLine = 20;
   const maximumCharacters = maximumPerLine * 2;
   const visible = characters.slice(0, maximumCharacters);
   const truncated = characters.length > maximumCharacters;
@@ -167,6 +245,24 @@ export function fitOpenGraphTitle(title: string) {
   let second = visible.slice(maximumPerLine).join("");
 
   if (truncated) {
+    second = `${Array.from(second).slice(0, maximumPerLine - 1).join("")}…`;
+  }
+
+  return second ? [first, second] : [first];
+}
+
+export function fitOpenGraphDescription(description: string) {
+  const clean = cleanShareText(description, 160);
+  if (!clean) return [];
+
+  const characters = Array.from(clean);
+  const maximumPerLine = 35;
+  const maximumCharacters = maximumPerLine * 2;
+  const visible = characters.slice(0, maximumCharacters);
+  const first = visible.slice(0, maximumPerLine).join("");
+  let second = visible.slice(maximumPerLine).join("");
+
+  if (characters.length > maximumCharacters) {
     second = `${Array.from(second).slice(0, maximumPerLine - 1).join("")}…`;
   }
 
