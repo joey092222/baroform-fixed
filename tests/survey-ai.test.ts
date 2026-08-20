@@ -4092,6 +4092,56 @@ test("복구 가능한 척도 metadata는 이동 비교 설문의 정상 문항�
   assert.ok(diagnostics.preservedQuestionIds.length > 0);
 });
 
+test("선택지와 scale이 충돌한 구조화 문항은 해당 문항만 부분 수리한다", () => {
+  const prompt = "별마루 카페 이용자의 카페 전체 만족도";
+  const payload = structuredPayloadForRegressionPrompt(prompt);
+  const invalidQuestion = payload.output_parsed.survey.questions[3]!;
+  invalidQuestion.type = "single_choice";
+  invalidQuestion.options = [
+    {
+      id: "only-choice",
+      label: "보통",
+      exclusive: false,
+      fixed_position: false,
+      allows_text: false,
+    },
+  ];
+  invalidQuestion.scale = {
+    min: 1,
+    max: 5,
+    min_label: "전혀 만족하지 않음",
+    max_label: "매우 만족함",
+  };
+  const trace = createSurveyGenerationTrace("recover-choice-scale-conflict");
+
+  const result = parseSurveyDraftResponse(
+    payload,
+    prompt,
+    7,
+    "전학년",
+    false,
+    trace,
+  );
+  const diagnostics = surveyGenerationTraceSnapshot(trace);
+
+  assert.match(result.status, /^ready/u);
+  assert.equal(diagnostics.generationSource, "openai_partial_repair");
+  assert.equal(diagnostics.fallbackCount, 0);
+  assert.deepEqual(diagnostics.repairedQuestionIds, ["4"]);
+  assert.equal(diagnostics.preservedQuestionIds.length, 6);
+  if (result.status === "needs_clarification") {
+    assert.fail("복구 가능한 문항 구조 오류가 clarification으로 바뀌면 안 됩니다.");
+  }
+  assert.equal(result.blueprint.aiQuestions.length, 7);
+  assert.ok(
+    result.blueprint.aiQuestions.every(
+      (question) =>
+        !["single", "multiple", "dropdown"].includes(question.type) ||
+        (question.options?.length ?? 0) >= 2,
+    ),
+  );
+});
+
 test("처음 보는 서비스 설문의 중복 선택지는 해당 문항만 부분 수리한다", () => {
   const prompt = "다온 학습 플랫폼을 사용하는 푸른대학교 학생의 이용 빈도와 개선 수요";
   const payload = structuredPayloadForRegressionPrompt(prompt);

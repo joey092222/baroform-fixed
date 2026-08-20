@@ -778,7 +778,11 @@ function naturalQuestionTitle(
   }
 }
 
-function normalizeQuestion(value: unknown, id: number): SurveyQuestion {
+function normalizeQuestion(
+  value: unknown,
+  id: number,
+  policy: { allowRecoverableChoiceIssue?: boolean } = {},
+): SurveyQuestion {
   if (!isRecord(value)) throw new Error("AI 질문 형식이 올바르지 않습니다.");
   const type = cleanText(value.type, 20) as SurveyQuestion["type"];
   if (
@@ -809,7 +813,8 @@ function normalizeQuestion(value: unknown, id: number): SurveyQuestion {
     .slice(0, 12);
   if (
     (type === "single" || type === "multiple" || type === "dropdown") &&
-    options.length < 2
+    options.length < 2 &&
+    !policy.allowRecoverableChoiceIssue
   ) {
     throw new Error("AI 객관식 선택지가 부족합니다.");
   }
@@ -2418,7 +2423,9 @@ export function parseSurveyDraftResponse(
   const normalizedAiQuestions = Array.isArray(result.aiQuestions)
     ? result.aiQuestions.map((item, index) => {
         try {
-          return normalizeQuestion(item, index + 1);
+          return normalizeQuestion(item, index + 1, {
+            allowRecoverableChoiceIssue: structuredGeneration !== null,
+          });
         } catch (error) {
           const questionId = isRecord(item)
             ? cleanText(item.id, 120) || index + 1
