@@ -15,13 +15,19 @@ import {
 } from "../evals/survey-regression/v1/dataset-utils";
 import {
   assertNoSecrets,
+  classifySurveyQuestionRole,
   classifyGenerationPath,
   evaluateSemanticResult,
+  validateScreeningQuestionPosition,
 } from "../evals/survey-regression/v1/evaluation";
+import {
+  PreviewTransportError,
+  resolveVercelCurlProcessResult,
+  withPreviewTransportRetry,
+} from "../evals/survey-regression/v1/preview-transport";
 import {
   assertWithinModelCallCap,
   liveEvaluationConcurrency,
-  liveEvaluationCostCapUsd,
   liveEvaluationModelCallCap,
   nextInfrastructureErrorCount,
   pendingCases,
@@ -87,10 +93,21 @@ type UsageLog = {
 };
 
 type BlueprintQuestion = {
+  id?: unknown;
   title?: unknown;
   type?: unknown;
   options?: unknown;
   reason?: unknown;
+  role?: unknown;
+  measuredRole?: unknown;
+  planBlockId?: unknown;
+  purposeBlockId?: unknown;
+  measuredVariable?: unknown;
+  measuredEntityIds?: unknown;
+  questionPurpose?: unknown;
+  showIf?: unknown;
+  show_if?: unknown;
+  disqualifiesRespondent?: unknown;
 };
 
 type Blueprint = {
@@ -180,6 +197,19 @@ function parseArguments() {
   };
 }
 
+function conditionQuestionIds(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    const condition = record(item);
+    if (!condition) return [];
+    const id =
+      condition.questionId ?? condition.question_id ?? condition.question;
+    return typeof id === "string" || typeof id === "number"
+      ? [String(id)]
+      : [];
+  });
+}
+
 let previewAccessCookies: string | null = null;
 
 function setCookiePairs(headers: Headers) {
@@ -228,17 +258,30 @@ async function directPreviewRequest(
   const baseUrl = /^https?:\/\//u.test(args.deployment)
     ? args.deployment
     : `https://${args.deployment}`;
-  const response = await fetch(new URL(path, baseUrl), {
-    method,
-    redirect: "manual",
-    headers: {
-      cookie: previewAccessCookies ?? "",
-      ...(body === undefined ? {} : { "content-type": "application/json" }),
-    },
-    body,
-  });
+  let response: Response;
+  try {
+    response = await fetch(new URL(path, baseUrl), {
+      method,
+      redirect: "manual",
+      headers: {
+        cookie: previewAccessCookies ?? "",
+        ...(body === undefined ? {} : { "content-type": "application/json" }),
+      },
+      body,
+    });
+  } catch {
+    throw new PreviewTransportError({
+      kind: "environment_transport_failure",
+      safeCode: "PREVIEW_DIRECT_CONNECTION_FAILURE",
+      retryable: true,
+    });
+  }
   if (response.status >= 300 && response.status < 400) {
-    throw new Error("PREVIEW_ACCESS_NOT_AUTHENTICATED");
+    throw new PreviewTransportError({
+      kind: "environment_auth_failure",
+      safeCode: "PREVIEW_ACCESS_NOT_AUTHENTICATED",
+      retryable: false,
+    });
   }
   return response;
 }
@@ -404,6 +447,7 @@ async function vercelPreviewRequest(
   path: string,
   method: "GET" | "POST",
   body?: string,
+  options: { onTransportRetry?: () => void } = {},
 ) {
   if (
     !args.deployment ||
@@ -412,8 +456,92 @@ async function vercelPreviewRequest(
   ) {
     throw new Error("REMOTE_PREVIEW_NOT_CONFIGURED");
   }
-  if (args.previewShareUrl) {
-    const response = await directPreviewRequest(path, method, body);
+  const requestOnce = async () => {
+    if (args.previewShareUrl) {
+      return directPreviewRequest(path, method, body);
+    }
+    if (!args.vercelPnpm) throw new Error("VERCEL_PNPM_REQUIRED");
+    const commandArguments = [
+      "dlx",
+      "vercel@59.1.3",
+      "curl",
+      path,
+      "--deployment",
+      args.deployment!,
+      "--json",
+      "--",
+      "--request",
+      method,
+      "--silent",
+      "--show-error",
+      "--include",
+    ];
+    if (body !== undefined) {
+      commandArguments.push(
+        "--header",
+        "content-type: application/json",
+        "--data-binary",
+        body,
+      );
+    }
+    const output = await new Promise<string>((resolveOutput, reject) => {
+      const pnpmDirectory = dirname(args.vercelPnpm!);
+      const executable = process.platform === "win32"
+        ? resolve(pnpmDirectory, "../../node/bin/node.exe")
+        : args.vercelPnpm!;
+      const executableArguments = process.platform === "win32"
+        ? [
+            resolve(pnpmDirectory, "../../node/node_modules/pnpm/bin/pnpm.mjs"),
+            ...commandArguments,
+          ]
+        : commandArguments;
+      const child = spawn(executable, executableArguments, {
+        cwd: process.cwd(),
+        env: process.env,
+        windowsHide: true,
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      let stdout = "";
+      let stderr = "";
+      child.stdout.setEncoding("utf8");
+      child.stdout.on("data", (chunk: string) => {
+        stdout += chunk;
+      });
+      child.stderr.setEncoding("utf8");
+      child.stderr.on("data", (chunk: string) => {
+        if (stderr.length < 16_384) stderr += chunk.slice(0, 16_384 - stderr.length);
+      });
+      child.on("error", () =>
+        reject(
+          new PreviewTransportError({
+            kind: "environment_transport_failure",
+            safeCode: "VERCEL_CURL_SPAWN_FAILED",
+            retryable: true,
+          }),
+        ),
+      );
+      child.on("close", (code) => {
+        try {
+          resolveOutput(
+            resolveVercelCurlProcessResult({
+              exitCode: code,
+              stdout,
+              stderr,
+            }),
+          );
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+    return parseVercelCurlResponse(output);
+  };
+  const attempted = await withPreviewTransportRetry(requestOnce, {
+    maximumRetries: 1,
+    onRetry: options.onTransportRetry,
+  });
+  const response = attempted.value;
+  {
     const buildSha = response.headers.get("x-baroform-build-sha");
     const environment = response.headers.get("x-baroform-environment");
     const branch = response.headers.get("x-baroform-git-branch");
@@ -428,73 +556,6 @@ async function vercelPreviewRequest(
     }
     return response;
   }
-  if (!args.vercelPnpm) throw new Error("VERCEL_PNPM_REQUIRED");
-  const commandArguments = [
-    "dlx",
-    "vercel@59.1.3",
-    "curl",
-    path,
-    "--deployment",
-    args.deployment,
-    "--json",
-    "--",
-    "--request",
-    method,
-    "--silent",
-    "--show-error",
-    "--include",
-  ];
-  if (body !== undefined) {
-    commandArguments.push(
-      "--header",
-      "content-type: application/json",
-      "--data-binary",
-      body,
-    );
-  }
-  const output = await new Promise<string>((resolveOutput, reject) => {
-    const pnpmDirectory = dirname(args.vercelPnpm!);
-    const executable = process.platform === "win32"
-      ? resolve(pnpmDirectory, "../../node/bin/node.exe")
-      : args.vercelPnpm!;
-    const executableArguments = process.platform === "win32"
-      ? [
-          resolve(pnpmDirectory, "../../node/node_modules/pnpm/bin/pnpm.mjs"),
-          ...commandArguments,
-        ]
-      : commandArguments;
-    const child = spawn(executable, executableArguments, {
-      cwd: process.cwd(),
-      env: process.env,
-      windowsHide: true,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let stdout = "";
-    child.stdout.setEncoding("utf8");
-    child.stdout.on("data", (chunk: string) => {
-      stdout += chunk;
-    });
-    child.stderr.resume();
-    child.on("error", () => reject(new Error("VERCEL_CURL_SPAWN_FAILED")));
-    child.on("close", (code) => {
-      if (code === 0) resolveOutput(stdout);
-      else reject(new Error(`VERCEL_CURL_EXIT_${code ?? "UNKNOWN"}`));
-    });
-  });
-  const response = parseVercelCurlResponse(output);
-  const buildSha = response.headers.get("x-baroform-build-sha");
-  const environment = response.headers.get("x-baroform-environment");
-  const branch = response.headers.get("x-baroform-git-branch");
-  if (buildSha !== args.expectedBuildSha) {
-    throw new Error(`REMOTE_BUILD_SHA_MISMATCH:${buildSha ?? "missing"}`);
-  }
-  if (environment !== "preview") {
-    throw new Error(`REMOTE_ENVIRONMENT_NOT_PREVIEW:${environment ?? "missing"}`);
-  }
-  if (branch !== args.expectedBranch) {
-    throw new Error(`REMOTE_BRANCH_MISMATCH:${branch ?? "missing"}`);
-  }
-  return response;
 }
 
 console.info = (...args: unknown[]) => {
@@ -526,6 +587,7 @@ async function responseBody(response: Response) {
 async function pollBackground(
   responseId: string,
   jobToken: string,
+  options: { onTransportRetry?: () => void } = {},
 ) {
   const deadline = Date.now() + 320_000;
   while (Date.now() < deadline) {
@@ -537,6 +599,8 @@ async function pollBackground(
       ? await vercelPreviewRequest(
           `/api/survey-draft?responseId=${encodeURIComponent(responseId)}&jobToken=${encodeURIComponent(jobToken)}`,
           "GET",
+          undefined,
+          options,
         )
       : await pollSurveyDraft(
           new Request(url, {
@@ -557,10 +621,28 @@ function blueprintQuestions(blueprint: Blueprint | null) {
     ? blueprint?.aiQuestions as BlueprintQuestion[]
     : [];
   return raw.map((item) => ({
+    id: text(item.id) || null,
     title: text(item.title),
     type: text(item.type) || null,
     options: strings(item.options),
     reason: text(item.reason) || null,
+    role: text(item.role) || null,
+    measuredRole: text(item.measuredRole) || null,
+    planBlockId: text(item.planBlockId) || null,
+    purposeBlockId: text(item.purposeBlockId) || null,
+    measuredVariable: text(item.measuredVariable) || null,
+    measuredEntityIds: strings(item.measuredEntityIds),
+    questionPurpose: text(item.questionPurpose) || null,
+    showIfQuestionIds: [
+      ...new Set([
+        ...conditionQuestionIds(item.showIf),
+        ...conditionQuestionIds(item.show_if),
+      ]),
+    ],
+    disqualifiesRespondent:
+      typeof item.disqualifiesRespondent === "boolean"
+        ? item.disqualifiesRespondent
+        : null,
   })).filter((item) => item.title);
 }
 
@@ -570,6 +652,10 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
   let finalResponse: Response | null = null;
   let finalBody: Record<string, unknown> = {};
   let finalTrace: TraceSnapshot = {};
+  let transportRetryCount = 0;
+  const onTransportRetry = () => {
+    transportRetryCount += 1;
+  };
   try {
     const payload = JSON.stringify({
       prompt: testCase.input,
@@ -580,7 +666,9 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
       references: { images: [], files: [], links: [] },
     });
     const initialResponse = args.remotePreview
-      ? await vercelPreviewRequest("/api/survey-draft", "POST", payload)
+      ? await vercelPreviewRequest("/api/survey-draft", "POST", payload, {
+          onTransportRetry,
+        })
       : await createSurveyDraft(
       new Request("http://localhost/api/survey-draft", {
         method: "POST",
@@ -606,7 +694,9 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
       const responseId = text(initialBody.responseId);
       const jobToken = text(initialBody.jobToken);
       if (!responseId || !jobToken) throw new Error("BACKGROUND_JOB_CONTRACT_INVALID");
-      const polled = await pollBackground(responseId, jobToken);
+      const polled = await pollBackground(responseId, jobToken, {
+        onTransportRetry,
+      });
       finalResponse = polled.response;
       finalBody = polled.body;
       const finalRequestId = text(finalBody.requestId);
@@ -671,6 +761,7 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
       repairCount,
       fallbackCount,
       retryCount: numberValue(usage.retryCount),
+      transportRetryCount,
       fallbackReason,
       normalizedMetadataPaths,
       questionsBeforeRepairHash: text(finalTrace.questionsBeforeRepairHash) || null,
@@ -695,6 +786,22 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
       title: text(blueprint?.title) || null,
       description: text(blueprint?.description) || null,
       questions,
+      screeningClassification: questions.map((question, index) => ({
+        questionId: question.id ?? String(index + 1),
+        role: classifySurveyQuestionRole(question),
+      })),
+      screeningPositionIssue: (() => {
+        const positionIssue = validateScreeningQuestionPosition(questions);
+        return positionIssue
+          ? {
+              entryQuestionId: positionIssue.entryQuestionId,
+              dependentQuestionIds: positionIssue.dependentQuestionIds,
+            }
+          : null;
+      })(),
+      reorderedQuestionIds: [],
+      branchReferencesRemapped: false,
+      transportFailureCode: null,
       questionsBeforePostprocess: strings(finalTrace.questionsBeforePostprocess),
       schemaIssues: [
         ...strings(finalTrace.schemaIssueCodes),
@@ -750,6 +857,7 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
       repairCount: numberValue(trace.repairCount),
       fallbackCount: numberValue(trace.fallbackCount),
       retryCount: numberValue(usage.retryCount),
+      transportRetryCount,
       fallbackReason: text(trace.fallbackReason) || null,
       normalizedMetadataPaths: strings(trace.normalizedInternalMetadataPaths),
       questionsBeforeRepairHash: text(trace.questionsBeforeRepairHash) || null,
@@ -769,6 +877,12 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
       title: null,
       description: null,
       questions: [],
+      screeningClassification: [],
+      screeningPositionIssue: null,
+      reorderedQuestionIds: [],
+      branchReferencesRemapped: false,
+      transportFailureCode:
+        error instanceof PreviewTransportError ? error.safeCode : null,
       questionsBeforePostprocess: strings(trace.questionsBeforePostprocess),
       schemaIssues: strings(trace.schemaIssueCodes),
       semanticIssues: strings(trace.semanticViolationCodes),
@@ -790,14 +904,25 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
     const classification = classifyGenerationPath({
       ...base,
       outputParsed: base.responseDiagnostics.outputParsed,
+      transportFailureKind:
+        error instanceof PreviewTransportError ? error.kind : null,
     });
     const semantic = evaluateSemanticResult(testCase, { ...base, classification });
-    semantic.fatalFailures.unshift({
-      code: "REQUEST_FAILURE",
-      message: error instanceof Error ? `${error.name}:${error.message}` : "UnknownError",
-      cluster: "request_transport",
-      fatal: true,
-    });
+    if (error instanceof PreviewTransportError) {
+      semantic.warnings.unshift({
+        code: error.safeCode,
+        message: "Preview 전송 계층에서 요청이 서버에 도달하기 전에 실패함",
+        cluster: "request_transport",
+        fatal: false,
+      });
+    } else {
+      semantic.fatalFailures.unshift({
+        code: "REQUEST_FAILURE",
+        message: error instanceof Error ? `${error.name}:${error.message}` : "UnknownError",
+        cluster: "request_transport",
+        fatal: true,
+      });
+    }
     return { ...base, classification, ...semantic };
   }
 }
@@ -859,11 +984,6 @@ if (requestedCaseIds.size > 0 && selectedCases.length !== requestedCaseIds.size)
   throw new Error(`UNKNOWN_OR_FILTERED_CASE_IDS:${missing.join(",")}`);
 }
 const projection = projectLiveEvaluationCost(selectedCases);
-if (!projection.withinCap) {
-  throw new Error(
-    `LIVE_EVAL_COST_CAP_EXCEEDED:${projection.projectedCostUsd.toFixed(6)}:${liveEvaluationCostCapUsd}`,
-  );
-}
 
 const artifactDirectory = resolve(
   root,
@@ -892,26 +1012,51 @@ checkpoint.completedCaseIds = [
 ];
 checkpoint.caseSummaries = results.map(checkpointCaseSummary);
 const pending = pendingCases(selectedCases, checkpoint);
+const effectiveConcurrency =
+  args.remotePreview && !args.previewShareUrl ? 1 : liveEvaluationConcurrency;
 
 try {
-  for (let index = 0; index < pending.length; index += liveEvaluationConcurrency) {
+  for (let index = 0; index < pending.length; index += effectiveConcurrency) {
     if (checkpoint.modelCallsIncludingRetries >= liveEvaluationModelCallCap) {
       throw new Error(
         `LIVE_EVAL_MODEL_CALL_CAP_REACHED:${checkpoint.modelCallsIncludingRetries}:${liveEvaluationModelCallCap}`,
       );
     }
-    const costBeforeBatch = results.reduce(
-      (sum, item) => sum + item.estimatedCostUsd + item.webSearchCalls * (10 / 1_000),
-      0,
-    );
-    if (costBeforeBatch >= liveEvaluationCostCapUsd) {
-      throw new Error(
-        `LIVE_EVAL_COST_CAP_REACHED:${costBeforeBatch.toFixed(6)}:${liveEvaluationCostCapUsd}`,
-      );
-    }
-    const batch = pending.slice(index, index + liveEvaluationConcurrency);
+    const batch = pending.slice(index, index + effectiveConcurrency);
     const batchResults = await Promise.all(batch.map(executeCase));
     for (const result of batchResults) {
+      if (
+        result.classification === "environment_transport_failure" ||
+        result.classification === "environment_auth_failure"
+      ) {
+        if (checkpoint.environmentFailureCaseIds.includes(result.caseId)) {
+          throw new Error(`LIVE_EVAL_DUPLICATE_ENVIRONMENT_CASE:${result.caseId}`);
+        }
+        checkpoint.environmentFailureCaseIds.push(result.caseId);
+        checkpoint.environmentFailureSummaries.push({
+          caseId: result.caseId,
+          classification: result.classification,
+          safeCode: result.transportFailureCode ?? null,
+          transportRetryCount: result.transportRetryCount ?? 0,
+        });
+        checkpoint.consecutiveInfrastructureErrors += 1;
+        const transportDirectory = resolve(
+          artifactDirectory,
+          "transport-failures",
+        );
+        await mkdir(transportDirectory, { recursive: true });
+        const transportPayload = `${JSON.stringify(result, null, 2)}\n`;
+        assertNoSecrets(transportPayload);
+        await writeFile(
+          resolve(transportDirectory, `${result.caseId}.json`),
+          transportPayload,
+        );
+        if (checkpoint.consecutiveInfrastructureErrors >= 3) {
+          await writeCheckpoint(checkpointPath, checkpoint);
+          throw new Error("LIVE_EVAL_THREE_CONSECUTIVE_INFRASTRUCTURE_ERRORS");
+        }
+        continue;
+      }
       if (
         args.remotePreview &&
         checkpoint.completedCaseIds.length === 0 &&
@@ -949,15 +1094,6 @@ try {
         result,
       );
       assertWithinModelCallCap(checkpoint.modelCallsIncludingRetries);
-      const cumulativeEstimatedCostUsd = results.reduce(
-        (sum, item) => sum + item.estimatedCostUsd + item.webSearchCalls * (10 / 1_000),
-        0,
-      );
-      if (cumulativeEstimatedCostUsd > liveEvaluationCostCapUsd) {
-        throw new Error(
-          `LIVE_EVAL_COST_CAP_REACHED:${cumulativeEstimatedCostUsd.toFixed(6)}:${liveEvaluationCostCapUsd}`,
-        );
-      }
       const casePayload = `${JSON.stringify(result, null, 2)}\n`;
       assertNoSecrets(casePayload);
       await writeFile(resolve(artifactDirectory, "cases", `${result.caseId}.json`), casePayload);
@@ -990,6 +1126,7 @@ process.stdout.write(
       environment,
       attemptedCases: selectedCases.length,
       completedCases: checkpoint.completedCaseIds.length,
+      environmentFailureCases: checkpoint.environmentFailureCaseIds.length,
       modelCallsIncludingRetries: checkpoint.modelCallsIncludingRetries,
       projectedCostUsd: projection.projectedCostUsd,
       actualEstimatedCostUsd: results.reduce((sum, item) => sum + item.estimatedCostUsd, 0),

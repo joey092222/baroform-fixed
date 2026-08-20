@@ -142,7 +142,7 @@ test("checkpoint는 완료 사례를 재실행 목록에서 제외한다", async
     }];
     checkpoint.modelCallsIncludingRetries = 2;
     await writeCheckpoint(path, checkpoint);
-    const restored = await readCheckpoint(path, "test-run");
+  const restored = await readCheckpoint(path, "test-run");
     assert.deepEqual(restored.completedCaseIds, [...checkpoint.completedCaseIds].sort());
     assert.deepEqual(restored.caseSummaries, checkpoint.caseSummaries);
     assert.deepEqual(
@@ -154,16 +154,42 @@ test("checkpoint는 완료 사례를 재실행 목록에서 제외한다", async
   }
 });
 
-test("실평가 비용은 현재 기준에서 상한 이내이고 과도한 추정은 차단된다", () => {
+test("실평가 비용을 예측하되 승인된 인증 실행에는 금액 상한을 적용하지 않는다", () => {
   const projection = projectLiveEvaluationCost(allCases);
   assert.equal(projection.withinCap, true);
+  assert.equal(projection.capUsd, null);
   assert.equal(projection.estimatedWebSearchCostUsd, 1);
-  assert.ok(projection.projectedCostUsd < liveEvaluationCostCapUsd);
+  assert.equal(liveEvaluationCostCapUsd, null);
+  assert.ok(projection.projectedCostUsd > 0);
   const excessive = projectLiveEvaluationCost(allCases, {
     averageInputTokens: 500_000,
     averageOutputTokens: 100_000,
   });
-  assert.equal(excessive.withinCap, false);
+  assert.equal(excessive.withinCap, true);
+});
+
+test("환경 전송 실패는 같은 run에서 완료나 재실행 대상으로 처리하지 않는다", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "baroform-regression-env-"));
+  const path = join(directory, "checkpoint.json");
+  try {
+    const checkpoint = emptyCheckpoint("transport-run");
+    checkpoint.environmentFailureCaseIds = [devCases[0].id];
+    checkpoint.environmentFailureSummaries = [{
+      caseId: devCases[0].id,
+      classification: "environment_transport_failure",
+      safeCode: "VERCEL_CURL_EXIT_1",
+      transportRetryCount: 1,
+    }];
+    await writeCheckpoint(path, checkpoint);
+    const restored = await readCheckpoint(path, "transport-run");
+    assert.deepEqual(restored.completedCaseIds, []);
+    assert.deepEqual(
+      pendingCases(devCases.slice(0, 2), restored).map((item) => item.id),
+      [devCases[1].id],
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("secret redaction이 API key와 Authorization을 감춘다", () => {

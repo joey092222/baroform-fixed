@@ -4,8 +4,11 @@ import { openAiPricing } from "../../../app/lib/ai/openai-runtime";
 import { resolveSurveyGenerationModel } from "../../../app/lib/ai/model-router";
 import type { SurveyRegressionCase, SurveyRegressionResult } from "./schema";
 
-export const liveEvaluationCostCapUsd = 100;
-export const liveEvaluationModelCallCap = 150;
+// The user explicitly approved the complete certification run without a dollar
+// ceiling. Keep the projection for observability, while the model-call circuit
+// breaker remains the hard guard against duplicate or runaway execution.
+export const liveEvaluationCostCapUsd: number | null = null;
+export const liveEvaluationModelCallCap = 300;
 export const liveEvaluationConcurrency = 2;
 
 export type LiveCheckpointCaseSummary = {
@@ -30,6 +33,15 @@ export type LiveCheckpoint = {
   caseSummaries: LiveCheckpointCaseSummary[];
   modelCallsIncludingRetries: number;
   consecutiveInfrastructureErrors: number;
+  environmentFailureCaseIds: string[];
+  environmentFailureSummaries: Array<{
+    caseId: string;
+    classification:
+      | "environment_transport_failure"
+      | "environment_auth_failure";
+    safeCode: string | null;
+    transportRetryCount: number;
+  }>;
   updatedAt: string;
 };
 
@@ -41,6 +53,8 @@ export function emptyCheckpoint(runId: string): LiveCheckpoint {
     caseSummaries: [],
     modelCallsIncludingRetries: 0,
     consecutiveInfrastructureErrors: 0,
+    environmentFailureCaseIds: [],
+    environmentFailureSummaries: [],
     updatedAt: new Date(0).toISOString(),
   };
 }
@@ -52,6 +66,12 @@ export async function readCheckpoint(path: string, runId: string) {
       throw new Error("CHECKPOINT_VERSION_OR_RUN_ID_MISMATCH");
     }
     parsed.caseSummaries = Array.isArray(parsed.caseSummaries) ? parsed.caseSummaries : [];
+    parsed.environmentFailureCaseIds = Array.isArray(parsed.environmentFailureCaseIds)
+      ? parsed.environmentFailureCaseIds
+      : [];
+    parsed.environmentFailureSummaries = Array.isArray(parsed.environmentFailureSummaries)
+      ? parsed.environmentFailureSummaries
+      : [];
     return parsed;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return emptyCheckpoint(runId);
@@ -66,6 +86,15 @@ export async function writeCheckpoint(path: string, checkpoint: LiveCheckpoint) 
     caseSummaries: [...checkpoint.caseSummaries]
       .sort((left, right) => left.caseId.localeCompare(right.caseId))
       .filter((item, index, values) => index === 0 || values[index - 1].caseId !== item.caseId),
+    environmentFailureCaseIds: [
+      ...new Set(checkpoint.environmentFailureCaseIds),
+    ].sort(),
+    environmentFailureSummaries: [...checkpoint.environmentFailureSummaries]
+      .sort((left, right) => left.caseId.localeCompare(right.caseId))
+      .filter(
+        (item, index, values) =>
+          index === 0 || values[index - 1].caseId !== item.caseId,
+      ),
     updatedAt: new Date().toISOString(),
   };
   await writeFile(path, `${JSON.stringify(safe, null, 2)}\n`, "utf8");
@@ -76,7 +105,10 @@ export function pendingCases(
   checkpoint: LiveCheckpoint,
 ) {
   const completed = new Set(checkpoint.completedCaseIds);
-  return cases.filter((item) => !completed.has(item.id));
+  const environmentFailures = new Set(checkpoint.environmentFailureCaseIds);
+  return cases.filter(
+    (item) => !completed.has(item.id) && !environmentFailures.has(item.id),
+  );
 }
 
 function perCaseCost(
@@ -129,7 +161,7 @@ export function projectLiveEvaluationCost(
     estimatedWebSearchCostUsd,
     projectedCostUsd,
     capUsd: liveEvaluationCostCapUsd,
-    withinCap: projectedCostUsd <= liveEvaluationCostCapUsd,
+    withinCap: true,
   };
 }
 
@@ -142,9 +174,13 @@ export function assertWithinModelCallCap(modelCallsIncludingRetries: number) {
 }
 
 export function isInfrastructureFailure(result: SurveyRegressionResult) {
-  return result.classification === "request_failure" && result.fatalFailures.some((item) =>
-    item.code === "REQUEST_FAILURE" ||
-    /timeout|network|connection|http:429|http:5\d\d/i.test(item.message),
+  return (
+    result.classification === "environment_transport_failure" ||
+    result.classification === "environment_auth_failure" ||
+    (result.classification === "request_failure" &&
+      result.fatalFailures.some((item) =>
+        /timeout|network|connection|http:429|http:5\d\d/i.test(item.message),
+      ))
   );
 }
 
