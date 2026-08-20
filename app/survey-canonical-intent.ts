@@ -391,7 +391,7 @@ type ResolvedComparisonClause = {
 };
 
 const relationalAudienceHead =
-  "(?:학부생|대학원생|재학생|휴학생|대학생|학생|일반인|직장인|취업준비생|구직자|고령층|청년층|청년|성인|사람|교직원|교수|교사|이용자|사용자|소비자|고객|주민|구성원|팀원|참가자|참여자|가입자|가구|학부모|대생|학과생|전공생)";
+  "(?:신입생|졸업생|학부생|대학원생|재학생|휴학생|대학생|학생|일반인|직장인|취업준비생|구직자|고령층|청년층|청소년|청년|성인|사람|교직원|교수|교사|이용자|사용자|소비자|고객|주민|구성원|팀원|참가자|참여자|가입자|보호자|가구|학부모|대생|학과생|전공생)";
 
 const relationalTimeframePattern =
   "(?:(?:최근|지난)\\s+(?:\\d+|한|두|세|네)\\s*(?:일|주|주일|개월|달|학기|년)|(?:이번|지난)\\s*(?:주|달|월|학기|학년도|연도))(?:\\s*(?:간|동안))?";
@@ -437,11 +437,19 @@ function stripPurposeMetric(value: string) {
 }
 
 function activityKindFromQualifier(value: string): SurveyActivityKind | null {
-  if (/참여|참가/.test(value)) return "attend";
+  if (/참여|참가|가입|등록|신청|수강/.test(value)) return "attend";
   if (/구매/.test(value)) return "purchase";
   if (/방문/.test(value)) return "use";
-  if (/이용|사용|쓰|쓴|써/.test(value)) return "use";
+  if (/이용|사용|쓰|쓴|써|구독|시청|탈퇴|해지/.test(value)) return "use";
   return null;
+}
+
+function activityKindFromContext(value: string): SurveyActivityKind {
+  if (/(?:프로그램|행사|축제|모임|클럽|동호회|동아리|수업|강의|교육|과정)$/u.test(value)) {
+    return "attend";
+  }
+  if (/(?:제품|상품|물품)$/u.test(value)) return "purchase";
+  return "use";
 }
 
 function inferredContextParticle(
@@ -464,6 +472,14 @@ function activityPredicate(
   qualifier: string,
   activityKind: SurveyActivityKind | null,
 ) {
+  if (/탈퇴/.test(qualifier)) return "탈퇴";
+  if (/해지/.test(qualifier)) return "해지";
+  if (/가입/.test(qualifier)) return "가입";
+  if (/등록/.test(qualifier)) return "등록";
+  if (/신청/.test(qualifier)) return "신청";
+  if (/수강/.test(qualifier)) return "수강";
+  if (/구독/.test(qualifier)) return "구독";
+  if (/시청/.test(qualifier)) return "시청";
   if (activityKind === "attend") return /참가/.test(qualifier) ? "참가" : "참여";
   if (activityKind === "purchase") return "구매";
   if (/방문/.test(qualifier)) return "방문";
@@ -479,7 +495,7 @@ function resolveQualifiedRespondent(value: string): QualifiedRespondent | null {
     .trim();
   const match = normalized.match(
     new RegExp(
-      `^(${relationalTimeframePattern})?\\s*(.{1,100}?)(을|를|에|에서)?\\s*(${relationalTimeframePattern})?\\s*(이용한|사용한|쓴|써본|방문한|참여한|참가한|구매한|이용하지\\s*않(?:는|은)|사용하지\\s*않(?:는|은)|쓰지\\s*않(?:는|은)|안\\s*(?:쓰는|사용하는|이용하는)|방문하지\\s*않(?:는|은)|참여하지\\s*않(?:는|은)|구매하지\\s*않(?:는|은))\\s+(.*?${relationalAudienceHead})(?:들)?$`,
+      `^(${relationalTimeframePattern})?\\s*(.{1,100}?)(을|를|에|에서)?\\s*(${relationalTimeframePattern})?\\s*(이용한|사용한|쓴|써본|방문한|참여한|참가한|구매한|가입한|등록한|신청한|구독한|시청한|수강한|탈퇴한|해지한|(?:이용|사용|방문|참여|참가|구매|가입|등록|신청|구독|시청|수강)하지\\s*않(?:는|은)|쓰지\\s*않(?:는|은)|안\\s*(?:쓰는|사용하는|이용하는|방문하는|참여하는|참가하는|구매하는|가입하는|등록하는|신청하는|구독하는|시청하는|수강하는|한|하는))\\s+(.*?${relationalAudienceHead})(?:들)?$`,
     ),
   );
   if (!match) return null;
@@ -495,7 +511,8 @@ function resolveQualifiedRespondent(value: string): QualifiedRespondent | null {
   const timeframe = normalize(match[1] ?? match[4] ?? "") || null;
   const qualifier = normalize(match[5]);
   const audienceHead = normalize(match[6]);
-  const activityKind = activityKindFromQualifier(qualifier);
+  const activityKind =
+    activityKindFromQualifier(qualifier) ?? activityKindFromContext(contextText);
   const contextParticle = (explicitParticle ||
     inferredContextParticle(contextText, qualifier, activityKind)) as QualifiedRespondent["contextParticle"];
   const eligibilityActivity = normalize(
@@ -504,9 +521,14 @@ function resolveQualifiedRespondent(value: string): QualifiedRespondent | null {
   const canonicalActivity = ["을", "를"].includes(contextParticle)
     ? normalize(`${contextText} ${activityPredicate(qualifier, activityKind)}`)
     : eligibilityActivity;
-  const negative = /지\s*않|^안\s*/.test(qualifier);
+  const negative = /지\s*않|^안\s*|탈퇴|해지/.test(qualifier);
+  const canonicalQualifier = /^안\s*(?:한|하는)$/u.test(qualifier)
+    ? `${activityPredicate(qualifier, activityKind)}하지 ${/하는$/u.test(qualifier) ? "않는" : "않은"}`
+    : /^안\s*/u.test(qualifier)
+      ? `${/쓰/u.test(qualifier) ? "이용" : activityPredicate(qualifier, activityKind)}하지 않는`
+      : qualifier;
   const qualifiedAudience = normalize(
-    `${timeframe ? `${timeframe} ` : ""}${contextText}${contextParticle} ${qualifier} ${audienceHead}`,
+    `${timeframe ? `${timeframe} ` : ""}${contextText}${contextParticle} ${canonicalQualifier} ${audienceHead}`,
   );
   return {
     audience: qualifiedAudience,
@@ -520,6 +542,132 @@ function resolveQualifiedRespondent(value: string): QualifiedRespondent | null {
     negative,
     timeframe,
     evidence: normalized,
+  };
+}
+
+function normalizedPurposeConstruct(value: string) {
+  const cleaned = normalize(value)
+    .replace(/\s*(?:물어보기|물어보고\s*싶다|알아보기|조사하고\s*싶다|조사|파악)\s*$/u, "")
+    .replace(/^(?:왜|어째서)\s+/u, "")
+    .trim();
+  if (/^(?:이용|사용|구독|시청)하지\s*않(?:는|은)\s*이유$/u.test(cleaned)) {
+    return "비이용 이유";
+  }
+  if (/^(?:참여|참가)하지\s*않(?:는|은)\s*이유$/u.test(cleaned)) {
+    return "비참여 이유";
+  }
+  if (/^구매하지\s*않(?:는|은)\s*이유$/u.test(cleaned)) return "미구매 이유";
+  if (/^(?:가입|등록|신청)하지\s*않(?:는|은)\s*이유$/u.test(cleaned)) {
+    return "미가입 이유";
+  }
+  const negativeReason = cleaned.match(
+    /^(?:왜\s*)?(?:안|못)\s*(쓰|사용|이용|방문|참여|참가|구매|가입|등록|신청|구독|시청|수강)(?:는지|하는지)?$/u,
+  );
+  if (negativeReason) {
+    const predicate = negativeReason[1];
+    if (/쓰|사용|이용|구독|시청/.test(predicate)) return "비이용 이유";
+    if (/참여|참가/.test(predicate)) return "비참여 이유";
+    if (/구매/.test(predicate)) return "미구매 이유";
+    if (/가입|등록|신청/.test(predicate)) return "미가입 이유";
+    if (/방문/.test(predicate)) return "비방문 이유";
+    return "비이용 이유";
+  }
+  if (/^(?:가입|등록|신청)\s*안\s*한\s*이유$/u.test(cleaned)) return "미가입 이유";
+  if (/^(?:참여|참가)\s*안\s*한\s*이유$/u.test(cleaned)) return "비참여 이유";
+  if (/^(?:구매)\s*안\s*한\s*이유$/u.test(cleaned)) return "미구매 이유";
+  if (/^(?:사용|이용|구독|시청)\s*안\s*한\s*이유$/u.test(cleaned)) return "비이용 이유";
+
+  const futureIntention = cleaned.match(
+    /^(?:앞으로|향후)\s*(쓰|쓸|사용|이용|방문|참여|참가|구매|가입|등록|신청|구독|시청|수강|재가입|재등록|재방문)(?:할|할지)?\s*(?:생각|의향|가능성)(?:이\s*있는지|이\s*있는가|\s*있는지|\s*여부)?$/u,
+  );
+  if (futureIntention) {
+    const predicate = futureIntention[1]
+      .replace(/^(?:쓰|쓸)$/u, "사용")
+      .replace(/^(재가입|재등록|재방문)$/u, "$1");
+    return `향후 ${predicate} 의향`;
+  }
+  return cleaned;
+}
+
+function resolveQualifiedRespondentPurposeTail(
+  normalizedInput: string,
+): ResolvedRelationalClause | null {
+  const match = normalizedInput.match(
+    new RegExp(
+      `^(.+?${relationalAudienceHead})(?:들)?(?:에게|한테|의|이|가)?\\s+(.+)$`,
+    ),
+  );
+  if (!match) return null;
+  const qualified = resolveQualifiedRespondent(match[1]);
+  if (!qualified) return null;
+  const purposeTail = normalize(match[2]);
+  if (
+    !/(?:왜|이유|원인|장벽|만족|적응|의향|생각|가능성|인식|개선|수요|필요|문제|어려움|불편|경험|평가)/u.test(
+      purposeTail,
+    )
+  ) {
+    return null;
+  }
+
+  const researchConstructs = [
+    ...new Set(
+      splitRelationalConstructs(purposeTail)
+        .map(normalizedPurposeConstruct)
+        .filter(Boolean),
+    ),
+  ];
+  if (researchConstructs.length === 0) return null;
+  const entityType = inferRelationalEntityType(
+    qualified.contextText,
+    qualified.activityPhrase,
+  );
+  const resolvedEntityType = entityType === "unknown" ? "service" : entityType;
+  const purposeKinds = researchConstructs.map(purposeKindFromConstruct);
+  const hasSatisfaction = purposeKinds.includes("satisfaction");
+  const multiplePurposes = researchConstructs.length > 1;
+  const evidence = [
+    normalizedInput,
+    "응답자 관형절과 후행 조사 목적을 별도 의미 역할로 분리",
+  ];
+
+  return {
+    audience: qualified.audience,
+    audienceEvidence: qualified.evidence,
+    primaryEntity: canonicalEntity(
+      qualified.contextText,
+      resolvedEntityType,
+      "primary_entity",
+      evidence,
+    ),
+    entityType: resolvedEntityType,
+    objectKind: hasSatisfaction
+      ? "satisfaction_evaluation"
+      : multiplePurposes
+        ? "composite"
+        : qualified.negative
+          ? "attitude_perception"
+          : relationalObjectKind(resolvedEntityType),
+    activity:
+      qualified.activityKind && !qualified.negative
+        ? qualified.canonicalActivity
+        : null,
+    activityKind: qualified.negative ? null : qualified.activityKind,
+    researchGoal: `${qualified.contextText}의 ${researchConstructs.join(", ")} 파악`,
+    researchConstructs,
+    surveyArchetype: multiplePurposes
+      ? "mixed"
+      : hasSatisfaction
+        ? "satisfaction"
+        : qualified.negative
+          ? "attitude"
+          : usageArchetype(resolvedEntityType),
+    isUsageObject: !qualified.negative && !hasSatisfaction,
+    includesNonUsers: qualified.negative,
+    purposeKinds,
+    eligibilityCondition: qualified.audience,
+    screeningRequired: true,
+    screeningReason: `${qualified.audience}에 해당하는지 확인해야 함`,
+    explicitTimeframe: qualified.timeframe,
   };
 }
 
@@ -763,9 +911,10 @@ function splitRelationalConstructs(value: string) {
     .replace(/(?:에\s*대한|에\s*관한)\s*/g, "")
     .replace(/^대상으로\s+/, "")
     .replace(/\s*(?:비교|조사|파악)\s*$/g, "")
-    .replace(/\s*(?:조사|파악)\s*$/g, "");
+    .replace(/\s*(?:조사|파악)\s*$/g, "")
+    .replace(/((?:는지|하는지))\s+(?=(?:앞으로|향후)\s+)/gu, "$1, ");
   const parts = cleaned
-    .split(/(?:\s*[,·]\s*|\s+(?:및|그리고)\s+|(?<=[가-힣])(?:와|과|랑)\s+)/)
+    .split(/(?:\s*[,·]\s*|\s+(?:및|그리고)\s+|(?<=[가-힣])(?:이랑|랑|와|과)\s*)/)
     .map((item) => normalize(item).replace(/(?:을|를)$/g, ""))
     .filter((item) => item.length > 0);
   return [...new Set(parts.length > 0 ? parts : [cleaned])];
@@ -1393,6 +1542,8 @@ function resolveRelationalClause(
   if (frontedPurpose) return frontedPurpose;
   const prequalifiedPurpose = resolvePrequalifiedPurposeClause(normalizedInput);
   if (prequalifiedPurpose) return prequalifiedPurpose;
+  const qualifiedPurposeTail = resolveQualifiedRespondentPurposeTail(normalizedInput);
+  if (qualifiedPurposeTail) return qualifiedPurposeTail;
   const qualifiedAudience = resolveQualifiedAudienceClause(normalizedInput);
   if (qualifiedAudience) return qualifiedAudience;
   const colloquialMovement = resolveColloquialMovementClause(normalizedInput);
@@ -2295,10 +2446,9 @@ function reconcileRelationalClauseIntent(
   );
   const purposeBlocks = resolved.purposeKinds.map((kind, index) => ({
     id: `purpose-${kind}-${index + 1}`,
-    text:
-      index === 0
-        ? resolved.researchGoal
-        : `${resolved.primaryEntity.text}의 개선 조건과 후속 수요 파악`,
+    text: `${resolved.primaryEntity.text}의 ${
+      resolved.researchConstructs[index] ?? resolved.researchConstructs[0] ?? "관련 경험"
+    } 파악`,
     kind,
     target: resolved.primaryEntity.text,
     targetEntityIds: [objectEntity.id],

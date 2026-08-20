@@ -383,3 +383,67 @@ test("control: 분석 기간은 적격 조건이 아니며 사전 선별 대상�
   assert.match(prefiltered.surveyIntent.eligibilityCondition ?? "", /최근 한 달.*별마루 카페.*이용한 주민/);
   assert.equal(prefiltered.surveyIntent.screeningRequired, false);
 });
+
+test("부정 응답자 관형절과 후행 복수 목적을 survey object와 분리한다", () => {
+  const fixtures = [
+    {
+      input: "동아리 안 한 신입생한테 학교 적응이랑 가입 안 한 이유 물어보기",
+      target: /동아리.*참여하지 않은 신입생/,
+      object: "동아리",
+      purposes: [/학교 적응/, /미가입 이유/],
+    },
+    {
+      input: "네웹 안 쓰는 대학생들 왜 안 쓰는지 앞으로 쓸 생각 있는지",
+      target: /네웹.*이용하지 않는 대학생/,
+      object: "네웹",
+      purposes: [/비이용 이유/, /향후 사용 의향/],
+    },
+    {
+      input: "프로그램에 참여하지 않은 학부모의 비참여 이유와 향후 참여 의향",
+      target: /프로그램.*참여하지 않은 학부모/,
+      object: "프로그램",
+      purposes: [/비참여 이유/, /향후 참여 의향/],
+    },
+    {
+      input: "앱을 쓰지 않는 직장인의 비이용 이유와 향후 사용 의향",
+      target: /앱.*쓰지 않는 직장인/,
+      object: "앱",
+      purposes: [/비이용 이유/, /향후 사용 의향/],
+    },
+    {
+      input: "제품을 구매하지 않은 소비자의 장벽과 구매 가능성",
+      target: /제품.*구매하지 않은 소비자/,
+      object: "제품",
+      purposes: [/장벽/, /구매 가능성/],
+    },
+    {
+      input: "시설을 이용하지 않는 주민의 인식과 향후 방문 의향",
+      target: /시설.*이용하지 않는 주민/,
+      object: "시설",
+      purposes: [/인식/, /향후 방문 의향/],
+    },
+    {
+      input: "서비스를 탈퇴한 이용자의 탈퇴 이유와 재가입 의향",
+      target: /서비스.*탈퇴한 이용자/,
+      object: "서비스",
+      purposes: [/탈퇴 이유/, /재가입 의향/],
+    },
+  ];
+
+  for (const fixture of fixtures) {
+    const canonical = parseCanonicalSurveyIntent(fixture.input);
+    const intent = canonical.surveyIntent;
+    assert.match(intent.targetPopulation ?? "", fixture.target, fixture.input);
+    assert.equal(intent.surveyObject, fixture.object, fixture.input);
+    assert.equal(intent.includesNonUsers, true, fixture.input);
+    assert.equal(intent.requiresCreatorClarification, false, fixture.input);
+    assert.doesNotMatch(intent.surveyObject ?? "", /왜|이유|의향|생각|물어보기/u);
+    for (const purpose of fixture.purposes) {
+      assert.match(intent.purpose ?? "", purpose, fixture.input);
+      assert.ok(
+        intent.purposeBlocks.some((block) => purpose.test(block.text)),
+        `${fixture.input}: ${purpose}`,
+      );
+    }
+  }
+});
