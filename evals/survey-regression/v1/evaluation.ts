@@ -123,6 +123,7 @@ const conceptPatterns: Record<string, RegExp[]> = {
   "이용 목적": [
     /이용\s*목적/,
     /사용\s*목적/,
+    /어떤\s*목적으로\s*(?:방문|이용|사용|찾)/,
     /(?:방문|이용|사용)하는\s*(?:주된\s*)?이유/,
     /가장\s*주로\s*(?:가|찾|방문)하는\s*이유/,
     /가장\s*주로\s*가는\s*이유/,
@@ -549,6 +550,14 @@ function purposeConceptPresent(
       questions.some((question) => pattern.test(questionSemanticCorpus(question))),
     ).length >= 2;
   }
+  const relationship = concept.match(
+    /^(.+?)(?:과|와)\s+(.+?)(?:의)?\s*(?:관계|상관관계|연관성|영향)$/u,
+  );
+  if (relationship) {
+    return [relationship[1], relationship[2]].every((variable) =>
+      conceptPresent(variable, semanticCorpus),
+    );
+  }
   if (!/비교/u.test(concept)) return conceptPresent(concept, semanticCorpus);
   const baseConcept = concept.replace(/\s*비교\s*/gu, " ").trim();
   return (
@@ -628,9 +637,16 @@ function questionLooksLikeStatusCheck(question: EvaluatedQuestion) {
 function duplicateOverallConstructGroups(questions: EvaluatedQuestion[]) {
   const constructByQuestion = questions.flatMap((question, index) => {
     if (question.type !== "scale" && question.type !== "single") return [];
-    const corpus = questionSemanticCorpus(question);
+    const corpus = [
+      question.title,
+      question.measuredVariable,
+      question.measuredConstruct,
+    ].filter(Boolean).join(" ");
     const key =
-      /(?:실험실\s*)?안전.*(?:전반|수준)|(?:전반|수준).*안전/u.test(corpus)
+      /안전/u.test(corpus) &&
+      /(?:전반적|전체적|종합적).*(?:안전|인식|평가)|(?:안전|인식|평가).*(?:전반적|전체적|종합적)|(?:실험실의?\s*)?안전\s*수준.*(?:어느\s*정도|어떻게)/u.test(
+        question.title,
+      )
         ? "overall-safety-perception"
         : null;
     return key ? [{ key, questionId: String(question.id ?? index + 1) }] : [];
@@ -796,11 +812,34 @@ export function validateScreeningQuestionPosition(
     ) {
       continue;
     }
+    const metadata = questionMetadataText(entryQuestion);
+    const hasExplicitEntryContract =
+      entryQuestion.disqualifiesRespondent === true ||
+      entryQuestion.measuredRole === "eligibility" ||
+      entryQuestion.role === "screening" ||
+      /(?:^|[-_\s])(?:eligibility|respondent-qualification|target-screening)(?:$|[-_\s])/u.test(
+        metadata,
+      ) ||
+      /(?:응답자|대상|자격|적격).*(?:구분|확인)|(?:구분|확인).*(?:응답자|대상|자격|적격)/u.test(
+        entryQuestion.questionPurpose ?? entryQuestion.reason ?? "",
+      ) ||
+      (entryQuestion.showIfQuestionIds?.length ?? 0) > 0;
+    const heuristicEntryTarget = hasExplicitEntryContract
+      ? null
+      : entryQuestionTargetTerms(entryQuestion)[0] ?? null;
+    if (!hasExplicitEntryContract && !heuristicEntryTarget) continue;
     const dependentQuestionIds = questions
       .slice(0, index)
-      .filter((question) =>
-        questionDependsOnEntryQuestion(question, entryQuestion),
-      )
+      .filter((question) => {
+        if (!questionDependsOnEntryQuestion(question, entryQuestion)) {
+          return false;
+        }
+        if (!heuristicEntryTarget) return true;
+        const corpus = normalize(
+          `${question.title} ${question.measuredVariable ?? ""} ${question.questionPurpose ?? question.reason ?? ""}`,
+        );
+        return corpus.includes(heuristicEntryTarget);
+      })
       .map((question, questionIndex) => question.id ?? String(questionIndex + 1));
     if (dependentQuestionIds.length > 0) {
       return {

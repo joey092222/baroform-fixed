@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { devCases, holdoutCases } from "../evals/survey-regression/v1/dataset-source";
 import { frontedPurposeSmokeCases } from "../evals/survey-regression/v1.1/fronted-purpose-smoke";
+import { targetedRemediationKey10Cases } from "../evals/survey-regression/v1.1/targeted-remediation-key10";
 import {
   classifySurveyQuestionRole,
   conceptPresent,
@@ -22,6 +23,11 @@ const testCase = (id: string) => {
 const frontedCase = (id: string) => {
   const found = frontedPurposeSmokeCases.find((item) => item.id === id);
   if (!found) throw new Error(`FRONTED_TEST_CASE_MISSING:${id}`);
+  return found;
+};
+const key10Case = (id: string) => {
+  const found = targetedRemediationKey10Cases.find((item) => item.id === id);
+  if (!found) throw new Error(`KEY10_TEST_CASE_MISSING:${id}`);
   return found;
 };
 type EvaluatedResult = Parameters<typeof evaluateSemanticResult>[1];
@@ -148,6 +154,92 @@ test("방문 목적을 '찾는 가장 큰 이유'로 물어도 목적 coverage�
       "솔샘 공공도서관을 찾는 가장 큰 이유는 무엇인가요?",
     ),
     true,
+  );
+});
+
+test("방문 목적을 '어떤 목적으로 방문'으로 물어도 목적 coverage로 인정한다", () => {
+  assert.equal(
+    conceptPresent(
+      "이용 목적",
+      "푸른솔 문화센터를 주로 어떤 목적으로 방문하나요?",
+    ),
+    true,
+  );
+});
+
+test("관계 목적은 두 변수를 서로 다른 문항에서 직접 측정해도 충족한다", () => {
+  const evaluated = evaluateSemanticResult(
+    key10Case("targeted-key10-control-app-relation"),
+    result({
+      finalRespondentGroup: "하늘결 앱 사용자",
+      finalEvaluationTarget: "하늘결 앱",
+      title: "하늘결 앱 기능 편의성과 지속 사용 의향 조사",
+      description: "기능 편의성과 지속 사용 의향을 각각 측정합니다.",
+      questions: [
+        question("하늘결 앱의 기능을 사용하는 과정은 얼마나 편리했나요?", "scale", [], {
+          measuredVariable: "기능 편의성",
+        }),
+        question("앞으로도 하늘결 앱을 계속 사용할 의향은 어느 정도인가요?", "scale", [], {
+          measuredVariable: "지속 사용 의향",
+        }),
+        ...Array.from({ length: 5 }, (_, index) =>
+          question(`하늘결 앱 보조 경험 ${index + 1}`),
+        ),
+      ],
+    }),
+  );
+
+  assert.equal(
+    evaluated.fatalFailures.some(
+      (item) => item.code === "REQUIRED_PURPOSE_MISSING",
+    ),
+    false,
+  );
+});
+
+test("후행 일반 상태 문항은 명시적 자격·분기 계약이 없으면 misplaced screener가 아니다", () => {
+  const questions = [
+    question("새결 정수기를 구매한 적이 있나요?", "single", ["예", "아니요"], {
+      id: "q1",
+      questionPurpose: "새결 정수기 미구매 응답자를 구분함.",
+    }),
+    question("새결 정수기를 구매하지 않은 가장 큰 이유는 무엇인가요?", "multiple", [], {
+      id: "q2",
+      measuredRole: "barrier",
+    }),
+    question("현재 집이나 생활 공간에서 정수기를 사용하고 있나요?", "single", ["예", "아니요"], {
+      id: "q3",
+      questionPurpose: "기존 정수기 사용 여부를 파악함.",
+    }),
+  ];
+
+  assert.equal(classifySurveyQuestionRole(questions[2]!), "eligibility_screening");
+  assert.equal(validateScreeningQuestionPosition(questions), null);
+});
+
+test("안전 지식·중요도·관리 평가는 전반적 안전 인식 한 문항의 중복이 아니다", () => {
+  const evaluated = evaluateSemanticResult(
+    key10Case("targeted-population-001"),
+    result({
+      finalRespondentGroup: "새빛대학교 환경공학과 학생",
+      finalEvaluationTarget: "실험실 안전",
+      title: "실험실 안전 인식과 개선 요구 조사",
+      description: "안전 인식과 개선 요구를 조사합니다.",
+      questions: [
+        question("실험실 안전에 대해 전반적으로 어떻게 인식하고 있나요?", "scale"),
+        question("실험실 안전수칙을 얼마나 잘 알고 있다고 생각하나요?", "scale"),
+        question("실험실 안전은 얼마나 중요하다고 생각하나요?", "scale"),
+        question("학과 실험실의 안전관리는 충분히 이루어지고 있다고 생각하나요?", "scale"),
+        question("안전이 지켜지지 않았다고 느낀 적이 있나요?", "single"),
+        question("가장 필요한 안전 개선 사항은 무엇인가요?", "multiple"),
+        question("안전을 위해 가장 먼저 바뀌었으면 하는 점을 적어주세요", "text"),
+      ],
+    }),
+  );
+
+  assert.equal(
+    evaluated.fatalFailures.some((item) => item.code === "DUPLICATE_CONSTRUCT"),
+    false,
   );
 });
 
