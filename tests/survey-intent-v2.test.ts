@@ -13,6 +13,7 @@ import {
   deriveSurveyBriefFromCanonicalIntentV2,
   deriveSurveyPlanFromCanonicalIntentV2,
   normalizeCanonicalSurveyIntentV2EvidenceSpans,
+  normalizeCanonicalSurveyIntentV2ReferenceIds,
   validateCanonicalSurveyIntentV2,
   type CanonicalSurveyIntentV2,
 } from "../app/survey-intent-v2";
@@ -386,6 +387,23 @@ test("V2 evidence 좌표는 원문에 존재하는 동일 텍스트에 한해 me
   );
 });
 
+test("V2 canonical ID 참조는 의미 변경 없이 대소문자 차이만 정규화한다", () => {
+  const intent = intentFixture();
+  intent.activities[0].object_ids = ["OBJECT-DAEWOO-MOBILITY"];
+  intent.purposes[0].object_ids = ["Object-Daewoo-Mobility"];
+  const normalized = normalizeCanonicalSurveyIntentV2ReferenceIds(intent);
+  assert.deepEqual(normalized.intent.activities[0].object_ids, [
+    "object-daewoo-mobility",
+  ]);
+  assert.deepEqual(normalized.intent.purposes[0].object_ids, [
+    "object-daewoo-mobility",
+  ]);
+  assert.deepEqual(normalized.normalizedPaths, [
+    "activities.0.object_ids.0",
+    "purposes.0.object_ids.0",
+  ]);
+});
+
 test("V2 응답은 legacy parser나 fallback 없이 canonical intent에서 UI blueprint를 만든다", () => {
   const result = parseSurveyDraftResponseV2(
     responseFixture(),
@@ -411,6 +429,61 @@ test("V2 응답은 legacy parser나 fallback 없이 canonical intent에서 UI bl
     ],
   );
   assert.equal(result.canonicalPlan?.intentKind, "behavior_usage");
+});
+
+test("V2 응답은 모델의 비권위 plan과 opaque ID를 canonical metadata로 정규화한다", () => {
+  const response = responseFixture();
+  response.output_parsed.survey_plan.target = "임의 응답 대상";
+  response.output_parsed.survey_plan.eligibility = "임의 참여 조건";
+  response.output_parsed.survey_plan.primary_objective = "임의 목적";
+  response.output_parsed.survey_plan.min_path_questions = 1;
+  response.output_parsed.survey.questions[0].options[0].id = "shared";
+  response.output_parsed.survey.questions[1].options[0].id = "shared";
+  response.output_parsed.survey.questions[0].purpose_ids = ["PURPOSE-MOBILITY"];
+  response.output_parsed.survey.questions[0].object_ids = [
+    "OBJECT-DAEWOO-MOBILITY",
+  ];
+  response.output_parsed.survey.questions[0].relationship_ids = ["R1"];
+
+  const result = parseSurveyDraftResponseV2(response, {
+    prompt,
+    surveyMode: "standard",
+    questionCount: 2,
+    targetGrade: "전학년",
+    expectsReferences: false,
+  });
+  assert.notEqual(result.status, "needs_clarification");
+  if (result.status === "needs_clarification") return;
+  assert.equal(result.surveyPlan?.target, "연세대학교 학생들");
+  assert.equal(result.surveyPlan?.eligibility, "연세대학교 학생들");
+  assert.equal(result.surveyPlan?.primary_objective, "대우관 등하교 경험 파악");
+  assert.equal(result.surveyPlan?.min_path_questions, 2);
+});
+
+test("V2 clarification은 비권위 inferred evidence 오류 때문에 설문 오류로 바뀌지 않는다", () => {
+  const response = responseFixture();
+  response.output_parsed.canonical_intent_v2.clarification = {
+    required: true,
+    missing_roles: ["survey_object"],
+    ambiguity_reasons: ["조사할 구체적 대상이 명시되지 않았습니다."],
+    question: "어떤 경험이나 대상을 조사할지 알려주세요.",
+  };
+  response.output_parsed.canonical_intent_v2.context_entities[0].evidence[0] = {
+    text: "원문에 없는 추론 맥락",
+    start: 0,
+    end: 11,
+    normalized_form: "원문에 없는 추론 맥락",
+    role: "context_entity",
+    provenance: "model_inferred",
+  };
+  const result = parseSurveyDraftResponseV2(response, {
+    prompt,
+    surveyMode: "standard",
+    questionCount: 2,
+    targetGrade: "전학년",
+    expectsReferences: false,
+  });
+  assert.equal(result.status, "needs_clarification");
 });
 
 test("V2 semantic module과 projection module에는 legacy raw parser import가 없다", async () => {

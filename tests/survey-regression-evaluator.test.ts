@@ -400,6 +400,22 @@ test("필수 개념 동의 표현을 선택지까지 포함해 인식한다", ()
   assert.equal(conceptPresent("학습 효과", "취업 준비에 얼마나 도움이 되었나요?"), true);
   assert.equal(conceptPresent("개선 요구", "가장 먼저 바뀌었으면 하는 점"), true);
   assert.equal(conceptPresent("대상 비교", "어떤 프로그램에 참여했나요?"), true);
+  assert.equal(
+    conceptPresent("이용 시간", "지난 7일 하루 평균 스마트폰 화면 시간"),
+    true,
+  );
+});
+
+test("식별 토큰이 있는 placeholder는 전체 문구가 있을 때만 감지한다", () => {
+  assert.equal(
+    conceptPresent("변수 A", "스마트폰 화면 시간을 예측 변수로 사용함"),
+    false,
+  );
+  assert.equal(
+    conceptPresent("변수 B", "수업 집중도를 결과 변수로 사용함"),
+    false,
+  );
+  assert.equal(conceptPresent("변수 A", "변수 A의 값을 입력해 주세요"), true);
 });
 
 test("비이용 목적은 자연스러운 과거 관형형으로 표현돼도 누락으로 오판하지 않는다", () => {

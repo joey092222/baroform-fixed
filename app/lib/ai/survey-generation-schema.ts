@@ -19,7 +19,10 @@ const nullableText = (maximum: number) => z.string().max(maximum).nullable();
 const nullableNumber = z.number().nullable();
 
 const researchSourceSchema = z.object({
-  id: z.string().min(1).max(40),
+  // Providers occasionally return the canonical URL as a temporary source ID.
+  // The server remaps these opaque IDs to S1..Sn before accepting the survey,
+  // so the parse boundary only needs a bounded transport-safe string here.
+  id: z.string().min(1).max(600),
   title: z.string().min(1).max(200),
   // Structured Outputs does not support the JSON Schema `uri` format.
   // URL validity is enforced deterministically after parsing instead.
@@ -37,7 +40,7 @@ const researchEntitySchema = z.object({
   verified_facts: z.array(
     z.object({
       fact: z.string().min(1).max(240),
-      source_ids: z.array(z.string().min(1).max(40)).max(8),
+      source_ids: z.array(z.string().min(1).max(600)).max(8),
     }),
   ).max(8),
 });
@@ -103,7 +106,7 @@ const questionSchema = z.object({
   }),
   grounding: z.object({
     uses_external_fact: z.boolean(),
-    source_ids: z.array(z.string().min(1).max(40)).max(8),
+    source_ids: z.array(z.string().min(1).max(600)).max(8),
   }),
 });
 

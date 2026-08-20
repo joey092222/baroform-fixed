@@ -453,6 +453,76 @@ export function normalizeCanonicalSurveyIntentV2EvidenceSpans(
   };
 }
 
+export function normalizeCanonicalSurveyIntentV2ReferenceIds(
+  input: CanonicalSurveyIntentV2,
+) {
+  const intent = structuredClone(input);
+  const normalizedPaths: string[] = [];
+  const objectIds = intent.survey_objects.map((item) => item.id);
+  const objectIdByFoldedValue = new Map<string, string | null>();
+  for (const id of objectIds) {
+    const key = id.toLocaleLowerCase("en-US");
+    objectIdByFoldedValue.set(
+      key,
+      objectIdByFoldedValue.has(key) ? null : id,
+    );
+  }
+  const normalizeObjectIds = (values: string[], path: string) =>
+    values.map((value, index) => {
+      if (objectIds.includes(value)) return value;
+      const replacement = objectIdByFoldedValue.get(
+        value.toLocaleLowerCase("en-US"),
+      );
+      if (!replacement) return value;
+      normalizedPaths.push(`${path}.${index}`);
+      return replacement;
+    });
+
+  intent.activities = intent.activities.map((item, index) => ({
+    ...item,
+    object_ids: normalizeObjectIds(
+      item.object_ids,
+      `activities.${index}.object_ids`,
+    ),
+  }));
+  intent.purposes = intent.purposes.map((item, index) => ({
+    ...item,
+    object_ids: normalizeObjectIds(
+      item.object_ids,
+      `purposes.${index}.object_ids`,
+    ),
+  }));
+  intent.relationships = intent.relationships.map((item, index) => ({
+    ...item,
+    predictor: {
+      ...item.predictor,
+      object_ids: normalizeObjectIds(
+        item.predictor.object_ids,
+        `relationships.${index}.predictor.object_ids`,
+      ),
+    },
+    outcome: {
+      ...item.outcome,
+      object_ids: normalizeObjectIds(
+        item.outcome.object_ids,
+        `relationships.${index}.outcome.object_ids`,
+      ),
+    },
+    comparison_targets: item.comparison_targets.map((target, targetIndex) => ({
+      ...target,
+      object_ids: normalizeObjectIds(
+        target.object_ids,
+        `relationships.${index}.comparison_targets.${targetIndex}.object_ids`,
+      ),
+    })),
+  }));
+
+  return {
+    intent,
+    normalizedPaths: [...new Set(normalizedPaths)],
+  };
+}
+
 const explicitNegationCues = [
   "비이용",
   "미이용",
@@ -846,12 +916,12 @@ export function canonicalIntentV2PromptContract() {
   return [
     "사용자 원문을 의미 역할별로 한 번만 해석하고 canonical_intent_v2에 기록한다.",
     "응답 대상, 참여 조건, 맥락 실체, 조사 대상, 활동, 조사 목적을 서로 바꾸거나 합치지 않는다.",
-    "명시적 부정 조건, 기관·학과·학년, 기간, 실제 복수 대상은 원문 evidence span과 함께 보존한다.",
+    "명시적 부정 조건, 기관·학과·학년, 기간, 실제 복수 대상은 원문 evidence span과 함께 보존한다. 비이용·비참여·미구매처럼 부정된 집단은 eligibility_conditions와 negation_constraints 양쪽에 빠짐없이 기록한다.",
     "각 evidence의 start/end는 user 메시지 원문의 UTF-16 문자열 인덱스이며 text는 해당 slice와 정확히 같아야 한다.",
     "survey_objects는 응답자 집단이 아니라 조사할 실체·행동·구성개념이다.",
     "서비스·플랫폼·제품·실제 시설만 is_usage_object=true로 둘 수 있다. 이동·경험·태도·만족도·수요는 이용 대상이 아니다.",
     "관계형 요청은 predictor와 outcome을 분리하고 두 변수를 각각 직접 측정하는 문항을 만든다.",
-    "애매한 핵심 역할을 근거 없이 채우지 말고 clarification.required=true로 반환한다.",
+    "애매한 핵심 역할을 근거 없이 채우지 말고 clarification.required=true로 반환한다. 비교할 대상의 이름이 없거나, 응답 대상만 있고 조사할 구체적 경험·행동·대상·구성개념이 없으면 설문을 추측해 만들지 않는다.",
     "survey와 survey_plan은 canonical_intent_v2만을 근거로 만들고 모든 required purpose를 포함한다.",
     "요소 N, 핵심 경험 N, 선행 값, 결과 값, 독립변수, 종속변수, 변수 A/B 같은 내부 placeholder를 쓰지 않는다.",
   ].join("\n");

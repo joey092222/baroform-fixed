@@ -55,7 +55,7 @@ const conceptPatterns: Record<string, RegExp[]> = {
   "수강 경험": [/수강한\s*적/, /수강\s*경험/],
   "이용 빈도": [/이용\s*(?:빈도|횟수)/, /사용\s*(?:빈도|횟수)/, /얼마나\s*자주.*(?:이용|사용|방문|찾)/],
   "구매 빈도": [/구매\s*(?:빈도|횟수)/, /주문\s*(?:빈도|횟수)/, /얼마나\s*자주.*(?:구매|주문|외식)/],
-  "이용 시간": [/이용\s*시간/, /사용\s*시간/, /시청\s*시간/],
+  "이용 시간": [/이용\s*시간/, /사용\s*시간/, /시청\s*시간/, /화면\s*시간/],
   "시간 사용": [/시간\s*사용/, /얼마나\s*시간/, /하루.*시간/],
   "수면 시간": [/수면\s*시간/, /몇\s*시간.*(?:자|수면)/],
   "대기 시간": [/대기\s*시간/, /얼마나\s*기다/],
@@ -269,6 +269,13 @@ export function targetPopulationMatch(
 export function conceptPresent(concept: string, corpus: string) {
   const mapped = conceptPatterns[concept];
   if (mapped) return mapped.some((pattern) => pattern.test(corpus));
+  // Placeholder labels that contain an identifying one-character token must
+  // match as a whole phrase. Token-ratio matching would otherwise reduce both
+  // "변수 A" and "변수 B" to the common word "변수" and report ordinary
+  // relationship metadata as respondent-facing placeholder pollution.
+  if (/(?:^|\s)[A-Za-z0-9](?:\s|$)/u.test(concept)) {
+    return normalize(corpus).includes(normalize(concept));
+  }
   const tokens = meaningfulTokens(concept);
   return tokens.length > 0 && tokens.every((token) => normalize(corpus).includes(normalize(token)));
 }

@@ -106,6 +106,7 @@ import {
   deriveSurveyBriefFromCanonicalIntentV2,
   deriveSurveyPlanFromCanonicalIntentV2,
   normalizeCanonicalSurveyIntentV2EvidenceSpans,
+  normalizeCanonicalSurveyIntentV2ReferenceIds,
   validateCanonicalSurveyIntentV2,
   type CanonicalSurveyIntentV2,
   type LegacyIntentShadowSummary,
@@ -375,7 +376,6 @@ function generationIntegrityIssues(
   }
 
   const questionIds = new Set<string>();
-  const optionIds = new Set<string>();
   const variableNames = new Set<string>();
   const questionIndex = new Map<string, number>();
   const optionIdsByQuestion = new Map<string, Set<string>>();
@@ -395,8 +395,9 @@ function generationIntegrityIssues(
 
     const localOptionIds = new Set<string>();
     for (const option of question.options) {
-      if (optionIds.has(option.id)) issues.push(`선택지 ID ${option.id}가 중복되었습니다.`);
-      optionIds.add(option.id);
+      if (localOptionIds.has(option.id)) {
+        issues.push(`질문 ${question.id} 안에서 선택지 ID ${option.id}가 중복되었습니다.`);
+      }
       localOptionIds.add(option.id);
     }
     optionIdsByQuestion.set(question.id, localOptionIds);
@@ -2411,6 +2412,117 @@ function canonicalV2QuestionIssues(
   return issues;
 }
 
+function normalizeCanonicalV2GenerationMetadata(
+  generation: SurveyGenerationV2,
+  intent: CanonicalSurveyIntentV2,
+) {
+  const normalizedPaths: string[] = [];
+  const canonicalPlan = deriveSurveyPlanFromCanonicalIntentV2(intent);
+  const canonicalEligibility = [
+    ...intent.eligibility_conditions.map((item) => item.text),
+    ...intent.target_population.inclusion_conditions,
+    ...intent.target_population.exclusion_conditions,
+  ];
+  const canonicalConstructs = intent.purposes
+    .flatMap((purpose) =>
+      purpose.construct_names.map((name) => ({
+        name,
+        reason: purpose.text,
+      })),
+    )
+    .filter(
+      (item, index, items) =>
+        items.findIndex((candidate) => candidate.name === item.name) === index,
+    )
+    .slice(0, 8);
+  const canonicalPlanMetadata: SurveyGenerationV2["survey_plan"] = {
+    ...generation.survey_plan,
+    target: intent.target_population.display_text,
+    eligibility:
+      canonicalEligibility.join(" · ") || intent.target_population.display_text,
+    primary_objective: intent.purposes[0].text,
+    sub_objectives: intent.purposes.slice(1, 5).map((item) => item.text),
+    constructs:
+      canonicalConstructs.length > 0
+        ? canonicalConstructs
+        : canonicalPlan.blocks.slice(0, 8).map((block) => ({
+            name: block.variable,
+            reason: block.purpose,
+          })),
+  };
+  for (const key of [
+    "target",
+    "eligibility",
+    "primary_objective",
+    "sub_objectives",
+    "constructs",
+  ] as const) {
+    if (
+      JSON.stringify(generation.survey_plan[key]) !==
+      JSON.stringify(canonicalPlanMetadata[key])
+    ) {
+      normalizedPaths.push(`survey_plan.${key}`);
+    }
+  }
+
+  const referenceMap = (values: string[]) => {
+    const folded = new Map<string, string | null>();
+    for (const value of values) {
+      const key = value.toLocaleLowerCase("en-US");
+      folded.set(key, folded.has(key) ? null : value);
+    }
+    return { values: new Set(values), folded };
+  };
+  const purposeIds = referenceMap(intent.purposes.map((item) => item.id));
+  const objectIds = referenceMap(intent.survey_objects.map((item) => item.id));
+  const relationshipIds = referenceMap(intent.relationships.map((item) => item.id));
+  const normalizeReferences = (
+    values: string[],
+    references: ReturnType<typeof referenceMap>,
+    path: string,
+  ) =>
+    values.flatMap((value, index) => {
+      if (references.values.has(value)) return [value];
+      const replacement = references.folded.get(value.toLocaleLowerCase("en-US"));
+      if (replacement) {
+        normalizedPaths.push(`${path}.${index}`);
+        return [replacement];
+      }
+      if (references.values.size === 0) {
+        normalizedPaths.push(`${path}.${index}`);
+        return [];
+      }
+      return [value];
+    });
+  const questions = generation.survey.questions.map((question, index) => ({
+    ...question,
+    purpose_ids: normalizeReferences(
+      question.purpose_ids,
+      purposeIds,
+      `survey.questions.${index}.purpose_ids`,
+    ),
+    object_ids: normalizeReferences(
+      question.object_ids,
+      objectIds,
+      `survey.questions.${index}.object_ids`,
+    ),
+    relationship_ids: normalizeReferences(
+      question.relationship_ids,
+      relationshipIds,
+      `survey.questions.${index}.relationship_ids`,
+    ),
+  }));
+
+  return {
+    generation: {
+      ...generation,
+      survey_plan: canonicalPlanMetadata,
+      survey: { ...generation.survey, questions },
+    } satisfies SurveyGenerationV2,
+    normalizedPaths: [...new Set(normalizedPaths)],
+  };
+}
+
 export function parseSurveyDraftResponseV2(
   rawPayload: unknown,
   request: {
@@ -2466,9 +2578,15 @@ export function parseSurveyDraftResponseV2(
     parsed.data.canonical_intent_v2,
     request.prompt,
   );
-  const intent = evidenceNormalization.intent;
+  const referenceNormalization = normalizeCanonicalSurveyIntentV2ReferenceIds(
+    evidenceNormalization.intent,
+  );
+  const intent = referenceNormalization.intent;
   recordSurveyModelOutputDiagnostics(trace, {
-    normalizedInternalMetadataPaths: evidenceNormalization.normalizedPaths,
+    normalizedInternalMetadataPaths: [
+      ...evidenceNormalization.normalizedPaths,
+      ...referenceNormalization.normalizedPaths,
+    ],
   });
   recordCanonicalSurveyIntentV2Trace(trace, intent);
   const legacyV2Divergence = request.legacyShadow
@@ -2479,19 +2597,28 @@ export function parseSurveyDraftResponseV2(
     surveyMode: request.surveyMode,
     requestedQuestionCount: request.questionCount,
   });
-  if (consistencyIssues.length > 0) {
+  const blockingConsistencyIssues = intent.clarification.required
+    ? consistencyIssues.filter((item) =>
+        [
+          "RAW_INPUT_MISMATCH",
+          "NORMALIZED_INPUT_MISMATCH",
+          "REQUEST_CONSTRAINT_MISMATCH",
+        ].includes(item.code),
+      )
+    : consistencyIssues;
+  if (blockingConsistencyIssues.length > 0) {
     recordSurveySemanticDiagnostics(trace, {
-      violationCodes: consistencyIssues.map((item) => item.code),
-      violationOrigins: consistencyIssues.map(() => "schema"),
+      violationCodes: blockingConsistencyIssues.map((item) => item.code),
+      violationOrigins: blockingConsistencyIssues.map(() => "schema"),
     });
     recordSurveyModelOutputRejection(trace, {
       at: "canonical_v2_consistency_validation",
       code: "CANONICAL_INTENT_V2_INVALID",
-      issues: consistencyIssues.map((item) => item.message),
-      issuePaths: consistencyIssues.map((item) => item.path),
+      issues: blockingConsistencyIssues.map((item) => item.message),
+      issuePaths: blockingConsistencyIssues.map((item) => item.path),
     });
     throw new SurveyValidationError(
-      consistencyIssues.map((item) => `${item.code}: ${item.message}`),
+      blockingConsistencyIssues.map((item) => `${item.code}: ${item.message}`),
     );
   }
   const sources = extractSurveySources(rawPayload).slice(0, 5);
@@ -2534,28 +2661,37 @@ export function parseSurveyDraftResponseV2(
         : {}),
     };
   }
-  const preNormalizationIssues = generationIntegrityIssues(
-    parsed.data,
-    request.questionCount,
-    { webSearchRequested: completedSearch },
-  );
   const normalized = normalizeModelGeneratedSurveyMetadata(
     parsed.data,
     request.questionCount,
     { webSearchRequested: completedSearch },
   );
-  const generation = {
-    ...normalized.generation,
-    canonical_intent_v2: intent,
-    survey: {
-      ...normalized.generation.survey,
-      questions: normalized.generation.survey.questions.map((question, index) => ({
-        ...question,
-        purpose_ids: parsed.data.survey.questions[index].purpose_ids,
-        object_ids: parsed.data.survey.questions[index].object_ids,
-        relationship_ids: parsed.data.survey.questions[index].relationship_ids,
-      })),
+  const normalizedV2 = normalizeCanonicalV2GenerationMetadata(
+    {
+      ...normalized.generation,
+      canonical_intent_v2: intent,
+      survey: {
+        ...normalized.generation.survey,
+        questions: normalized.generation.survey.questions.map((question, index) => ({
+          ...question,
+          purpose_ids: parsed.data.survey.questions[index].purpose_ids,
+          object_ids: parsed.data.survey.questions[index].object_ids,
+          relationship_ids: parsed.data.survey.questions[index].relationship_ids,
+        })),
+      },
     },
+    intent,
+  );
+  recordSurveyModelOutputDiagnostics(trace, {
+    normalizedInternalMetadataPaths: [
+      ...evidenceNormalization.normalizedPaths,
+      ...referenceNormalization.normalizedPaths,
+      ...normalized.normalizedPaths,
+      ...normalizedV2.normalizedPaths,
+    ],
+  });
+  const generation = {
+    ...normalizedV2.generation,
   } satisfies SurveyGenerationV2;
   const structuralIssues = generationIntegrityIssues(
     generation,
@@ -2565,7 +2701,6 @@ export function parseSurveyDraftResponseV2(
   const copyIssues = respondentCopyIssues(generation);
   const canonicalQuestionIssues = canonicalV2QuestionIssues(generation, intent);
   const allIssues = [
-    ...preNormalizationIssues.filter((item) => !isRecoverableQuestionIntegrityIssue(item)),
     ...structuralIssues,
     ...copyIssues,
     ...canonicalQuestionIssues,
