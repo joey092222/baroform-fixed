@@ -5591,6 +5591,13 @@ function relationalPlanBlockQuestion(
     timeframe && !variable.startsWith(timeframe) ? `${timeframe} ` : "";
   const classReferencePeriod = timeframe ? `${timeframe} 동안` : "평소";
   const reason = block.purpose;
+  const sourceVariableLabel = block.sourceEntityIds
+    .map((sourceId) =>
+      intent.researchIntent.variables.find((item) => item.id === sourceId)?.name,
+    )
+    .filter((name): name is string => Boolean(name))
+    .filter((name, index, names) => names.indexOf(name) === index)
+    .join("·") || variable;
 
   const supplemental: Record<string, SurveyQuestion> = {
     "commute-mode": question(id, "주로 이용하는 통학 수단을 알려주세요.", reason, "single", ["도보", "자전거·개인형 이동수단", "버스", "지하철·기차", "승용차·택시", "여러 수단을 비슷하게 이용", "기타"]),
@@ -5603,11 +5610,11 @@ function relationalPlanBlockQuestion(
     "commute-duration": question(id, "평소 등교할 때 편도 통학 시간은 어느 정도인가요?", reason, "single", ["15분 미만", "15분 이상~30분 미만", "30분 이상~60분 미만", "60분 이상~90분 미만", "90분 이상"]),
     "tardiness-reasons": question(id, `${classReferencePeriod} 수업에 지각한 주된 이유를 모두 골라주세요.`, reason, "multiple", ["늦게 잠들거나 수면이 부족해서", "알람을 듣지 못해서", "등교 준비가 늦어져서", "대중교통 지연·도로 정체 때문에", "이전 일정이 늦게 끝나서", "지각한 적 없음", "기타"]),
     "sleep-schedule-context": question(id, "수면이나 등교 준비와 관련해 덧붙이고 싶은 상황이 있다면 적어주세요.", reason, "text", undefined, false),
-    "predictor-context": question(id, "앞에서 답한 선행 값이 달라지는 주된 상황을 모두 골라주세요.", reason, "multiple", ["평일", "주말·공휴일", "학업·업무가 많은 시기", "개인 일정이 많은 시기", "특별한 상황 없음", "기타"]),
-    "outcome-driver": question(id, "결과 값이 평소와 달랐던 때의 상황을 모두 골라주세요.", reason, "multiple", ["시간 여유가 달랐음", "비용 여건이 달랐음", "접근 환경이 달랐음", "개인 일정이 달랐음", "주변 환경이 달랐음", "특별한 차이가 없었음", "기타"]),
-    "measurement-regularity": question(id, "앞에서 답한 값들이 평소와 달라지는 빈도는 어느 정도인가요?", reason, "single", ["거의 달라지지 않음", "드물게 달라짐", "가끔 달라짐", "자주 달라짐", "거의 항상 달라짐"]),
-    "barrier-context": question(id, "평소 생활에서 자주 마주하는 제약이나 상황을 모두 골라주세요.", reason, "multiple", ["시간 제약", "비용 제약", "접근성", "가족·주변 환경", "건강 상태", "특별한 제약 없음", "기타"]),
-    "open-evidence": question(id, "앞의 응답을 해석할 때 참고할 상황이 있다면 적어주세요.", reason, "text", undefined, false),
+    "predictor-context": question(id, `${labelWithParticle(sourceVariableLabel, "이", "가")} 평소와 달라지는 주된 상황을 모두 골라주세요.`, reason, "multiple", ["평일", "주말·공휴일", "학업·업무가 많은 시기", "개인 일정이 많은 시기", "특별한 상황 없음", "기타"]),
+    "outcome-driver": question(id, `${labelWithParticle(sourceVariableLabel, "에", "에")} 영향을 줄 수 있는 상황을 모두 골라주세요.`, reason, "multiple", ["시간 여유가 달랐음", "비용 여건이 달랐음", "접근 환경이 달랐음", "개인 일정이 달랐음", "주변 환경이 달랐음", "특별한 차이가 없었음", "기타"]),
+    "measurement-regularity": question(id, `${labelWithParticle(sourceVariableLabel, "이", "가")} 평소와 달라지는 일은 얼마나 자주 있나요?`, reason, "single", ["거의 달라지지 않음", "드물게 달라짐", "가끔 달라짐", "자주 달라짐", "거의 항상 달라짐"]),
+    "barrier-context": question(id, `${labelWithParticle(sourceVariableLabel, "에", "에")} 영향을 줄 수 있는 생활 여건을 모두 골라주세요.`, reason, "multiple", ["시간 제약", "비용 제약", "접근성", "가족·주변 환경", "건강 상태", "특별한 제약 없음", "기타"]),
+    "open-evidence": question(id, `${sourceVariableLabel}와 관련해 앞 문항에 담기지 않은 상황이 있다면 적어주세요.`, reason, "text", undefined, false),
   };
   if (supplemental[block.id]) return supplemental[block.id];
 
@@ -6783,6 +6790,13 @@ export function validateSurvey(
     }
     if (/\s및(?:을|를|은|는|이|가|의)/.test(item.title)) {
       issues.push(`문항 ${item.id}에 잘못 결합된 접속사와 조사가 포함되었습니다.`);
+    }
+    if (
+      /(?:선행\s*값|결과\s*값|앞에서\s*답한\s*값(?:들)?|독립\s*변수|종속\s*변수|원인\s*변수|결과\s*변수|변수\s*[A-Z가-힣0-9]|요소\s*\d+|첫\s*번째\s*값|두\s*번째\s*값)/iu.test(
+        item.title,
+      )
+    ) {
+      issues.push(`문항 ${item.id}에 내부 관계 분석 표식이 노출되었습니다.`);
     }
     if (
       /(?:만족|평가).*(?:과|와|및).*(?:불편|개선|의향|빈도|시간|비용)|(?:불편|개선).*(?:과|와|및).*(?:만족|의향|빈도|시간)|(?:빈도|횟수|시간|비용).*(?:과|와|및).*(?:만족|불편|의향)/.test(

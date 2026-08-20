@@ -409,7 +409,7 @@ function perceptionVariableIsDirectlyMeasured(
   // Purpose-bound blocks must be supported by respondent-facing wording. Model
   // metadata alone is not evidence that the requested construct was measured.
   if (/(?:개선|좋아지|달라져|바라는\s*점)/u.test(title)) return false;
-  return /(?:전반적|전체적).*(?:인식|인상|이미지|태도|어떻게\s*(?:생각|느끼|느껴|느꼈|느낀)|느낌)|(?:어떤|어떻게).*(?:인상|이미지|태도|생각|느끼|느껴|느꼈|느낀)/u.test(
+  return /(?:전반적|전체적).*(?:인식|인상|이미지|태도|어떻게\s*(?:생각|느끼|느껴|느꼈|느낀)|느낌)|(?:어떤|어떻게).*(?:인상|이미지|태도|생각|느끼|느껴|느꼈|느낀)|(?:수준|정도)(?:은|는|이|가)?\s*어느\s*정도.*(?:생각|느끼|인식)/u.test(
     title,
   );
 }
@@ -932,6 +932,26 @@ function createRelationalSurveyPlan(
     ),
   ];
   const corpus = research.variables.map((item) => item.name).join(" ");
+  const researchVariableById = new Map(
+    research.variables.map((variable) => [variable.id, variable] as const),
+  );
+  const predictorVariableIds = [
+    ...new Set(research.relations.map((relation) => relation.fromVariableId)),
+  ].filter((id) => researchVariableById.has(id));
+  const outcomeVariableIds = [
+    ...new Set(research.relations.map((relation) => relation.toVariableId)),
+  ].filter((id) => researchVariableById.has(id));
+  const relatedVariableIds = [
+    ...new Set([...predictorVariableIds, ...outcomeVariableIds]),
+  ];
+  const variableLabel = (ids: string[]) =>
+    ids
+      .map((id) => researchVariableById.get(id)?.name)
+      .filter((name): name is string => Boolean(name))
+      .join("·");
+  const predictorLabel = variableLabel(predictorVariableIds);
+  const outcomeLabel = variableLabel(outcomeVariableIds);
+  const relationVariableLabel = variableLabel(relatedVariableIds);
   if (
     /통학\s*시간/.test(corpus) &&
     research.variables.some((item) => /현재\s*거주\s*형태/.test(item.name))
@@ -960,22 +980,36 @@ function createRelationalSurveyPlan(
           ["tardiness-reasons", "지각의 주된 이유", "context", "nominal", "지각 횟수의 차이를 설명할 수 있는 원인을 구분함."],
           ["sleep-schedule-context", "수면·등교 준비의 추가 맥락", "context", "open_text", "선택지에서 놓친 수면 및 등교 상황을 수집함."],
         ] as const
-    : [
-        ["predictor-context", "선행 변수의 발생 상황", "context", "nominal", "선행 변수가 달라지는 주요 상황을 구분함."],
-        ["outcome-driver", "결과 변수에 영향을 주는 요인", "construct", "nominal", "두 변수 관계를 해석할 보조 요인을 수집함."],
-        ["measurement-regularity", "측정값의 평소 변동 정도", "context", "ordinal", "일시적 사건과 평소 경향을 구분함."],
-        ["barrier-context", "관계 해석에 필요한 제약 조건", "context", "nominal", "집단 차이를 설명할 수 있는 맥락을 구분함."],
-        ["open-evidence", "분석에 참고할 추가 상황", "context", "open_text", "정형 문항에서 놓친 응답 맥락을 수집함."],
-      ] as const;
+    : predictorLabel && outcomeLabel && relationVariableLabel
+      ? [
+        ["predictor-context", `${predictorLabel} 변화 상황`, "context", "nominal", `${predictorLabel}이 달라지는 주요 상황을 구분함.`],
+        ["outcome-driver", `${outcomeLabel} 영향 요인`, "construct", "nominal", `${outcomeLabel}에 영향을 줄 수 있는 보조 요인을 수집함.`],
+        ["measurement-regularity", `${relationVariableLabel} 변동 빈도`, "context", "ordinal", `${relationVariableLabel}의 일시적 변동과 평소 경향을 구분함.`],
+        ["barrier-context", `${relationVariableLabel} 관련 생활 여건`, "context", "nominal", `${relationVariableLabel}의 차이를 설명할 수 있는 생활 여건을 구분함.`],
+        ["open-evidence", `${relationVariableLabel} 추가 상황`, "context", "open_text", `${relationVariableLabel}과 관련해 정형 문항에서 놓친 응답 맥락을 수집함.`],
+      ] as const
+      : [] as const;
   for (const [id, variable, role, variableType, purpose] of supplemental) {
     if (measurementBlocks.length >= requestedQuestionCount) break;
+    const supplementalSourceEntityIds =
+      id === "predictor-context"
+        ? predictorVariableIds
+        : id === "outcome-driver"
+          ? outcomeVariableIds
+          : [
+              "measurement-regularity",
+              "barrier-context",
+              "open-evidence",
+            ].includes(id)
+            ? relatedVariableIds
+            : [];
     const block = makeBlock(
         id,
         variable,
         role,
         variableType,
         purpose,
-        [],
+        supplementalSourceEntityIds,
         [],
         {
           variableScope: "respondent_level",

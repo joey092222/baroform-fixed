@@ -1996,6 +1996,63 @@ function resolveNamedObjectStudentEvaluationClause(
   };
 }
 
+function resolveBareMovementClause(
+  normalizedInput: string,
+): ResolvedRelationalClause | null {
+  const match = normalizedInput.match(
+    new RegExp(
+      `^(.*?${relationalAudienceHead})(?:들)?(?:의|이|가)\\s+(등하교|통학|출퇴근|이동)(?:\\s*(?:경험|환경|과정))?(?:\\s+(.+))?$`,
+    ),
+  );
+  if (!match) return null;
+
+  const statedAudience = normalize(match[1]);
+  const movementKind = normalize(match[2]);
+  const statedConstructs = movementConstructs(normalize(match[3] ?? "")).filter(
+    Boolean,
+  );
+  const primaryEntity =
+    movementKind === "통학" || movementKind === "등하교"
+      ? "학교 통학"
+      : `${movementKind} 경로`;
+  const activity =
+    movementKind === "통학" || movementKind === "등하교"
+      ? "학교와 생활 공간 사이를 오가는 통학"
+      : movementKind === "출퇴근"
+        ? "근무지와 생활 공간 사이를 오가는 이동"
+        : `${primaryEntity}을 오가는 이동`;
+  return {
+    audience: statedAudience,
+    audienceEvidence: normalize(
+      `${match[1]}의 ${movementKind}${match[3] ? ` ${match[3]}` : ""}`,
+    ),
+    primaryEntity: canonicalEntity(
+      primaryEntity,
+      "movement",
+      "primary_entity",
+      [match[0], movementKind],
+    ),
+    entityType: "movement",
+    objectKind: "behavior_usage",
+    activity,
+    activityKind: "move",
+    researchGoal: `${movementKind} 경험${statedConstructs.length > 0 ? `의 ${statedConstructs.join(", ")}` : ""} 파악`,
+    researchConstructs: [
+      "방문 빈도",
+      "이동 수단",
+      "소요 시간",
+      "혼잡",
+      "안전",
+      "불편",
+      "개선 수요",
+    ],
+    surveyArchetype: "mobility_experience",
+    isUsageObject: false,
+    includesNonUsers: true,
+    purposeKinds: ["behavior_usage", "need_demand"],
+  };
+}
+
 function resolveRelationalClause(
   normalizedInput: string,
 ): ResolvedRelationalClause | null {
@@ -2003,6 +2060,8 @@ function resolveRelationalClause(
   if (frontedPurpose) return frontedPurpose;
   const prequalifiedPurpose = resolvePrequalifiedPurposeClause(normalizedInput);
   if (prequalifiedPurpose) return prequalifiedPurpose;
+  const bareMovement = resolveBareMovementClause(normalizedInput);
+  if (bareMovement) return bareMovement;
   const negatedBehaviorThreshold =
     resolveNegatedBehaviorThresholdClause(normalizedInput);
   if (negatedBehaviorThreshold) return negatedBehaviorThreshold;

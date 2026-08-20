@@ -8,7 +8,10 @@ import {
   parseSurveyBrief,
   validateSurvey,
 } from "../app/survey-intent";
-import { createSurveyPlan } from "../app/survey-planning";
+import {
+  createSurveyPlan,
+  evaluateSurveyPlanCoverage,
+} from "../app/survey-planning";
 import { parseSurveyResearchIntentCore } from "../app/survey-research-intent-core";
 
 const productionFailurePrompt =
@@ -103,6 +106,80 @@ test("관계형 fallback은 canonical SurveyPlan의 필수 측정 차원을 그�
     blueprint.aiQuestions.map((question) => question.title).join(" "),
     /관계(?:를|가)\s*(?:얼마나|어느)|상관관계를\s*묻/,
   );
+});
+
+test("관계형 fallback 보조 문항은 실제 연구 변수명을 사용한다", () => {
+  const prompt =
+    "직장인의 월 여가비와 문화생활 빈도 및 충동구매의 관계 조사";
+  const canonical = parseCanonicalSurveyIntent(prompt);
+  const plan = createSurveyPlan(canonical.surveyIntent, 7);
+  const blueprint = analyzeSurveyPrompt(prompt, canonical);
+  const titles = blueprint.aiQuestions.map((question) => question.title);
+  const genericSupplementalBlocks = plan.blocks.filter((block) =>
+    [
+      "predictor-context",
+      "outcome-driver",
+      "measurement-regularity",
+      "barrier-context",
+      "open-evidence",
+    ].includes(block.id),
+  );
+
+  assert.equal(titles.length, 7);
+  assert.doesNotMatch(
+    titles.join(" "),
+    /앞에서 답한|선행 값|결과 값|측정값|요소\s*\d+/u,
+  );
+  assert.ok(titles.some((title) => /월 여가비.*달라지는/.test(title)));
+  assert.ok(
+    titles.some((title) =>
+      /문화생활 빈도·충동구매.*영향/.test(title),
+    ),
+  );
+  assert.ok(
+    genericSupplementalBlocks.every(
+      (block) => block.sourceEntityIds.length > 0,
+    ),
+  );
+});
+
+test("장소명이 생략된 통학 불편도 이동 경험으로 구조화한다", () => {
+  const prompt = "다온대학교 학생의 통학 불편 조사";
+  const canonical = parseCanonicalSurveyIntent(prompt);
+  const blueprint = analyzeSurveyPrompt(prompt, canonical);
+  const titles = blueprint.aiQuestions.map((item) => item.title).join(" ");
+
+  assert.equal(canonical.audience?.text, "다온대학교 학생");
+  assert.equal(canonical.surveyArchetype, "mobility_experience");
+  assert.equal(canonical.generationContext.primaryEntity, "학교 통학");
+  assert.equal(canonical.generationContext.entityType, "movement");
+  assert.equal(canonical.generationContext.isUsageObject, false);
+  assert.match(titles, /통학.*빈도/);
+  assert.match(titles, /이동 수단/);
+  assert.match(titles, /소요시간/);
+  assert.match(titles, /혼잡/);
+  assert.match(titles, /안전/);
+  assert.match(titles, /불편/);
+  assert.doesNotMatch(titles, /관련한 행동은 주로 어떤 상황/);
+});
+
+test("구체적 안전 수준 문항은 인식 block을 직접 측정한 것으로 인정한다", () => {
+  const prompt =
+    "새빛대학교 환경공학과 학생의 실험실 안전 인식과 개선 요구 조사";
+  const canonical = parseCanonicalSurveyIntent(prompt);
+  const plan = createSurveyPlan(canonical.surveyIntent, 7);
+  const coverage = evaluateSurveyPlanCoverage(plan, [
+    {
+      id: 1,
+      title: "현재 실험실의 안전 수준은 어느 정도라고 생각하나요?",
+      type: "scale",
+      measuredVariable: "perceived_safety_level",
+      measuredConstruct: "실험실 안전 인식",
+    },
+  ]);
+
+  assert.ok(coverage.coveredRequiredBlockIds.includes("variable-1"));
+  assert.ok(!coverage.missingRequiredBlockIds.includes("variable-1"));
 });
 
 test("하나의 선행 변수가 복수 결과에 미치는 영향은 결과 변수를 각각 보존한다", () => {
