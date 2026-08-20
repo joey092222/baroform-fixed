@@ -59,6 +59,8 @@ type TraceSnapshot = {
   respondentFacingContentChanged?: unknown;
   modelOutputRejectedAt?: unknown;
   modelOutputRejectionCode?: unknown;
+  modelOutputRejectionIssues?: unknown;
+  modelOutputRejectionIssuePaths?: unknown;
   semanticViolationCodes?: unknown;
   qualityViolationCodes?: unknown;
   schemaIssuePaths?: unknown;
@@ -331,6 +333,21 @@ function headerStrings(headers: Headers, name: string) {
     .filter(Boolean);
 }
 
+function decodedHeaderStrings(headers: Headers, name: string) {
+  const raw = headers.get(name) ?? "";
+  if (!raw) return [];
+  let decoded = raw;
+  try {
+    decoded = decodeURIComponent(raw);
+  } catch {
+    // Preserve the safe truncated header even if a proxy cut an escape sequence.
+  }
+  return decoded
+    .split("|")
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
 function traceFromResponse(response: Response): TraceSnapshot {
   const headers = response.headers;
   return {
@@ -364,6 +381,14 @@ function traceFromResponse(response: Response): TraceSnapshot {
       headers.get("x-baroform-respondent-content-changed") === "true",
     modelOutputRejectedAt: headers.get("x-baroform-model-rejected-at"),
     modelOutputRejectionCode: headers.get("x-baroform-model-rejection-code"),
+    modelOutputRejectionIssues: decodedHeaderStrings(
+      headers,
+      "x-baroform-model-rejection-issues",
+    ),
+    modelOutputRejectionIssuePaths: headerStrings(
+      headers,
+      "x-baroform-model-rejection-paths",
+    ),
     semanticViolationCodes: headerStrings(
       headers,
       "x-baroform-final-role-mismatches",
@@ -777,6 +802,13 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
       respondentFacingContentChanged:
         finalTrace.respondentFacingContentChanged === true,
       modelOutputRejected: Boolean(finalTrace.modelOutputRejectedAt),
+      modelOutputRejectedAt: text(finalTrace.modelOutputRejectedAt) || null,
+      modelOutputRejectionCode:
+        text(finalTrace.modelOutputRejectionCode) || null,
+      modelOutputRejectionIssues: strings(finalTrace.modelOutputRejectionIssues),
+      modelOutputRejectionIssuePaths: strings(
+        finalTrace.modelOutputRejectionIssuePaths,
+      ),
       canonicalTargetPopulation: canonical.surveyIntent.targetPopulation,
       finalRespondentGroup: text(blueprint?.respondentGroup) || null,
       canonicalSurveyObject:
@@ -868,6 +900,12 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
       respondentFacingContentChanged:
         trace.respondentFacingContentChanged === true,
       modelOutputRejected: Boolean(trace.modelOutputRejectedAt),
+      modelOutputRejectedAt: text(trace.modelOutputRejectedAt) || null,
+      modelOutputRejectionCode: text(trace.modelOutputRejectionCode) || null,
+      modelOutputRejectionIssues: strings(trace.modelOutputRejectionIssues),
+      modelOutputRejectionIssuePaths: strings(
+        trace.modelOutputRejectionIssuePaths,
+      ),
       canonicalTargetPopulation: canonical.surveyIntent.targetPopulation,
       finalRespondentGroup: null,
       canonicalSurveyObject:

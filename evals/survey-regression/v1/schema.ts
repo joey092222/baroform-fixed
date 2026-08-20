@@ -136,6 +136,10 @@ export type SurveyRegressionResult = {
   metadataOnlyNormalization: boolean;
   respondentFacingContentChanged: boolean;
   modelOutputRejected: boolean;
+  modelOutputRejectedAt: string | null;
+  modelOutputRejectionCode: string | null;
+  modelOutputRejectionIssues: string[];
+  modelOutputRejectionIssuePaths: string[];
   classification: GenerationPath;
   canonicalTargetPopulation: string | null;
   finalRespondentGroup: string | null;
