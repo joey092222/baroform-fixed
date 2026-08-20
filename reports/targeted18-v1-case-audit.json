@@ -1,0 +1,4631 @@
+[
+  {
+    "caseId": "targeted-clarification-001",
+    "input": "온길센터 새 프로그램 주민 조사",
+    "expected": {
+      "id": "targeted-clarification-001",
+      "split": "dev",
+      "stratum": "clarification",
+      "category": "targeted_clarification_boundary",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "온길센터 새 프로그램 주민 조사",
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "확인 필요"
+      ],
+      "expectedSurveyObject": [
+        "확인 필요"
+      ],
+      "expectedPurposeConcepts": [
+        "확인 필요"
+      ],
+      "inputQuality": "ambiguous",
+      "contextEntities": [],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": true,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "attitude"
+      ],
+      "tags": [
+        "clarification"
+      ],
+      "notes": "v1.1 clarification_boundary 공통 근본 원인 targeted smoke fixture"
+    },
+    "requestId": "70cd488c-11f7-4f70-824b-18b56a26095c",
+    "generationSource": "clarification",
+    "classification": "clarification",
+    "modelCallCount": 0,
+    "repairCount": 0,
+    "fallbackCount": 0,
+    "changedQuestionIds": [],
+    "changedFieldsByQuestion": {},
+    "fallbackReason": null,
+    "finalRespondentGroup": null,
+    "finalEvaluationTarget": null,
+    "title": null,
+    "description": null,
+    "questions": [],
+    "questionsBeforePostprocess": [],
+    "fatalFailures": [],
+    "warnings": [],
+    "automaticJudgment": "auto_pass",
+    "regradedFatalFailures": [],
+    "regradedAutomaticJudgment": "auto_pass",
+    "manualJudgment": "true_pass",
+    "manualRationale": "프로그램의 내용과 조사 목적이 빠진 모호한 요청에 clarification을 반환해 적절함.",
+    "manualRepairJudgment": "not_repaired",
+    "manualRepairRationale": "clarification 응답이므로 문항 repair가 없음."
+  },
+  {
+    "caseId": "targeted-clarification-002",
+    "input": "두 교육관 통학 만족도 비교",
+    "expected": {
+      "id": "targeted-clarification-002",
+      "split": "dev",
+      "stratum": "clarification",
+      "category": "targeted_clarification_boundary",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "두 교육관 통학 만족도 비교",
+      "expectedOutcome": "clarification",
+      "expectedTargetPopulation": [
+        "확인 필요"
+      ],
+      "expectedSurveyObject": [
+        "확인 필요"
+      ],
+      "expectedPurposeConcepts": [
+        "만족도 비교"
+      ],
+      "inputQuality": "ambiguous",
+      "contextEntities": [],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": true,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "multiple",
+      "expectedArchetypes": [
+        "satisfaction",
+        "mixed"
+      ],
+      "tags": [
+        "clarification",
+        "multiple_targets"
+      ],
+      "notes": "v1.1 clarification_boundary 공통 근본 원인 targeted smoke fixture"
+    },
+    "requestId": "6f0453ae-5ef1-413e-83fd-ef1f3479cf9e",
+    "generationSource": "clarification",
+    "classification": "clarification",
+    "modelCallCount": 0,
+    "repairCount": 0,
+    "fallbackCount": 0,
+    "changedQuestionIds": [],
+    "changedFieldsByQuestion": {},
+    "fallbackReason": null,
+    "finalRespondentGroup": null,
+    "finalEvaluationTarget": null,
+    "title": null,
+    "description": null,
+    "questions": [],
+    "questionsBeforePostprocess": [],
+    "fatalFailures": [],
+    "warnings": [],
+    "automaticJudgment": "auto_pass",
+    "regradedFatalFailures": [],
+    "regradedAutomaticJudgment": "auto_pass",
+    "manualJudgment": "true_pass",
+    "manualRationale": "비교할 두 교육관이 명시되지 않아 clarification을 반환한 것이 적절함.",
+    "manualRepairJudgment": "not_repaired",
+    "manualRepairRationale": "clarification 응답이므로 문항 repair가 없음."
+  },
+  {
+    "caseId": "targeted-clarification-003",
+    "input": "다온대학교 학생의 통학 불편 조사",
+    "expected": {
+      "id": "targeted-clarification-003",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "targeted_clarification_boundary",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "다온대학교 학생의 통학 불편 조사",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "다온대학교 학생"
+      ],
+      "expectedSurveyObject": [
+        "통학"
+      ],
+      "expectedPurposeConcepts": [
+        "불편"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "다온대학교"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "불편"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "mobility_experience"
+      ],
+      "tags": [],
+      "notes": "v1.1 clarification_boundary 공통 근본 원인 targeted smoke fixture"
+    },
+    "requestId": "a92a33dc-ec36-47ce-a456-ff09899d6871",
+    "generationSource": "openai_partial_repair",
+    "classification": "partial_repair",
+    "modelCallCount": 1,
+    "repairCount": 1,
+    "fallbackCount": 0,
+    "changedQuestionIds": [
+      "2"
+    ],
+    "changedFieldsByQuestion": {
+      "2": [
+        "decisionGoalIds",
+        "description",
+        "explicitTimeframe",
+        "measuredConstruct",
+        "measuredRole",
+        "measuredVariable",
+        "objectRole",
+        "options",
+        "planBlockId",
+        "questionPurpose",
+        "reason",
+        "shuffleOptions",
+        "subjectRole",
+        "title",
+        "type",
+        "unitOfAnalysis"
+      ]
+    },
+    "fallbackReason": null,
+    "finalRespondentGroup": "다온대학교 재학생",
+    "finalEvaluationTarget": "통학 불편",
+    "title": "다온대학교 학생 통학 불편 조사",
+    "description": "이 설문은 다온대학교 학생의 통학 경험과 불편한 점을 알아보기 위한 조사입니다. 응답에는 약 3분이 걸립니다.",
+    "questions": [
+      {
+        "id": null,
+        "title": "학교에 올 때 가장 자주 이용하는 이동 방법은 무엇인가요?",
+        "type": "single",
+        "options": [
+          "도보",
+          "버스",
+          "지하철 또는 전철",
+          "버스와 지하철 또는 전철을 함께 이용함",
+          "자가용 또는 오토바이",
+          "자전거 또는 개인형 이동장치",
+          "기타"
+        ],
+        "reason": "학생들의 주요 통학 방식을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "primary_commute_mode",
+        "measuredConstruct": "주요 통학 수단",
+        "measuredEntityIds": [],
+        "questionPurpose": "학생들의 주요 통학 방식을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "‘통학 불편’과 관련한 행동은 주로 어떤 상황에서 일어나나요?",
+        "type": "multiple",
+        "options": [
+          "일상적으로",
+          "학업·업무 중",
+          "이동 중",
+          "여가 시간",
+          "사람들과 함께할 때",
+          "특정한 상황 없음",
+          "기타"
+        ],
+        "reason": "조사 주제가 실제로 나타나는 행동 맥락을 구분함.",
+        "role": null,
+        "measuredRole": "construct",
+        "planBlockId": "open-evidence",
+        "purposeBlockId": null,
+        "measuredVariable": "구체적인 경험과 제안",
+        "measuredConstruct": "구체적인 경험과 제안",
+        "measuredEntityIds": [],
+        "questionPurpose": "선택지에 포함되지 않은 근거와 대안을 수집함.",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "평소 학교를 오갈 때 얼마나 불편한가요?",
+        "type": "single",
+        "options": [
+          "전혀 불편하지 않음",
+          "별로 불편하지 않음",
+          "보통",
+          "다소 불편함",
+          "매우 불편함"
+        ],
+        "reason": "통학 과정에서 느끼는 전반적인 불편 수준을 측정함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "commute_inconvenience_level",
+        "measuredConstruct": "관련 활동 과정의 불편",
+        "measuredEntityIds": [],
+        "questionPurpose": "통학 과정에서 느끼는 전반적인 불편 수준을 측정함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "통학할 때 불편하게 느끼는 점을 모두 골라주세요",
+        "type": "multiple",
+        "options": [
+          "통학 시간이 오래 걸림",
+          "교통수단이 붐빔",
+          "교통비 부담이 큼",
+          "환승이 번거로움",
+          "정류장이나 역에서 학교까지 이동하기 불편함",
+          "날씨 때문에 이동하기 어려움",
+          "통학 시간대가 수업 일정과 잘 맞지 않음",
+          "특별히 불편한 점 없음",
+          "기타"
+        ],
+        "reason": "학생들이 겪는 주요 통학 불편 요인을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "commute_barriers",
+        "measuredConstruct": "통학 장벽",
+        "measuredEntityIds": [],
+        "questionPurpose": "학생들이 겪는 주요 통학 불편 요인을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "통학 방법을 고를 때 가장 중요하게 생각하는 것은 무엇인가요?",
+        "type": "single",
+        "options": [
+          "이동 시간",
+          "교통비",
+          "환승 횟수",
+          "혼잡 정도",
+          "안전",
+          "이동 시간의 예측 가능성",
+          "기타"
+        ],
+        "reason": "학생들이 통학 방법을 정할 때 중시하는 기준을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "commute_choice_priority",
+        "measuredConstruct": "통학 선택 기준",
+        "measuredEntityIds": [],
+        "questionPurpose": "학생들이 통학 방법을 정할 때 중시하는 기준을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "통학 환경에서 가장 먼저 개선됐으면 하는 점은 무엇인가요?",
+        "type": "single",
+        "options": [
+          "학교까지 오가는 교통편 확대",
+          "정류장이나 역에서 학교까지의 이동 환경 개선",
+          "통학 시간대 교통 혼잡 완화",
+          "교통비 부담을 줄일 수 있는 지원",
+          "통학 관련 정보 안내 개선",
+          "기타"
+        ],
+        "reason": "우선적으로 필요한 통학 환경 개선 방향을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "commute_improvement_priority",
+        "measuredConstruct": "개선 수요",
+        "measuredEntityIds": [],
+        "questionPurpose": "우선적으로 필요한 통학 환경 개선 방향을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "통학하면서 겪은 불편이나 바뀌었으면 하는 점이 있다면 적어주세요",
+        "type": "text",
+        "options": [],
+        "reason": "선택지에 담기지 않은 통학 경험과 개선 의견을 수집함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "commute_open_feedback",
+        "measuredConstruct": "구체적인 경험과 제안",
+        "measuredEntityIds": [],
+        "questionPurpose": "선택지에 담기지 않은 통학 경험과 개선 의견을 수집함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      }
+    ],
+    "questionsBeforePostprocess": [],
+    "fatalFailures": [],
+    "warnings": [
+      {
+        "code": "PARTIAL_REPAIR",
+        "message": "모델 출력 일부가 복구됨",
+        "cluster": "partial_repair",
+        "fatal": false
+      }
+    ],
+    "automaticJudgment": "auto_pass",
+    "regradedFatalFailures": [
+      {
+        "code": "GENERIC_FILLER",
+        "message": "generic filler 문항이 포함됨",
+        "cluster": "question_quality",
+        "fatal": true
+      }
+    ],
+    "regradedAutomaticJudgment": "auto_failure",
+    "manualJudgment": "evaluator_false_negative",
+    "manualRationale": "통학 불편 조사에서 repair된 Q2가 '관련한 행동은 주로 어떤 상황에서'라는 추상적 filler가 되어 사용자가 요구한 구체적 통학 불편을 직접 측정하지 못했지만 자동 평가가 통과함.",
+    "manualRepairJudgment": "repair_created_new_error",
+    "manualRepairRationale": "Q2의 모든 응답자 노출 필드가 교체되면서 구체적인 통학 맥락을 잃은 generic 문항이 생김."
+  },
+  {
+    "caseId": "targeted-clarification-004",
+    "input": "별숲앱 안쓰는 자영업자 왜안씀 앞으로쓸지 조사",
+    "expected": {
+      "id": "targeted-clarification-004",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "targeted_clarification_boundary",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "별숲앱 안쓰는 자영업자 왜안씀 앞으로쓸지 조사",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "별숲앱을 사용하지 않는 자영업자",
+        "별숲앱 안 쓰는 자영업자"
+      ],
+      "expectedSurveyObject": [
+        "별숲앱"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유",
+        "이용 의향"
+      ],
+      "inputQuality": "noisy_recoverable",
+      "contextEntities": [
+        "별숲앱"
+      ],
+      "expectedEligibilityConditions": [
+        "별숲앱 비이용"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "별숲앱"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "이용 의향"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계",
+        "이용 만족도 강제",
+        "방문 만족도 강제"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "attitude",
+        "service_usage"
+      ],
+      "tags": [
+        "noisy_input",
+        "timeframe",
+        "negation",
+        "single_target_multi_purpose"
+      ],
+      "notes": "v1.1 clarification_boundary 공통 근본 원인 targeted smoke fixture"
+    },
+    "requestId": "692d7d59-d72c-4b8e-9987-284dff602c6b",
+    "generationSource": "openai_partial_repair",
+    "classification": "partial_repair",
+    "modelCallCount": 1,
+    "repairCount": 1,
+    "fallbackCount": 0,
+    "changedQuestionIds": [
+      "7"
+    ],
+    "changedFieldsByQuestion": {
+      "7": [
+        "measuredConstruct",
+        "measuredRole",
+        "measuredVariable",
+        "objectRole",
+        "options",
+        "planBlockId",
+        "questionPurpose",
+        "reason",
+        "required",
+        "shuffleOptions",
+        "subjectRole",
+        "title",
+        "type",
+        "unitOfAnalysis"
+      ]
+    },
+    "fallbackReason": null,
+    "finalRespondentGroup": "별숲앱을 이용하지 않는 자영업자",
+    "finalEvaluationTarget": "별숲앱",
+    "title": "별숲앱을 사용하지 않는 자영업자 의견 조사",
+    "description": "이 설문은 별숲앱을 현재 사용하지 않는 자영업자의 이유와 앞으로 사용할 가능성을 알아보기 위한 조사입니다. 약 3분 정도 걸립니다.",
+    "questions": [
+      {
+        "id": null,
+        "title": "별숲앱을 이용하지 않는 자영업자에 해당하시나요?",
+        "type": "single",
+        "options": [
+          "예, 해당합니다",
+          "아니요, 해당하지 않습니다"
+        ],
+        "reason": "설문에 명시된 응답 대상 조건을 먼저 확인함.",
+        "role": null,
+        "measuredRole": "eligibility",
+        "planBlockId": "eligibility-screening",
+        "purposeBlockId": null,
+        "measuredVariable": "별숲앱을 이용하지 않는 자영업자",
+        "measuredConstruct": "응답 적격성",
+        "measuredEntityIds": [],
+        "questionPurpose": "설문에 명시된 응답 대상 조건 충족 여부를 확인함.",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "현재 자영업을 하고 있나요?",
+        "type": "single",
+        "options": [
+          "네, 현재 자영업을 하고 있습니다",
+          "아니요"
+        ],
+        "reason": "응답자가 조사 대상에 해당하는지 확인함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "is_self_employed",
+        "measuredConstruct": "자영업자 여부",
+        "measuredEntityIds": [],
+        "questionPurpose": "응답자가 조사 대상에 해당하는지 확인함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "현재 별숲앱을 사용하고 있나요?",
+        "type": "single",
+        "options": [
+          "현재 사용하고 있습니다",
+          "현재 사용하지 않습니다"
+        ],
+        "reason": "현재 별숲앱을 사용하지 않는 응답자인지 확인함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "is_byeolsup_nonuser",
+        "measuredConstruct": "현재 별숲앱 사용 상태",
+        "measuredEntityIds": [],
+        "questionPurpose": "현재 별숲앱을 사용하지 않는 응답자인지 확인함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "별숲앱에 대해 어느 정도 알고 있었나요?",
+        "type": "single",
+        "options": [
+          "이름만 들어봤습니다",
+          "어떤 앱인지 대략 알고 있습니다",
+          "기능이나 내용을 어느 정도 알고 있습니다",
+          "처음 들어봅니다"
+        ],
+        "reason": "별숲앱을 알지 못해 사용하지 않는 비율을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "byeolsup_awareness",
+        "measuredConstruct": "별숲앱 인지도",
+        "measuredEntityIds": [],
+        "questionPurpose": "별숲앱을 알지 못해 사용하지 않는 비율을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "별숲앱을 사용하지 않는 이유를 모두 골라주세요",
+        "type": "multiple",
+        "options": [
+          "별숲앱을 잘 몰라서",
+          "나에게 필요한 앱인지 판단하기 어려워서",
+          "사용할 시간이 부족해서",
+          "이미 다른 방법이나 서비스를 사용하고 있어서",
+          "사용 방법이 복잡할 것 같아서",
+          "개인정보나 비용이 걱정돼서",
+          "아직 사용할 필요를 느끼지 못해서",
+          "기타"
+        ],
+        "reason": "별숲앱을 사용하지 않는 주요 이유를 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "nonuse_reasons",
+        "measuredConstruct": "비이용 이유",
+        "measuredEntityIds": [],
+        "questionPurpose": "별숲앱을 사용하지 않는 주요 이유를 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "어떤 조건이 갖춰지면 별숲앱 사용을 고려해 볼 수 있나요?",
+        "type": "multiple",
+        "options": [
+          "내 사업에 어떤 도움이 되는지 쉽게 알 수 있다면",
+          "사용 방법을 쉽게 안내해 준다면",
+          "짧게 체험해 볼 수 있다면",
+          "비용이나 조건이 명확하다면",
+          "개인정보 처리 방식이 명확하다면",
+          "다른 자영업자의 사용 사례를 볼 수 있다면",
+          "어떤 조건이 있어도 사용할 생각이 없습니다",
+          "기타"
+        ],
+        "reason": "별숲앱 사용을 고려하게 만드는 조건을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "adoption_conditions",
+        "measuredConstruct": "사용 고려 조건",
+        "measuredEntityIds": [],
+        "questionPurpose": "별숲앱 사용을 고려하게 만드는 조건을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "앞으로 별숲앱을 사용할 가능성은 어느 정도인가요?",
+        "type": "scale",
+        "options": [],
+        "reason": "별숲앱의 잠재적인 사용 의향을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "future_use_intention",
+        "measuredConstruct": "향후 사용 의향",
+        "measuredEntityIds": [],
+        "questionPurpose": "별숲앱의 잠재적인 사용 의향을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      }
+    ],
+    "questionsBeforePostprocess": [],
+    "fatalFailures": [],
+    "warnings": [
+      {
+        "code": "PARTIAL_REPAIR",
+        "message": "모델 출력 일부가 복구됨",
+        "cluster": "partial_repair",
+        "fatal": false
+      }
+    ],
+    "automaticJudgment": "auto_pass",
+    "regradedFatalFailures": [],
+    "regradedAutomaticJudgment": "auto_pass",
+    "manualJudgment": "true_pass",
+    "manualRationale": "별숲앱 비이용 자영업자의 비이용 이유와 향후 사용 의향을 모두 직접 측정함.",
+    "manualRepairJudgment": "necessary_partial_repair",
+    "manualRepairRationale": "Q7 repair 후 향후 사용 의향 coverage가 보존된 정상 설문이 됨."
+  },
+  {
+    "caseId": "targeted-expansion-001",
+    "input": "솔샘 공공도서관 이용자의 방문 목적, 이용 빈도, 불편과 개선 요구 조사",
+    "expected": {
+      "id": "targeted-expansion-001",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "targeted_plan_aware_expansion",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "솔샘 공공도서관 이용자의 방문 목적, 이용 빈도, 불편과 개선 요구 조사",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "솔샘 공공도서관 이용자"
+      ],
+      "expectedSurveyObject": [
+        "솔샘 공공도서관"
+      ],
+      "expectedPurposeConcepts": [
+        "이용 목적",
+        "이용 빈도",
+        "불편",
+        "개선 요구"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "솔샘 공공도서관"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "이용 목적",
+        "이용 빈도",
+        "불편",
+        "개선 요구"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "facility_usage",
+        "mixed"
+      ],
+      "tags": [
+        "single_target_multi_purpose"
+      ],
+      "notes": "v1.1 plan_aware_expansion 공통 근본 원인 targeted smoke fixture"
+    },
+    "requestId": "f358d9cf-eb93-4a38-9be8-e4da47bd4094",
+    "generationSource": "openai",
+    "classification": "deterministic_metadata_normalization",
+    "modelCallCount": 1,
+    "repairCount": 0,
+    "fallbackCount": 0,
+    "changedQuestionIds": [],
+    "changedFieldsByQuestion": {},
+    "fallbackReason": null,
+    "finalRespondentGroup": "솔샘 공공도서관 이용자",
+    "finalEvaluationTarget": "솔샘 공공도서관",
+    "title": "솔샘 공공도서관 이용 경험과 개선 요구 조사",
+    "description": "솔샘 공공도서관을 이용해 본 분들의 방문 목적, 이용 방식, 불편 사항과 개선 의견을 알아보기 위한 설문입니다. 약 3분 정도 걸립니다.",
+    "questions": [
+      {
+        "id": null,
+        "title": "평소 솔샘 공공도서관을 얼마나 자주 방문하나요?",
+        "type": "single",
+        "options": [
+          "월 1회 미만",
+          "월 1~3회",
+          "주 1회",
+          "주 2~3회",
+          "주 4회 이상"
+        ],
+        "reason": "방문 빈도별 이용자 분포를 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "visit_frequency",
+        "measuredConstruct": "이용 빈도",
+        "measuredEntityIds": [],
+        "questionPurpose": "방문 빈도별 이용자 분포를 파악함.",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "솔샘 공공도서관을 찾는 가장 큰 이유는 무엇인가요?",
+        "type": "single",
+        "options": [
+          "책이나 자료를 빌리거나 반납하려고",
+          "책이나 자료를 읽으려고",
+          "공부하거나 업무를 하려고",
+          "조용히 쉬거나 시간을 보내려고",
+          "기타"
+        ],
+        "reason": "가장 중요한 방문 목적을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "primary_visit_purpose",
+        "measuredConstruct": "방문 목적",
+        "measuredEntityIds": [],
+        "questionPurpose": "가장 중요한 방문 목적을 파악함.",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "한 번 방문하면 보통 얼마나 오래 머무르나요?",
+        "type": "single",
+        "options": [
+          "30분 미만",
+          "30분 이상~1시간 미만",
+          "1시간 이상~2시간 미만",
+          "2시간 이상~3시간 미만",
+          "3시간 이상"
+        ],
+        "reason": "방문 1회당 체류 시간을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "visit_duration",
+        "measuredConstruct": "이용 강도",
+        "measuredEntityIds": [],
+        "questionPurpose": "방문 1회당 체류 시간을 파악함.",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "가장 최근 방문을 기준으로, 전반적인 이용 경험은 어땠나요?",
+        "type": "scale",
+        "options": [],
+        "reason": "전반적인 이용 경험 수준을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "overall_experience",
+        "measuredConstruct": "전반적 이용 경험",
+        "measuredEntityIds": [],
+        "questionPurpose": "전반적인 이용 경험 수준을 파악함.",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "가장 최근 방문에서 불편했던 점을 모두 골라주세요",
+        "type": "multiple",
+        "options": [
+          "찾고 싶은 자료를 찾기 어려웠음",
+          "좌석이나 이용 공간이 부족했음",
+          "시설의 청결이나 관리 상태가 아쉬웠음",
+          "직원에게 도움을 받기 어려웠음",
+          "이용 시간이나 접근성이 불편했음",
+          "기타",
+          "불편한 점이 없었음"
+        ],
+        "reason": "이용 과정에서 경험한 불편 요인을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "inconvenience_factors",
+        "measuredConstruct": "불편 사항",
+        "measuredEntityIds": [],
+        "questionPurpose": "이용 과정에서 경험한 불편 요인을 파악함.",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "가장 먼저 개선됐으면 하는 점은 무엇인가요?",
+        "type": "single",
+        "options": [
+          "자료를 찾고 이용하기 쉽게 만들기",
+          "좌석과 이용 공간 늘리기",
+          "시설 청결과 관리 개선하기",
+          "직원 안내와 도움 강화하기",
+          "이용 시간이나 접근성 개선하기",
+          "기타"
+        ],
+        "reason": "가장 우선적인 개선 요구를 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "improvement_priority",
+        "measuredConstruct": "개선 요구",
+        "measuredEntityIds": [],
+        "questionPurpose": "가장 우선적인 개선 요구를 파악함.",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "솔샘 공공도서관에서 가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요",
+        "type": "text",
+        "options": [],
+        "reason": "선택지에 없는 개선 의견을 수집함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "open_improvement_feedback",
+        "measuredConstruct": "구체적 개선 의견",
+        "measuredEntityIds": [],
+        "questionPurpose": "선택지에 없는 개선 의견을 수집함.",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      }
+    ],
+    "questionsBeforePostprocess": [],
+    "fatalFailures": [
+      {
+        "code": "REQUIRED_PURPOSE_MISSING",
+        "message": "필수 조사 목적 누락: 이용 목적",
+        "cluster": "purpose_coverage",
+        "fatal": true
+      },
+      {
+        "code": "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "message": "필수 문항 개념 누락: 이용 목적",
+        "cluster": "purpose_coverage",
+        "fatal": true
+      }
+    ],
+    "warnings": [],
+    "automaticJudgment": "auto_failure",
+    "regradedFatalFailures": [],
+    "regradedAutomaticJudgment": "auto_pass",
+    "manualJudgment": "evaluator_false_positive",
+    "manualRationale": "방문 목적·이용 빈도·불편·개선 요구를 각각 직접 묻고 있어 필수 조사 목적이 모두 충족되지만 evaluator가 purpose coverage 누락으로 오판함.",
+    "manualRepairJudgment": "not_repaired",
+    "manualRepairRationale": "repair 없이 모델 출력이 목적 전체를 충족함."
+  },
+  {
+    "caseId": "targeted-expansion-002",
+    "input": "늘해랑 보건소 방문자의 접근성, 대기 시간, 안내 만족도, 불편한 점을 알아보고 싶다.",
+    "expected": {
+      "id": "targeted-expansion-002",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "targeted_plan_aware_expansion",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "늘해랑 보건소 방문자의 접근성, 대기 시간, 안내 만족도, 불편한 점을 알아보고 싶다.",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "늘해랑 보건소 방문자"
+      ],
+      "expectedSurveyObject": [
+        "늘해랑 보건소"
+      ],
+      "expectedPurposeConcepts": [
+        "접근성",
+        "대기 시간",
+        "만족도",
+        "불편"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "늘해랑 보건소"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "접근성",
+        "대기 시간",
+        "만족도",
+        "불편"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "facility_usage",
+        "satisfaction"
+      ],
+      "tags": [
+        "single_target_multi_purpose"
+      ],
+      "notes": "v1.1 plan_aware_expansion 공통 근본 원인 targeted smoke fixture"
+    },
+    "requestId": "13127a41-47f3-4a6e-9aea-0605dcc176f1",
+    "generationSource": "openai",
+    "classification": "deterministic_metadata_normalization",
+    "modelCallCount": 1,
+    "repairCount": 0,
+    "fallbackCount": 0,
+    "changedQuestionIds": [],
+    "changedFieldsByQuestion": {},
+    "fallbackReason": null,
+    "finalRespondentGroup": "늘해랑 보건소 방문자",
+    "finalEvaluationTarget": "늘해랑 보건소",
+    "title": "늘해랑 보건소 방문 경험 조사",
+    "description": "늘해랑 보건소 방문자를 대상으로, 늘해랑 보건소를 방문하며 느낀 점을 알아보기 위한 설문입니다. 약 3분 정도 걸립니다.",
+    "questions": [
+      {
+        "id": null,
+        "title": "가장 최근 늘해랑 보건소를 방문한 주된 이유는 무엇인가요?",
+        "type": "single",
+        "options": [
+          "본인의 건강 관련 업무를 위해",
+          "가족이나 지인과 함께 방문하기 위해",
+          "정보나 절차를 문의하기 위해",
+          "기타"
+        ],
+        "reason": "방문 목적별 경험 차이를 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "visit_purpose",
+        "measuredConstruct": "방문 목적",
+        "measuredEntityIds": [],
+        "questionPurpose": "방문 목적별 경험 차이를 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "늘해랑 보건소를 찾아오는 과정은 얼마나 편리했나요?",
+        "type": "scale",
+        "options": [],
+        "reason": "방문 장소까지 오는 과정의 편리성을 측정함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "accessibility_rating",
+        "measuredConstruct": "접근성",
+        "measuredEntityIds": [],
+        "questionPurpose": "방문 장소까지 오는 과정의 편리성을 측정함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "가장 최근 방문에서 원하는 업무를 시작하기 전 얼마나 기다렸나요?",
+        "type": "single",
+        "options": [
+          "기다리지 않았음",
+          "10분 미만",
+          "10분 이상 20분 미만",
+          "20분 이상 30분 미만",
+          "30분 이상",
+          "기다릴 일이 없었음",
+          "기억나지 않음"
+        ],
+        "reason": "방문자가 체감한 대기 시간 분포를 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "waiting_time_band",
+        "measuredConstruct": "대기 시간",
+        "measuredEntityIds": [],
+        "questionPurpose": "방문자가 체감한 대기 시간 분포를 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "가장 최근 방문에서 절차나 장소에 대한 안내는 어땠나요?",
+        "type": "single",
+        "options": [
+          "매우 만족했음",
+          "만족한 편이었음",
+          "보통이었음",
+          "만족하지 않은 편이었음",
+          "전혀 만족하지 않았음",
+          "안내를 받을 일이 없었음"
+        ],
+        "reason": "절차와 장소 안내에 대한 만족도를 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "guidance_satisfaction",
+        "measuredConstruct": "안내 만족도",
+        "measuredEntityIds": [],
+        "questionPurpose": "절차와 장소 안내에 대한 만족도를 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "가장 최근 늘해랑 보건소 방문 경험에 전반적으로 얼마나 만족했나요?",
+        "type": "scale",
+        "options": [],
+        "reason": "세부 경험과 구분되는 전체 방문 만족도를 측정함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "overall_satisfaction",
+        "measuredConstruct": "전반적 만족도",
+        "measuredEntityIds": [],
+        "questionPurpose": "세부 경험과 구분되는 전체 방문 만족도를 측정함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "방문하면서 불편했던 점이 있다면 모두 골라주세요",
+        "type": "multiple",
+        "options": [
+          "찾아오는 길이나 교통",
+          "출입하거나 이동하는 과정",
+          "대기 시간",
+          "장소나 절차를 찾기 어려웠음",
+          "직원과 의사소통하기 어려웠음",
+          "시설 환경",
+          "기타",
+          "불편했던 점이 없었음"
+        ],
+        "reason": "방문 과정에서 개선이 필요한 불편 요인을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "visit_pain_points",
+        "measuredConstruct": "불편한 점",
+        "measuredEntityIds": [],
+        "questionPurpose": "방문 과정에서 개선이 필요한 불편 요인을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요",
+        "type": "text",
+        "options": [],
+        "reason": "선택지에 담기지 않은 구체적인 개선 의견을 수집함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "improvement_comment",
+        "measuredConstruct": "개선 의견",
+        "measuredEntityIds": [],
+        "questionPurpose": "선택지에 담기지 않은 구체적인 개선 의견을 수집함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      }
+    ],
+    "questionsBeforePostprocess": [],
+    "fatalFailures": [],
+    "warnings": [],
+    "automaticJudgment": "auto_pass",
+    "regradedFatalFailures": [],
+    "regradedAutomaticJudgment": "auto_pass",
+    "manualJudgment": "true_pass",
+    "manualRationale": "접근성·대기 시간·안내 만족도·불편을 모두 직접 측정함.",
+    "manualRepairJudgment": "not_repaired",
+    "manualRepairRationale": "repair 없이 정상 출력임."
+  },
+  {
+    "caseId": "targeted-expansion-003",
+    "input": "바다온 원격수업에 참여한 성인의 수업 참여 경험, 학습 효과, 어려움과 개선 요구 조사",
+    "expected": {
+      "id": "targeted-expansion-003",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "targeted_plan_aware_expansion",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "바다온 원격수업에 참여한 성인의 수업 참여 경험, 학습 효과, 어려움과 개선 요구 조사",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "바다온 원격수업에 참여한 성인"
+      ],
+      "expectedSurveyObject": [
+        "바다온 원격수업"
+      ],
+      "expectedPurposeConcepts": [
+        "참여 경험",
+        "학습 효과",
+        "불편",
+        "개선 요구"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [
+        "바다온 원격수업"
+      ],
+      "expectedEligibilityConditions": [
+        "바다온 원격수업 참여"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "바다온 원격수업"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "참여 경험",
+        "학습 효과",
+        "불편",
+        "개선 요구"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "learning_experience",
+        "event_program"
+      ],
+      "tags": [
+        "timeframe",
+        "single_target_multi_purpose"
+      ],
+      "notes": "v1.1 plan_aware_expansion 공통 근본 원인 targeted smoke fixture"
+    },
+    "requestId": "10e9b341-feed-4fa5-aa55-744163b0d0b9",
+    "generationSource": "openai",
+    "classification": "deterministic_metadata_normalization",
+    "modelCallCount": 1,
+    "repairCount": 0,
+    "fallbackCount": 0,
+    "changedQuestionIds": [],
+    "changedFieldsByQuestion": {},
+    "fallbackReason": null,
+    "finalRespondentGroup": "바다온 원격수업에 참여한 성인",
+    "finalEvaluationTarget": "바다온 원격수업",
+    "title": "바다온 원격수업 참여 경험과 개선 요구 조사",
+    "description": "바다온 원격수업에 참여한 성인의 경험을 알아보기 위한 설문입니다. 응답에는 약 3분이 걸립니다.",
+    "questions": [
+      {
+        "id": null,
+        "title": "만 19세 이상이며 바다온 원격수업에 참여한 적이 있나요?",
+        "type": "single",
+        "options": [
+          "예",
+          "아니요"
+        ],
+        "reason": "응답 대상 조건 충족 여부를 확인함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "eligibility_confirmed",
+        "measuredConstruct": "응답 적격 여부",
+        "measuredEntityIds": [],
+        "questionPurpose": "응답 대상 조건 충족 여부를 확인함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "평소 바다온 원격수업에 얼마나 자주 참여했나요?",
+        "type": "single",
+        "options": [
+          "한 번만 참여함",
+          "가끔 참여함",
+          "월 1~3회 참여함",
+          "주 1회 참여함",
+          "주 2회 이상 참여함"
+        ],
+        "reason": "원격수업 참여 수준을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "class_participation_frequency",
+        "measuredConstruct": "수업 참여 빈도",
+        "measuredEntityIds": [],
+        "questionPurpose": "원격수업 참여 수준을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "가장 최근 참여한 수업을 기준으로, 수업에 참여하는 과정은 얼마나 편리했나요?",
+        "type": "scale",
+        "options": [],
+        "reason": "수업 참여 과정의 편의성을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "participation_convenience",
+        "measuredConstruct": "수업 참여 경험",
+        "measuredEntityIds": [],
+        "questionPurpose": "수업 참여 과정의 편의성을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "바다온 원격수업은 학습 내용을 이해하는 데 얼마나 도움이 되었나요?",
+        "type": "scale",
+        "options": [],
+        "reason": "원격수업이 학습 이해에 도움을 준 정도를 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "learning_effectiveness",
+        "measuredConstruct": "학습 효과",
+        "measuredEntityIds": [],
+        "questionPurpose": "원격수업이 학습 이해에 도움을 준 정도를 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "수업에 참여하면서 어떤 어려움을 겪었나요?",
+        "type": "multiple",
+        "options": [
+          "수업 내용을 이해하기 어려웠음",
+          "집중하기 어려웠음",
+          "질문하거나 도움을 받기 어려웠음",
+          "수업 일정에 맞추기 어려웠음",
+          "기기나 인터넷 사용이 어려웠음",
+          "기타",
+          "특별히 어려운 점이 없었음"
+        ],
+        "reason": "수업 참여 중 겪은 어려움의 유형을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "participation_barriers",
+        "measuredConstruct": "참여 어려움",
+        "measuredEntityIds": [],
+        "questionPurpose": "수업 참여 중 겪은 어려움의 유형을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "바다온 원격수업에서 가장 먼저 개선됐으면 하는 점은 무엇인가요?",
+        "type": "single",
+        "options": [
+          "수업 내용의 이해하기 쉬운 설명",
+          "집중하기 쉬운 수업 진행",
+          "질문과 도움을 받을 기회",
+          "수업 일정이나 참여 방식",
+          "기기·인터넷 사용 지원",
+          "기타"
+        ],
+        "reason": "가장 우선적인 개선 요구를 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "improvement_priority",
+        "measuredConstruct": "개선 요구",
+        "measuredEntityIds": [],
+        "questionPurpose": "가장 우선적인 개선 요구를 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "바다온 원격수업에서 가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요",
+        "type": "text",
+        "options": [],
+        "reason": "선택지에 없는 개선 의견을 수집함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "open_improvement_feedback",
+        "measuredConstruct": "구체적 개선 의견",
+        "measuredEntityIds": [],
+        "questionPurpose": "선택지에 없는 개선 의견을 수집함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      }
+    ],
+    "questionsBeforePostprocess": [],
+    "fatalFailures": [],
+    "warnings": [],
+    "automaticJudgment": "auto_pass",
+    "regradedFatalFailures": [],
+    "regradedAutomaticJudgment": "auto_pass",
+    "manualJudgment": "true_pass",
+    "manualRationale": "수업 참여 경험·학습 효과·어려움·개선 요구를 모두 측정하고 참여 자격 문항도 선두에 배치함.",
+    "manualRepairJudgment": "not_repaired",
+    "manualRepairRationale": "repair 없이 정상 출력임."
+  },
+  {
+    "caseId": "targeted-flattening-001",
+    "input": "푸른들 돌봄 프로그램에 참여하지 않은 학부모에게 불참 이유와 앞으로 참여할 생각을 묻고 싶다.",
+    "expected": {
+      "id": "targeted-flattening-001",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "targeted_request_flattening",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "푸른들 돌봄 프로그램에 참여하지 않은 학부모에게 불참 이유와 앞으로 참여할 생각을 묻고 싶다.",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "푸른들 돌봄 프로그램에 참여하지 않은 학부모"
+      ],
+      "expectedSurveyObject": [
+        "푸른들 돌봄 프로그램"
+      ],
+      "expectedPurposeConcepts": [
+        "비참여 이유",
+        "참여 의향"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [
+        "푸른들 돌봄 프로그램"
+      ],
+      "expectedEligibilityConditions": [
+        "푸른들 돌봄 프로그램 비참여"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "푸른들 돌봄 프로그램"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비참여 이유",
+        "참여 의향"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계",
+        "이용 만족도 강제",
+        "방문 만족도 강제"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "attitude",
+        "event_program"
+      ],
+      "tags": [
+        "timeframe",
+        "negation",
+        "single_target_multi_purpose"
+      ],
+      "notes": "v1.1 request_flattening 공통 근본 원인 targeted smoke fixture"
+    },
+    "requestId": "737da88c-81d0-4aa4-a38b-18fb78fd4ba8",
+    "generationSource": "openai",
+    "classification": "deterministic_metadata_normalization",
+    "modelCallCount": 1,
+    "repairCount": 0,
+    "fallbackCount": 0,
+    "changedQuestionIds": [],
+    "changedFieldsByQuestion": {},
+    "fallbackReason": null,
+    "finalRespondentGroup": "푸른들 돌봄 프로그램에 참여하지 않은 학부모",
+    "finalEvaluationTarget": "푸른들 돌봄 프로그램",
+    "title": "푸른들 돌봄 프로그램 미참여 학부모 의견 조사",
+    "description": "푸른들 돌봄 프로그램에 참여하지 않은 학부모님의 의견을 듣기 위한 설문입니다. 참여하지 않은 이유와 앞으로의 참여 가능성을 알아보는 데 활용됩니다. 약 3분 정도 걸립니다.",
+    "questions": [
+      {
+        "id": null,
+        "title": "푸른들 돌봄 프로그램에 참여한 적이 있나요?",
+        "type": "single",
+        "options": [
+          "참여한 적 없음",
+          "참여한 적 있음"
+        ],
+        "reason": "프로그램 미참여 학부모인지 확인함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "participation_history",
+        "measuredConstruct": "응답 적격 여부",
+        "measuredEntityIds": [],
+        "questionPurpose": "프로그램 미참여 학부모인지 확인함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "참여하기 전에 푸른들 돌봄 프로그램을 알고 있었나요?",
+        "type": "single",
+        "options": [
+          "잘 알고 있었음",
+          "이름이나 일부 내용만 알고 있었음",
+          "알지 못했음"
+        ],
+        "reason": "미참여 전 프로그램 인지 수준을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "program_awareness",
+        "measuredConstruct": "프로그램 인지도",
+        "measuredEntityIds": [],
+        "questionPurpose": "미참여 전 프로그램 인지 수준을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "참여하지 않은 이유를 모두 골라주세요",
+        "type": "multiple",
+        "options": [
+          "프로그램에 대한 정보를 충분히 알지 못해서",
+          "시간이나 일정이 맞지 않아서",
+          "돌봄이 필요하지 않아서",
+          "다른 돌봄 방법을 이용하고 있어서",
+          "프로그램 내용이 우리 가정에 맞을지 확신이 없어서",
+          "신청하거나 참여하는 과정이 부담스러워서",
+          "기타"
+        ],
+        "reason": "프로그램 미참여의 주요 이유를 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "nonparticipation_reasons",
+        "measuredConstruct": "불참 이유",
+        "measuredEntityIds": [],
+        "questionPurpose": "프로그램 미참여의 주요 이유를 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "참여하지 않은 이유 중 가장 큰 이유는 무엇인가요?",
+        "type": "single",
+        "options": [
+          "프로그램에 대한 정보를 충분히 알지 못해서",
+          "시간이나 일정이 맞지 않아서",
+          "돌봄이 필요하지 않아서",
+          "다른 돌봄 방법을 이용하고 있어서",
+          "프로그램 내용이 우리 가정에 맞을지 확신이 없어서",
+          "신청하거나 참여하는 과정이 부담스러워서",
+          "기타"
+        ],
+        "reason": "우선적으로 해결할 미참여 요인을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "primary_nonparticipation_reason",
+        "measuredConstruct": "핵심 불참 이유",
+        "measuredEntityIds": [],
+        "questionPurpose": "우선적으로 해결할 미참여 요인을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "앞으로 푸른들 돌봄 프로그램에 참여할 가능성은 어느 정도인가요?",
+        "type": "scale",
+        "options": [],
+        "reason": "향후 프로그램 참여 가능성을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "future_participation_intent",
+        "measuredConstruct": "향후 참여 의향",
+        "measuredEntityIds": [],
+        "questionPurpose": "향후 프로그램 참여 가능성을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "어떤 조건이 갖춰지면 참여를 고려해 볼 수 있나요?",
+        "type": "multiple",
+        "options": [
+          "프로그램 내용을 더 자세히 알 수 있다면",
+          "우리 가정에 맞는 시간에 운영된다면",
+          "신청 방법이 더 간단해진다면",
+          "아이에게 도움이 되는 점을 확인할 수 있다면",
+          "현재도 참여할 생각이 없음",
+          "기타"
+        ],
+        "reason": "향후 참여를 높일 수 있는 조건을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "participation_conditions",
+        "measuredConstruct": "참여 촉진 조건",
+        "measuredEntityIds": [],
+        "questionPurpose": "향후 참여를 높일 수 있는 조건을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "푸른들 돌봄 프로그램에 참여하지 않은 이유나 바뀌었으면 하는 점이 있다면 적어주세요",
+        "type": "text",
+        "options": [],
+        "reason": "선택지에 담기지 않은 불참 이유와 개선 의견을 수집함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "additional_feedback",
+        "measuredConstruct": "추가 의견",
+        "measuredEntityIds": [],
+        "questionPurpose": "선택지에 담기지 않은 불참 이유와 개선 의견을 수집함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      }
+    ],
+    "questionsBeforePostprocess": [],
+    "fatalFailures": [],
+    "warnings": [],
+    "automaticJudgment": "auto_pass",
+    "regradedFatalFailures": [],
+    "regradedAutomaticJudgment": "auto_pass",
+    "manualJudgment": "true_pass",
+    "manualRationale": "푸른들 돌봄 프로그램 비참여 학부모를 보존하고 불참 이유와 향후 참여 의향을 분리해 측정함.",
+    "manualRepairJudgment": "not_repaired",
+    "manualRepairRationale": "repair 없이 정상 출력임."
+  },
+  {
+    "caseId": "targeted-flattening-002",
+    "input": "모아온 업무앱 안 쓰는 직장인들 왜 안 쓰는지랑 나중에 쓸 생각 있는지 조사",
+    "expected": {
+      "id": "targeted-flattening-002",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "targeted_request_flattening",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "모아온 업무앱 안 쓰는 직장인들 왜 안 쓰는지랑 나중에 쓸 생각 있는지 조사",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "모아온 업무앱을 사용하지 않는 직장인",
+        "모아온 업무앱 안 쓰는 직장인"
+      ],
+      "expectedSurveyObject": [
+        "모아온 업무앱"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유",
+        "이용 의향"
+      ],
+      "inputQuality": "noisy_recoverable",
+      "contextEntities": [
+        "모아온 업무앱"
+      ],
+      "expectedEligibilityConditions": [
+        "모아온 업무앱 비이용"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "모아온 업무앱"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "이용 의향"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계",
+        "이용 만족도 강제",
+        "방문 만족도 강제"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "attitude",
+        "service_usage"
+      ],
+      "tags": [
+        "noisy_input",
+        "timeframe",
+        "negation",
+        "single_target_multi_purpose"
+      ],
+      "notes": "v1.1 request_flattening 공통 근본 원인 targeted smoke fixture"
+    },
+    "requestId": "e4a3fa4c-7d02-4f84-91cc-32d7df4467c1",
+    "generationSource": "openai_partial_repair",
+    "classification": "partial_repair",
+    "modelCallCount": 1,
+    "repairCount": 1,
+    "fallbackCount": 0,
+    "changedQuestionIds": [
+      "6"
+    ],
+    "changedFieldsByQuestion": {
+      "6": [
+        "description",
+        "measuredConstruct",
+        "measuredRole",
+        "measuredVariable",
+        "objectRole",
+        "options",
+        "planBlockId",
+        "questionPurpose",
+        "reason",
+        "shuffleOptions",
+        "subjectRole",
+        "title",
+        "type",
+        "unitOfAnalysis"
+      ]
+    },
+    "fallbackReason": null,
+    "finalRespondentGroup": "모아온 업무앱을 이용하지 않는 직장인",
+    "finalEvaluationTarget": "모아온 업무앱",
+    "title": "모아온 업무앱 비이용 이유와 향후 사용 의향 조사",
+    "description": "현재 모아온 업무앱을 사용하지 않는 직장인의 의견을 알아보기 위한 설문입니다. 약 2~3분 정도 걸립니다.",
+    "questions": [
+      {
+        "id": null,
+        "title": "모아온 업무앱을 이용하지 않는 직장인에 해당하시나요?",
+        "type": "single",
+        "options": [
+          "예, 해당합니다",
+          "아니요, 해당하지 않습니다"
+        ],
+        "reason": "설문에 명시된 응답 대상 조건을 먼저 확인함.",
+        "role": null,
+        "measuredRole": "eligibility",
+        "planBlockId": "eligibility-screening",
+        "purposeBlockId": null,
+        "measuredVariable": "모아온 업무앱을 이용하지 않는 직장인",
+        "measuredConstruct": "응답 적격성",
+        "measuredEntityIds": [],
+        "questionPurpose": "설문에 명시된 응답 대상 조건 충족 여부를 확인함.",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "현재 직장에 다니고 있나요?",
+        "type": "single",
+        "options": [
+          "네, 현재 직장에 다니고 있습니다",
+          "아니요"
+        ],
+        "reason": "현재 직장인 응답자인지 확인함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "is_current_employee",
+        "measuredConstruct": "응답 적격성",
+        "measuredEntityIds": [],
+        "questionPurpose": "현재 직장인 응답자인지 확인함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "현재 모아온 업무앱을 사용하고 있지 않나요?",
+        "type": "single",
+        "options": [
+          "네, 현재 사용하지 않고 있습니다",
+          "아니요, 현재 사용하고 있습니다"
+        ],
+        "reason": "현재 모아온 업무앱 비사용자인지 확인함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "is_moaon_nonuser",
+        "measuredConstruct": "응답 적격성",
+        "measuredEntityIds": [],
+        "questionPurpose": "현재 모아온 업무앱 비사용자인지 확인함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "모아온 업무앱에 대해 얼마나 알고 있나요?",
+        "type": "scale",
+        "options": [],
+        "reason": "모아온 업무앱에 대한 인지 수준을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "moaon_awareness",
+        "measuredConstruct": "앱 인지 수준",
+        "measuredEntityIds": [],
+        "questionPurpose": "모아온 업무앱에 대한 인지 수준을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "모아온 업무앱을 사용하지 않는 가장 큰 이유는 무엇인가요?",
+        "type": "single",
+        "options": [
+          "앱이 있는지 몰랐습니다",
+          "업무에 필요성을 느끼지 못했습니다",
+          "이미 다른 업무 도구를 사용하고 있습니다",
+          "회사나 팀에서 사용하라는 안내가 없었습니다",
+          "어떻게 시작해야 할지 모르겠습니다",
+          "개인정보나 보안이 걱정됩니다",
+          "현재 사용 중입니다",
+          "기타"
+        ],
+        "reason": "모아온 업무앱을 사용하지 않는 핵심 이유를 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "primary_nonuse_reason",
+        "measuredConstruct": "비이용 이유",
+        "measuredEntityIds": [],
+        "questionPurpose": "모아온 업무앱을 사용하지 않는 핵심 이유를 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "모아온 업무앱을 사용하지 않는 데 가장 크게 걸리는 점은 무엇인가요?",
+        "type": "single",
+        "options": [
+          "사용 방법을 익히는 데 시간이 들 것 같습니다",
+          "업무 흐름을 바꿔야 할 것 같습니다",
+          "동료나 팀과 함께 쓰기 어려울 것 같습니다",
+          "앱이 실제로 도움이 될지 확신이 없습니다",
+          "특별히 걸리는 점은 없습니다",
+          "기타"
+        ],
+        "reason": "사용을 망설이게 하는 주요 장벽을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "main_adoption_barrier",
+        "measuredConstruct": "사용 장벽",
+        "measuredEntityIds": [],
+        "questionPurpose": "사용을 망설이게 하는 주요 장벽을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "앞으로 모아온 업무앱을 써볼 가능성은 어느 정도인가요?",
+        "type": "scale",
+        "options": [],
+        "reason": "모아온 업무앱의 향후 사용 가능성을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "future_use_intent",
+        "measuredConstruct": "향후 사용 의향",
+        "measuredEntityIds": [],
+        "questionPurpose": "모아온 업무앱의 향후 사용 가능성을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      }
+    ],
+    "questionsBeforePostprocess": [],
+    "fatalFailures": [],
+    "warnings": [
+      {
+        "code": "PARTIAL_REPAIR",
+        "message": "모델 출력 일부가 복구됨",
+        "cluster": "partial_repair",
+        "fatal": false
+      }
+    ],
+    "automaticJudgment": "auto_pass",
+    "regradedFatalFailures": [],
+    "regradedAutomaticJudgment": "auto_pass",
+    "manualJudgment": "true_pass",
+    "manualRationale": "모아온 업무앱 비이용 직장인의 비이용 이유와 향후 사용 의향을 분리해 측정함.",
+    "manualRepairJudgment": "necessary_partial_repair",
+    "manualRepairRationale": "Q6 repair 후 향후 사용 의향 coverage가 보존된 정상 설문이 됨."
+  },
+  {
+    "caseId": "targeted-flattening-003",
+    "input": "새결 정수기를 구매하지 않은 소비자의 구매 장벽과 향후 구매 가능성을 알아보고 싶어요.",
+    "expected": {
+      "id": "targeted-flattening-003",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "targeted_request_flattening",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "새결 정수기를 구매하지 않은 소비자의 구매 장벽과 향후 구매 가능성을 알아보고 싶어요.",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새결 정수기를 구매하지 않은 소비자"
+      ],
+      "expectedSurveyObject": [
+        "새결 정수기"
+      ],
+      "expectedPurposeConcepts": [
+        "미구매 이유",
+        "이용 의향"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [
+        "새결 정수기"
+      ],
+      "expectedEligibilityConditions": [
+        "새결 정수기 미구매"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "새결 정수기"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "미구매 이유",
+        "이용 의향"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계",
+        "이용 만족도 강제",
+        "방문 만족도 강제"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "attitude",
+        "product_usage"
+      ],
+      "tags": [
+        "timeframe",
+        "negation",
+        "single_target_multi_purpose"
+      ],
+      "notes": "v1.1 request_flattening 공통 근본 원인 targeted smoke fixture"
+    },
+    "requestId": "39d8f50e-a8cd-411c-b3c1-a61f9a747f53",
+    "generationSource": "openai",
+    "classification": "deterministic_metadata_normalization",
+    "modelCallCount": 1,
+    "repairCount": 0,
+    "fallbackCount": 0,
+    "changedQuestionIds": [],
+    "changedFieldsByQuestion": {},
+    "fallbackReason": null,
+    "finalRespondentGroup": "새결 정수기를 구매하지 않은 소비자",
+    "finalEvaluationTarget": "새결 정수기",
+    "title": "새결 정수기 구매 장벽 및 향후 구매 가능성 조사",
+    "description": "새결 정수기를 구매하지 않은 소비자를 대상으로, 구매를 망설이는 이유와 앞으로의 구매 가능성을 알아보기 위한 설문입니다. 약 3분 정도 걸립니다.",
+    "questions": [
+      {
+        "id": null,
+        "title": "새결 정수기를 구매한 적이 있나요?",
+        "type": "single",
+        "options": [
+          "구매한 적 없음",
+          "현재 구매해 사용 중임",
+          "예전에 구매해 사용한 적 있음"
+        ],
+        "reason": "구매하지 않은 소비자 응답을 구분함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "purchase_history",
+        "measuredConstruct": "응답 적격 여부",
+        "measuredEntityIds": [],
+        "questionPurpose": "구매하지 않은 소비자 응답을 구분함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "새결 정수기에 대해 얼마나 알고 있었나요?",
+        "type": "single",
+        "options": [
+          "잘 알고 있었음",
+          "이름과 대략적인 내용은 알고 있었음",
+          "이름만 들어봤음",
+          "이번에 처음 알게 됨"
+        ],
+        "reason": "제품 인지도 수준을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "product_awareness",
+        "measuredConstruct": "제품 인지도",
+        "measuredEntityIds": [],
+        "questionPurpose": "제품 인지도 수준을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "새결 정수기 구매를 알아보거나 비교해 본 적이 있나요?",
+        "type": "single",
+        "options": [
+          "구매를 진지하게 비교해 본 적 있음",
+          "간단히 찾아본 적 있음",
+          "관심은 있었지만 찾아보지는 않았음",
+          "관심을 가져본 적 없음"
+        ],
+        "reason": "구매 검토 경험을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "purchase_consideration",
+        "measuredConstruct": "구매 고려 경험",
+        "measuredEntityIds": [],
+        "questionPurpose": "구매 검토 경험을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "새결 정수기 구매를 얼마나 망설이고 있나요?",
+        "type": "scale",
+        "options": [],
+        "reason": "구매를 망설이는 정도를 측정함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "purchase_barrier_level",
+        "measuredConstruct": "구매 장벽",
+        "measuredEntityIds": [],
+        "questionPurpose": "구매를 망설이는 정도를 측정함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "새결 정수기 구매를 망설이는 이유를 모두 골라주세요",
+        "type": "multiple",
+        "options": [
+          "가격이나 관리 비용이 부담스러움",
+          "제품의 성능이나 품질을 신뢰하기 어려움",
+          "나에게 필요한 제품인지 확신이 없음",
+          "설치나 관리가 번거로울 것 같음",
+          "다른 방법이나 제품으로도 충분함",
+          "제품 정보를 충분히 찾기 어려움",
+          "기타",
+          "망설이는 이유가 없음"
+        ],
+        "reason": "구매를 망설이는 구체적 이유를 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "purchase_barrier_reasons",
+        "measuredConstruct": "구매 장벽 요인",
+        "measuredEntityIds": [],
+        "questionPurpose": "구매를 망설이는 구체적 이유를 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "어떤 조건이 갖춰지면 새결 정수기 구매를 고려해 볼 수 있나요?",
+        "type": "multiple",
+        "options": [
+          "가격이나 비용 부담이 줄어든다면",
+          "성능과 품질에 대한 정보가 더 분명해진다면",
+          "설치와 관리 방법이 더 간편해진다면",
+          "나에게 맞는 제품인지 확인할 수 있다면",
+          "구매 전 제품을 더 자세히 알아볼 수 있다면",
+          "기타",
+          "어떤 조건이어도 구매할 생각이 없음"
+        ],
+        "reason": "구매를 고려하게 만드는 조건을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "purchase_enablers",
+        "measuredConstruct": "구매 고려 조건",
+        "measuredEntityIds": [],
+        "questionPurpose": "구매를 고려하게 만드는 조건을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "앞으로 새결 정수기를 구매할 가능성은 어느 정도인가요?",
+        "type": "scale",
+        "options": [],
+        "reason": "향후 구매 가능성을 측정함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "future_purchase_intention",
+        "measuredConstruct": "향후 구매 의향",
+        "measuredEntityIds": [],
+        "questionPurpose": "향후 구매 가능성을 측정함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      }
+    ],
+    "questionsBeforePostprocess": [],
+    "fatalFailures": [
+      {
+        "code": "MISPLACED_SCREENING_QUESTION",
+        "message": "응답 적격성·분기 문항이 3번째에 배치돼 선행 문항 1이 해당 조건을 미리 전제함",
+        "cluster": "question_quality",
+        "fatal": true
+      }
+    ],
+    "warnings": [],
+    "automaticJudgment": "auto_failure",
+    "regradedFatalFailures": [],
+    "regradedAutomaticJudgment": "auto_pass",
+    "manualJudgment": "evaluator_false_positive",
+    "manualRationale": "첫 문항이 새결 정수기 미구매 자격을 확인하고 구매 비교 경험 문항은 구매 장벽을 해석하는 실질 문항인데, evaluator가 이를 후행 screening으로 잘못 분류함.",
+    "manualRepairJudgment": "not_repaired",
+    "manualRepairRationale": "repair 없이 자격·구매 장벽·향후 구매 가능성을 올바르게 구성함."
+  },
+  {
+    "caseId": "targeted-flattening-004",
+    "input": "해솔 독서 구독을 해지한 이용자한테 해지 이유하고 다시 가입할 의향 물어보기",
+    "expected": {
+      "id": "targeted-flattening-004",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "targeted_request_flattening",
+      "difficulty": "hard",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "해솔 독서 구독을 해지한 이용자한테 해지 이유하고 다시 가입할 의향 물어보기",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "해솔 독서 구독을 해지한 이용자"
+      ],
+      "expectedSurveyObject": [
+        "해솔 독서 구독"
+      ],
+      "expectedPurposeConcepts": [
+        "해지 이유",
+        "이용 의향"
+      ],
+      "inputQuality": "noisy_recoverable",
+      "contextEntities": [
+        "해솔 독서 구독"
+      ],
+      "expectedEligibilityConditions": [
+        "해솔 독서 구독 해지"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "해솔 독서 구독"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "이용 의향"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계",
+        "이용 만족도 강제",
+        "방문 만족도 강제"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "attitude",
+        "service_usage"
+      ],
+      "tags": [
+        "noisy_input",
+        "timeframe",
+        "negation",
+        "single_target_multi_purpose"
+      ],
+      "notes": "v1.1 request_flattening 공통 근본 원인 targeted smoke fixture"
+    },
+    "requestId": "b84cbcb5-71a0-4c46-891f-3cfc21d6548c",
+    "generationSource": "openai_partial_repair",
+    "classification": "partial_repair",
+    "modelCallCount": 1,
+    "repairCount": 1,
+    "fallbackCount": 0,
+    "changedQuestionIds": [
+      "7"
+    ],
+    "changedFieldsByQuestion": {
+      "7": [
+        "measuredConstruct",
+        "measuredRole",
+        "measuredVariable",
+        "objectRole",
+        "options",
+        "planBlockId",
+        "questionPurpose",
+        "reason",
+        "required",
+        "shuffleOptions",
+        "subjectRole",
+        "title",
+        "type",
+        "unitOfAnalysis"
+      ]
+    },
+    "fallbackReason": null,
+    "finalRespondentGroup": "해솔 독서 구독을 해지한 이용자",
+    "finalEvaluationTarget": "해솔 독서 구독",
+    "title": "해솔 독서 구독 해지 이유 및 재가입 의향 조사",
+    "description": "해솔 독서 구독을 해지한 이용자를 대상으로, 해솔 독서 구독을 해지한 분의 의견을 듣고자 합니다. 약 2~3분 정도 걸립니다.",
+    "questions": [
+      {
+        "id": null,
+        "title": "해솔 독서 구독을 해지한 이용자에 해당하시나요?",
+        "type": "single",
+        "options": [
+          "예, 해당합니다",
+          "아니요, 해당하지 않습니다"
+        ],
+        "reason": "설문에 명시된 응답 대상 조건을 먼저 확인함.",
+        "role": null,
+        "measuredRole": "eligibility",
+        "planBlockId": "eligibility-screening",
+        "purposeBlockId": null,
+        "measuredVariable": "해솔 독서 구독을 해지한 이용자",
+        "measuredConstruct": "응답 적격성",
+        "measuredEntityIds": [],
+        "questionPurpose": "설문에 명시된 응답 대상 조건 충족 여부를 확인함.",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "해솔 독서 구독을 해지한 적이 있나요?",
+        "type": "single",
+        "options": [
+          "해지한 적이 있음",
+          "해지한 적이 없음"
+        ],
+        "reason": "해지 이용자 응답을 구분함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "cancellation_experience",
+        "measuredConstruct": "응답 적격 여부",
+        "measuredEntityIds": [],
+        "questionPurpose": "해지 이용자 응답을 구분함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "해지하기 전에는 해솔 독서 구독을 얼마나 오래 유지했나요?",
+        "type": "single",
+        "options": [
+          "1개월 미만",
+          "1개월 이상 3개월 미만",
+          "3개월 이상 6개월 미만",
+          "6개월 이상 1년 미만",
+          "1년 이상",
+          "기억나지 않음"
+        ],
+        "reason": "구독 기간별 해지 이유와 재가입 가능성을 비교함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "subscription_duration",
+        "measuredConstruct": "구독 유지 기간",
+        "measuredEntityIds": [],
+        "questionPurpose": "구독 기간별 해지 이유와 재가입 가능성을 비교함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "해솔 독서 구독을 해지한 이유를 모두 골라주세요",
+        "type": "multiple",
+        "options": [
+          "구독료가 부담스러웠음",
+          "읽을 시간이 부족했음",
+          "원하는 책이나 콘텐츠가 부족했음",
+          "서비스를 자주 이용하지 않았음",
+          "다른 방법으로 책을 읽게 되었음",
+          "서비스를 이용하는 과정이 불편했음",
+          "기타"
+        ],
+        "reason": "해지에 영향을 준 요인을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "cancellation_reasons",
+        "measuredConstruct": "해지 이유",
+        "measuredEntityIds": [],
+        "questionPurpose": "해지에 영향을 준 요인을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "해지한 이유 중 가장 큰 이유는 무엇이었나요?",
+        "type": "single",
+        "options": [
+          "구독료가 부담스러웠음",
+          "읽을 시간이 부족했음",
+          "원하는 책이나 콘텐츠가 부족했음",
+          "서비스를 자주 이용하지 않았음",
+          "다른 방법으로 책을 읽게 되었음",
+          "서비스를 이용하는 과정이 불편했음",
+          "기타"
+        ],
+        "reason": "가장 우선적으로 개선할 해지 원인을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "primary_cancellation_reason",
+        "measuredConstruct": "주요 해지 이유",
+        "measuredEntityIds": [],
+        "questionPurpose": "가장 우선적으로 개선할 해지 원인을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "앞으로 해솔 독서 구독에 다시 가입할 가능성은 어느 정도인가요?",
+        "type": "scale",
+        "options": [],
+        "reason": "해지 이용자의 재가입 가능성을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "resubscription_intent",
+        "measuredConstruct": "다시 가입할 의향",
+        "measuredEntityIds": [],
+        "questionPurpose": "해지 이용자의 재가입 가능성을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "어떤 변화가 있다면 다시 가입을 고려할 수 있나요?",
+        "type": "multiple",
+        "options": [
+          "구독료가 낮아진다면",
+          "원하는 책이나 콘텐츠가 늘어난다면",
+          "내게 맞는 책을 더 쉽게 찾을 수 있다면",
+          "이용하는 과정이 더 편리해진다면",
+          "필요할 때만 부담 없이 이용할 수 있다면",
+          "어떤 변화가 있어도 다시 가입할 생각이 없음",
+          "기타"
+        ],
+        "reason": "재가입을 고려하게 할 개선 조건을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "resubscription_conditions",
+        "measuredConstruct": "재가입 조건",
+        "measuredEntityIds": [],
+        "questionPurpose": "재가입을 고려하게 할 개선 조건을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      }
+    ],
+    "questionsBeforePostprocess": [],
+    "fatalFailures": [],
+    "warnings": [
+      {
+        "code": "PARTIAL_REPAIR",
+        "message": "모델 출력 일부가 복구됨",
+        "cluster": "partial_repair",
+        "fatal": false
+      }
+    ],
+    "automaticJudgment": "auto_pass",
+    "regradedFatalFailures": [],
+    "regradedAutomaticJudgment": "auto_pass",
+    "manualJudgment": "true_pass",
+    "manualRationale": "해솔 독서 구독 해지 이용자의 해지 이유와 재가입 의향을 직접 측정함.",
+    "manualRepairJudgment": "necessary_partial_repair",
+    "manualRepairRationale": "Q7 repair 후 재가입 의향 coverage가 보존된 정상 설문이 됨."
+  },
+  {
+    "caseId": "targeted-population-001",
+    "input": "새빛대학교 환경공학과 학생의 실험실 안전 인식과 개선 요구 조사",
+    "expected": {
+      "id": "targeted-population-001",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "targeted_target_population",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "새빛대학교 환경공학과 학생의 실험실 안전 인식과 개선 요구 조사",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새빛대학교 환경공학과 학생"
+      ],
+      "expectedSurveyObject": [
+        "실험실 안전"
+      ],
+      "expectedPurposeConcepts": [
+        "안전 인식",
+        "개선 요구"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "새빛대학교",
+        "환경공학과"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "안전",
+        "개선 요구"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "attitude",
+        "need_demand"
+      ],
+      "tags": [
+        "single_target_multi_purpose"
+      ],
+      "notes": "v1.1 target_population 공통 근본 원인 targeted smoke fixture"
+    },
+    "requestId": "dc73adbf-c111-45b4-9197-dc5e10c44a92",
+    "generationSource": "openai_partial_repair",
+    "classification": "partial_repair",
+    "modelCallCount": 1,
+    "repairCount": 1,
+    "fallbackCount": 0,
+    "changedQuestionIds": [
+      "1"
+    ],
+    "changedFieldsByQuestion": {
+      "1": [
+        "decisionGoalIds",
+        "measuredConstruct",
+        "measuredEntityIds",
+        "measuredRole",
+        "measuredVariable",
+        "objectRole",
+        "planBlockId",
+        "purposeBlockId",
+        "questionPurpose",
+        "reason",
+        "scaleMax",
+        "scaleMaxLabel",
+        "scaleMin",
+        "scaleMinLabel",
+        "shuffleOptions",
+        "subjectRole",
+        "title",
+        "unitOfAnalysis"
+      ]
+    },
+    "fallbackReason": null,
+    "finalRespondentGroup": "새빛대학교 환경공학과 재학생",
+    "finalEvaluationTarget": "실험실 안전",
+    "title": "실험실 안전 인식과 개선 요구 조사",
+    "description": "새빛대학교 환경공학과 학생의 실험실 안전 인식과 개선이 필요한 점을 알아보기 위한 설문입니다. 약 3분 정도 걸립니다.",
+    "questions": [
+      {
+        "id": null,
+        "title": "실험실 안전에 대해 전반적으로 어떻게 인식하고 있나요?",
+        "type": "scale",
+        "options": [],
+        "reason": "인식을 직접 측정함.",
+        "role": null,
+        "measuredRole": "construct",
+        "planBlockId": "variable-1",
+        "purposeBlockId": "purpose-attitude_perception-1",
+        "measuredVariable": "인식",
+        "measuredConstruct": "인식",
+        "measuredEntityIds": [
+          "construct-cc2o7"
+        ],
+        "questionPurpose": "인식을(를) 분석 가능한 형태로 측정함.",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "현재 실험실의 안전 수준은 어느 정도라고 생각하나요?",
+        "type": "scale",
+        "options": [],
+        "reason": "현재 실험실 안전 수준에 대한 인식을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "perceived_safety_level",
+        "measuredConstruct": "실험실 안전 인식",
+        "measuredEntityIds": [],
+        "questionPurpose": "현재 실험실 안전 수준에 대한 인식을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "실험실 안전과 관련해 어렵거나 부족하다고 느낀 점을 모두 골라주세요",
+        "type": "multiple",
+        "options": [
+          "안전수칙을 충분히 알기 어려움",
+          "안전장비의 위치나 사용법을 알기 어려움",
+          "위험 상황에 어떻게 대응해야 할지 불확실함",
+          "실험 중 안전수칙을 지킬 시간이 부족함",
+          "특별히 어렵거나 부족한 점이 없음",
+          "기타"
+        ],
+        "reason": "학생이 느끼는 안전 관련 어려움을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "safety_barriers",
+        "measuredConstruct": "안전 관련 어려움",
+        "measuredEntityIds": [],
+        "questionPurpose": "학생이 느끼는 안전 관련 어려움을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "실험실 안전을 위해 가장 먼저 개선해야 할 점을 최대 2개 골라주세요",
+        "type": "multiple",
+        "options": [
+          "안전수칙 안내를 더 쉽게 확인할 수 있게 하기",
+          "안전교육을 더 이해하기 쉽게 운영하기",
+          "보호구와 안전장비를 더 쉽게 이용하게 하기",
+          "위험 상황 대응 방법을 더 명확히 안내하기",
+          "실험실 내 안전 점검을 강화하기",
+          "기타"
+        ],
+        "reason": "우선 개선이 필요한 실험실 안전 영역을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "safety_improvement_priorities",
+        "measuredConstruct": "개선 요구",
+        "measuredEntityIds": [],
+        "questionPurpose": "우선 개선이 필요한 실험실 안전 영역을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "안전 관련 안내나 지원이 보완된다면 안전수칙을 더 잘 지킬 수 있을 것 같나요?",
+        "type": "single",
+        "options": [
+          "전혀 그렇지 않음",
+          "그렇지 않은 편임",
+          "보통",
+          "그런 편임",
+          "매우 그럼"
+        ],
+        "reason": "안전 관련 지원 보완의 기대 효과를 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "support_expected_effect",
+        "measuredConstruct": "개선 지원 기대",
+        "measuredEntityIds": [],
+        "questionPurpose": "안전 관련 지원 보완의 기대 효과를 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "실험실 안전을 위해 가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요",
+        "type": "text",
+        "options": [],
+        "reason": "선택지에 없는 안전 개선 요구를 수집함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "safety_improvement_comment",
+        "measuredConstruct": "구체적 개선 의견",
+        "measuredEntityIds": [],
+        "questionPurpose": "선택지에 없는 안전 개선 요구를 수집함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "현재 학년을 골라주세요",
+        "type": "single",
+        "options": [
+          "1학년",
+          "2학년",
+          "3학년",
+          "4학년 이상",
+          "응답하고 싶지 않음"
+        ],
+        "reason": "학년별 안전 인식과 개선 요구 차이를 비교함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "grade",
+        "measuredConstruct": "학년",
+        "measuredEntityIds": [],
+        "questionPurpose": "학년별 안전 인식과 개선 요구 차이를 비교함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      }
+    ],
+    "questionsBeforePostprocess": [],
+    "fatalFailures": [],
+    "warnings": [
+      {
+        "code": "PARTIAL_REPAIR",
+        "message": "모델 출력 일부가 복구됨",
+        "cluster": "partial_repair",
+        "fatal": false
+      }
+    ],
+    "automaticJudgment": "auto_pass",
+    "regradedFatalFailures": [
+      {
+        "code": "DUPLICATE_CONSTRUCT",
+        "message": "같은 전반적 construct를 문항 1, 2에서 중복 측정함",
+        "cluster": "question_quality",
+        "fatal": true
+      }
+    ],
+    "regradedAutomaticJudgment": "auto_failure",
+    "manualJudgment": "evaluator_false_negative",
+    "manualRationale": "환경공학과 학생과 실험실 안전 맥락은 보존했지만 repair가 기존 안전 인식 척도와 의미가 중복되는 전반적 안전 인식 문항을 추가해 중복 construct가 생겼음.",
+    "manualRepairJudgment": "repair_created_new_error",
+    "manualRepairRationale": "Q1 전체 교체가 이미 존재하는 안전 인식 측정과 중복되는 문항을 생성함."
+  },
+  {
+    "caseId": "targeted-population-002",
+    "input": "최근 6개월 동안 꿈담 구직서비스를 이용하지 않은 청년의 비이용 이유와 향후 사용 의향 조사",
+    "expected": {
+      "id": "targeted-population-002",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "targeted_target_population",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "최근 6개월 동안 꿈담 구직서비스를 이용하지 않은 청년의 비이용 이유와 향후 사용 의향 조사",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "최근 6개월 동안 꿈담 구직서비스를 이용하지 않은 청년"
+      ],
+      "expectedSurveyObject": [
+        "꿈담 구직서비스"
+      ],
+      "expectedPurposeConcepts": [
+        "비이용 이유",
+        "이용 의향"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [
+        "꿈담 구직서비스"
+      ],
+      "expectedEligibilityConditions": [
+        "최근 6개월 꿈담 구직서비스 비이용"
+      ],
+      "screeningExpected": true,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "꿈담 구직서비스"
+      ],
+      "mustPreserveNegation": true,
+      "requiredQuestionConcepts": [
+        "비이용 이유",
+        "이용 의향"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계",
+        "이용 만족도 강제",
+        "방문 만족도 강제"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "attitude",
+        "service_usage"
+      ],
+      "tags": [
+        "timeframe",
+        "negation",
+        "single_target_multi_purpose"
+      ],
+      "notes": "v1.1 target_population 공통 근본 원인 targeted smoke fixture"
+    },
+    "requestId": "ddda51b4-ff17-4746-9867-c8668f7062ad",
+    "generationSource": "openai",
+    "classification": "deterministic_metadata_normalization",
+    "modelCallCount": 1,
+    "repairCount": 0,
+    "fallbackCount": 0,
+    "changedQuestionIds": [],
+    "changedFieldsByQuestion": {},
+    "fallbackReason": null,
+    "finalRespondentGroup": "최근 6개월 동안 꿈담 구직서비스를 이용하지 않은 청년",
+    "finalEvaluationTarget": "꿈담 구직서비스",
+    "title": "꿈담 구직서비스 비이용 이유와 향후 사용 의향 조사",
+    "description": "최근 6개월 동안 꿈담 구직서비스를 이용하지 않은 청년을 대상으로, 이용하지 않은 이유와 앞으로의 사용 가능성을 알아보기 위한 설문입니다. 약 3분 정도 걸립니다.",
+    "questions": [
+      {
+        "id": null,
+        "title": "최근 6개월 동안 꿈담 구직서비스를 이용해 본 적이 있나요?",
+        "type": "single",
+        "options": [
+          "아니요, 이용해 본 적이 없습니다",
+          "네, 이용해 본 적이 있습니다",
+          "기억나지 않습니다"
+        ],
+        "reason": "응답자의 조사 대상 적합성을 확인함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "recent_service_use",
+        "measuredConstruct": "최근 이용 여부",
+        "measuredEntityIds": [],
+        "questionPurpose": "응답자의 조사 대상 적합성을 확인함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "현재 구직 활동을 하고 있나요?",
+        "type": "single",
+        "options": [
+          "현재 적극적으로 구직 활동 중입니다",
+          "구직을 준비하고 있습니다",
+          "현재는 구직 활동을 하지 않고 있습니다",
+          "답하고 싶지 않습니다"
+        ],
+        "reason": "현재 구직 관련 필요 수준을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "job_search_status",
+        "measuredConstruct": "구직 활동 상태",
+        "measuredEntityIds": [],
+        "questionPurpose": "현재 구직 관련 필요 수준을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "꿈담 구직서비스를 알고 있었나요?",
+        "type": "single",
+        "options": [
+          "잘 알고 있었습니다",
+          "이름이나 존재만 알고 있었습니다",
+          "이번 설문을 통해 처음 알았습니다"
+        ],
+        "reason": "서비스를 알지 못해 이용하지 않은 비중을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "service_awareness",
+        "measuredConstruct": "서비스 인지도",
+        "measuredEntityIds": [],
+        "questionPurpose": "서비스를 알지 못해 이용하지 않은 비중을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "구직 정보나 도움은 주로 어디에서 얻나요?",
+        "type": "multiple",
+        "options": [
+          "채용 플랫폼이나 취업 포털",
+          "기업 또는 기관의 채용 공고",
+          "학교·청년 지원기관·고용센터",
+          "가족·친구·지인의 소개",
+          "온라인 커뮤니티나 사회관계망서비스",
+          "기타",
+          "현재 구직 정보나 도움을 찾지 않습니다"
+        ],
+        "reason": "기존 구직 정보와 지원 경로를 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "job_info_sources",
+        "measuredConstruct": "대체 정보 획득 방법",
+        "measuredEntityIds": [],
+        "questionPurpose": "기존 구직 정보와 지원 경로를 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "꿈담 구직서비스를 이용하지 않은 이유는 무엇인가요?",
+        "type": "multiple",
+        "options": [
+          "서비스가 있는지 몰랐습니다",
+          "나에게 필요한 서비스인지 잘 몰랐습니다",
+          "다른 방법으로 충분히 구직 정보를 얻고 있습니다",
+          "현재 구직 관련 도움이 필요하지 않았습니다",
+          "이용 방법이나 절차가 번거롭게 느껴졌습니다",
+          "개인정보 제공이나 정보 활용이 걱정됐습니다",
+          "기타",
+          "특별한 이유는 없습니다"
+        ],
+        "reason": "서비스를 이용하지 않은 주요 이유를 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "nonuse_reasons",
+        "measuredConstruct": "비이용 이유",
+        "measuredEntityIds": [],
+        "questionPurpose": "서비스를 이용하지 않은 주요 이유를 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "앞으로 꿈담 구직서비스를 사용할 가능성은 어느 정도인가요?",
+        "type": "scale",
+        "options": [],
+        "reason": "향후 서비스 사용 가능성을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "future_use_intention",
+        "measuredConstruct": "향후 사용 의향",
+        "measuredEntityIds": [],
+        "questionPurpose": "향후 서비스 사용 가능성을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "꿈담 구직서비스를 사용해 볼 마음이 들려면 무엇이 바뀌거나 추가되어야 하나요?",
+        "type": "text",
+        "options": [],
+        "reason": "선택지에 없는 이용 조건과 개선 의견을 수집함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "use_consideration_conditions",
+        "measuredConstruct": "사용 고려 조건",
+        "measuredEntityIds": [],
+        "questionPurpose": "선택지에 없는 이용 조건과 개선 의견을 수집함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      }
+    ],
+    "questionsBeforePostprocess": [],
+    "fatalFailures": [],
+    "warnings": [],
+    "automaticJudgment": "auto_pass",
+    "regradedFatalFailures": [],
+    "regradedAutomaticJudgment": "auto_pass",
+    "manualJudgment": "true_pass",
+    "manualRationale": "최근 6개월 비이용 청년 조건과 꿈담 구직서비스 고유명사를 보존하고 비이용 이유와 향후 사용 의향을 측정함.",
+    "manualRepairJudgment": "not_repaired",
+    "manualRepairRationale": "repair 없이 정상 출력임."
+  },
+  {
+    "caseId": "targeted-repair-001",
+    "input": "직장인의 월 여가비와 문화생활 빈도 및 충동구매의 관계 조사",
+    "expected": {
+      "id": "targeted-repair-001",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "targeted_repair_regression",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "직장인의 월 여가비와 문화생활 빈도 및 충동구매의 관계 조사",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "직장인"
+      ],
+      "expectedSurveyObject": [
+        "월 여가비",
+        "문화생활 빈도",
+        "충동구매"
+      ],
+      "expectedPurposeConcepts": [
+        "월 여가비와 문화생활 빈도의 관계",
+        "월 여가비와 충동구매의 관계"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "비용",
+        "빈도",
+        "충동구매"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "multiple",
+      "expectedArchetypes": [
+        "academic_construct",
+        "mixed"
+      ],
+      "tags": [
+        "multiple_targets"
+      ],
+      "notes": "v1.1 repair_regression 공통 근본 원인 targeted smoke fixture"
+    },
+    "requestId": "4166a737-88e3-4aa6-bedb-7293ff5bbf94",
+    "generationSource": "semantic_validation_fallback",
+    "classification": "hard_fallback",
+    "modelCallCount": 1,
+    "repairCount": 1,
+    "fallbackCount": 1,
+    "changedQuestionIds": [],
+    "changedFieldsByQuestion": {},
+    "fallbackReason": "model-output-rejected",
+    "finalRespondentGroup": "직장인",
+    "finalEvaluationTarget": "월 여가비 및 문화생활 빈도 및 충동구매",
+    "title": "직장인의 월 여가비와 문화생활 빈도 조사",
+    "description": "직장인의 월 여가비와 문화생활 빈도를 파악하고, 월 여가비와 문화생활 빈도의 관계 분석에 활용하기 위한 설문입니다.",
+    "questions": [
+      {
+        "id": null,
+        "title": "월 여가비는 어느 수준에 해당하나요?",
+        "type": "single",
+        "options": [
+          "매우 낮음",
+          "낮은 편",
+          "보통",
+          "높은 편",
+          "매우 높음"
+        ],
+        "reason": "월 여가비를 응답자 수준에서 직접 측정함.",
+        "role": null,
+        "measuredRole": "behavior",
+        "planBlockId": "measure-variable-7q4wc1",
+        "purposeBlockId": null,
+        "measuredVariable": "월 여가비",
+        "measuredConstruct": "월 여가비",
+        "measuredEntityIds": [
+          "variable-7q4wc1"
+        ],
+        "questionPurpose": "월 여가비를 응답자 수준에서 직접 측정함.",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "평소 문화생활을 얼마나 자주 하시나요?",
+        "type": "single",
+        "options": [
+          "전혀 하지 않음",
+          "드물게 함",
+          "가끔 함",
+          "자주 함",
+          "거의 항상 함"
+        ],
+        "reason": "문화생활 빈도를 응답자 수준에서 직접 측정함.",
+        "role": null,
+        "measuredRole": "construct",
+        "planBlockId": "measure-variable-k975p8",
+        "purposeBlockId": null,
+        "measuredVariable": "문화생활 빈도",
+        "measuredConstruct": "문화생활 빈도",
+        "measuredEntityIds": [
+          "variable-k975p8"
+        ],
+        "questionPurpose": "문화생활 빈도를 응답자 수준에서 직접 측정함.",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "충동구매는 어느 정도인가요?",
+        "type": "single",
+        "options": [
+          "전혀 하지 않음",
+          "드물게 함",
+          "가끔 함",
+          "자주 함",
+          "거의 항상 함"
+        ],
+        "reason": "충동구매를 응답자 수준에서 직접 측정함.",
+        "role": null,
+        "measuredRole": "construct",
+        "planBlockId": "measure-variable-17z9tl3",
+        "purposeBlockId": null,
+        "measuredVariable": "충동구매",
+        "measuredConstruct": "충동구매",
+        "measuredEntityIds": [
+          "variable-17z9tl3"
+        ],
+        "questionPurpose": "충동구매를 응답자 수준에서 직접 측정함.",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "앞에서 답한 선행 값이 달라지는 주된 상황을 모두 골라주세요.",
+        "type": "multiple",
+        "options": [
+          "평일",
+          "주말·공휴일",
+          "학업·업무가 많은 시기",
+          "개인 일정이 많은 시기",
+          "특별한 상황 없음",
+          "기타"
+        ],
+        "reason": "선행 변수가 달라지는 주요 상황을 구분함.",
+        "role": null,
+        "measuredRole": "context",
+        "planBlockId": "predictor-context",
+        "purposeBlockId": null,
+        "measuredVariable": "선행 변수의 발생 상황",
+        "measuredConstruct": "선행 변수의 발생 상황",
+        "measuredEntityIds": [],
+        "questionPurpose": "선행 변수가 달라지는 주요 상황을 구분함.",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "결과 값이 평소와 달랐던 때의 상황을 모두 골라주세요.",
+        "type": "multiple",
+        "options": [
+          "시간 여유가 달랐음",
+          "비용 여건이 달랐음",
+          "접근 환경이 달랐음",
+          "개인 일정이 달랐음",
+          "주변 환경이 달랐음",
+          "특별한 차이가 없었음",
+          "기타"
+        ],
+        "reason": "두 변수 관계를 해석할 보조 요인을 수집함.",
+        "role": null,
+        "measuredRole": "construct",
+        "planBlockId": "outcome-driver",
+        "purposeBlockId": null,
+        "measuredVariable": "결과 변수에 영향을 주는 요인",
+        "measuredConstruct": "결과 변수에 영향을 주는 요인",
+        "measuredEntityIds": [],
+        "questionPurpose": "두 변수 관계를 해석할 보조 요인을 수집함.",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "앞에서 답한 값들이 평소와 달라지는 빈도는 어느 정도인가요?",
+        "type": "single",
+        "options": [
+          "거의 달라지지 않음",
+          "드물게 달라짐",
+          "가끔 달라짐",
+          "자주 달라짐",
+          "거의 항상 달라짐"
+        ],
+        "reason": "일시적 사건과 평소 경향을 구분함.",
+        "role": null,
+        "measuredRole": "context",
+        "planBlockId": "measurement-regularity",
+        "purposeBlockId": null,
+        "measuredVariable": "측정값의 평소 변동 정도",
+        "measuredConstruct": "측정값의 평소 변동 정도",
+        "measuredEntityIds": [],
+        "questionPurpose": "일시적 사건과 평소 경향을 구분함.",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "평소 생활에서 자주 마주하는 제약이나 상황을 모두 골라주세요.",
+        "type": "multiple",
+        "options": [
+          "시간 제약",
+          "비용 제약",
+          "접근성",
+          "가족·주변 환경",
+          "건강 상태",
+          "특별한 제약 없음",
+          "기타"
+        ],
+        "reason": "집단 차이를 설명할 수 있는 맥락을 구분함.",
+        "role": null,
+        "measuredRole": "context",
+        "planBlockId": "barrier-context",
+        "purposeBlockId": null,
+        "measuredVariable": "관계 해석에 필요한 제약 조건",
+        "measuredConstruct": "관계 해석에 필요한 제약 조건",
+        "measuredEntityIds": [],
+        "questionPurpose": "집단 차이를 설명할 수 있는 맥락을 구분함.",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      }
+    ],
+    "questionsBeforePostprocess": [],
+    "fatalFailures": [
+      {
+        "code": "HARD_FALLBACK",
+        "message": "명확한 입력이 hard fallback으로 처리됨",
+        "cluster": "hard_fallback",
+        "fatal": true
+      }
+    ],
+    "warnings": [],
+    "automaticJudgment": "auto_failure",
+    "regradedFatalFailures": [
+      {
+        "code": "HARD_FALLBACK",
+        "message": "명확한 입력이 hard fallback으로 처리됨",
+        "cluster": "hard_fallback",
+        "fatal": true
+      }
+    ],
+    "regradedAutomaticJudgment": "auto_failure",
+    "manualJudgment": "true_product_failure",
+    "manualRationale": "기준 기간 메타데이터 불일치 하나로 전체 설문이 hard fallback되며 '선행 값', '결과 값', '앞에서 답한 값들' 같은 내부 추상 placeholder가 응답자 문항에 노출됨.",
+    "manualRepairJudgment": "necessary_partial_repair",
+    "manualRepairRationale": "국소적인 기준 기간 정합성 repair는 필요했지만 실패 후 전체 generic fallback으로 확대된 것이 실제 제품 결함임."
+  },
+  {
+    "caseId": "targeted-repair-002",
+    "input": "새봄대학교 학생이 해오름식당과 별하식당을 선택하는 이유와 각 식당 만족도 비교",
+    "expected": {
+      "id": "targeted-repair-002",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "targeted_repair_regression",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "새봄대학교 학생이 해오름식당과 별하식당을 선택하는 이유와 각 식당 만족도 비교",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "새봄대학교 학생"
+      ],
+      "expectedSurveyObject": [
+        "해오름식당",
+        "별하식당"
+      ],
+      "expectedPurposeConcepts": [
+        "선택 이유",
+        "만족도 비교"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "새봄대학교",
+        "해오름식당",
+        "별하식당"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "선택 이유",
+        "만족도",
+        "대상 비교"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "composite"
+      ],
+      "expectedTargetCardinality": "multiple",
+      "expectedArchetypes": [
+        "satisfaction",
+        "mixed"
+      ],
+      "tags": [
+        "multiple_targets"
+      ],
+      "notes": "v1.1 repair_regression 공통 근본 원인 targeted smoke fixture"
+    },
+    "requestId": "a106eedb-08a9-4737-b669-96a8ff5d183f",
+    "generationSource": "openai",
+    "classification": "deterministic_metadata_normalization",
+    "modelCallCount": 1,
+    "repairCount": 0,
+    "fallbackCount": 0,
+    "changedQuestionIds": [],
+    "changedFieldsByQuestion": {},
+    "fallbackReason": null,
+    "finalRespondentGroup": "새봄대학교 재학생",
+    "finalEvaluationTarget": "해오름식당·별하식당",
+    "title": "해오름식당·별하식당 이용 경험 및 만족도 조사",
+    "description": "새봄대학교 학생이 해오름식당과 별하식당을 선택하는 이유와 만족도를 알아보기 위한 설문입니다. 약 3분 정도 걸립니다. 이용해 본 식당이 없다면 해당 선택지를 골라주세요.",
+    "questions": [
+      {
+        "id": null,
+        "title": "해오름식당을 이용해 본 적이 있나요?",
+        "type": "single",
+        "options": [
+          "이용해 본 적 있음",
+          "이용해 본 적 없음"
+        ],
+        "reason": "해오름식당 평가 응답의 해석 기준을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "haeoreum_usage",
+        "measuredConstruct": "해오름식당 이용 경험",
+        "measuredEntityIds": [],
+        "questionPurpose": "해오름식당 평가 응답의 해석 기준을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "별하식당을 이용해 본 적이 있나요?",
+        "type": "single",
+        "options": [
+          "이용해 본 적 있음",
+          "이용해 본 적 없음"
+        ],
+        "reason": "별하식당 평가 응답의 해석 기준을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "byeolha_usage",
+        "measuredConstruct": "별하식당 이용 경험",
+        "measuredEntityIds": [],
+        "questionPurpose": "별하식당 평가 응답의 해석 기준을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "두 식당 중 평소 더 자주 가는 곳은 어디인가요?",
+        "type": "single",
+        "options": [
+          "해오름식당",
+          "별하식당",
+          "두 곳을 비슷하게 감",
+          "두 곳 모두 이용하지 않음"
+        ],
+        "reason": "두 식당 가운데 더 자주 선택되는 곳을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "preferred_restaurant",
+        "measuredConstruct": "주 선택 식당",
+        "measuredEntityIds": [],
+        "questionPurpose": "두 식당 가운데 더 자주 선택되는 곳을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "해오름식당을 선택하는 이유를 모두 골라주세요",
+        "type": "multiple",
+        "options": [
+          "이동하기 편해서",
+          "가격이 적절해서",
+          "음식이 마음에 들어서",
+          "함께 가는 사람이 원해서",
+          "다른 선택지가 마땅하지 않아서",
+          "기타",
+          "이용해 본 적 없음"
+        ],
+        "reason": "해오름식당을 선택하게 만드는 요인을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "haeoreum_choice_drivers",
+        "measuredConstruct": "해오름식당 선택 이유",
+        "measuredEntityIds": [],
+        "questionPurpose": "해오름식당을 선택하게 만드는 요인을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "별하식당을 선택하는 이유를 모두 골라주세요",
+        "type": "multiple",
+        "options": [
+          "이동하기 편해서",
+          "가격이 적절해서",
+          "음식이 마음에 들어서",
+          "함께 가는 사람이 원해서",
+          "다른 선택지가 마땅하지 않아서",
+          "기타",
+          "이용해 본 적 없음"
+        ],
+        "reason": "별하식당을 선택하게 만드는 요인을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "byeolha_choice_drivers",
+        "measuredConstruct": "별하식당 선택 이유",
+        "measuredEntityIds": [],
+        "questionPurpose": "별하식당을 선택하게 만드는 요인을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "가장 최근 해오름식당 이용 경험을 기준으로, 전반적으로 얼마나 만족했나요?",
+        "type": "scale",
+        "options": [],
+        "reason": "해오름식당의 전반적 만족도를 측정함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "haeoreum_overall_satisfaction",
+        "measuredConstruct": "해오름식당 전반적 만족도",
+        "measuredEntityIds": [],
+        "questionPurpose": "해오름식당의 전반적 만족도를 측정함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "두 식당 중 가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요",
+        "type": "text",
+        "options": [],
+        "reason": "선택지로 포착되지 않는 개선 요구를 수집함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "restaurant_improvement_feedback",
+        "measuredConstruct": "개선 의견",
+        "measuredEntityIds": [],
+        "questionPurpose": "선택지로 포착되지 않는 개선 요구를 수집함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      }
+    ],
+    "questionsBeforePostprocess": [],
+    "fatalFailures": [],
+    "warnings": [],
+    "automaticJudgment": "auto_pass",
+    "regradedFatalFailures": [
+      {
+        "code": "REQUIRED_PURPOSE_MISSING",
+        "message": "필수 조사 목적 누락: 만족도 비교",
+        "cluster": "purpose_coverage",
+        "fatal": true
+      },
+      {
+        "code": "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "message": "필수 문항 개념 누락: 만족도",
+        "cluster": "purpose_coverage",
+        "fatal": true
+      },
+      {
+        "code": "REQUIRED_QUESTION_CONCEPT_MISSING",
+        "message": "필수 문항 개념 누락: 대상 비교",
+        "cluster": "purpose_coverage",
+        "fatal": true
+      }
+    ],
+    "regradedAutomaticJudgment": "auto_failure",
+    "manualJudgment": "evaluator_false_negative",
+    "manualRationale": "해오름식당과 별하식당을 모두 보존했지만 만족도 측정이 해오름식당에만 있고 별하식당 만족도가 없어 대상별 비교가 불가능한데 자동 평가가 통과함.",
+    "manualRepairJudgment": "not_repaired",
+    "manualRepairRationale": "repair 없이 통과했으나 필수 병렬 만족도 측정이 누락됨."
+  },
+  {
+    "caseId": "targeted-satisfaction-001",
+    "input": "한들식당 이용자의 맛, 주문 편의, 직원 응대와 전반적 만족도를 조사하고 싶다.",
+    "expected": {
+      "id": "targeted-satisfaction-001",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "targeted_overall_satisfaction",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "한들식당 이용자의 맛, 주문 편의, 직원 응대와 전반적 만족도를 조사하고 싶다.",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "한들식당 이용자"
+      ],
+      "expectedSurveyObject": [
+        "한들식당"
+      ],
+      "expectedPurposeConcepts": [
+        "맛",
+        "주문 편의",
+        "직원 응대",
+        "전반적 만족도"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "한들식당"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "만족도"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "satisfaction"
+      ],
+      "tags": [
+        "single_target_multi_purpose"
+      ],
+      "notes": "v1.1 overall_satisfaction 공통 근본 원인 targeted smoke fixture"
+    },
+    "requestId": "7665f633-6944-416f-a249-96a7066a38e1",
+    "generationSource": "openai",
+    "classification": "deterministic_metadata_normalization",
+    "modelCallCount": 1,
+    "repairCount": 0,
+    "fallbackCount": 0,
+    "changedQuestionIds": [],
+    "changedFieldsByQuestion": {},
+    "fallbackReason": null,
+    "finalRespondentGroup": "한들식당 이용자",
+    "finalEvaluationTarget": "한들식당",
+    "title": "한들식당 이용 경험 및 만족도 조사",
+    "description": "한들식당 이용자를 대상으로, 한들식당에서 식사해 본 경험을 바탕으로 답해주세요. 응답은 맛, 주문 과정, 직원 응대와 개선이 필요한 점을 파악하는 데 활용됩니다. 약 3분 정도 걸립니다.",
+    "questions": [
+      {
+        "id": null,
+        "title": "가장 최근 한들식당 방문을 기준으로, 전반적으로 얼마나 만족했나요?",
+        "type": "scale",
+        "options": [],
+        "reason": "한들식당의 전반적 만족도를 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "overall_satisfaction",
+        "measuredConstruct": "전반적 만족도",
+        "measuredEntityIds": [],
+        "questionPurpose": "한들식당의 전반적 만족도를 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "가장 최근 한들식당 방문을 기준으로, 음식의 맛은 어땠나요?",
+        "type": "scale",
+        "options": [],
+        "reason": "음식 맛에 대한 만족도를 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "food_taste_satisfaction",
+        "measuredConstruct": "맛",
+        "measuredEntityIds": [],
+        "questionPurpose": "음식 맛에 대한 만족도를 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "가장 최근 한들식당 방문을 기준으로, 주문하는 과정은 얼마나 편리했나요?",
+        "type": "scale",
+        "options": [],
+        "reason": "주문 과정의 편리성을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "ordering_convenience",
+        "measuredConstruct": "주문 편의",
+        "measuredEntityIds": [],
+        "questionPurpose": "주문 과정의 편리성을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "가장 최근 한들식당 방문을 기준으로, 직원의 응대는 어땠나요?",
+        "type": "scale",
+        "options": [],
+        "reason": "직원 응대에 대한 만족도를 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "staff_service_satisfaction",
+        "measuredConstruct": "직원 응대",
+        "measuredEntityIds": [],
+        "questionPurpose": "직원 응대에 대한 만족도를 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "주문하는 과정에서 불편했던 점이 있었다면 모두 골라주세요",
+        "type": "multiple",
+        "options": [
+          "메뉴나 가격을 확인하기 어려웠음",
+          "주문 방법을 알기 어려웠음",
+          "주문할 때 대기 시간이 길었음",
+          "주문 내용을 전달하거나 변경하기 어려웠음",
+          "기타",
+          "불편한 점 없음"
+        ],
+        "reason": "주문 과정에서 발생한 불편 요인을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "ordering_pain_points",
+        "measuredConstruct": "주문 불편 요인",
+        "measuredEntityIds": [],
+        "questionPurpose": "주문 과정에서 발생한 불편 요인을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "한들식당에서 가장 먼저 개선됐으면 하는 부분은 무엇인가요?",
+        "type": "single",
+        "options": [
+          "음식의 맛",
+          "주문하는 과정",
+          "직원 응대",
+          "기타",
+          "특별히 개선할 점 없음"
+        ],
+        "reason": "우선적으로 개선할 영역을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "improvement_priority",
+        "measuredConstruct": "개선 우선순위",
+        "measuredEntityIds": [],
+        "questionPurpose": "우선적으로 개선할 영역을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "한들식당에서 가장 먼저 바뀌었으면 하는 점이 있다면 구체적으로 적어주세요",
+        "type": "text",
+        "options": [],
+        "reason": "선택지에 없는 개선 의견을 수집함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "open_improvement_feedback",
+        "measuredConstruct": "구체적 개선 의견",
+        "measuredEntityIds": [],
+        "questionPurpose": "선택지에 없는 개선 의견을 수집함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      }
+    ],
+    "questionsBeforePostprocess": [],
+    "fatalFailures": [],
+    "warnings": [],
+    "automaticJudgment": "auto_pass",
+    "regradedFatalFailures": [],
+    "regradedAutomaticJudgment": "auto_pass",
+    "manualJudgment": "true_pass",
+    "manualRationale": "맛·주문 편의·직원 응대와 전반적 만족도를 분리해 직접 측정함.",
+    "manualRepairJudgment": "not_repaired",
+    "manualRepairRationale": "repair 없이 정상 출력임."
+  },
+  {
+    "caseId": "targeted-satisfaction-002",
+    "input": "누리길 앱 사용자의 기능 편의성과 오류 경험, 앱 전체 만족도를 알아보고 싶어요.",
+    "expected": {
+      "id": "targeted-satisfaction-002",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "targeted_overall_satisfaction",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "누리길 앱 사용자의 기능 편의성과 오류 경험, 앱 전체 만족도를 알아보고 싶어요.",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "누리길 앱 사용자"
+      ],
+      "expectedSurveyObject": [
+        "누리길 앱"
+      ],
+      "expectedPurposeConcepts": [
+        "기능 편의성",
+        "오류 경험",
+        "전반적 만족도"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "누리길 앱"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "만족도",
+        "불편"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "satisfaction",
+        "service_usage"
+      ],
+      "tags": [
+        "single_target_multi_purpose"
+      ],
+      "notes": "v1.1 overall_satisfaction 공통 근본 원인 targeted smoke fixture"
+    },
+    "requestId": "34eb46af-5f03-46e9-a92a-779669233504",
+    "generationSource": "openai_partial_repair",
+    "classification": "partial_repair",
+    "modelCallCount": 1,
+    "repairCount": 1,
+    "fallbackCount": 0,
+    "changedQuestionIds": [
+      "4",
+      "6"
+    ],
+    "changedFieldsByQuestion": {
+      "4": [
+        "title"
+      ],
+      "6": [
+        "decisionGoalIds",
+        "measuredConstruct",
+        "measuredEntityIds",
+        "measuredRole",
+        "measuredVariable",
+        "objectRole",
+        "planBlockId",
+        "purposeBlockId",
+        "questionPurpose",
+        "reason",
+        "scaleMax",
+        "scaleMaxLabel",
+        "scaleMin",
+        "scaleMinLabel",
+        "shuffleOptions",
+        "subjectRole",
+        "title",
+        "unitOfAnalysis"
+      ]
+    },
+    "fallbackReason": null,
+    "finalRespondentGroup": "누리길 앱 사용자",
+    "finalEvaluationTarget": "누리길 앱",
+    "title": "누리길 앱 사용 경험 설문",
+    "description": "누리길 앱을 사용해 본 경험을 바탕으로 답해주세요. 기능 사용의 편리함, 오류 경험, 전반적인 만족도를 알아보기 위한 설문입니다. 약 3분 정도 걸립니다.",
+    "questions": [
+      {
+        "id": null,
+        "title": "평소 누리길 앱을 얼마나 자주 열어보나요?",
+        "type": "single",
+        "options": [
+          "거의 매일",
+          "주 2~3회",
+          "주 1회 정도",
+          "월 1~3회",
+          "월 1회 미만"
+        ],
+        "reason": "사용 빈도에 따른 경험 차이를 비교함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "app_open_frequency",
+        "measuredConstruct": "앱 접속 빈도",
+        "measuredEntityIds": [],
+        "questionPurpose": "사용 빈도에 따른 경험 차이를 비교함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "가장 최근에 누리길 앱을 사용했을 때, 원하는 기능을 찾고 사용하는 과정은 얼마나 편리했나요?",
+        "type": "scale",
+        "options": [],
+        "reason": "기능을 찾고 사용하는 과정의 편의성을 측정함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "feature_convenience",
+        "measuredConstruct": "기능 편의성",
+        "measuredEntityIds": [],
+        "questionPurpose": "기능을 찾고 사용하는 과정의 편의성을 측정함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "누리길 앱의 화면과 메뉴 구성은 얼마나 이해하기 쉬웠나요?",
+        "type": "scale",
+        "options": [],
+        "reason": "화면과 메뉴 구성의 이해하기 쉬운 정도를 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "interface_clarity",
+        "measuredConstruct": "화면 구성 이해도",
+        "measuredEntityIds": [],
+        "questionPurpose": "화면과 메뉴 구성의 이해하기 쉬운 정도를 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "평소 누리길 앱을 사용하면서 오류나 멈춤을 얼마나 자주 겪었나요?",
+        "type": "scale",
+        "options": [],
+        "reason": "앱 오류나 멈춤을 겪은 빈도를 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "error_frequency",
+        "measuredConstruct": "오류 경험 빈도",
+        "measuredEntityIds": [],
+        "questionPurpose": "앱 오류나 멈춤을 겪은 빈도를 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "누리길 앱을 사용하면서 어떤 문제가 있었나요?",
+        "type": "multiple",
+        "options": [
+          "앱이 느리게 실행되거나 멈춤",
+          "화면이나 정보가 제대로 표시되지 않음",
+          "원하는 기능을 찾기 어려움",
+          "앱이 갑자기 종료됨",
+          "기타",
+          "겪은 문제가 없음"
+        ],
+        "reason": "주로 발생하는 오류와 불편 유형을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "error_types",
+        "measuredConstruct": "오류 및 불편 유형",
+        "measuredEntityIds": [],
+        "questionPurpose": "주로 발생하는 오류와 불편 유형을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "누리길 앱에 전반적으로 얼마나 만족하나요?",
+        "type": "scale",
+        "options": [],
+        "reason": "전반적 만족도를 공통 척도로 측정함.",
+        "role": null,
+        "measuredRole": "construct",
+        "planBlockId": "overall-satisfaction",
+        "purposeBlockId": "purpose-satisfaction-1",
+        "measuredVariable": "누리길 앱 전반적 만족도",
+        "measuredConstruct": "누리길 앱 전반적 만족도",
+        "measuredEntityIds": [
+          "primary_entity-yxjfoo",
+          "construct-onknp0",
+          "construct-kjscjl",
+          "construct-1pbll68"
+        ],
+        "questionPurpose": "세부 평가와 구분되는 전체 경험의 전반적 만족도를 직접 측정함.",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "누리길 앱에서 가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요",
+        "type": "text",
+        "options": [],
+        "reason": "선택지로 포착되지 않은 개선 요구를 수집함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "improvement_feedback",
+        "measuredConstruct": "개선 요구",
+        "measuredEntityIds": [],
+        "questionPurpose": "선택지로 포착되지 않은 개선 요구를 수집함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      }
+    ],
+    "questionsBeforePostprocess": [],
+    "fatalFailures": [],
+    "warnings": [
+      {
+        "code": "PARTIAL_REPAIR",
+        "message": "모델 출력 일부가 복구됨",
+        "cluster": "partial_repair",
+        "fatal": false
+      }
+    ],
+    "automaticJudgment": "auto_pass",
+    "regradedFatalFailures": [],
+    "regradedAutomaticJudgment": "auto_pass",
+    "manualJudgment": "true_pass",
+    "manualRationale": "기능 편의성·오류 경험·앱 전체 만족도를 직접 측정함.",
+    "manualRepairJudgment": "necessary_partial_repair",
+    "manualRepairRationale": "Q4 제목과 Q6을 국소적으로 repair해 기준 기간과 전반적 만족도 coverage를 보완함."
+  },
+  {
+    "caseId": "targeted-satisfaction-003",
+    "input": "달빛장터 방문객의 행사 구성, 안내, 혼잡과 전반적인 만족도 조사",
+    "expected": {
+      "id": "targeted-satisfaction-003",
+      "split": "dev",
+      "stratum": "complex_relation",
+      "category": "targeted_overall_satisfaction",
+      "difficulty": "medium",
+      "surveyMode": "standard",
+      "questionCount": 7,
+      "input": "달빛장터 방문객의 행사 구성, 안내, 혼잡과 전반적인 만족도 조사",
+      "expectedOutcome": "survey",
+      "expectedTargetPopulation": [
+        "달빛장터 방문객"
+      ],
+      "expectedSurveyObject": [
+        "달빛장터"
+      ],
+      "expectedPurposeConcepts": [
+        "행사 구성",
+        "안내",
+        "혼잡",
+        "전반적 만족도"
+      ],
+      "inputQuality": "clear",
+      "contextEntities": [],
+      "expectedEligibilityConditions": [],
+      "screeningExpected": false,
+      "forbiddenPurposeConcepts": [],
+      "mustPreserveTerms": [
+        "달빛장터"
+      ],
+      "mustPreserveNegation": false,
+      "requiredQuestionConcepts": [
+        "혼잡",
+        "만족도"
+      ],
+      "forbiddenTargetExpansions": [],
+      "forbiddenSurveyObjects": [],
+      "forbiddenQuestionConcepts": [
+        "generic filler",
+        "무관한 인구통계"
+      ],
+      "clarificationExpected": false,
+      "expectedIntentModes": [
+        "single"
+      ],
+      "expectedTargetCardinality": "single",
+      "expectedArchetypes": [
+        "satisfaction",
+        "event_program"
+      ],
+      "tags": [
+        "single_target_multi_purpose"
+      ],
+      "notes": "v1.1 overall_satisfaction 공통 근본 원인 targeted smoke fixture"
+    },
+    "requestId": "1c31f70e-8be2-4631-b3fd-74d0a28b1bf7",
+    "generationSource": "openai_partial_repair",
+    "classification": "partial_repair",
+    "modelCallCount": 1,
+    "repairCount": 1,
+    "fallbackCount": 0,
+    "changedQuestionIds": [
+      "2"
+    ],
+    "changedFieldsByQuestion": {
+      "2": [
+        "decisionGoalIds",
+        "explicitTimeframe",
+        "measuredConstruct",
+        "measuredEntityIds",
+        "measuredRole",
+        "measuredVariable",
+        "objectRole",
+        "planBlockId",
+        "purposeBlockId",
+        "questionPurpose",
+        "reason",
+        "scaleMax",
+        "scaleMaxLabel",
+        "scaleMin",
+        "scaleMinLabel",
+        "shuffleOptions",
+        "subjectRole",
+        "title",
+        "unitOfAnalysis"
+      ]
+    },
+    "fallbackReason": null,
+    "finalRespondentGroup": "달빛장터 방문객",
+    "finalEvaluationTarget": "달빛장터",
+    "title": "달빛장터 방문객 만족도 조사",
+    "description": "달빛장터를 방문하신 경험을 바탕으로 행사 구성, 안내, 혼잡과 전반적인 만족도를 알아보기 위한 설문입니다. 약 3분 정도 걸립니다.",
+    "questions": [
+      {
+        "id": null,
+        "title": "달빛장터를 몇 번 방문했나요?",
+        "type": "single",
+        "options": [
+          "이번이 처음이었음",
+          "2~3번 방문했음",
+          "4번 이상 방문했음"
+        ],
+        "reason": "방문 횟수에 따른 평가 차이를 확인함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "visit_count",
+        "measuredConstruct": "방문 횟수",
+        "measuredEntityIds": [],
+        "questionPurpose": "방문 횟수에 따른 평가 차이를 확인함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "달빛장터에 전반적으로 얼마나 만족하나요?",
+        "type": "scale",
+        "options": [],
+        "reason": "전반적 만족도를 공통 척도로 측정함.",
+        "role": null,
+        "measuredRole": "construct",
+        "planBlockId": "overall-satisfaction",
+        "purposeBlockId": "purpose-satisfaction-1",
+        "measuredVariable": "달빛장터 전반적 만족도",
+        "measuredConstruct": "달빛장터 전반적 만족도",
+        "measuredEntityIds": [
+          "primary_entity-i3l56x",
+          "construct-1ntxelc",
+          "construct-1473emk",
+          "construct-1uzhr5j",
+          "construct-p1z11g"
+        ],
+        "questionPurpose": "세부 평가와 구분되는 전체 경험의 전반적 만족도를 직접 측정함.",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "달빛장터의 행사 구성은 얼마나 만족스러웠나요?",
+        "type": "scale",
+        "options": [],
+        "reason": "행사 구성에 대한 만족도를 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "event_program_satisfaction",
+        "measuredConstruct": "행사 구성",
+        "measuredEntityIds": [],
+        "questionPurpose": "행사 구성에 대한 만족도를 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "행사장 안내는 얼마나 이해하기 쉬웠나요?",
+        "type": "scale",
+        "options": [],
+        "reason": "행사 안내의 이해하기 쉬운 정도를 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "guidance_clarity",
+        "measuredConstruct": "안내",
+        "measuredEntityIds": [],
+        "questionPurpose": "행사 안내의 이해하기 쉬운 정도를 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "행사장 안은 얼마나 혼잡하게 느껴졌나요?",
+        "type": "scale",
+        "options": [],
+        "reason": "방문객이 체감한 혼잡 수준을 파악함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "perceived_crowding",
+        "measuredConstruct": "혼잡",
+        "measuredEntityIds": [],
+        "questionPurpose": "방문객이 체감한 혼잡 수준을 파악함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "달빛장터에서 가장 먼저 개선됐으면 하는 점은 무엇인가요?",
+        "type": "single",
+        "options": [
+          "행사 구성",
+          "행사장 안내",
+          "혼잡 관리",
+          "특별히 개선할 점이 없음",
+          "기타"
+        ],
+        "reason": "방문객이 가장 중요하게 보는 개선 영역을 확인함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "improvement_priority",
+        "measuredConstruct": "개선 우선순위",
+        "measuredEntityIds": [],
+        "questionPurpose": "방문객이 가장 중요하게 보는 개선 영역을 확인함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      },
+      {
+        "id": null,
+        "title": "달빛장터에서 가장 좋았던 점이나 가장 먼저 바뀌었으면 하는 점이 있다면 적어주세요",
+        "type": "text",
+        "options": [],
+        "reason": "선택지에 담기지 않은 경험과 개선 의견을 수집함.",
+        "role": null,
+        "measuredRole": null,
+        "planBlockId": null,
+        "purposeBlockId": null,
+        "measuredVariable": "open_feedback",
+        "measuredConstruct": "구체적인 경험과 개선 의견",
+        "measuredEntityIds": [],
+        "questionPurpose": "선택지에 담기지 않은 경험과 개선 의견을 수집함",
+        "scaleMin": null,
+        "scaleMax": null,
+        "scaleMinLabel": null,
+        "scaleMaxLabel": null,
+        "showIfQuestionIds": [],
+        "disqualifiesRespondent": null
+      }
+    ],
+    "questionsBeforePostprocess": [],
+    "fatalFailures": [],
+    "warnings": [
+      {
+        "code": "PARTIAL_REPAIR",
+        "message": "모델 출력 일부가 복구됨",
+        "cluster": "partial_repair",
+        "fatal": false
+      }
+    ],
+    "automaticJudgment": "auto_pass",
+    "regradedFatalFailures": [],
+    "regradedAutomaticJudgment": "auto_pass",
+    "manualJudgment": "true_pass",
+    "manualRationale": "행사 구성·안내·혼잡과 전반적 만족도를 직접 측정함.",
+    "manualRepairJudgment": "necessary_partial_repair",
+    "manualRepairRationale": "Q2 repair로 전반적 만족도 coverage를 보완한 뒤 나머지 목적을 훼손하지 않음."
+  }
+]

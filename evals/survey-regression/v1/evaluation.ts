@@ -127,6 +127,7 @@ const conceptPatterns: Record<string, RegExp[]> = {
     /가장\s*주로\s*(?:가|찾|방문)하는\s*이유/,
     /가장\s*주로\s*가는\s*이유/,
     /(?:찾는|방문하는)\s*(?:가장\s*)?(?:주된|주요한?)\s*이유/,
+    /찾는\s*가장\s*(?:큰|주된)\s*이유/,
   ],
   맛: [/맛/],
   선호: [/선호/, /관심\s*(?:활동|주제)/],
@@ -412,6 +413,17 @@ function measuredConcepts(question: ComparisonQuestion) {
   return comparableConcepts.filter((concept) => conceptPresent(concept, corpus));
 }
 
+function comparisonConceptPresent(
+  concept: string,
+  question: ComparisonQuestion,
+) {
+  const corpus = comparisonQuestionCorpus(question);
+  if (concept === "만족도") {
+    return /만족|overall[_\s-]*satisfaction/u.test(corpus);
+  }
+  return conceptPresent(concept, corpus);
+}
+
 function parallelComparableMeasurementPresent(
   questions: SurveyRegressionResult["questions"],
   expectedTargets: string[],
@@ -423,7 +435,7 @@ function parallelComparableMeasurementPresent(
     questions.filter((question) => {
       if (!questionMeasuresTarget(question, target, expectedTargets)) return false;
       if (baseConcept) {
-        return conceptPresent(baseConcept, comparisonQuestionCorpus(question));
+        return comparisonConceptPresent(baseConcept, question);
       }
       return measuredConcepts(question).length > 0;
     }),
@@ -439,7 +451,7 @@ function parallelComparableMeasurementPresent(
       candidates.some((candidate) =>
         comparableResponseFormat(first, candidate) &&
         firstConcepts.some((concept) =>
-          conceptPresent(concept, comparisonQuestionCorpus(candidate)),
+          comparisonConceptPresent(concept, candidate),
         ),
       ),
     );
@@ -449,12 +461,15 @@ function parallelComparableMeasurementPresent(
 function directComparisonPresent(
   questions: SurveyRegressionResult["questions"],
   expectedTargets: string[],
+  requiredConcept?: string,
 ) {
   return questions.some((question) => {
     const corpus = comparisonQuestionCorpus(question);
     if (!comparisonSignalPatterns.some((pattern) => pattern.test(corpus))) {
       return false;
     }
+    const baseConcept = requiredConcept?.replace(/\s*비교\s*/gu, " ").trim();
+    if (baseConcept && !comparisonConceptPresent(baseConcept, question)) return false;
     if (expectedTargets.length < 2) return true;
     return expectedTargets.every((target) =>
       comparisonTargetAliases(target, expectedTargets).some((alias) =>
@@ -490,7 +505,7 @@ function groupedComparisonMeasurementPresent(
   return questions.some((question) => {
     if (question === groupQuestion) return false;
     const corpus = comparisonQuestionCorpus(question);
-    if (baseConcept && !conceptPresent(baseConcept, corpus)) return false;
+    if (baseConcept && !comparisonConceptPresent(baseConcept, question)) return false;
     return /(?:집단|수단|대상|서비스|앱|프로그램|식당).*비교|비교.*(?:집단|수단|대상|서비스|앱|프로그램|식당)/u.test(
       corpus,
     );
@@ -503,7 +518,7 @@ function comparisonCoveragePresent(
   requiredConcept?: string,
 ) {
   return (
-    directComparisonPresent(questions, expectedTargets) ||
+    directComparisonPresent(questions, expectedTargets, requiredConcept) ||
     parallelComparableMeasurementPresent(
       questions,
       expectedTargets,
@@ -596,14 +611,35 @@ function questionMetadataText(question: EvaluatedQuestion) {
 }
 
 function questionLooksLikeStatusCheck(question: EvaluatedQuestion) {
+  const titleLooksSubstantive = substantiveStatusLookalikePattern.test(
+    question.title,
+  );
   const titleLooksLikeStatus =
-    !substantiveStatusLookalikePattern.test(question.title) &&
+    !titleLooksSubstantive &&
     statusQuestionPattern.test(question.title);
   const compactStatusChoices =
+    !titleLooksSubstantive &&
     question.options.length >= 2 &&
     question.options.length <= 4 &&
     statusChoicePattern.test(question.options.join("\n"));
   return titleLooksLikeStatus || compactStatusChoices;
+}
+
+function duplicateOverallConstructGroups(questions: EvaluatedQuestion[]) {
+  const constructByQuestion = questions.flatMap((question, index) => {
+    if (question.type !== "scale" && question.type !== "single") return [];
+    const corpus = questionSemanticCorpus(question);
+    const key =
+      /(?:실험실\s*)?안전.*(?:전반|수준)|(?:전반|수준).*안전/u.test(corpus)
+        ? "overall-safety-perception"
+        : null;
+    return key ? [{ key, questionId: String(question.id ?? index + 1) }] : [];
+  });
+  const groups = new Map<string, string[]>();
+  for (const item of constructByQuestion) {
+    groups.set(item.key, [...(groups.get(item.key) ?? []), item.questionId]);
+  }
+  return [...groups.values()].filter((group) => group.length > 1);
 }
 
 export function isCorePurposeQuestion(question: EvaluatedQuestion) {
@@ -1030,9 +1066,22 @@ export function evaluateSemanticResult(
     }
   }
   for (const concept of testCase.requiredQuestionConcepts) {
+    const requiresParallelTargetCoverage =
+      testCase.expectedTargetCardinality === "multiple" &&
+      testCase.expectedPurposeConcepts.some(
+        (purpose) =>
+          /비교/u.test(purpose) &&
+          conceptPresent(concept, normalize(purpose)),
+      );
     const present =
       concept === "대상 비교"
         ? comparisonCoveragePresent(result.questions, testCase.expectedSurveyObject)
+        : requiresParallelTargetCoverage
+          ? comparisonCoveragePresent(
+              result.questions,
+              testCase.expectedSurveyObject,
+              concept,
+            )
         : conceptPresent(concept, questionText);
     if (!present) {
       fatalFailures.push(issue("REQUIRED_QUESTION_CONCEPT_MISSING", `필수 문항 개념 누락: ${concept}`, concept.includes("시간") ? "reference_period" : "purpose_coverage"));
@@ -1058,6 +1107,9 @@ export function evaluateSemanticResult(
     genericFillerPatterns.some((pattern) => pattern.test(questionTitleText)) ||
     /[‘'][^’']+[’'](?:과|와)\s*관련해\s*평소\s*가장\s*자주\s*겪는\s*상황/u.test(
       questionTitleText,
+    ) ||
+    /[‘'][^’']+[’'](?:과|와)\s*관련한\s*행동은\s*주로\s*어떤\s*상황에서/u.test(
+      questionTitleText,
     )
   ) {
     fatalFailures.push(issue("GENERIC_FILLER", "generic filler 문항이 포함됨", "question_quality"));
@@ -1065,6 +1117,15 @@ export function evaluateSemanticResult(
   const normalizedQuestions = result.questions.map((item) => normalize(item.title));
   if (new Set(normalizedQuestions).size !== normalizedQuestions.length) {
     fatalFailures.push(issue("DUPLICATE_QUESTION", "완전히 중복된 질문이 있음", "question_quality"));
+  }
+  for (const group of duplicateOverallConstructGroups(result.questions)) {
+    fatalFailures.push(
+      issue(
+        "DUPLICATE_CONSTRUCT",
+        `같은 전반적 construct를 문항 ${group.join(", ")}에서 중복 측정함`,
+        "question_quality",
+      ),
+    );
   }
   const screeningPositionIssue = validateScreeningQuestionPosition(
     result.questions,

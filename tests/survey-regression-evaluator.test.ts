@@ -123,6 +123,95 @@ test("빈도·목적 문항의 비이용 선택지를 eligibility로 오인하�
   assert.notEqual(classifySurveyQuestionRole(purpose), "eligibility_screening");
 });
 
+test("구매를 알아보거나 비교한 경험은 미구매 eligibility가 아니다", () => {
+  assert.equal(
+    classifySurveyQuestionRole(
+      question(
+        "새결 정수기 구매를 알아보거나 비교해 본 적이 있나요?",
+        "single",
+        [
+          "구매를 진지하게 비교해 본 적 있음",
+          "간단히 찾아본 적 있음",
+          "관심은 있었지만 찾아보지는 않았음",
+          "관심을 가져본 적 없음",
+        ],
+      ),
+    ),
+    "other",
+  );
+});
+
+test("방문 목적을 '찾는 가장 큰 이유'로 물어도 목적 coverage로 인정한다", () => {
+  assert.equal(
+    conceptPresent(
+      "이용 목적",
+      "솔샘 공공도서관을 찾는 가장 큰 이유는 무엇인가요?",
+    ),
+    true,
+  );
+});
+
+test("비교 요구는 동일 construct를 두 대상에 측정해야 충족한다", () => {
+  const evaluated = evaluateSemanticResult(
+    frontedCase("fronted-control-003"),
+    result({
+      finalRespondentGroup: "별마루 카페 새 메뉴와 기존 메뉴 이용자",
+      finalEvaluationTarget: "별마루 카페 새 메뉴·기존 메뉴",
+      title: "별마루 카페 메뉴 만족도 비교 조사",
+      description: "두 메뉴의 만족도를 비교합니다.",
+      questions: [
+        question("새 메뉴를 먹어 본 적이 있나요?"),
+        question("기존 메뉴를 먹어 본 적이 있나요?"),
+        question("새 메뉴와 기존 메뉴 중 어느 메뉴를 더 자주 주문하나요?"),
+        question("새 메뉴를 선택한 이유는 무엇인가요?"),
+        question("기존 메뉴를 선택한 이유는 무엇인가요?"),
+        question("새 메뉴에 얼마나 만족하나요?", "scale"),
+        question("두 메뉴에 관한 의견을 적어주세요.", "text"),
+      ],
+    }),
+  );
+  assert.equal(
+    evaluated.fatalFailures.some(
+      (item) =>
+        item.code === "REQUIRED_PURPOSE_MISSING" &&
+        item.message.includes("만족도 비교"),
+    ),
+    true,
+  );
+});
+
+test("동일한 전반적 안전 인식 척도 두 개는 중복 construct다", () => {
+  const evaluated = evaluateSemanticResult(
+    {
+      ...testCase("dev-past-017"),
+      expectedTargetPopulation: ["새빛대학교 환경공학과 학생"],
+      expectedSurveyObject: ["실험실 안전"],
+      expectedPurposeConcepts: ["안전", "개선 요구"],
+      requiredQuestionConcepts: ["안전", "개선 요구"],
+      mustPreserveTerms: ["새빛대학교", "환경공학과"],
+    },
+    result({
+      finalRespondentGroup: "새빛대학교 환경공학과 학생",
+      finalEvaluationTarget: "실험실 안전",
+      title: "실험실 안전 인식 조사",
+      description: "실험실 안전 인식과 개선 요구를 조사합니다.",
+      questions: [
+        question("실험실 안전에 대해 전반적으로 어떻게 인식하고 있나요?", "scale"),
+        question("현재 실험실의 안전 수준은 어느 정도라고 생각하나요?", "scale"),
+        question("안전과 관련해 부족한 점은 무엇인가요?", "multiple"),
+        question("실험실 안전에서 개선할 점은 무엇인가요?", "multiple"),
+        question("안전수칙을 얼마나 잘 알고 있나요?", "scale"),
+        question("바뀌었으면 하는 점을 적어주세요.", "text"),
+        question("현재 학년을 골라주세요.", "single"),
+      ],
+    }),
+  );
+  assert.equal(
+    evaluated.fatalFailures.some((item) => item.code === "DUPLICATE_CONSTRUCT"),
+    true,
+  );
+});
+
 test("선행 일반 이용 문항이 후행 새 메뉴 routing에 의존하지 않으면 위치 오류가 아니다", () => {
   const questions = [
     question("최근 한 달 동안 별마루 카페를 이용한 적이 있나요?", "single", ["예", "아니요"], {
@@ -984,5 +1073,85 @@ test("비교·검토 경험 질문은 응답자 선별 문항으로 오인하지
       question("구매를 망설이게 한 가장 큰 장벽은 무엇인가요?"),
     ]),
     null,
+  );
+});
+
+test("복수 대상 비교는 같은 construct를 모든 대상에서 측정해야 한다", () => {
+  const comparisonCase = {
+    ...testCase("dev-general-008"),
+    expectedSurveyObject: ["해오름식당", "별하식당"],
+    expectedPurposeConcepts: ["만족도 비교"],
+    requiredQuestionConcepts: ["만족도", "대상 비교"],
+    expectedTargetCardinality: "multiple" as const,
+  };
+  const evaluated = evaluateSemanticResult(
+    comparisonCase,
+    result({
+      finalRespondentGroup: "두 식당 이용자",
+      finalEvaluationTarget: "해오름식당, 별하식당",
+      title: "두 식당 비교 조사",
+      description: "선택 이유와 만족도를 비교합니다.",
+      questions: [
+        question("해오름식당에 전반적으로 얼마나 만족하나요?", "scale"),
+        question("두 식당 중 더 자주 방문하는 곳은 어디인가요?", "single", [
+          "해오름식당",
+          "별하식당",
+        ]),
+        question("해오름식당을 선택하는 이유는 무엇인가요?"),
+        question("별하식당을 선택하는 이유는 무엇인가요?"),
+        question("두 식당의 개선점을 비교해 적어주세요", "text"),
+        question("해오름식당에 방문한 적이 있나요?"),
+        question("별하식당에 방문한 적이 있나요?"),
+      ],
+    }),
+  );
+
+  assert.equal(
+    evaluated.fatalFailures.some(
+      (item) =>
+        item.code === "REQUIRED_QUESTION_CONCEPT_MISSING" &&
+        item.message.includes("만족도"),
+    ),
+    true,
+  );
+});
+
+test("복수 대상의 병렬 만족도 측정을 비교 coverage로 인정한다", () => {
+  const comparisonCase = {
+    ...testCase("dev-general-008"),
+    expectedSurveyObject: ["해오름식당", "별하식당"],
+    expectedPurposeConcepts: ["만족도 비교"],
+    requiredQuestionConcepts: ["만족도", "대상 비교"],
+    expectedTargetCardinality: "multiple" as const,
+  };
+  const evaluated = evaluateSemanticResult(
+    comparisonCase,
+    result({
+      finalRespondentGroup: "두 식당 이용자",
+      finalEvaluationTarget: "해오름식당, 별하식당",
+      title: "두 식당 비교 조사",
+      description: "선택 이유와 만족도를 비교합니다.",
+      questions: [
+        question("해오름식당에 전반적으로 얼마나 만족하나요?", "scale"),
+        question("별하식당에 전반적으로 얼마나 만족하나요?", "scale"),
+        question("두 식당 중 더 자주 방문하는 곳은 어디인가요?", "single", [
+          "해오름식당",
+          "별하식당",
+        ]),
+        question("해오름식당을 선택하는 이유는 무엇인가요?"),
+        question("별하식당을 선택하는 이유는 무엇인가요?"),
+        question("해오름식당에 방문한 적이 있나요?"),
+        question("별하식당에 방문한 적이 있나요?"),
+      ],
+    }),
+  );
+
+  assert.equal(
+    evaluated.fatalFailures.some(
+      (item) =>
+        item.code === "REQUIRED_QUESTION_CONCEPT_MISSING" &&
+        item.message.includes("만족도"),
+    ),
+    false,
   );
 });
