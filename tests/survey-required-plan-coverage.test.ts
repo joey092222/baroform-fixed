@@ -393,3 +393,38 @@ test("숫자형 단일선택 척도의 직접 전반 만족도 문항은 중복 
   };
   assert.equal(questionCoversSurveyPlanBlock(directOverall, overallBlock), true);
 });
+
+test("구체적인 안전 지식·중요도 질문은 일반 인식 블록을 직접 측정한다", () => {
+  const prompt = "새빛대학교 환경공학과 학생의 실험실 안전 인식과 개선 요구 조사";
+  const intent = parseSurveyIntent(prompt);
+  const plan = createSurveyPlan(intent, 7);
+  const perceptionBlock = plan.blocks.find(
+    (block) => /^인식$/u.test(block.variable) && block.purposeBlockId,
+  );
+  assert.ok(perceptionBlock);
+
+  assert.equal(
+    questionCoversSurveyPlanBlock(
+      question(1, "실험실 안전수칙을 얼마나 잘 알고 있다고 생각하나요?"),
+      perceptionBlock,
+    ),
+    true,
+  );
+  assert.equal(
+    questionCoversSurveyPlanBlock(
+      question(2, "실험실 안전은 얼마나 중요하다고 생각하나요?"),
+      perceptionBlock,
+    ),
+    true,
+  );
+});
+
+test("이동 fallback 문항의 계획 메타데이터는 실제 질문 의미와 일치한다", () => {
+  const fallback = analyzeSurveyPrompt("다온대학교 학생의 통학 불편 조사");
+  const byId = new Map(fallback.aiQuestions.map((item) => [item.id, item]));
+
+  assert.match(byId.get(2)?.measuredVariable ?? "", /이동 수단/u);
+  assert.match(byId.get(3)?.measuredVariable ?? "", /소요 시간/u);
+  assert.match(byId.get(4)?.measuredVariable ?? "", /혼잡/u);
+  assert.match(byId.get(5)?.measuredVariable ?? "", /안전/u);
+});

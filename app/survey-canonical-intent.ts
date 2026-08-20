@@ -411,7 +411,7 @@ type ResolvedComparisonClause = {
 };
 
 const relationalAudienceHead =
-  "(?:신입생|졸업생|학부생|대학원생|재학생|휴학생|대학생|학생|일반인|직장인|자영업자|취업준비생|구직자|고령층|청년층|청소년|청년|성인|사람|교직원|교수|교사|이용자|사용자|구독자|소비자|고객|주민|구성원|팀원|방문객|참가자|참여자|가입자|보호자|가구|학부모|대생|학과생|전공생)";
+  "(?:신입생|졸업생|학부생|대학원생|재학생|휴학생|대학생|학생|일반인|직장인|자영업자|취업준비생|구직자|고령층|청년층|청소년|청년|성인|사람|교직원|교수|교사|이용자|사용자|구독자|소비자|고객|주민|구성원|팀원|방문자|방문객|신청자|수강자|구매자|참가자|참여자|가입자|보호자|가구|학부모|대생|학과생|전공생)";
 
 const relationalTimeframePattern =
   "(?:(?:최근|지난)\\s+(?:\\d+|한|두|세|네)\\s*(?:일|주|주일|개월|달|학기|년)|(?:이번|지난)\\s*(?:주|달|월|학기|학년도|연도))(?:\\s*(?:간|동안))?";
@@ -621,7 +621,7 @@ function resolveQualifiedRespondentPurposeTail(
 ): ResolvedRelationalClause | null {
   const match = normalizedInput.match(
     new RegExp(
-      `^(.+?${relationalAudienceHead})(?:들)?(?:에게|한테|의|이|가)?\\s+(.+)$`,
+      `^(.+${relationalAudienceHead})(?:들)?(?:에게|한테|의|이|가)?\\s+(.+)$`,
     ),
   );
   if (!match) return null;
@@ -3092,12 +3092,27 @@ export function parseCanonicalSurveyIntent(
   const prefersResearchRelation =
     surveyIntent.researchIntent.relationCueDetected &&
     surveyIntent.researchIntent.relations.length > 0;
+  const relationalClauseDisambiguatesPurposeFlattening = Boolean(
+    relationalClause &&
+      surveyIntent.intentMode === "composite" &&
+      surveyIntent.objects.some((object) =>
+        normalize(object.text).includes(
+          normalize(relationalClause.primaryEntity.text),
+        ),
+      ) &&
+      surveyIntent.objects.some((object) =>
+        /(?:목적|빈도|만족|평가|불편|문제|장벽|개선|요구|수요|필요|의향|이유|인식|태도)/u.test(
+          object.text,
+        ),
+      ),
+  );
   const preservesCompositeDecision =
-    surveyIntent.intentMode === "composite" ||
-    (surveyIntent.objectKind === "decision_support" &&
-      /(?:이를\s*바탕으로|그\s*결과(?:를)?\s*(?:활용해|토대로)|이를\s*(?:통해|근거로)|분석\s*결과에\s*따라|조사(?:한|하고)\s*뒤|분석(?:한|하고)\s*뒤)/.test(
-        normalizedInput,
-      ));
+    !relationalClauseDisambiguatesPurposeFlattening &&
+    (surveyIntent.intentMode === "composite" ||
+      (surveyIntent.objectKind === "decision_support" &&
+        /(?:이를\s*바탕으로|그\s*결과(?:를)?\s*(?:활용해|토대로)|이를\s*(?:통해|근거로)|분석\s*결과에\s*따라|조사(?:한|하고)\s*뒤|분석(?:한|하고)\s*뒤)/.test(
+          normalizedInput,
+        )));
   const preservesExplicitActivityObject = Boolean(
     relationalClause &&
       !relationalClause.eligibilityCondition &&

@@ -1791,9 +1791,25 @@ function mobilityExperienceBlueprint(brief: SurveyBrief): SurveyBlueprint {
         "기타",
       ],
     ),
-  ].map((item, index) =>
-    annotatePlannedQuestion(item, plan.blocks[index], brief.surveyIntent),
-  );
+  ];
+  const mobilityVariables = [
+    /실제\s*행동의\s*빈도|오가는\s*통학|방문\s*빈도/u,
+    /이동\s*수단/u,
+    /소요\s*시간/u,
+    /혼잡/u,
+    /안전/u,
+    /불편/u,
+    /구체적인\s*경험과\s*제안|개선/u,
+  ];
+  const plannedQuestions = questions.map((item, index) => {
+    const matcher = mobilityVariables[index];
+    const block = matcher
+      ? plan.blocks.find((candidate) =>
+          matcher.test(`${candidate.variable} ${candidate.purpose}`),
+        )
+      : undefined;
+    return annotatePlannedQuestion(item, block, brief.surveyIntent);
+  });
 
   return {
     kind: "satisfaction",
@@ -1809,8 +1825,8 @@ function mobilityExperienceBlueprint(brief: SurveyBrief): SurveyBlueprint {
       `활동 · ${context.activity ?? movementLabel}`,
       "유형 · 이동 경험",
     ],
-    templateQuestions: questions.slice(0, 5),
-    aiQuestions: questions,
+    templateQuestions: plannedQuestions.slice(0, 5),
+    aiQuestions: plannedQuestions,
     respondentGroup: brief.targetRespondents,
     evaluationTarget: `${movementLabel} 경험`,
     goal: context.researchGoal,

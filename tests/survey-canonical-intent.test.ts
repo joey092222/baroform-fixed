@@ -326,3 +326,38 @@ test("관계 단서가 있는데 구조화 추출에 실패하면 빈 계획 대
   assert.equal(research.ambiguityLevel, "high");
   assert.deepEqual(research.relations, []);
 });
+
+test("부정 참여 조건을 포함한 긴 응답자 관형절은 가장 긴 응답자 범위로 보존한다", () => {
+  const canonical = parseCanonicalSurveyIntent(
+    "별가람 청년 워크숍에 참여하지 않은 신청자의 불참 이유와 다음 행사 참여 의향을 조사하고 싶다",
+  );
+
+  assert.equal(
+    canonical.surveyIntent.targetPopulation,
+    "별가람 청년 워크숍에 참여하지 않은 신청자",
+  );
+  assert.equal(canonical.surveyIntent.surveyObject, "별가람 청년 워크숍");
+  assert.equal(canonical.surveyIntent.screeningRequired, true);
+  assert.match(canonical.surveyIntent.eligibilityCondition ?? "", /참여하지 않은 신청자/u);
+  assert.deepEqual(canonical.surveyIntent.constructs, [
+    "불참 이유",
+    "다음 행사 참여 의향",
+  ]);
+});
+
+test("방문자 뒤에 분산된 목적 목록은 복수 대상이 아닌 한 장소의 조사 목적으로 해석한다", () => {
+  const canonical = parseCanonicalSurveyIntent(
+    "푸른솔 문화센터 방문자의 방문 목적, 이용 빈도, 불편 및 개선 요구를 조사하고 싶다",
+  );
+
+  assert.equal(canonical.surveyIntent.targetPopulation, "푸른솔 문화센터 방문자");
+  assert.equal(canonical.surveyIntent.surveyObject, "푸른솔 문화센터");
+  assert.equal(canonical.surveyIntent.intentMode, "single");
+  assert.deepEqual(canonical.surveyIntent.evaluationTargets, ["푸른솔 문화센터"]);
+  assert.deepEqual(canonical.surveyIntent.constructs, [
+    "방문 목적",
+    "이용 빈도",
+    "불편",
+    "개선 요구",
+  ]);
+});

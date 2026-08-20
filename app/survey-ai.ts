@@ -1780,7 +1780,6 @@ function planBasedReplacement(
   fallbackQuestion: SurveyQuestion,
   plan: SurveyPlan,
   intent: SurveyIntent,
-  index: number,
 ): SurveyQuestion {
   const askableBlocks = plan.blocks.filter((item) => item.directlyAskable);
   const declaredBlock = askableBlocks.find(
@@ -1789,7 +1788,11 @@ function planBasedReplacement(
   const matchingBlock = askableBlocks.find((item) =>
     questionCoversSurveyPlanBlock(fallbackQuestion, item),
   );
-  const block = declaredBlock ?? matchingBlock ?? askableBlocks[index] ?? askableBlocks.at(-1);
+  const compatibleDeclaredBlock =
+    declaredBlock && questionCoversSurveyPlanBlock(fallbackQuestion, declaredBlock)
+      ? declaredBlock
+      : undefined;
+  const block = compatibleDeclaredBlock ?? matchingBlock;
   const replacement: SurveyQuestion = {
     ...fallbackQuestion,
     id: original.id,
@@ -1965,7 +1968,6 @@ export function repairInvalidQuestions({
       fallbackQuestion,
       plan,
       intent,
-      index,
     );
   });
 
