@@ -41,6 +41,7 @@ import type {
   SurveyRegressionResult,
 } from "../evals/survey-regression/v1/schema";
 import { frontedPurposeSmokeCases } from "../evals/survey-regression/v1.1/fronted-purpose-smoke";
+import { targetedRemediationKey10Cases } from "../evals/survey-regression/v1.1/targeted-remediation-key10";
 import { targetedRemediationSmokeCases } from "../evals/survey-regression/v1.1/targeted-remediation-smoke";
 
 type TraceSnapshot = {
@@ -172,7 +173,7 @@ function parseArguments() {
   const split = args.get("split") ?? "all";
   if (!/^(?:dev|holdout|all)$/.test(split)) throw new Error(`INVALID_SPLIT:${split}`);
   const suite = args.get("suite") ?? "v1";
-  if (!/^(?:v1|fronted-purpose|targeted-remediation)$/.test(suite)) {
+  if (!/^(?:v1|fronted-purpose|targeted-key10|targeted-remediation)$/.test(suite)) {
     throw new Error(`INVALID_SUITE:${suite}`);
   }
   const runId = args.get("run-id") ?? `live-${new Date().toISOString().replace(/[:.]/g, "-")}`;
@@ -203,7 +204,7 @@ function parseArguments() {
   }
   return {
     split: split as "dev" | "holdout" | "all",
-    suite: suite as "v1" | "fronted-purpose" | "targeted-remediation",
+    suite: suite as "v1" | "fronted-purpose" | "targeted-key10" | "targeted-remediation",
     runId,
     estimateOnly: args.get("estimate-only") === "true",
     deployment,
@@ -1109,14 +1110,16 @@ const args = parseArguments();
 const root = process.cwd();
 const allCases = args.suite === "fronted-purpose"
   ? [...frontedPurposeSmokeCases]
-  : args.suite === "targeted-remediation"
-    ? [...targetedRemediationSmokeCases]
-    : mergeDatasets(
-      ...(await Promise.all([
-        readRegressionDataset(resolve(root, "evals/survey-regression/v1/dev.json")),
-        readRegressionDataset(resolve(root, "evals/survey-regression/v1/holdout.json")),
-      ])),
-    );
+  : args.suite === "targeted-key10"
+    ? [...targetedRemediationKey10Cases]
+    : args.suite === "targeted-remediation"
+      ? [...targetedRemediationSmokeCases]
+      : mergeDatasets(
+        ...(await Promise.all([
+          readRegressionDataset(resolve(root, "evals/survey-regression/v1/dev.json")),
+          readRegressionDataset(resolve(root, "evals/survey-regression/v1/holdout.json")),
+        ])),
+      );
 if (args.suite === "v1") {
   const quality = validateDatasetQuality(allCases);
   if (quality.errors.length > 0) throw new Error(quality.errors.join("\n"));
@@ -1140,7 +1143,9 @@ const artifactDirectory = resolve(
     ? "v1"
     : args.suite === "fronted-purpose"
       ? "v1.1-fronted-purpose"
-      : "v1.1-targeted-remediation",
+      : args.suite === "targeted-key10"
+        ? "v1.1-targeted-key10"
+        : "v1.1-targeted-remediation",
   args.runId,
 );
 await mkdir(resolve(artifactDirectory, "cases"), { recursive: true });
