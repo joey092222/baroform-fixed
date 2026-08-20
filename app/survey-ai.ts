@@ -1976,6 +1976,28 @@ function replacementForPlanBlock(
   );
 }
 
+function establishesEligibilityOrRouting(question: SurveyQuestion) {
+  const title = question.title.replace(/\s+/g, " ").trim();
+  if (
+    !title ||
+    /(?:이유|장벽|불편|만족|개선|바라는\s*점|아쉬운\s*점)/u.test(title)
+  ) {
+    return false;
+  }
+
+  const options = (question.options ?? []).join(" ");
+  const asksDirectStatus =
+    /(?:이용|사용|방문|참여|참가|구매|시식|먹어\s*보|경험).*(?:적이|경험이|현재).*(?:있|없|하나요|인가요|중인가요)/u.test(
+      title,
+    ) ||
+    /현재.*(?:이용|사용|참여|참가).*(?:하나요|인가요|중인가요)/u.test(title);
+  const frequencyCanRouteNonParticipants =
+    /(?:얼마나\s*자주|빈도)/u.test(title) &&
+    /(?:이용|사용|방문|참여|참가|구매).*(?:않|없)|(?:0|영)\s*회/u.test(options);
+
+  return asksDirectStatus || frequencyCanRouteNonParticipants;
+}
+
 export function restoreMissingRequiredPlanBlocks({
   survey,
   intent,
@@ -2030,7 +2052,8 @@ export function restoreMissingRequiredPlanBlocks({
       questions.flatMap((question, index) =>
         requiredBlocks.some((requiredBlock) =>
           questionCoversSurveyPlanBlock(question, requiredBlock),
-        )
+        ) ||
+        (plan.screeningRequired && establishesEligibilityOrRouting(question))
           ? [index]
           : [],
       ),

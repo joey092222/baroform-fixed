@@ -281,12 +281,23 @@ test("누락된 시설 인식 문항은 fallback의 직접 인상 문항으로 �
     "늘빛 체육관을 이용하며 불편했던 점은 무엇인가요?",
     "늘빛 체육관을 다시 이용할 의향은 어느 정도인가요?",
   ];
+  const questions = titles.map((title, index) => ({
+    ...question(index + 1, title),
+    ...(index === 1
+      ? {
+          options: [
+            "최근 두 달 동안 이용하지 않음",
+            "1회",
+            "2~3회",
+            "4회 이상",
+          ],
+        }
+      : {}),
+  }));
   const survey = {
     ...fallback,
-    templateQuestions: titles.slice(0, 5).map((title, index) =>
-      question(index + 1, title),
-    ),
-    aiQuestions: titles.map((title, index) => question(index + 1, title)),
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
     semanticPlan: plan,
   };
 
@@ -300,6 +311,16 @@ test("누락된 시설 인식 문항은 fallback의 직접 인상 문항으로 �
 
   assert.deepEqual(restored.finalCoverage.missingRequiredBlockIds, []);
   assert.equal(restored.repairedQuestionIds.length, 1);
+  assert.equal(restored.repairedQuestionIds.includes(1), false);
+  assert.equal(restored.repairedQuestionIds.includes(2), false);
+  assert.equal(
+    finalTitles[0],
+    "최근 두 달 동안 늘빛 체육관을 이용한 적이 있나요?",
+  );
+  assert.equal(
+    finalTitles[1],
+    "최근 두 달 동안 늘빛 체육관을 얼마나 자주 이용했나요?",
+  );
   assert.ok(
     finalTitles.some((title) =>
       /전반적으로.*(?:인상|인식)|어떤\s*인상/u.test(title),
