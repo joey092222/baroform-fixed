@@ -66,9 +66,31 @@ export type SurveyQuestion = {
   explicitTimeframe?: string | null;
 };
 
+// 문항 수를 채울 때 쓰는 세부 평가 차원. 인덱스가 노출되는 플레이스홀더
+// ("...요소 5은 어느 정도인가요?")가 사용자에게 그대로 나가던 것을 대체한다.
+const paddingAspects = [
+  "접근성",
+  "정보 안내",
+  "대기 시간",
+  "비용 부담",
+  "쾌적함",
+  "편의성",
+  "선택지 다양성",
+  "안내와 응대",
+  "운영 시간",
+  "신청이나 예약 과정",
+] as const;
+
+function paddingQuestionTitle(subject: string | undefined, aspect: string) {
+  const topic = subject?.trim();
+  if (!topic) return `${aspect}에 얼마나 만족하나요?`;
+  return `${labelWithParticle(topic, "의", "의")} ${aspect}에 얼마나 만족하나요?`;
+}
+
 export function resizeSurveyQuestions(
   questions: SurveyQuestion[],
   requestedCount: number,
+  subject?: string,
 ) {
   const count = Math.min(30, Math.max(1, Math.round(requestedCount)));
   if (questions.length >= count) {
@@ -83,18 +105,28 @@ export function resizeSurveyQuestions(
   if (lastText && result.length < count) {
     result.splice(result.indexOf(lastText), 1);
   }
-  while (result.length < count - (lastText ? 1 : 0)) {
-    const number = result.length + 1;
+  const usedTitles = new Set(result.map((question) => question.title.trim()));
+  let aspectIndex = 0;
+  while (
+    result.length < count - (lastText ? 1 : 0) &&
+    aspectIndex < paddingAspects.length
+  ) {
+    const aspect = paddingAspects[aspectIndex];
+    aspectIndex += 1;
+    const title = paddingQuestionTitle(subject, aspect);
+    // 채우려고 넣은 문항이 기존 문항과 중복되면 중복 검사에서 다시 걸린다.
+    if (usedTitles.has(title.trim())) continue;
+    usedTitles.add(title.trim());
     result.push({
-      id: number,
-      title: `이 주제와 관련해 중요하게 생각하는 요소 ${number - 1}은 어느 정도인가요?`,
-      reason: "조사 주제의 세부 경험을 빠짐없이 확인하기 위한 질문이에요.",
+      id: result.length + 1,
+      title,
+      reason: `${aspect} 측면의 세부 평가를 확인함.`,
       type: "scale",
       required: true,
       scaleMin: 1,
       scaleMax: 5,
-      scaleMinLabel: "전혀 그렇지 않음",
-      scaleMaxLabel: "매우 그러함",
+      scaleMinLabel: "매우 불만족",
+      scaleMaxLabel: "매우 만족",
     });
   }
   if (lastText && result.length < count) result.push(lastText);

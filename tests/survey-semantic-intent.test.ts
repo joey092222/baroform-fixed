@@ -177,7 +177,39 @@ test("의도 검증기는 목적어·기간·대상 역할·불필요한 스크�
   const codes = new Set(violations.map((violation) => violation.code));
 
   assert.ok(codes.has("SURVEY_PURPOSE_USED_AS_OBJECT"));
-  assert.ok(codes.has("INVENTED_TIMEFRAME"));
   assert.ok(codes.has("INVALID_TARGET_ROLE"));
   assert.ok(codes.has("UNNECESSARY_SCREENING"));
+});
+
+test("기준 기간은 회상·빈도 문항에서 허용하고 사실 주장에서만 위반으로 본다", () => {
+  const intent = parseSurveyIntent("학생식당 만족도 조사");
+  const codesFor = (title: string) =>
+    new Set(
+      validateSurveyIntentCandidate(intent, {
+        questions: [
+          { id: 1, title, type: "single", options: ["예", "아니요"] },
+        ],
+      }).map((violation) => violation.code),
+    );
+
+  // 회상 구간과 빈도 기준 기간은 설문 설계의 표준 요소이고,
+  // survey-intent.ts의 "이용 빈도에 기준 기간이 없습니다" 검증이 이를 요구한다.
+  // 두 규칙이 서로를 무효화하지 않아야 한다.
+  assert.ok(
+    !codesFor("최근 한 달 동안 학생식당을 이용한 적이 있나요?").has(
+      "INVENTED_TIMEFRAME",
+    ),
+  );
+  assert.ok(
+    !codesFor("평소 학생식당을 얼마나 자주 이용하나요?").has(
+      "INVENTED_TIMEFRAME",
+    ),
+  );
+
+  // 사용자가 말하지 않은 기간을 사실처럼 진술하는 것은 여전히 위반이다.
+  assert.ok(
+    codesFor("지난 학기에 새로 도입된 학생식당 메뉴에 만족하나요?").has(
+      "INVENTED_TIMEFRAME",
+    ),
+  );
 });

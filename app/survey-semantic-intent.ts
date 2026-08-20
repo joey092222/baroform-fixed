@@ -1758,7 +1758,6 @@ export function validateSurveyIntentCandidate(
     const options = optionLabels(question);
     const referencePeriod =
       question.referencePeriod ?? question.reference_period ?? "";
-    const combined = `${text} ${referencePeriod}`.trim();
     const normalizedQuestion = normalizeRoleText(text);
     if (intent.intentMode === "composite") {
       if (question.purposeBlockId) coveredPurposeBlockIds.add(question.purposeBlockId);
@@ -1967,13 +1966,26 @@ export function validateSurveyIntentCandidate(
         evidence: text,
       });
     }
-    if (!intent.explicitTimeframe && inventedTimeframe.test(combined)) {
+    // 기준 기간은 행동·빈도 문항의 표준 설계 요소이고, 시스템 프롬프트도
+    // 이를 요구한다(qualityCheck.referencePeriodsAddedWhereNeeded).
+    // 사용자가 기간을 적지 않았다는 이유로 회상 구간까지 위반 처리하면
+    // 정상적인 스크리닝·빈도 문항이 전부 교체된다. 사실 주장에 붙은
+    // 기간만 위반으로 본다.
+    const recallScoped =
+      /(?:이용|사용|방문|참여|구매|수강|경험)(?:한|해\s*본)?\s*(?:적|경험|횟수|빈도)|얼마나\s*자주|몇\s*번|평균적으로|referencePeriod/.test(
+        text,
+      ) || Boolean(referencePeriod);
+    if (
+      !intent.explicitTimeframe &&
+      !recallScoped &&
+      inventedTimeframe.test(text)
+    ) {
       pushViolation(violations, {
         code: "INVENTED_TIMEFRAME",
         severity: "repairable",
-        message: "사용자가 지정하지 않은 기간이 문항에 추가됨.",
+        message: "사용자가 지정하지 않은 기간이 사실 진술로 문항에 추가됨.",
         questionId,
-        evidence: combined,
+        evidence: text,
       });
     }
     if (
