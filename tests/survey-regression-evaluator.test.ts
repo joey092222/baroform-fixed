@@ -284,6 +284,16 @@ test("후행 스크리너, 중복 불편 문항, 간접 만족 요소를 문항 
   assert.equal(codes.has("OVERALL_SATISFACTION_MISSING"), true);
 });
 
+test("이용해 본 적이 있나요는 이용 경험 문항으로 인식한다", () => {
+  assert.equal(
+    conceptPresent(
+      "이용 경험",
+      "별마루 카페를 이용해 본 적이 있나요? 예 아니요",
+    ),
+    true,
+  );
+});
+
 test("응답자 자격과 이용 자격을 연속으로 먼저 묻는 screening prefix는 허용한다", () => {
   const evaluated = evaluateSemanticResult(
     frontedCase("fronted-noisy-002"),

@@ -84,7 +84,11 @@ type TraceSnapshot = {
   outputItemTypes?: unknown;
   selectedSurveyType?: unknown;
   selectedTemplateKey?: unknown;
+  initialMissingRequiredBlockIds?: unknown;
   finalMissingRequiredBlockIds?: unknown;
+  initialIncompatibleQuestionIds?: unknown;
+  finalIncompatibleQuestionIds?: unknown;
+  initialSemanticDuplicateGroups?: unknown;
   semanticDuplicateGroups?: unknown;
   totalElapsedMs?: unknown;
   errorCode?: unknown;
@@ -346,6 +350,12 @@ function headerStrings(headers: Headers, name: string) {
     .filter(Boolean);
 }
 
+function headerStringGroups(headers: Headers, name: string) {
+  return headerStrings(headers, name)
+    .map((group) => group.split("+").filter(Boolean))
+    .filter((group) => group.length > 0);
+}
+
 function decodedHeaderStrings(headers: Headers, name: string) {
   const raw = headers.get(name) ?? "";
   if (!raw) return [];
@@ -430,14 +440,8 @@ function traceFromResponse(response: Response): TraceSnapshot {
       headers,
       "x-baroform-fallback-selected-because",
     ).join(" | "),
-    semanticViolationCodes: headerStrings(
-      headers,
-      "x-baroform-final-role-mismatches",
-    ),
-    qualityViolationCodes: headerStrings(
-      headers,
-      "x-baroform-final-semantic-duplicates",
-    ),
+    semanticViolationCodes: [],
+    qualityViolationCodes: [],
     schemaIssuePaths: headerStrings(headers, "x-baroform-schema-issue-paths"),
     schemaIssueCodes: headerStrings(headers, "x-baroform-schema-issue-codes"),
     responseStatus: headers.get("x-baroform-openai-status"),
@@ -448,11 +452,27 @@ function traceFromResponse(response: Response): TraceSnapshot {
     outputItemTypes: headerStrings(headers, "x-baroform-output-types"),
     selectedSurveyType: headers.get("x-baroform-selected-survey-type"),
     selectedTemplateKey: headers.get("x-baroform-selected-template-key"),
+    initialMissingRequiredBlockIds: headerStrings(
+      headers,
+      "x-baroform-initial-missing-blocks",
+    ),
     finalMissingRequiredBlockIds: headerStrings(
       headers,
       "x-baroform-final-missing-blocks",
     ),
-    semanticDuplicateGroups: headerStrings(
+    initialIncompatibleQuestionIds: headerStrings(
+      headers,
+      "x-baroform-initial-role-mismatches",
+    ),
+    finalIncompatibleQuestionIds: headerStrings(
+      headers,
+      "x-baroform-final-role-mismatches",
+    ),
+    initialSemanticDuplicateGroups: headerStringGroups(
+      headers,
+      "x-baroform-initial-semantic-duplicates",
+    ),
+    semanticDuplicateGroups: headerStringGroups(
       headers,
       "x-baroform-final-semantic-duplicates",
     ),
@@ -872,6 +892,30 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
       repairFailureCode: text(finalTrace.repairFailureCode) || null,
       fallbackSelectedBecause:
         text(finalTrace.fallbackSelectedBecause) || null,
+      initialMissingRequiredBlockIds: strings(
+        finalTrace.initialMissingRequiredBlockIds,
+      ),
+      finalMissingRequiredBlockIds: strings(
+        finalTrace.finalMissingRequiredBlockIds,
+      ),
+      initialIncompatibleQuestionIds: strings(
+        finalTrace.initialIncompatibleQuestionIds,
+      ),
+      finalIncompatibleQuestionIds: strings(
+        finalTrace.finalIncompatibleQuestionIds,
+      ),
+      initialSemanticDuplicateGroups: Array.isArray(
+        finalTrace.initialSemanticDuplicateGroups,
+      )
+        ? finalTrace.initialSemanticDuplicateGroups
+            .map((group) => strings(group))
+            .filter((group) => group.length > 0)
+        : [],
+      semanticDuplicateGroups: Array.isArray(finalTrace.semanticDuplicateGroups)
+        ? finalTrace.semanticDuplicateGroups
+            .map((group) => strings(group))
+            .filter((group) => group.length > 0)
+        : [],
       canonicalTargetPopulation: canonical.surveyIntent.targetPopulation,
       finalRespondentGroup: text(blueprint?.respondentGroup) || null,
       canonicalSurveyObject:

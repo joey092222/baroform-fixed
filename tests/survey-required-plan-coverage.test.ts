@@ -267,6 +267,23 @@ test("시설 인식 목적은 canonical purpose block에 연결되고 직접 인
   );
 });
 
+test("전반적으로 어떻게 느꼈는지 묻는 자연스러운 과거형도 시설 인식의 직접 측정이다", () => {
+  const prompt = "시설 인식은 늘빛 체육관을 최근 두 달 이용한 주민에게 조사해줘";
+  const intent = parseSurveyIntent(prompt);
+  const plan = createSurveyPlan(intent, 7);
+  const perceptionBlock = plan.blocks.find((block) => /인식/u.test(block.variable));
+  assert.ok(perceptionBlock);
+
+  const naturalPastTenseQuestion = question(
+    4,
+    "가장 최근 늘빛 체육관 이용 경험을 기준으로, 전반적으로 어떻게 느꼈나요?",
+  );
+  assert.equal(
+    questionCoversSurveyPlanBlock(naturalPastTenseQuestion, perceptionBlock),
+    true,
+  );
+});
+
 test("누락된 시설 인식 문항은 fallback의 직접 인상 문항으로 복원한다", () => {
   const prompt = "시설 인식은 늘빛 체육관을 최근 두 달 이용한 주민에게 조사해줘";
   const intent = parseSurveyIntent(prompt);

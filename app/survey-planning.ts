@@ -370,7 +370,7 @@ function perceptionVariableIsDirectlyMeasured(
   // Purpose-bound blocks must be supported by respondent-facing wording. Model
   // metadata alone is not evidence that the requested construct was measured.
   if (/(?:개선|좋아지|달라져|바라는\s*점)/u.test(title)) return false;
-  return /(?:전반적|전체적).*(?:인식|인상|이미지|태도|어떻게\s*(?:생각|느끼)|느낌)|(?:어떤|어떻게).*(?:인상|이미지|태도|생각|느끼)/u.test(
+  return /(?:전반적|전체적).*(?:인식|인상|이미지|태도|어떻게\s*(?:생각|느끼|느껴|느꼈|느낀)|느낌)|(?:어떤|어떻게).*(?:인상|이미지|태도|생각|느끼|느껴|느꼈|느낀)/u.test(
     title,
   );
 }

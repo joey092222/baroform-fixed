@@ -151,6 +151,12 @@ export type SurveyRegressionResult = {
   repairAttempted?: boolean;
   repairFailureCode?: string | null;
   fallbackSelectedBecause?: string | null;
+  initialMissingRequiredBlockIds?: string[];
+  finalMissingRequiredBlockIds?: string[];
+  initialIncompatibleQuestionIds?: string[];
+  finalIncompatibleQuestionIds?: string[];
+  initialSemanticDuplicateGroups?: string[][];
+  semanticDuplicateGroups?: string[][];
   classification: GenerationPath;
   canonicalTargetPopulation: string | null;
   finalRespondentGroup: string | null;
