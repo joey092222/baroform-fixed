@@ -149,6 +149,8 @@ export type SurveyGenerationTrace = {
   canonicalPurposeSummaries: string[];
   canonicalRelationSummaries: string[];
   canonicalAmbiguityCode: string | null;
+  canonicalAmbiguityReasons: string[];
+  canonicalMissingRoles: string[];
   canonicalOperationalizationPlan: string[];
   selectedSurveyType: string | null;
   selectedTemplateKey: string | null;
@@ -269,6 +271,8 @@ export function createSurveyGenerationTrace(
     canonicalPurposeSummaries: [],
     canonicalRelationSummaries: [],
     canonicalAmbiguityCode: null,
+    canonicalAmbiguityReasons: [],
+    canonicalMissingRoles: [],
     canonicalOperationalizationPlan: [],
     selectedSurveyType: null,
     selectedTemplateKey: null,
@@ -819,7 +823,11 @@ export function recordCanonicalSurveyIntentTrace(
       fromVariableId: string;
       toVariableId: string;
     }>;
-    ambiguity: { code: string | null };
+    ambiguity: {
+      code: string | null;
+      reasons?: string[];
+      missingRoles?: string[];
+    };
     operationalizationPlan: Array<{
       constructId: string;
       constructName: string;
@@ -832,6 +840,12 @@ export function recordCanonicalSurveyIntentTrace(
   if (!trace) return;
   trace.canonicalSurveyArchetype = details.surveyArchetype.slice(0, 80);
   trace.canonicalAmbiguityCode = details.ambiguity.code?.slice(0, 120) ?? null;
+  trace.canonicalAmbiguityReasons = (details.ambiguity.reasons ?? [])
+    .slice(0, 10)
+    .map((reason) => reason.slice(0, 240));
+  trace.canonicalMissingRoles = (details.ambiguity.missingRoles ?? [])
+    .slice(0, 10)
+    .map((role) => role.slice(0, 80));
   if (!canRecordDetailedGenerationTrace()) return;
   trace.canonicalEntitySummaries = details.entities.slice(0, 30).map((item) =>
     `${item.id}:${item.role}:${item.kind}:${item.text}:confidence=${item.confidence.toFixed(2)}:evidence=${item.evidence.join("|")}`.slice(0, 500),
@@ -1066,6 +1080,8 @@ export function surveyGenerationTraceSnapshot(trace: SurveyGenerationTrace) {
     canonicalPurposeSummaries: [...trace.canonicalPurposeSummaries],
     canonicalRelationSummaries: [...trace.canonicalRelationSummaries],
     canonicalAmbiguityCode: trace.canonicalAmbiguityCode,
+    canonicalAmbiguityReasons: [...trace.canonicalAmbiguityReasons],
+    canonicalMissingRoles: [...trace.canonicalMissingRoles],
     canonicalOperationalizationPlan: [
       ...trace.canonicalOperationalizationPlan,
     ],

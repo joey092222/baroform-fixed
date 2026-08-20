@@ -83,8 +83,28 @@ export type CanonicalAmbiguity = {
   code:
     | "RELATION_EXPRESSION_DETECTED_BUT_NOT_PARSED"
     | "ENTITY_RESOLUTION_AMBIGUOUS"
+    | "SURVEY_INTENT_INSUFFICIENT"
+    | "COMPARISON_TARGETS_MISSING"
     | null;
   candidates: CanonicalEntityCandidate[];
+  reasons?: string[];
+  missingRoles?: SurveyIntentMissingRole[];
+};
+
+export type SurveyIntentMissingRole =
+  | "target_population"
+  | "survey_object"
+  | "research_purpose"
+  | "comparison_targets";
+
+export type SurveyIntentSufficiencyResult = {
+  sufficient: boolean;
+  missingRoles: SurveyIntentMissingRole[];
+  conflictingRoles: string[];
+  multiplePlausibleObjects: string[];
+  unresolvedTarget: boolean;
+  unresolvedPurpose: boolean;
+  reasons: string[];
 };
 
 export type CanonicalOperationalizationItem = {
@@ -893,6 +913,151 @@ function isBareRoleAmbiguousRequest(normalizedInput: string) {
   return hasAudienceNoun && hasSurveyMeta && !hasRoleConnector && !hasMeasurementCue;
 }
 
+const unresolvedSurveyObjectPattern =
+  /^(?:생각|의견|경험|현황|실태|시설(?:\s*이용)?|서비스|앱|어플|프로그램|제품|상품|공간|두\s*(?:개|항목|대상)(?:\s*비교)?|몇\s*가지)$/u;
+
+const genericResearchPurposePattern =
+  /^(?:현재\s*)?(?:경험|현황|실태|생각|의견)(?:과|와|및)?\s*(?:의견|경험)?\s*(?:파악|조사)$/u;
+
+function isGenericResearchConstruct(value: string) {
+  const normalized = normalize(value);
+  return (
+    unresolvedSurveyObjectPattern.test(normalized) ||
+    genericResearchPurposePattern.test(normalized) ||
+    /^(?:.+\s+)?관련\s*(?:경험|의견|현황|실태)$/u.test(normalized)
+  );
+}
+
+export function surveyIntentSufficiency(
+  normalizedInput: string,
+  intent: SurveyIntent,
+  context: ParsedSurveyContext,
+): SurveyIntentSufficiencyResult {
+  const surveyObject = normalize(
+    intent.surveyObject ?? context.primaryEntity ?? "",
+  );
+  const purpose = normalize(intent.purpose ?? context.researchGoal ?? "");
+  const resolvedComparisonTargets = new Set(
+    intent.evaluationTargets
+      .map(normalize)
+      .filter(Boolean)
+      .filter((target) => !unresolvedSurveyObjectPattern.test(target)),
+  );
+  const objectLooksUnresolved =
+    !surveyObject ||
+    unresolvedSurveyObjectPattern.test(surveyObject);
+  const constructs = [...intent.constructs, ...context.researchConstructs]
+    .map(normalize)
+    .filter(Boolean)
+    .filter(
+      (construct) =>
+        !(
+          objectLooksUnresolved &&
+          /^(?:인지|태도|의견|우려|개선\s*수요)$/u.test(construct)
+        ),
+    );
+  const comparisonRequested = /(?:비교|대비|차이|간의\s*(?:관계|상관|영향))/.test(
+    normalizedInput,
+  ) || intent.targetListSource === "creator_required";
+  const unresolvedTarget =
+    objectLooksUnresolved && resolvedComparisonTargets.size === 0;
+  const meaningfulConstructs = constructs.filter(
+    (construct) => !isGenericResearchConstruct(construct),
+  );
+  const unresolvedPurpose =
+    (!purpose || genericResearchPurposePattern.test(purpose)) &&
+    meaningfulConstructs.length === 0;
+  const missingRoles: SurveyIntentMissingRole[] = [];
+  const reasons: string[] = [];
+
+  if (comparisonRequested && resolvedComparisonTargets.size < 2) {
+    missingRoles.push("comparison_targets");
+    reasons.push("비교 요청이지만 서로 구분되는 두 비교 대상을 확인하지 못함");
+  }
+  if (unresolvedTarget) {
+    missingRoles.push("survey_object");
+    reasons.push("응답자가 답할 구체적인 조사 대상을 확인하지 못함");
+  }
+  if (unresolvedPurpose) {
+    missingRoles.push("research_purpose");
+    reasons.push("측정할 경험·평가·행동 또는 의도를 확인하지 못함");
+  }
+  if (!intent.targetPopulation && unresolvedTarget) {
+    missingRoles.push("target_population");
+    reasons.push("응답 대상과 조사 대상이 모두 불명확함");
+  }
+
+  const uniqueMissingRoles = [...new Set(missingRoles)];
+  const conflictingRoles =
+    intent.targetPopulation && surveyObject && normalize(intent.targetPopulation) === surveyObject
+      ? ["target_population=survey_object"]
+      : [];
+  const multiplePlausibleObjects =
+    intent.targetCardinality === "multiple" && resolvedComparisonTargets.size < 2
+      ? [...resolvedComparisonTargets]
+      : [];
+  const material =
+    uniqueMissingRoles.includes("comparison_targets") ||
+    (unresolvedTarget && unresolvedPurpose) ||
+    (unresolvedTarget && !intent.targetPopulation) ||
+    conflictingRoles.length > 0 ||
+    multiplePlausibleObjects.length > 0;
+
+  return {
+    sufficient: !material,
+    missingRoles: uniqueMissingRoles,
+    conflictingRoles,
+    multiplePlausibleObjects,
+    unresolvedTarget,
+    unresolvedPurpose,
+    reasons: [...new Set(reasons)],
+  };
+}
+
+export function materialAmbiguities(
+  sufficiency: SurveyIntentSufficiencyResult,
+) {
+  return [
+    ...sufficiency.reasons,
+    ...sufficiency.conflictingRoles.map((role) => `서로 충돌하는 역할: ${role}`),
+    ...(sufficiency.multiplePlausibleObjects.length > 0
+      ? [
+          `하나로 결정되지 않은 조사 대상: ${sufficiency.multiplePlausibleObjects.join(", ")}`,
+        ]
+      : []),
+  ];
+}
+
+export function shouldRequestClarification(
+  sufficiency: SurveyIntentSufficiencyResult,
+) {
+  return !sufficiency.sufficient && materialAmbiguities(sufficiency).length > 0;
+}
+
+export function buildClarificationFromMissingRoles(
+  missingRoles: SurveyIntentMissingRole[],
+) {
+  if (missingRoles.includes("comparison_targets")) {
+    return "서로 비교할 두 항목을 각각 알려주세요.";
+  }
+  if (
+    missingRoles.includes("survey_object") &&
+    missingRoles.includes("research_purpose")
+  ) {
+    return "무엇에 관해 어떤 경험이나 의견을 확인할지 알려주세요.";
+  }
+  if (missingRoles.includes("survey_object")) {
+    return "응답자가 답할 구체적인 조사 대상을 알려주세요.";
+  }
+  if (missingRoles.includes("research_purpose")) {
+    return "그 대상에서 확인하려는 경험·평가·행동을 알려주세요.";
+  }
+  if (missingRoles.includes("target_population")) {
+    return "누구에게 물어볼 설문인지 알려주세요.";
+  }
+  return "조사할 구체적인 대상과 확인하려는 내용을 알려주세요.";
+}
+
 function inferRelationalEntityType(
   value: string,
   usageVerb = "",
@@ -993,11 +1158,15 @@ function resolveComparisonClause(
   const nominalComparison = normalizedInput.match(
     /^(.{1,80}?)(?:와|과)\s+(.{1,80}?)(?:의)\s+(.+?)\s*비교$/,
   );
+  const impactComparison = normalizedInput.match(
+    /^(.{1,80}?)(?:와|과)\s+(.{1,80}?)(?:이|가)\s+(.{1,100}?)(?:에)\s+미치는\s+영향(?:을|를)?\s*비교$/,
+  );
   if (
     !actorComparison &&
     !qualifiedComparison &&
     !activityAudienceComparison &&
-    !nominalComparison
+    !nominalComparison &&
+    !impactComparison
   ) {
     return null;
   }
@@ -1007,6 +1176,7 @@ function resolveComparisonClause(
       qualifiedComparison?.[1] ??
       activityAudienceComparison?.[1] ??
       nominalComparison?.[1] ??
+      impactComparison?.[1] ??
       "",
   );
   const secondTarget = stripRelationalEntityDescriptor(
@@ -1014,6 +1184,7 @@ function resolveComparisonClause(
       qualifiedComparison?.[2] ??
       activityAudienceComparison?.[2] ??
       nominalComparison?.[2] ??
+      impactComparison?.[2] ??
       "",
   );
   if (!firstTarget || !secondTarget || firstTarget === secondTarget) return null;
@@ -1022,13 +1193,15 @@ function resolveComparisonClause(
     actorComparison?.[4] ?? activityAudienceComparison?.[3] ?? "",
   );
   const audienceHead = normalize(qualifiedComparison?.[3] ?? "");
-  const constructs = splitRelationalConstructs(
+  const constructExpression =
     actorComparison?.[5] ??
-      qualifiedComparison?.[4] ??
-      activityAudienceComparison?.[5] ??
-      nominalComparison?.[3] ??
-      "만족도",
-  );
+    qualifiedComparison?.[4] ??
+    activityAudienceComparison?.[5] ??
+    nominalComparison?.[3] ??
+    (impactComparison?.[3]
+      ? `${normalize(impactComparison[3])}에 미치는 영향`
+      : "만족도");
+  const constructs = splitRelationalConstructs(constructExpression);
   const targetValues = [firstTarget, secondTarget];
   const inferredTargetTypes = targetValues.map((target) =>
     inferRelationalEntityType(
@@ -1041,6 +1214,7 @@ function resolveComparisonClause(
     !actorComparison &&
     !qualifiedComparison &&
     !activityAudienceComparison &&
+    !impactComparison &&
     inferredTargetTypes.some((entityType) => entityType === "unknown")
   ) {
     return null;
@@ -1052,7 +1226,7 @@ function resolveComparisonClause(
     const inferredType = inferRelationalEntityType(target, usageCue);
     const entityType =
       inferredType === "unknown"
-        ? activityAudienceComparison
+        ? activityAudienceComparison || impactComparison
           ? "construct"
           : "service"
         : inferredType;
@@ -1066,7 +1240,9 @@ function resolveComparisonClause(
         )
       : qualifiedComparison
         ? `${firstTarget}와 ${secondTarget} ${audienceHead}`
-        : "관련 경험이 있는 응답자";
+        : impactComparison
+          ? `${firstTarget}와 ${secondTarget}을 경험한 응답자`
+          : "관련 경험이 있는 응답자";
 
   return {
     audience,
@@ -1076,7 +1252,9 @@ function resolveComparisonClause(
         ? normalize(activityAudienceComparison[0])
         : qualifiedComparison
           ? normalize(`${qualifiedComparison[1]}와 ${qualifiedComparison[2]} ${audienceHead}`)
-          : "비교 대상만 명시됨",
+          : impactComparison
+            ? normalize(impactComparison[0])
+            : "비교 대상만 명시됨",
     targets,
     researchConstructs: constructs,
     activityVerb: activityVerb || null,
@@ -1535,6 +1713,72 @@ function resolveConcretePossessiveClause(
   };
 }
 
+function resolveNoisyAudienceObjectPurposeClause(
+  normalizedInput: string,
+): ResolvedRelationalClause | null {
+  const match = normalizedInput.match(
+    new RegExp(
+      `^(.*?${relationalAudienceHead})(?:들)?\\s+(.{2,100}?(?:시설|공간|건물|강의동|도서관|식당|카페|센터|서비스|플랫폼|앱|어플|프로그램|제품|상품|수업|강의|행사|관))\\s+(.+)$`,
+    ),
+  );
+  if (!match) return null;
+
+  const audience = normalize(match[1]);
+  const object = normalize(match[2]);
+  const rawPurpose = normalize(match[3])
+    .replace(/\s*(?:설문\s*)?조사$/u, "")
+    .trim();
+  const hasPurposeCue =
+    /(?:괜찮|만족|평가|불편|문제|개선|수요|필요|의향|경험|빈도|시간|접근|안전|혼잡)/.test(
+      rawPurpose,
+    );
+  if (!rawPurpose || !hasPurposeCue) return null;
+
+  const constructs = splitRelationalConstructs(rawPurpose).map((construct) => {
+    const cleaned = normalize(construct)
+      .replace(/(?:했|하였|였|었)(?:는지|던\s*점)$/u, "")
+      .replace(/(?:한|했던)\s*점$/u, "")
+      .trim();
+    if (/괜찮|전반.*어떻/.test(construct)) return "전반적 만족도";
+    if (/불편/.test(construct)) return "불편";
+    if (/문제/.test(construct)) return "문제점";
+    return cleaned || construct;
+  });
+  const entityType = inferRelationalEntityType(object);
+  const resolvedEntityType = entityType === "unknown" ? "construct" : entityType;
+  const satisfaction = constructs.some((construct) => /만족|평가/.test(construct));
+  const hasImprovement = constructs.some((construct) => /불편|문제|개선|수요|필요/.test(construct));
+
+  return {
+    audience,
+    audienceEvidence: normalize(match[1]),
+    primaryEntity: canonicalEntity(
+      object,
+      resolvedEntityType,
+      "primary_entity",
+      [match[0], "응답 대상 뒤의 구체적 대상과 구어체 조사 목적을 분리"],
+    ),
+    entityType: resolvedEntityType,
+    objectKind: satisfaction
+      ? "satisfaction_evaluation"
+      : relationalObjectKind(resolvedEntityType),
+    activity: null,
+    activityKind: null,
+    researchGoal: `${object}의 ${constructs.join(", ")} 파악`,
+    researchConstructs: constructs,
+    surveyArchetype: satisfaction ? "satisfaction" : "attitude",
+    isUsageObject: false,
+    includesNonUsers: false,
+    purposeKinds: satisfaction
+      ? hasImprovement
+        ? ["satisfaction", "need_demand"]
+        : ["satisfaction"]
+      : hasImprovement
+        ? ["attitude_perception", "need_demand"]
+        : ["attitude_perception"],
+  };
+}
+
 function resolveRelationalClause(
   normalizedInput: string,
 ): ResolvedRelationalClause | null {
@@ -1567,6 +1811,8 @@ function resolveRelationalClause(
   }
   const concretePossessive = resolveConcretePossessiveClause(normalizedInput);
   if (concretePossessive) return concretePossessive;
+  const noisyAudiencePurpose = resolveNoisyAudienceObjectPurposeClause(normalizedInput);
+  if (noisyAudiencePurpose) return noisyAudiencePurpose;
 
   const nonUse = normalizedInput.match(
     new RegExp(
@@ -2829,31 +3075,62 @@ export function parseCanonicalSurveyIntent(
   surveyIntent = reconciledLabels.intent;
   generationContext = reconciledLabels.context;
 
+  const unresolvedBareRoleAmbiguity =
+    bareRoleAmbiguity &&
+    !comparisonClause &&
+    !relationalClause &&
+    !satisfaction &&
+    !consumption;
+  const unresolvedRelationFailure =
+    !comparisonClause && !relationalClause
+      ? surveyIntent.researchIntent.parseFailureCode
+      : null;
+  const baseSufficiency = surveyIntentSufficiency(
+    normalizedInput,
+    surveyIntent,
+    generationContext,
+  );
+  const missingRoles = [...baseSufficiency.missingRoles];
+  const sufficiencyReasons = [...baseSufficiency.reasons];
   if (
-    /^(?:앱|어플|서비스|플랫폼|프로그램|제품|상품|시설|공간|수업|강의|행사)(?:\s*(?:설문|조사))?$/.test(
-      normalizedInput,
-    )
+    unresolvedRelationFailure === "RELATION_EXPRESSION_DETECTED_BUT_NOT_PARSED" &&
+    !missingRoles.includes("comparison_targets")
   ) {
-    surveyIntent = {
-      ...surveyIntent,
-      ambiguityLevel: "high",
-      requiresCreatorClarification: true,
-      missingInformation: [
-        "조사할 구체적인 대상과 확인하려는 내용을 알려주세요.",
-      ],
-    };
+    missingRoles.push("comparison_targets");
+    sufficiencyReasons.push("관계 표현은 감지했지만 비교·관계 대상을 구조화하지 못함");
   }
+  if (unresolvedBareRoleAmbiguity && !missingRoles.includes("survey_object")) {
+    missingRoles.push("survey_object");
+    sufficiencyReasons.push("역할 연결어가 없어 응답 대상과 조사 대상을 구분하지 못함");
+  }
+  const sufficiency: SurveyIntentSufficiencyResult = {
+    ...baseSufficiency,
+    sufficient:
+      baseSufficiency.sufficient &&
+      !unresolvedRelationFailure &&
+      !unresolvedBareRoleAmbiguity,
+    missingRoles: [...new Set(missingRoles)],
+    reasons: [...new Set(sufficiencyReasons)],
+  };
+  const entityResolutionRequiresClarification =
+    satisfaction?.ambiguity.requiresClarification ?? false;
+  const clarificationRequired =
+    shouldRequestClarification(sufficiency) ||
+    entityResolutionRequiresClarification;
 
-  if (bareRoleAmbiguity) {
-    surveyIntent = {
-      ...surveyIntent,
-      ambiguityLevel: "high",
-      requiresCreatorClarification: true,
-      missingInformation: [
-        "누구에게 무엇을 물어볼지와 확인하려는 내용을 구분해 알려주세요.",
-      ],
-    };
-  }
+  const existingClarification = surveyIntent.missingInformation[0];
+  surveyIntent = {
+    ...surveyIntent,
+    ambiguityLevel: clarificationRequired ? "high" : surveyIntent.ambiguityLevel,
+    requiresCreatorClarification: clarificationRequired,
+    missingInformation: clarificationRequired
+      ? [
+          surveyIntent.targetListSource === "creator_required" && existingClarification
+            ? existingClarification
+            : buildClarificationFromMissingRoles(sufficiency.missingRoles),
+        ]
+      : [],
+  };
 
   const audience = surveyIntent.targetPopulation
     ? canonicalEntity(
@@ -2914,27 +3191,45 @@ export function parseCanonicalSurveyIntent(
     constructIds: purpose.constructEntityIds,
   }));
   const ambiguityCandidates = satisfaction?.ambiguity.candidates ?? [];
-  const relationFailure = surveyIntent.researchIntent.parseFailureCode;
-  const ambiguity: CanonicalAmbiguity = relationFailure
+  const ambiguity: CanonicalAmbiguity = unresolvedRelationFailure
     ? {
         level: "high",
         requiresClarification: true,
-        code: relationFailure,
+        code: unresolvedRelationFailure,
         candidates: ambiguityCandidates,
+        reasons: materialAmbiguities(sufficiency),
+        missingRoles: sufficiency.missingRoles,
       }
-    : bareRoleAmbiguity
+    : unresolvedBareRoleAmbiguity
       ? {
           level: "high",
           requiresClarification: true,
           code: "ENTITY_RESOLUTION_AMBIGUOUS",
           candidates: ambiguityCandidates,
+          reasons: materialAmbiguities(sufficiency),
+          missingRoles: sufficiency.missingRoles,
         }
-      : satisfaction?.ambiguity ?? {
-        level: surveyIntent.ambiguityLevel,
-        requiresClarification: surveyIntent.requiresCreatorClarification,
-        code: null,
-        candidates: ambiguityCandidates,
-      };
+      : clarificationRequired
+        ? {
+            level: "high",
+            requiresClarification: true,
+            code: sufficiency.missingRoles.includes("comparison_targets")
+              ? "COMPARISON_TARGETS_MISSING"
+              : entityResolutionRequiresClarification
+                ? "ENTITY_RESOLUTION_AMBIGUOUS"
+                : "SURVEY_INTENT_INSUFFICIENT",
+            candidates: ambiguityCandidates,
+            reasons: materialAmbiguities(sufficiency),
+            missingRoles: sufficiency.missingRoles,
+          }
+        : {
+            level: surveyIntent.ambiguityLevel,
+            requiresClarification: false,
+            code: null,
+            candidates: ambiguityCandidates,
+            reasons: [],
+            missingRoles: [],
+          };
 
   return {
     rawInput,

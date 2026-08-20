@@ -333,6 +333,55 @@ test("역할 연결어가 없는 bare 명사열은 억지 설문 대신 clarific
   assert.equal(intent.ambiguity.code, "ENTITY_RESOLUTION_AMBIGUOUS");
 });
 
+test("구체적인 대상이나 목적이 빠진 짧은 입력만 clarification으로 보낸다", () => {
+  const fixtures = [
+    {
+      input: "시설 이용",
+      missing: ["survey_object", "research_purpose", "target_population"],
+    },
+    {
+      input: "학생들 생각",
+      missing: ["survey_object", "research_purpose"],
+    },
+    {
+      input: "두 개 비교",
+      missing: ["comparison_targets", "survey_object", "research_purpose"],
+    },
+  ];
+
+  for (const fixture of fixtures) {
+    const canonical = parseCanonicalSurveyIntent(fixture.input);
+    assert.equal(canonical.surveyIntent.requiresCreatorClarification, true, fixture.input);
+    assert.equal(canonical.ambiguity.requiresClarification, true, fixture.input);
+    for (const role of fixture.missing) {
+      assert.ok(canonical.ambiguity.missingRoles?.includes(role as never), `${fixture.input}: ${role}`);
+    }
+    assert.ok((canonical.ambiguity.reasons ?? []).length > 0, fixture.input);
+  }
+});
+
+test("측정 대상과 목적을 복원할 수 있는 noisy 입력은 clarification으로 오인하지 않는다", () => {
+  const comparison = parseCanonicalSurveyIntent(
+    "통계학 강의와 프로그래밍 강의가 데이터 분석 자신감에 미치는 영향을 비교",
+  );
+  assert.equal(comparison.surveyIntent.requiresCreatorClarification, false);
+  assert.equal(comparison.surveyIntent.targetCardinality, "multiple");
+  assert.deepEqual(comparison.surveyIntent.evaluationTargets, [
+    "통계학 강의",
+    "프로그래밍 강의",
+  ]);
+  assert.match(comparison.surveyIntent.purpose ?? "", /데이터 분석 자신감.*영향.*비교/);
+
+  const colloquial = parseCanonicalSurveyIntent(
+    "경영대생들 경영대 시설 괜찮았는지랑 불편했던 점 조사",
+  );
+  assert.equal(colloquial.surveyIntent.requiresCreatorClarification, false);
+  assert.equal(colloquial.surveyIntent.targetPopulation, "경영대생");
+  assert.equal(colloquial.surveyIntent.surveyObject, "경영대 시설");
+  assert.match(colloquial.surveyIntent.purpose ?? "", /전반적 만족도/);
+  assert.match(colloquial.surveyIntent.purpose ?? "", /불편/);
+});
+
 test("적격 조건은 만족도 목적과 분리된 screening 문항으로 계획된다", () => {
   const input =
     "최근 한 달 동안 별마루 카페를 이용한 주민을 대상으로 별마루 카페의 새 메뉴 만족도를 조사하고 싶다.";
