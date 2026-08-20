@@ -45,6 +45,7 @@ import type {
 import { frontedPurposeSmokeCases } from "../evals/survey-regression/v1.1/fronted-purpose-smoke";
 import { targetedRemediationKey10Cases } from "../evals/survey-regression/v1.1/targeted-remediation-key10";
 import { targetedRemediationSmokeCases } from "../evals/survey-regression/v1.1/targeted-remediation-smoke";
+import { intentV2TargetedCases } from "../evals/survey-regression/v1.2/intent-v2-targeted";
 
 type TraceSnapshot = {
   requestId?: unknown;
@@ -97,6 +98,17 @@ type TraceSnapshot = {
   totalElapsedMs?: unknown;
   errorCode?: unknown;
   errorStage?: unknown;
+  semanticAuthorityVersion?: unknown;
+  legacyShadowEnabled?: unknown;
+  legacyInfluencedOutput?: unknown;
+  rawInputOccurrencesInRequest?: unknown;
+  userRoleRawInputOccurrences?: unknown;
+  developerRawInputOccurrences?: unknown;
+  parsedIntentPayloadCount?: unknown;
+  canonicalV2TargetPopulation?: unknown;
+  canonicalV2SurveyObjects?: unknown;
+  canonicalV2Purposes?: unknown;
+  canonicalV2ClarificationRequired?: unknown;
 };
 
 type UsageLog = {
@@ -175,7 +187,7 @@ function parseArguments() {
   const split = args.get("split") ?? "all";
   if (!/^(?:dev|holdout|all)$/.test(split)) throw new Error(`INVALID_SPLIT:${split}`);
   const suite = args.get("suite") ?? "v1";
-  if (!/^(?:v1|fronted-purpose|targeted-key10|targeted-remediation)$/.test(suite)) {
+  if (!/^(?:v1|fronted-purpose|targeted-key10|targeted-remediation|intent-v2-targeted)$/.test(suite)) {
     throw new Error(`INVALID_SUITE:${suite}`);
   }
   const runId = args.get("run-id") ?? `live-${new Date().toISOString().replace(/[:.]/g, "-")}`;
@@ -207,7 +219,7 @@ function parseArguments() {
   }
   return {
     split: split as "dev" | "holdout" | "all",
-    suite: suite as "v1" | "fronted-purpose" | "targeted-key10" | "targeted-remediation",
+    suite: suite as "v1" | "fronted-purpose" | "targeted-key10" | "targeted-remediation" | "intent-v2-targeted",
     runId,
     estimateOnly: args.get("estimate-only") === "true",
     preflightOnly: args.get("preflight-only") === "true",
@@ -388,6 +400,38 @@ function traceFromResponse(response: Response): TraceSnapshot {
     modelCallCount: headerNumber(headers, "x-baroform-model-calls"),
     repairCount: headerNumber(headers, "x-baroform-repair-count"),
     fallbackCount: headerNumber(headers, "x-baroform-fallback-count"),
+    semanticAuthorityVersion: headers.get("x-baroform-semantic-authority"),
+    legacyShadowEnabled: headers.get("x-baroform-legacy-shadow") === "true",
+    legacyInfluencedOutput:
+      headers.get("x-baroform-legacy-influenced-output") === "true",
+    rawInputOccurrencesInRequest: headerNumber(
+      headers,
+      "x-baroform-raw-input-occurrences",
+    ),
+    userRoleRawInputOccurrences: headerNumber(
+      headers,
+      "x-baroform-user-raw-input-occurrences",
+    ),
+    developerRawInputOccurrences: headerNumber(
+      headers,
+      "x-baroform-developer-raw-input-occurrences",
+    ),
+    parsedIntentPayloadCount: headerNumber(
+      headers,
+      "x-baroform-parsed-intent-payload-count",
+    ),
+    canonicalV2TargetPopulation:
+      decodedHeaderStrings(headers, "x-baroform-v2-target")[0] ?? null,
+    canonicalV2SurveyObjects: decodedHeaderStrings(
+      headers,
+      "x-baroform-v2-objects",
+    ),
+    canonicalV2Purposes: decodedHeaderStrings(
+      headers,
+      "x-baroform-v2-purposes",
+    ),
+    canonicalV2ClarificationRequired:
+      headers.get("x-baroform-v2-clarification") === "true",
     normalizedInternalMetadataPaths: headerStrings(
       headers,
       "x-baroform-normalized-metadata",
@@ -745,6 +789,90 @@ function blueprintQuestions(blueprint: Blueprint | null) {
   }).filter((item) => item.title);
 }
 
+function intentV2Details(
+  body: Record<string, unknown>,
+  trace: TraceSnapshot,
+) {
+  const canonicalIntentV2 = record(body.canonicalIntentV2);
+  const targetPopulation = record(canonicalIntentV2?.target_population);
+  const clarification = record(canonicalIntentV2?.clarification);
+  const surveyObjects = Array.isArray(canonicalIntentV2?.survey_objects)
+    ? canonicalIntentV2.survey_objects
+        .map((item) => text(record(item)?.name))
+        .filter(Boolean)
+    : strings(trace.canonicalV2SurveyObjects);
+  const purposes = Array.isArray(canonicalIntentV2?.purposes)
+    ? canonicalIntentV2.purposes
+        .map((item) => text(record(item)?.text))
+        .filter(Boolean)
+    : strings(trace.canonicalV2Purposes);
+  const eligibilityConditions = Array.isArray(
+    canonicalIntentV2?.eligibility_conditions,
+  )
+    ? canonicalIntentV2.eligibility_conditions
+        .map((item) => text(record(item)?.text))
+        .filter(Boolean)
+    : [];
+  const negationConstraints = Array.isArray(
+    canonicalIntentV2?.negation_constraints,
+  )
+    ? canonicalIntentV2.negation_constraints
+        .map((item) => text(record(item)?.text))
+        .filter(Boolean)
+    : [];
+  const relationships = Array.isArray(canonicalIntentV2?.relationships)
+    ? canonicalIntentV2.relationships.map((item) => {
+        const relationship = record(item);
+        const predictor = record(relationship?.predictor);
+        const outcome = record(relationship?.outcome);
+        return {
+          predictor: text(predictor?.name) || null,
+          outcome: text(outcome?.name) || null,
+          comparisonTargets: Array.isArray(relationship?.comparison_targets)
+            ? relationship.comparison_targets
+                .map((target) => text(record(target)?.name))
+                .filter(Boolean)
+            : [],
+        };
+      })
+    : [];
+  const cardinality = text(canonicalIntentV2?.target_cardinality);
+  return {
+    canonicalIntentV2,
+    targetPopulation:
+      text(targetPopulation?.display_text) ||
+      text(trace.canonicalV2TargetPopulation) ||
+      null,
+    surveyObjects,
+    purposes,
+    eligibilityConditions,
+    negationConstraints,
+    targetCardinality:
+      cardinality === "single" || cardinality === "multiple"
+        ? cardinality
+        : null,
+    clarificationRequired:
+      typeof clarification?.required === "boolean"
+        ? clarification.required
+        : typeof trace.canonicalV2ClarificationRequired === "boolean"
+          ? trace.canonicalV2ClarificationRequired
+          : null,
+    relationships,
+    semanticAuthorityVersion:
+      text(body.semanticAuthorityVersion) ||
+      text(trace.semanticAuthorityVersion) ||
+      null,
+    legacyInfluencedOutput:
+      typeof body.legacyInfluencedOutput === "boolean"
+        ? body.legacyInfluencedOutput
+        : typeof trace.legacyInfluencedOutput === "boolean"
+          ? trace.legacyInfluencedOutput
+          : null,
+    legacyShadow: record(body.legacyShadow),
+    legacyV2Divergence: record(body.legacyV2Divergence),
+  };
+}
+
 async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegressionResult> {
   const requestId = `reg-v1-${testCase.id}-${randomUUID().slice(0, 8)}`;
   const startedAt = Date.now();
@@ -813,10 +941,16 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
       requestId;
     const blueprint = record(finalBody.blueprint) as Blueprint | null;
     const questions = blueprintQuestions(blueprint);
-    const canonical = parseCanonicalSurveyIntent(
-      testCase.input,
-      testCase.surveyMode === "research" ? "research" : "general",
-    );
+    const v2 = intentV2Details(finalBody, finalTrace);
+    const useV2Authority =
+      args.suite === "intent-v2-targeted" ||
+      v2.semanticAuthorityVersion === "canonical-intent-v2";
+    const legacyCanonical = useV2Authority
+      ? null
+      : parseCanonicalSurveyIntent(
+          testCase.input,
+          testCase.surveyMode === "research" ? "research" : "general",
+        );
     const generationSource =
       text(finalBody.generationSource) || text(finalTrace.generationSource) ||
       text(initialTrace.generationSource) || null;
@@ -921,11 +1055,39 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
             .map((group) => strings(group))
             .filter((group) => group.length > 0)
         : [],
-      canonicalTargetPopulation: canonical.surveyIntent.targetPopulation,
+      semanticAuthorityVersion: v2.semanticAuthorityVersion,
+      legacyShadowEnabled: finalTrace.legacyShadowEnabled === true,
+      legacyInfluencedOutput: v2.legacyInfluencedOutput,
+      rawInputOccurrencesInRequest: numberValue(
+        finalTrace.rawInputOccurrencesInRequest,
+      ),
+      userRoleRawInputOccurrences: numberValue(
+        finalTrace.userRoleRawInputOccurrences,
+      ),
+      developerRawInputOccurrences: numberValue(
+        finalTrace.developerRawInputOccurrences,
+      ),
+      parsedIntentPayloadCount: numberValue(
+        finalTrace.parsedIntentPayloadCount,
+      ),
+      canonicalIntentV2: v2.canonicalIntentV2,
+      canonicalPurposeConcepts: v2.purposes,
+      canonicalEligibilityConditions: v2.eligibilityConditions,
+      canonicalNegationConstraints: v2.negationConstraints,
+      canonicalTargetCardinality: v2.targetCardinality,
+      canonicalClarificationRequired: v2.clarificationRequired,
+      canonicalRelationships: v2.relationships,
+      legacyShadow: v2.legacyShadow,
+      legacyV2Divergence: v2.legacyV2Divergence,
+      canonicalTargetPopulation:
+        v2.targetPopulation ??
+        legacyCanonical?.surveyIntent.targetPopulation ??
+        null,
       finalRespondentGroup: text(blueprint?.respondentGroup) || null,
       canonicalSurveyObject:
-        canonical.surveyIntent.evaluationTargets.join(" 및 ") ||
-        canonical.surveyIntent.surveyObject || null,
+        v2.surveyObjects.join(" 및 ") ||
+        legacyCanonical?.surveyIntent.evaluationTargets.join(" 및 ") ||
+        legacyCanonical?.surveyIntent.surveyObject || null,
       finalEvaluationTarget: text(blueprint?.evaluationTarget) || null,
       title: text(blueprint?.title) || null,
       description: text(blueprint?.description) || null,
@@ -978,10 +1140,16 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
     const usage = usageLogs.get(requestId) ?? {};
     const serverRequestId =
       text(finalBody.requestId) || text(trace.requestId) || requestId;
-    const canonical = parseCanonicalSurveyIntent(
-      testCase.input,
-      testCase.surveyMode === "research" ? "research" : "general",
-    );
+    const v2 = intentV2Details(finalBody, trace);
+    const useV2Authority =
+      args.suite === "intent-v2-targeted" ||
+      v2.semanticAuthorityVersion === "canonical-intent-v2";
+    const legacyCanonical = useV2Authority
+      ? null
+      : parseCanonicalSurveyIntent(
+          testCase.input,
+          testCase.surveyMode === "research" ? "research" : "general",
+        );
     const base = {
       caseId: testCase.id,
       split: testCase.split,
@@ -1018,11 +1186,35 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
       modelOutputRejectionIssuePaths: strings(
         trace.modelOutputRejectionIssuePaths,
       ),
-      canonicalTargetPopulation: canonical.surveyIntent.targetPopulation,
+      semanticAuthorityVersion: v2.semanticAuthorityVersion,
+      legacyShadowEnabled: trace.legacyShadowEnabled === true,
+      legacyInfluencedOutput: v2.legacyInfluencedOutput,
+      rawInputOccurrencesInRequest: numberValue(trace.rawInputOccurrencesInRequest),
+      userRoleRawInputOccurrences: numberValue(
+        trace.userRoleRawInputOccurrences,
+      ),
+      developerRawInputOccurrences: numberValue(
+        trace.developerRawInputOccurrences,
+      ),
+      parsedIntentPayloadCount: numberValue(trace.parsedIntentPayloadCount),
+      canonicalIntentV2: v2.canonicalIntentV2,
+      canonicalPurposeConcepts: v2.purposes,
+      canonicalEligibilityConditions: v2.eligibilityConditions,
+      canonicalNegationConstraints: v2.negationConstraints,
+      canonicalTargetCardinality: v2.targetCardinality,
+      canonicalClarificationRequired: v2.clarificationRequired,
+      canonicalRelationships: v2.relationships,
+      legacyShadow: v2.legacyShadow,
+      legacyV2Divergence: v2.legacyV2Divergence,
+      canonicalTargetPopulation:
+        v2.targetPopulation ??
+        legacyCanonical?.surveyIntent.targetPopulation ??
+        null,
       finalRespondentGroup: null,
       canonicalSurveyObject:
-        canonical.surveyIntent.evaluationTargets.join(" 및 ") ||
-        canonical.surveyIntent.surveyObject || null,
+        v2.surveyObjects.join(" 및 ") ||
+        legacyCanonical?.surveyIntent.evaluationTargets.join(" 및 ") ||
+        legacyCanonical?.surveyIntent.surveyObject || null,
       finalEvaluationTarget: null,
       title: null,
       description: null,
@@ -1117,6 +1309,8 @@ const allCases = args.suite === "fronted-purpose"
     ? [...targetedRemediationKey10Cases]
     : args.suite === "targeted-remediation"
       ? [...targetedRemediationSmokeCases]
+      : args.suite === "intent-v2-targeted"
+        ? [...intentV2TargetedCases]
       : mergeDatasets(
         ...(await Promise.all([
           readRegressionDataset(resolve(root, "evals/survey-regression/v1/dev.json")),
@@ -1148,7 +1342,9 @@ const artifactDirectory = resolve(
       ? "v1.1-fronted-purpose"
       : args.suite === "targeted-key10"
         ? "v1.1-targeted-key10"
-        : "v1.1-targeted-remediation",
+        : args.suite === "targeted-remediation"
+          ? "v1.1-targeted-remediation"
+          : "v1.2-intent-v2-targeted",
   args.runId,
 );
 await mkdir(resolve(artifactDirectory, "cases"), { recursive: true });

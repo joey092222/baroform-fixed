@@ -158,6 +158,26 @@ export type SurveyRegressionResult = {
   initialSemanticDuplicateGroups?: string[][];
   semanticDuplicateGroups?: string[][];
   classification: GenerationPath;
+  semanticAuthorityVersion?: string | null;
+  legacyShadowEnabled?: boolean;
+  legacyInfluencedOutput?: boolean | null;
+  rawInputOccurrencesInRequest?: number;
+  userRoleRawInputOccurrences?: number;
+  developerRawInputOccurrences?: number;
+  parsedIntentPayloadCount?: number;
+  canonicalIntentV2?: Record<string, unknown> | null;
+  canonicalPurposeConcepts?: string[];
+  canonicalEligibilityConditions?: string[];
+  canonicalNegationConstraints?: string[];
+  canonicalTargetCardinality?: "single" | "multiple" | null;
+  canonicalClarificationRequired?: boolean | null;
+  canonicalRelationships?: Array<{
+    predictor: string | null;
+    outcome: string | null;
+    comparisonTargets: string[];
+  }>;
+  legacyShadow?: Record<string, unknown> | null;
+  legacyV2Divergence?: Record<string, unknown> | null;
   canonicalTargetPopulation: string | null;
   finalRespondentGroup: string | null;
   canonicalSurveyObject: string | null;

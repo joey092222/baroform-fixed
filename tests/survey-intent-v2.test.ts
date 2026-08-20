@@ -19,6 +19,7 @@ import { createSurveyGenerationV2Schema } from "../app/lib/ai/survey-generation-
 import { POST as createSurveyDraft } from "../app/api/survey-draft/route";
 import { auditedSurveyRegressionDatasetSchema } from "../evals/survey-regression/v1.1/schema";
 import { surveyIntentAuthorityDatasetV12 } from "../evals/survey-regression/v1.2/manifest";
+import { intentV2TargetedCases } from "../evals/survey-regression/v1.2/intent-v2-targeted";
 
 const prompt = "연세대학교 학생들의 대우관 등하교 경험을 조사하고 싶다";
 
@@ -463,4 +464,61 @@ test("v1.2 의미 권한 감사본은 동일한 100개 golden expectation을 내
   }
   assert.equal(total, surveyIntentAuthorityDatasetV12.counts.total);
   assert.equal(surveyIntentAuthorityDatasetV12.expectationChanges, 0);
+});
+
+test("V2 architecture targeted 세트는 지정된 24건 구성과 경계를 고정한다", () => {
+  const counts = Object.fromEntries(
+    [
+      "past_distortion",
+      "negation",
+      "multiple_purposes",
+      "multiple_targets",
+      "relationship",
+      "clarification",
+      "noisy",
+    ].map((cluster) => [
+      cluster,
+      intentV2TargetedCases.filter(
+        (item) => item.category === `intent_v2_${cluster}`,
+      ).length,
+    ]),
+  );
+  assert.equal(intentV2TargetedCases.length, 24);
+  assert.deepEqual(counts, {
+    past_distortion: 5,
+    negation: 4,
+    multiple_purposes: 4,
+    multiple_targets: 3,
+    relationship: 3,
+    clarification: 3,
+    noisy: 2,
+  });
+  assert.equal(new Set(intentV2TargetedCases.map((item) => item.id)).size, 24);
+  assert.equal(
+    intentV2TargetedCases.filter((item) => item.mustPreserveNegation).length,
+    5,
+  );
+  assert.equal(
+    intentV2TargetedCases.filter((item) => item.clarificationExpected).length,
+    3,
+  );
+  assert.ok(
+    intentV2TargetedCases.some((item) => item.tags.includes("non_university")),
+  );
+  assert.ok(
+    intentV2TargetedCases.some((item) => item.tags.includes("virtual_entity")),
+  );
+});
+
+test("V2 live evaluator는 legacy 재파싱이 아니라 응답 canonical intent를 읽는다", async () => {
+  const source = await readFile(
+    new URL("../scripts/run-survey-regression-live.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /record\(body\.canonicalIntentV2\)/);
+  assert.match(source, /semanticAuthorityVersion === "canonical-intent-v2"/);
+  assert.match(source, /legacyInfluencedOutput: v2\.legacyInfluencedOutput/);
+  assert.match(source, /canonicalPurposeConcepts: v2\.purposes/);
+  assert.match(source, /legacyV2Divergence: v2\.legacyV2Divergence/);
+  assert.match(source, /const legacyCanonical = useV2Authority\s*\? null/);
 });

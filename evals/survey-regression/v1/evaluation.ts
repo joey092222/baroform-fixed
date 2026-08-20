@@ -939,6 +939,16 @@ export function evaluateSemanticResult(
     | "classification"
     | "httpStatus"
     | "responseType"
+    | "semanticAuthorityVersion"
+    | "legacyInfluencedOutput"
+    | "rawInputOccurrencesInRequest"
+    | "userRoleRawInputOccurrences"
+    | "developerRawInputOccurrences"
+    | "parsedIntentPayloadCount"
+    | "canonicalPurposeConcepts"
+    | "canonicalNegationConstraints"
+    | "canonicalTargetCardinality"
+    | "canonicalClarificationRequired"
     | "canonicalTargetPopulation"
     | "finalRespondentGroup"
     | "canonicalSurveyObject"
@@ -968,6 +978,44 @@ export function evaluateSemanticResult(
     result.description,
     questionText,
   ].filter(Boolean).join("\n");
+  const isCanonicalIntentV2 =
+    result.semanticAuthorityVersion === "canonical-intent-v2";
+
+  if (isCanonicalIntentV2) {
+    if (result.legacyInfluencedOutput !== false) {
+      fatalFailures.push(
+        issue(
+          "LEGACY_INFLUENCED_OUTPUT",
+          "legacy shadow 결과가 V2 응답에 영향을 줌",
+          "semantic_validation",
+        ),
+      );
+    }
+    if (
+      result.userRoleRawInputOccurrences !== 1 ||
+      result.developerRawInputOccurrences !== 0 ||
+      result.parsedIntentPayloadCount !== 0
+    ) {
+      fatalFailures.push(
+        issue(
+          "SEMANTIC_AUTHORITY_BOUNDARY_VIOLATION",
+          `원문/parsed intent 전달 횟수 위반: user=${result.userRoleRawInputOccurrences ?? "unknown"}, developer=${result.developerRawInputOccurrences ?? "unknown"}, parsed=${result.parsedIntentPayloadCount ?? "unknown"}`,
+          "semantic_validation",
+        ),
+      );
+    }
+    if (
+      result.canonicalClarificationRequired !== testCase.clarificationExpected
+    ) {
+      fatalFailures.push(
+        issue(
+          "CANONICAL_CLARIFICATION_MISMATCH",
+          `canonical clarification 불일치: ${String(result.canonicalClarificationRequired)}`,
+          "clarification",
+        ),
+      );
+    }
+  }
 
   if (
     result.classification === "environment_rate_limited" ||
@@ -993,6 +1041,22 @@ export function evaluateSemanticResult(
   }
   if (result.classification === "hard_fallback") {
     fatalFailures.push(issue("HARD_FALLBACK", "명확한 입력이 hard fallback으로 처리됨", "hard_fallback"));
+  }
+  if (
+    isCanonicalIntentV2 &&
+    !targetPopulationMatch(
+      result.canonicalTargetPopulation ?? "",
+      testCase.expectedTargetPopulation,
+      testCase.expectedSurveyObject,
+    )
+  ) {
+    fatalFailures.push(
+      issue(
+        "CANONICAL_TARGET_POPULATION_MISMATCH",
+        `V2 응답 대상 불일치: ${result.canonicalTargetPopulation ?? ""}`,
+        "target_population",
+      ),
+    );
   }
   if (!targetPopulationMatch(
     targetText,
@@ -1038,6 +1102,74 @@ export function evaluateSemanticResult(
         );
   if (!surveyObjectMatches) {
     fatalFailures.push(issue("SURVEY_OBJECT_MISMATCH", `조사 대상 불일치: ${objectText}`, "survey_object"));
+  }
+  if (isCanonicalIntentV2) {
+    const canonicalObjectText = result.canonicalSurveyObject ?? "";
+    const canonicalObjectMatches =
+      testCase.expectedTargetCardinality === "multiple"
+        ? testCase.expectedSurveyObject.every((expected) =>
+            semanticTextMatch(canonicalObjectText, [expected]),
+          )
+        : surveyObjectRoleCompatible(
+            canonicalObjectText,
+            testCase.expectedSurveyObject,
+            canonicalObjectText,
+          );
+    if (!canonicalObjectMatches) {
+      fatalFailures.push(
+        issue(
+          "CANONICAL_SURVEY_OBJECT_MISMATCH",
+          `V2 조사 대상 불일치: ${canonicalObjectText}`,
+          "survey_object",
+        ),
+      );
+    }
+    if (
+      result.canonicalTargetCardinality &&
+      result.canonicalTargetCardinality !== testCase.expectedTargetCardinality
+    ) {
+      fatalFailures.push(
+        issue(
+          "CANONICAL_TARGET_CARDINALITY_MISMATCH",
+          `V2 대상 수 불일치: ${result.canonicalTargetCardinality}`,
+          "single_vs_multiple_target",
+        ),
+      );
+    }
+    const canonicalPurposeText = (result.canonicalPurposeConcepts ?? []).join("\n");
+    for (const concept of testCase.expectedPurposeConcepts) {
+      if (
+        !semanticTextMatch(canonicalPurposeText, [concept]) &&
+        !conceptPresent(concept, canonicalPurposeText)
+      ) {
+        fatalFailures.push(
+          issue(
+            "CANONICAL_PURPOSE_MISSING",
+            `V2 조사 목적 누락: ${concept}`,
+            "purpose_coverage",
+          ),
+        );
+      }
+    }
+    if (
+      testCase.mustPreserveNegation &&
+      !negationPattern.test(
+        [
+          result.canonicalTargetPopulation,
+          ...(result.canonicalNegationConstraints ?? []),
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      )
+    ) {
+      fatalFailures.push(
+        issue(
+          "CANONICAL_NEGATION_LOST",
+          "V2 canonical intent에서 부정 조건이 사라짐",
+          "negation",
+        ),
+      );
+    }
   }
   for (const entity of testCase.contextEntities ?? []) {
     if (!semanticTextMatch(allText, [entity])) {
