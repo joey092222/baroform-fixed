@@ -4,6 +4,7 @@ import type {
   SurveyRegressionIssue,
   SurveyRegressionResult,
 } from "./schema";
+import { redactPreviewTransportData } from "./preview-transport";
 
 const normalize = (value: string) =>
   value
@@ -1221,14 +1222,11 @@ export function evaluateSemanticResult(
   return { fatalFailures, warnings };
 }
 
-const secretPatterns = [
-  /sk-[A-Za-z0-9_-]{16,}/g,
-  /Bearer\s+[A-Za-z0-9._~+/=-]{12,}/gi,
-  /(?:authorization|cookie|session(?:Token)?|api[_-]?key)\s*[=:]\s*[^\s,}]+/gi,
-];
-
 export function redactSecrets(value: string) {
-  return secretPatterns.reduce((result, pattern) => result.replace(pattern, "[REDACTED]"), value);
+  return redactPreviewTransportData(value).replace(
+    /((?:session(?:Token)?|api[_-]?key|access[_-]?token|client[_-]?secret)\s*[=:]\s*)[^\s,;}"']+/giu,
+    "$1[REDACTED]",
+  );
 }
 
 export function assertNoSecrets(value: string) {

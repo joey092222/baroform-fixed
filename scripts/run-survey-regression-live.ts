@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { resolve } from "node:path";
 
 import {
   GET as pollSurveyDraft,
@@ -22,7 +22,9 @@ import {
 } from "../evals/survey-regression/v1/evaluation";
 import {
   PreviewTransportError,
+  resolvePnpmNodeInvocation,
   resolveVercelCurlProcessResult,
+  runPreviewTransportPreflight,
   withPreviewTransportRetry,
 } from "../evals/survey-regression/v1/preview-transport";
 import {
@@ -182,6 +184,7 @@ function parseArguments() {
   const expectedBuildSha = args.get("expected-build-sha") ?? null;
   const expectedBranch = args.get("expected-branch") ?? null;
   const vercelPnpm = args.get("vercel-pnpm") ?? null;
+  const vercelGlobalConfig = args.get("vercel-global-config") ?? null;
   const previewShareUrl = process.env.BAROFORM_PREVIEW_SHARE_URL?.trim() || null;
   const maxCasesRaw = args.get("max-cases") ?? null;
   const maxCases = maxCasesRaw === null ? null : Number(maxCasesRaw);
@@ -207,10 +210,12 @@ function parseArguments() {
     suite: suite as "v1" | "fronted-purpose" | "targeted-key10" | "targeted-remediation",
     runId,
     estimateOnly: args.get("estimate-only") === "true",
+    preflightOnly: args.get("preflight-only") === "true",
     deployment,
     expectedBuildSha,
     expectedBranch,
     vercelPnpm,
+    vercelGlobalConfig,
     previewShareUrl,
     remotePreview,
     maxCases,
@@ -552,6 +557,9 @@ async function vercelPreviewRequest(
     const commandArguments = [
       "dlx",
       "vercel@59.1.3",
+      ...(args.vercelGlobalConfig
+        ? ["--global-config", args.vercelGlobalConfig]
+        : []),
       "curl",
       path,
       "--deployment",
@@ -573,20 +581,15 @@ async function vercelPreviewRequest(
       );
     }
     const output = await new Promise<string>((resolveOutput, reject) => {
-      const pnpmDirectory = dirname(args.vercelPnpm!);
-      const executable = process.platform === "win32"
-        ? resolve(pnpmDirectory, "../../node/bin/node.exe")
-        : args.vercelPnpm!;
-      const executableArguments = process.platform === "win32"
-        ? [
-            resolve(pnpmDirectory, "../../node/node_modules/pnpm/bin/pnpm.mjs"),
-            ...commandArguments,
-          ]
-        : commandArguments;
-      const child = spawn(executable, executableArguments, {
+      const invocation = resolvePnpmNodeInvocation({
+        pnpmLauncherPath: args.vercelPnpm!,
+        arguments: commandArguments,
+      });
+      const child = spawn(invocation.executable, invocation.arguments, {
         cwd: process.cwd(),
-        env: process.env,
+        env: invocation.env,
         windowsHide: true,
+        shell: false,
         stdio: ["ignore", "pipe", "pipe"],
       });
       let stdout = "";
@@ -1157,6 +1160,31 @@ if (args.estimateOnly) {
 }
 
 const environment = requireLiveEnvironment(args.remotePreview);
+const transportPreflight =
+  args.remotePreview && !args.previewShareUrl
+    ? await runPreviewTransportPreflight({
+        pnpmLauncherPath: args.vercelPnpm!,
+        cwd: process.cwd(),
+        globalConfigDirectory: args.vercelGlobalConfig,
+      })
+    : null;
+if (transportPreflight) {
+  originalInfo("survey-regression-transport-preflight", transportPreflight);
+}
+if (args.preflightOnly) {
+  if (!transportPreflight) {
+    throw new Error("RUNNER_PREFLIGHT_REQUIRES_VERCEL_CLI_TRANSPORT");
+  }
+  process.stdout.write(
+    `${JSON.stringify({
+      runId: args.runId,
+      preflightOnly: true,
+      ...transportPreflight,
+    }, null, 2)}\n`,
+  );
+  console.info = originalInfo;
+  process.exit(0);
+}
 const checkpointPath = resolve(artifactDirectory, "checkpoint.json");
 const checkpoint: LiveCheckpoint = await readCheckpoint(checkpointPath, args.runId);
 let results = await existingResults(artifactDirectory);

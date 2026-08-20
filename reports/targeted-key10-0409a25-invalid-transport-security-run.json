@@ -1,0 +1,36 @@
+{
+  "runStatus": "environment_invalid_transport_security_run",
+  "branch": "codex/fix-survey-regression-root-causes-v1",
+  "buildSha": "0409a25dd7b07abf17f611ad6f2d5a53282d74fc",
+  "attemptedCases": 3,
+  "serverReachedCases": 0,
+  "actualModelCalls": 0,
+  "semanticCasesCompleted": 0,
+  "productStatisticsIncluded": false,
+  "rerunAllowed": true,
+  "transportFailure": {
+    "safeCode": "VERCEL_CURL_EXIT_1",
+    "consecutiveFailures": 3,
+    "transportRetryPerCase": 1,
+    "serverRequestIdPresent": false,
+    "responseBodyPresent": false
+  },
+  "exposedAccessClassification": {
+    "type": "temporary_preview_protection_access",
+    "source": "protected_url_query_parameter",
+    "valueStored": false,
+    "valueReused": false,
+    "productionCredential": false
+  },
+  "artifactSecurityScan": {
+    "previewAccessConfigured": false,
+    "credentialConfigured": false,
+    "redactionApplied": false,
+    "sensitiveArtifactMatches": 0
+  },
+  "notes": [
+    "This run did not reach the Preview API or product logic.",
+    "The three attempted cases must not be counted as request failures or product-quality results.",
+    "A fresh run ID and checkpoint are required after transport preflight succeeds."
+  ]
+}

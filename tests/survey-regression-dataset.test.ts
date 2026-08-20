@@ -188,16 +188,27 @@ test("환경 전송 실패는 같은 run에서 완료나 재실행 대상으로 
       pendingCases(devCases.slice(0, 2), restored).map((item) => item.id),
       [devCases[1].id],
     );
+    const freshRun = emptyCheckpoint("transport-run-fresh");
+    assert.deepEqual(
+      pendingCases(devCases.slice(0, 2), freshRun).map((item) => item.id),
+      devCases.slice(0, 2).map((item) => item.id),
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
 });
 
 test("secret redaction이 API key와 Authorization을 감춘다", () => {
-  const source = "api_key=sk-example0123456789 Authorization: Bearer token-example-123456";
+  const source = [
+    "api_key=sk-example0123456789",
+    "Authorization: Bearer token-example-123456",
+    "https://preview.invalid/?_vercel_share=synthetic-preview-access",
+    "x-vercel-protection-bypass: synthetic-bypass",
+  ].join("\n");
   const redacted = redactSecrets(source);
   assert.doesNotMatch(redacted, /sk-example/);
   assert.doesNotMatch(redacted, /token-example/);
+  assert.doesNotMatch(redacted, /synthetic-preview-access|synthetic-bypass/u);
   assert.throws(() => assertNoSecrets(source), /SECRET_PATTERN_DETECTED/);
   assert.doesNotThrow(() => assertNoSecrets("synthetic survey result"));
 });
