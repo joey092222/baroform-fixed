@@ -230,6 +230,102 @@ test("partial repair는 수정하지 않은 빈도 문항의 기간과 ID를 보
   );
 });
 
+test("기준 기간 metadata 충돌은 문항을 교체하지 않고 metadata만 맞춘다", () => {
+  const prompt = "직장인의 문화생활 이용 빈도 조사";
+  const brief = parseSurveyBrief(prompt);
+  const fallback = analyzeSurveyPrompt(prompt);
+  const originalQuestions = fallback.aiQuestions.map((question, index) =>
+    index === 1
+      ? frequencyQuestion(
+          "최근 한 달 동안 문화생활을 얼마나 자주 하시나요?",
+          "평소",
+        )
+      : { ...question },
+  );
+  let fallbackCalls = 0;
+
+  const repaired = repairInvalidQuestions({
+    survey: {
+      ...fallback,
+      templateQuestions: originalQuestions.slice(0, 5),
+      aiQuestions: originalQuestions,
+    },
+    intent: brief.surveyIntent,
+    plan: createSurveyPlan(brief.surveyIntent, 7),
+    violations: [],
+    qualityIssues: [
+      "문항 2의 기준 기간 메타데이터와 질문 제목이 일치하지 않습니다.",
+    ],
+    getFallback: () => {
+      fallbackCalls += 1;
+      return fallback;
+    },
+  });
+
+  assert.deepEqual(repaired.repairedQuestionIds, []);
+  assert.ok(repaired.preservedQuestionIds.includes(2));
+  assert.equal(fallbackCalls, 0);
+  assert.equal(
+    repaired.survey.aiQuestions[1]?.title,
+    originalQuestions[1]?.title,
+  );
+  assert.equal(
+    repaired.survey.aiQuestions[1]?.explicitTimeframe,
+    "최근 한 달",
+  );
+  assert.deepEqual(
+    repaired.survey.aiQuestions.filter((_, index) => index !== 1),
+    originalQuestions.filter((_, index) => index !== 1),
+  );
+});
+
+test("내부 관계 표식이 노출된 한 문항만 실제 변수 라벨로 교체한다", () => {
+  const prompt =
+    "직장인의 월 여가비와 문화생활 빈도 및 충동구매의 관계 조사";
+  const brief = parseSurveyBrief(prompt);
+  const fallback = analyzeSurveyPrompt(prompt);
+  const originalQuestions = fallback.aiQuestions.map((item) => ({ ...item }));
+  const leakedQuestions = originalQuestions.map((item, index) =>
+    index === 3
+      ? {
+          ...item,
+          title: "앞에서 답한 선행 값이 달라지는 상황을 모두 골라주세요.",
+        }
+      : item,
+  );
+  const leakedSurvey = {
+    ...fallback,
+    templateQuestions: leakedQuestions.slice(0, 5),
+    aiQuestions: leakedQuestions,
+  };
+  const qualityIssues = validateSurvey(prompt, brief, leakedSurvey);
+
+  assert.ok(
+    qualityIssues.some((issue) =>
+      issue.includes("문항 4에 내부 관계 분석 표식이 노출되었습니다"),
+    ),
+  );
+
+  const repaired = repairInvalidQuestions({
+    survey: leakedSurvey,
+    intent: brief.surveyIntent,
+    plan: createSurveyPlan(brief.surveyIntent, 7),
+    violations: [],
+    qualityIssues,
+    getFallback: () => fallback,
+  });
+
+  assert.deepEqual(repaired.repairedQuestionIds, [4]);
+  assert.doesNotMatch(
+    repaired.survey.aiQuestions[3]?.title ?? "",
+    /선행\s*값|결과\s*값|독립\s*변수|종속\s*변수/,
+  );
+  assert.deepEqual(
+    repaired.survey.aiQuestions.filter((_, index) => index !== 3),
+    originalQuestions.filter((_, index) => index !== 3),
+  );
+});
+
 test("대상과 행동이 없는 빈도 문항은 임의 보정하지 않고 기존 검증에서 거부한다", () => {
   const prompt = "시설 이용 경험 조사";
   const brief = parseSurveyBrief(prompt);

@@ -89,6 +89,7 @@ import {
   extractVisibleReferencePeriod,
   hasVisibleReferencePeriod,
   isRecurringFrequencyQuestion,
+  questionReferencePeriodConflicts,
 } from "./survey-reference-period";
 import {
   resolveCanonicalEvaluationTarget,
@@ -1866,14 +1867,24 @@ export function repairInvalidQuestions({
   getFallback: () => SurveyBlueprint;
 }) {
   const questionCount = survey.aiQuestions.length;
-  const invalidIndexes = questionIndexesFromViolations(
+  const violationIndexes = questionIndexesFromViolations(
     violations,
     structuredGeneration,
     plan,
     questionCount,
   );
+  const referencePeriodMetadataIssue =
+    /(?:문항|질문)\s+(?:question-)?(\d+)의 기준 기간 메타데이터와 질문 제목이 일치하지 않습니다/u;
+  const actionableQualityIssues = qualityIssues.filter((issue) => {
+    const match = issue.match(referencePeriodMetadataIssue);
+    if (!match) return true;
+    const index = Number(match[1]) - 1;
+    const question = survey.aiQuestions[index];
+    return Boolean(question && questionReferencePeriodConflicts(question));
+  });
+  const invalidIndexes = new Set(violationIndexes);
   for (const index of questionIndexesFromQualityIssues(
-    qualityIssues,
+    actionableQualityIssues,
     questionCount,
   )) {
     invalidIndexes.add(index);
@@ -1888,16 +1899,26 @@ export function repairInvalidQuestions({
     invalidIndexes.size === 0 &&
     !repairsTitle &&
     !repairsDescription &&
-    qualityIssues.length > 0
+    actionableQualityIssues.length > 0
   ) {
     invalidIndexes.add(0);
   }
 
-  const fallback = getFallback();
-  const fallbackQuestions = resizeSurveyQuestions(
-    fallback.aiQuestions,
-    questionCount,
-  );
+  let fallbackBlueprint: SurveyBlueprint | null = null;
+  const getFallbackBlueprint = () => {
+    if (fallbackBlueprint) return fallbackBlueprint;
+    fallbackBlueprint = getFallback();
+    return fallbackBlueprint;
+  };
+  let fallbackQuestions: SurveyQuestion[] | null = null;
+  const getFallbackQuestions = () => {
+    if (fallbackQuestions) return fallbackQuestions;
+    fallbackQuestions = resizeSurveyQuestions(
+      getFallbackBlueprint().aiQuestions,
+      questionCount,
+    );
+    return fallbackQuestions;
+  };
   const repairedQuestionIds: number[] = [];
   const preservedQuestionIds: number[] = [];
   const aiQuestions = survey.aiQuestions.map((question, index) => {
@@ -1905,12 +1926,28 @@ export function repairInvalidQuestions({
       preservedQuestionIds.push(question.id);
       return question;
     }
-    repairedQuestionIds.push(question.id);
-    const targetedQualityIssues = qualityIssues.filter((issue) =>
+    const targetedQualityIssues = actionableQualityIssues.filter((issue) =>
       new RegExp(`(?:문항|질문)\\s+(?:question-)?${question.id}(?:\\D|$)`).test(
         issue,
       ),
     );
+    const metadataOnlyReferencePeriodRepair =
+      !violationIndexes.has(index) &&
+      targetedQualityIssues.length > 0 &&
+      targetedQualityIssues.every((issue) =>
+        referencePeriodMetadataIssue.test(issue),
+      );
+    if (metadataOnlyReferencePeriodRepair) {
+      const visibleReferencePeriod = extractVisibleReferencePeriod(question.title);
+      if (visibleReferencePeriod) {
+        preservedQuestionIds.push(question.id);
+        return {
+          ...question,
+          explicitTimeframe: visibleReferencePeriod,
+        };
+      }
+    }
+    repairedQuestionIds.push(question.id);
     const preferredConcept: RepairQuestionConcept | undefined = targetedQualityIssues.some(
       (issue) => /전반적\s*만족도.*직접\s*측정/.test(issue),
     )
@@ -1918,7 +1955,7 @@ export function repairInvalidQuestions({
       : undefined;
     const fallbackQuestion = selectFallbackQuestionForRepair(
       question,
-      fallbackQuestions,
+      getFallbackQuestions(),
       plan,
       index,
       preferredConcept,
@@ -1935,8 +1972,10 @@ export function repairInvalidQuestions({
   return {
     survey: {
       ...survey,
-      ...(repairsTitle ? { title: fallback.title } : {}),
-      ...(repairsDescription ? { description: fallback.description } : {}),
+      ...(repairsTitle ? { title: getFallbackBlueprint().title } : {}),
+      ...(repairsDescription
+        ? { description: getFallbackBlueprint().description }
+        : {}),
       templateQuestions: aiQuestions.slice(0, 5),
       aiQuestions,
       semanticPlan: plan,
