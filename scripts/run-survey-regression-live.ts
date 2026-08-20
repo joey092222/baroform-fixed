@@ -41,6 +41,7 @@ import type {
   SurveyRegressionResult,
 } from "../evals/survey-regression/v1/schema";
 import { frontedPurposeSmokeCases } from "../evals/survey-regression/v1.1/fronted-purpose-smoke";
+import { targetedRemediationSmokeCases } from "../evals/survey-regression/v1.1/targeted-remediation-smoke";
 
 type TraceSnapshot = {
   requestId?: unknown;
@@ -171,7 +172,7 @@ function parseArguments() {
   const split = args.get("split") ?? "all";
   if (!/^(?:dev|holdout|all)$/.test(split)) throw new Error(`INVALID_SPLIT:${split}`);
   const suite = args.get("suite") ?? "v1";
-  if (!/^(?:v1|fronted-purpose)$/.test(suite)) {
+  if (!/^(?:v1|fronted-purpose|targeted-remediation)$/.test(suite)) {
     throw new Error(`INVALID_SUITE:${suite}`);
   }
   const runId = args.get("run-id") ?? `live-${new Date().toISOString().replace(/[:.]/g, "-")}`;
@@ -202,7 +203,7 @@ function parseArguments() {
   }
   return {
     split: split as "dev" | "holdout" | "all",
-    suite: suite as "v1" | "fronted-purpose",
+    suite: suite as "v1" | "fronted-purpose" | "targeted-remediation",
     runId,
     estimateOnly: args.get("estimate-only") === "true",
     deployment,
@@ -1108,7 +1109,9 @@ const args = parseArguments();
 const root = process.cwd();
 const allCases = args.suite === "fronted-purpose"
   ? [...frontedPurposeSmokeCases]
-  : mergeDatasets(
+  : args.suite === "targeted-remediation"
+    ? [...targetedRemediationSmokeCases]
+    : mergeDatasets(
       ...(await Promise.all([
         readRegressionDataset(resolve(root, "evals/survey-regression/v1/dev.json")),
         readRegressionDataset(resolve(root, "evals/survey-regression/v1/holdout.json")),
@@ -1133,7 +1136,11 @@ const projection = projectLiveEvaluationCost(selectedCases);
 const artifactDirectory = resolve(
   root,
   ".artifacts/survey-regression",
-  args.suite === "v1" ? "v1" : "v1.1-fronted-purpose",
+  args.suite === "v1"
+    ? "v1"
+    : args.suite === "fronted-purpose"
+      ? "v1.1-fronted-purpose"
+      : "v1.1-targeted-remediation",
   args.runId,
 );
 await mkdir(resolve(artifactDirectory, "cases"), { recursive: true });

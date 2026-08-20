@@ -32,6 +32,7 @@ import {
 import { surveyRegressionCaseSchema } from "../evals/survey-regression/v1/schema";
 import { auditedSurveyRegressionDatasetSchema } from "../evals/survey-regression/v1.1/schema";
 import { frontedPurposeSmokeCases } from "../evals/survey-regression/v1.1/fronted-purpose-smoke";
+import { targetedRemediationSmokeCases } from "../evals/survey-regression/v1.1/targeted-remediation-smoke";
 
 test("100개 층화 데이터셋의 스키마와 분포가 고정돼 있다", () => {
   assert.equal(devCases.length, 80);
@@ -336,4 +337,26 @@ test("목적 선행형 20건 smoke fixture는 clear 8·noisy 6·ambiguous 3·con
   );
   for (const item of frontedPurposeSmokeCases) surveyRegressionCaseSchema.parse(item);
   assertNoSecrets(JSON.stringify(frontedPurposeSmokeCases));
+});
+
+test("targeted remediation smoke fixture는 원인 군집별 고정 18건을 유지한다", () => {
+  assert.equal(targetedRemediationSmokeCases.length, 18);
+  const counts = new Map<string, number>();
+  for (const item of targetedRemediationSmokeCases) {
+    surveyRegressionCaseSchema.parse(item);
+    counts.set(item.category, (counts.get(item.category) ?? 0) + 1);
+  }
+  assert.deepEqual(Object.fromEntries(counts), {
+    targeted_request_flattening: 4,
+    targeted_clarification_boundary: 4,
+    targeted_overall_satisfaction: 3,
+    targeted_plan_aware_expansion: 3,
+    targeted_target_population: 2,
+    targeted_repair_regression: 2,
+  });
+  assert.equal(
+    new Set(targetedRemediationSmokeCases.map((item) => item.id)).size,
+    targetedRemediationSmokeCases.length,
+  );
+  assertNoSecrets(JSON.stringify(targetedRemediationSmokeCases));
 });
