@@ -377,8 +377,18 @@ function directlyMeasuresOverallSatisfaction(
     );
   const balancedSatisfactionOptions =
     /만족/u.test(labels) && /불만족|만족(?:하지|스럽지)\s*않/u.test(labels);
+  const orderedNumericOptions =
+    (question.options?.length ?? 0) >= 3 &&
+    (question.options?.length ?? 0) <= 7 &&
+    (question.options ?? []).every((option) =>
+      /^(?:\d+|\d+\s*점|매우\s*불만족|불만족|보통|만족|매우\s*만족)$/u.test(
+        option.trim(),
+      ),
+    );
   const supportsSatisfactionResponse =
-    question.type === "scale" || balancedSatisfactionOptions;
+    question.type === "scale" ||
+    balancedSatisfactionOptions ||
+    orderedNumericOptions;
   return (
     (asksSatisfaction &&
       supportsSatisfactionResponse &&

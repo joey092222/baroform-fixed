@@ -378,3 +378,18 @@ test("명시된 비이용 응답 조건의 선별 문항이 없으면 문항 수
   assert.equal(restored.survey.aiQuestions[0]?.measuredRole, "eligibility");
   assert.equal(restored.survey.aiQuestions[0]?.planBlockId, "eligibility-screening");
 });
+
+test("숫자형 단일선택 척도의 직접 전반 만족도 문항은 중복 복원하지 않는다", () => {
+  const prompt = "한들식당 이용자의 맛, 주문 편의, 직원 응대와 전체 만족도 조사";
+  const intent = parseSurveyIntent(prompt);
+  const plan = createSurveyPlan(intent, 7);
+  const overallBlock = plan.blocks.find((block) => block.id === "overall-satisfaction");
+  assert.ok(overallBlock);
+
+  const directOverall = {
+    ...question(1, "한들식당에 전반적으로 얼마나 만족하나요?"),
+    type: "single" as const,
+    options: ["1", "2", "3", "4", "5"],
+  };
+  assert.equal(questionCoversSurveyPlanBlock(directOverall, overallBlock), true);
+});

@@ -119,3 +119,22 @@ test("복수 대상 만족도 fallback은 두 대상의 직접 비교를 포함�
   );
   assert.ok(titles.every((title) => !/중요하게 생각하는 요소/.test(title)));
 });
+
+test("인식과 개선 요구 fallback은 조사 대상을 보존하고 범용 filler를 만들지 않는다", () => {
+  const { canonical, blueprint, titles } = titlesFor(
+    "새빛대학교 환경공학과 학생들의 실험실 안전 인식과 개선 요구를 조사하고 싶다.",
+  );
+
+  assert.equal(canonical.surveyIntent.surveyObject, "실험실 안전");
+  assert.equal(blueprint.evaluationTarget, "실험실 안전");
+  assert.equal(titles.length, 7);
+  assert.ok(titles.some((title) => /전반적으로.*인식/.test(title)));
+  assert.ok(titles.some((title) => /개선할 필요/.test(title)));
+  assert.ok(titles.some((title) => /가장 먼저 개선/.test(title)));
+  assert.ok(
+    titles.every(
+      (title) =>
+        !/관련해 평소 가장 자주 겪는 상황|관련한 행동은 주로 어떤 상황/.test(title),
+    ),
+  );
+});

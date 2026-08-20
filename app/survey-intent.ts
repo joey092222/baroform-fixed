@@ -1296,6 +1296,7 @@ function shouldPreferSurveyIntent(intent: SurveyIntent) {
   if (hasRelationalResearchIntent(intent.researchIntent)) return true;
   if (intent.ambiguityLevel !== "low") return false;
   return (
+    intent.purposeBlocks.length > 1 ||
     (intent.targetCardinality === "multiple" &&
       intent.measurementMode === "comparison" &&
       intent.evaluationTargets.length >= 2) ||
@@ -4563,6 +4564,120 @@ function eligibilityExperienceQuestion(intent: SurveyIntent, object: string) {
   return `${labelWithParticle(object, "을", "를")} 직접 경험한 적이 있나요?`;
 }
 
+function attitudeAndNeedIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
+  const intent = brief.surveyIntent;
+  const object = intentObjectForQuestion(intent, brief.researchSubject);
+  const plan = createSurveyPlan(intent, 7);
+  const perceptionBlock = plan.blocks.find(
+    (block) =>
+      block.kind === "measurement" &&
+      block.directlyAskable &&
+      /(?:인식|인상|이미지|태도)/u.test(block.variable),
+  );
+  const improvementBlock = plan.blocks.find(
+    (block) =>
+      block.kind === "measurement" &&
+      block.directlyAskable &&
+      /(?:개선|요구|수요|필요)/u.test(block.variable),
+  );
+  const bind = (
+    item: SurveyQuestion,
+    block: SurveyPlanBlock | undefined,
+  ): SurveyQuestion =>
+    block
+      ? {
+          ...item,
+          planBlockId: block.id,
+          purposeBlockId: block.purposeBlockId,
+          measuredEntityIds: block.measuredEntityIds,
+          measuredConstruct: block.variable,
+          measuredVariable: block.variable,
+          measuredRole: block.role,
+          questionPurpose: block.purpose,
+          decisionGoalIds: block.decisionGoalIds,
+          unitOfAnalysis: plan.unitOfAnalysis,
+        }
+      : item;
+  const questions = [
+    bind(
+      question(
+        1,
+        `${object}에 대해 전반적으로 어떻게 인식하고 있나요?`,
+        `${perceptionBlock?.variable ?? "전반적 인식"}을 직접 측정함.`,
+        "scale",
+      ),
+      perceptionBlock,
+    ),
+    question(
+      2,
+      `${object}과 관련해 긍정적으로 평가하는 점을 모두 골라주세요.`,
+      "현재 긍정적으로 인식되는 구체적인 요인을 구분함.",
+      "multiple",
+      ["정보와 안내", "접근성과 이용 편의", "운영 방식", "환경과 시설", "지원 체계", "긍정적인 점 없음", "기타"],
+    ),
+    question(
+      3,
+      `${object}과 관련해 우려되거나 부족하다고 느끼는 점을 모두 골라주세요.`,
+      "인식을 낮추는 문제와 개선 근거를 구체적으로 파악함.",
+      "multiple",
+      ["정보와 안내 부족", "접근 또는 이용 불편", "운영 기준 부족", "환경 또는 시설 문제", "지원 체계 부족", "우려되는 점 없음", "기타"],
+    ),
+    bind(
+      question(
+        4,
+        `${labelWithParticle(object, "을", "를")} 개선할 필요가 어느 정도 있다고 생각하나요?`,
+        `${improvementBlock?.variable ?? "개선 필요"}의 정도를 직접 측정함.`,
+        "scale",
+      ),
+      improvementBlock,
+    ),
+    question(
+      5,
+      `${object}에서 가장 먼저 개선되어야 할 부분은 무엇인가요?`,
+      "개선 요구의 우선순위를 한 가지로 확인함.",
+      "single",
+      ["정보와 안내", "접근성과 이용 편의", "운영 기준", "환경과 시설", "교육과 지원", "별도 개선 필요 없음", "기타"],
+    ),
+    question(
+      6,
+      `${object} 개선을 위해 필요하다고 생각하는 지원을 모두 골라주세요.`,
+      "실행 가능한 개선 지원의 수요를 구분함.",
+      "multiple",
+      ["명확한 기준과 절차", "정기적인 안내와 교육", "시설과 환경 개선", "의견 제안 창구", "점검과 피드백", "별도 지원 필요 없음", "기타"],
+    ),
+    question(
+      7,
+      `${object}에 대해 바라는 변화나 의견이 있다면 적어주세요.`,
+      "선택지에 담기지 않은 개선 근거와 제안을 수집함.",
+      "text",
+      undefined,
+      false,
+    ),
+  ];
+  return {
+    kind: "awareness",
+    intentLabel: "인식·개선 요구",
+    subject: object,
+    title: brief.surveyTitle,
+    description: `${brief.targetRespondents}의 ${object}에 대한 인식과 구체적인 개선 요구를 파악하기 위한 설문입니다.`,
+    templateTitle: brief.surveyTitle,
+    templateSummary: "현재 인식과 그 근거를 확인한 뒤 개선 필요성과 우선순위를 측정해요.",
+    detectedSignals: [
+      `응답 대상 · ${brief.targetRespondents}`,
+      `조사 대상 · ${object}`,
+      "측정 개념 · 인식과 개선 요구",
+    ],
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
+    respondentGroup: brief.targetRespondents,
+    evaluationTarget: object,
+    goal: intent.purpose ?? brief.researchGoal,
+    assumptions: [],
+    domain: brief.domain,
+    semanticPlan: plan,
+  };
+}
+
 function perceptionIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
   const intent = brief.surveyIntent;
   const object = intentObjectForQuestion(intent, brief.researchSubject);
@@ -6197,6 +6312,15 @@ function semanticIntentBlueprint(brief: SurveyBrief) {
   const includesUsagePurpose = brief.surveyIntent.purposeBlocks.some(
     (purpose) => purpose.kind === "usage_experience",
   );
+  const includesAttitudePurpose = brief.surveyIntent.purposeBlocks.some(
+    (purpose) => purpose.kind === "attitude_perception",
+  );
+  const includesNeedPurpose = brief.surveyIntent.purposeBlocks.some(
+    (purpose) => purpose.kind === "need_demand",
+  );
+  if (includesAttitudePurpose && includesNeedPurpose && !includesUsagePurpose) {
+    return attitudeAndNeedIntentBlueprint(brief);
+  }
   if (
     primaryPurposeKind === "attitude_perception" &&
     !includesUsagePurpose &&

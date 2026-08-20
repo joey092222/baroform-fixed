@@ -966,6 +966,11 @@ test("응답자·목적을 포함한 요청 문장 survey object와 깨진 외�
 
 test("자연스러운 목적·불편·재이용 표현을 evaluator가 놓치지 않는다", () => {
   assert.equal(conceptPresent("이용 목적", "이 장소에 가장 주로 가는 이유는 무엇인가요?"), true);
+  assert.equal(
+    conceptPresent("이용 목적", "공공도서관을 찾는 가장 주된 이유는 무엇인가요?"),
+    true,
+  );
+  assert.equal(conceptPresent("맛", "음식 맛에 얼마나 만족했나요?"), true);
   assert.equal(conceptPresent("불편", "이용하면서 어려웠던 점은 무엇인가요?"), true);
   assert.equal(conceptPresent("이용 의향", "앞으로 다시 가입해 볼 생각이 있나요?"), true);
   assert.equal(conceptPresent("미구매 이유", "구매를 망설이게 한 가장 큰 장벽은 무엇인가요?"), true);
