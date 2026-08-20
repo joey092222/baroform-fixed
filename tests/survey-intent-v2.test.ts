@@ -13,6 +13,7 @@ import {
   deriveSurveyBriefFromCanonicalIntentV2,
   deriveSurveyPlanFromCanonicalIntentV2,
   normalizeCanonicalSurveyIntentV2EvidenceSpans,
+  normalizeCanonicalSurveyIntentV2ObjectRoles,
   normalizeCanonicalSurveyIntentV2ReferenceIds,
   validateCanonicalSurveyIntentV2,
   type CanonicalSurveyIntentV2,
@@ -387,6 +388,52 @@ test("V2 evidence 좌표는 원문에 존재하는 동일 텍스트에 한해 me
   );
 });
 
+test("V2 명시 기간은 원문 evidence 표현으로 보존한다", () => {
+  const intent = intentFixture();
+  intent.explicit_timeframe = {
+    value: "최근 이동 경험",
+    evidence: [span("등하교 경험", "timeframe")],
+    confidence: 0.95,
+    provenance: "user_explicit",
+  };
+  const normalized = normalizeCanonicalSurveyIntentV2EvidenceSpans(
+    intent,
+    prompt,
+  );
+  assert.equal(normalized.intent.explicit_timeframe?.value, "등하교 경험");
+  assert.ok(normalized.normalizedPaths.includes("explicit_timeframe.value"));
+});
+
+test("V2 구체 대상의 만족·수요 속성은 목적 구성개념으로 남기고 대상 수를 늘리지 않는다", () => {
+  const intent = intentFixture();
+  intent.survey_objects = [
+    {
+      ...intent.survey_objects[0],
+      id: "O1",
+      name: "대우관",
+      entity_type: "university_building",
+    },
+    {
+      ...intent.survey_objects[0],
+      id: "O2",
+      name: "대우관 만족도",
+      entity_type: "satisfaction_evaluation",
+    },
+    {
+      ...intent.survey_objects[0],
+      id: "O3",
+      name: "대우관 개선 수요",
+      entity_type: "need_demand",
+    },
+  ];
+  intent.target_cardinality = "multiple";
+  intent.purposes[0].object_ids = ["O1", "O2", "O3"];
+  const normalized = normalizeCanonicalSurveyIntentV2ObjectRoles(intent);
+  assert.deepEqual(normalized.intent.survey_objects.map((item) => item.id), ["O1"]);
+  assert.deepEqual(normalized.intent.purposes[0].object_ids, ["O1"]);
+  assert.equal(normalized.intent.target_cardinality, "single");
+});
+
 test("V2 canonical ID 참조는 의미 변경 없이 대소문자 차이만 정규화한다", () => {
   const intent = intentFixture();
   intent.activities[0].object_ids = ["OBJECT-DAEWOO-MOBILITY"];
@@ -458,6 +505,21 @@ test("V2 응답은 모델의 비권위 plan과 opaque ID를 canonical metadata�
   assert.equal(result.surveyPlan?.eligibility, "연세대학교 학생들");
   assert.equal(result.surveyPlan?.primary_objective, "대우관 등하교 경험 파악");
   assert.equal(result.surveyPlan?.min_path_questions, 2);
+});
+
+test("V2 질문의 존재하지 않는 내부 참조는 제거하고 canonical coverage로 판정한다", () => {
+  const response = responseFixture();
+  response.output_parsed.survey.questions[1].purpose_ids = ["P404"];
+  response.output_parsed.survey.questions[1].object_ids = ["O404"];
+  response.output_parsed.survey.questions[1].relationship_ids = ["R404"];
+  const result = parseSurveyDraftResponseV2(response, {
+    prompt,
+    surveyMode: "standard",
+    questionCount: 2,
+    targetGrade: "전학년",
+    expectsReferences: false,
+  });
+  assert.notEqual(result.status, "needs_clarification");
 });
 
 test("V2 clarification은 비권위 inferred evidence 오류 때문에 설문 오류로 바뀌지 않는다", () => {

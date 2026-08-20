@@ -53,7 +53,7 @@ const conceptPatterns: Record<string, RegExp[]> = {
   "방문 경험": [/방문한\s*적/, /방문\s*경험/],
   "참여 경험": [/참여한\s*적/, /참가한\s*적/, /참여\s*경험/, /어떤\s*프로그램에\s*참여/],
   "수강 경험": [/수강한\s*적/, /수강\s*경험/],
-  "이용 빈도": [/이용\s*(?:빈도|횟수)/, /사용\s*(?:빈도|횟수)/, /얼마나\s*자주.*(?:이용|사용|방문|찾)/],
+  "이용 빈도": [/이용\s*(?:빈도|횟수)/, /사용\s*(?:빈도|횟수)/, /주문\s*(?:빈도|횟수)/, /몇\s*번.*(?:이용|사용|방문|주문|배달)/, /얼마나\s*자주.*(?:이용|사용|방문|찾|주문)/],
   "구매 빈도": [/구매\s*(?:빈도|횟수)/, /주문\s*(?:빈도|횟수)/, /얼마나\s*자주.*(?:구매|주문|외식)/],
   "이용 시간": [/이용\s*시간/, /사용\s*시간/, /시청\s*시간/, /화면\s*시간/],
   "시간 사용": [/시간\s*사용/, /얼마나\s*시간/, /하루.*시간/],
@@ -88,7 +88,8 @@ const conceptPatterns: Record<string, RegExp[]> = {
     /이용\s*의향/,
     /사용\s*의향/,
     /다시\s*(?:이용|사용|방문|가입|등록|구매)/,
-    /재(?:이용|방문|가입|등록|구매)/,
+    /재(?:이용|방문|가입|등록|구매|구독)/,
+    /다시\s*구독/,
     /(?:이용|사용|방문|가입|등록|구매)할\s*(?:가능성|생각|의향)/,
     /(?:써|사용해|이용해|방문해|가입해|구매해)\s*볼\s*(?:가능성|생각|의향)/,
     /(?:쓸|써볼)\s*(?:가능성|생각|의향)/,
@@ -101,6 +102,7 @@ const conceptPatterns: Record<string, RegExp[]> = {
     /계속\s*참여할\s*가능성/,
   ],
   "서비스 필요성": [/필요/, /도입\s*수요/, /수요/],
+  "개선 수요": [/개선/, /바라는\s*점/, /보완/, /바뀌었으면/, /개선\s*우선순위/],
   "원하는 기능": [/원하는\s*기능/, /필요한\s*기능/, /기능\s*수요/],
   사용성: [/사용성/, /편의성/, /사용하기\s*쉬/, /찾고\s*사용.*편리/, /사용\s*과정.*편리/],
   신뢰: [/신뢰/],
@@ -681,7 +683,6 @@ export function isCorePurposeQuestion(question: EvaluatedQuestion) {
 }
 
 export function isEligibilityScreeningQuestion(question: EvaluatedQuestion) {
-  if (isCorePurposeQuestion(question)) return false;
   const metadata = questionMetadataText(question);
   const explicitEligibility =
     question.measuredRole === "eligibility" ||
@@ -694,6 +695,13 @@ export function isEligibilityScreeningQuestion(question: EvaluatedQuestion) {
   ) {
     return true;
   }
+  if (
+    questionLooksLikeStatusCheck(question) &&
+    /(?:한|해\s*본|방문한|참여한|구매한|해지한)\s*적/u.test(question.title)
+  ) {
+    return true;
+  }
+  if (isCorePurposeQuestion(question)) return false;
   if (question.disqualifiesRespondent === false) return false;
   if (question.measuredRole && question.measuredRole !== "eligibility") {
     return false;
@@ -1322,7 +1330,31 @@ export function evaluateSemanticResult(
   const inconvenienceQuestions = result.questions.filter(
     (item) => item.type === "multiple" && /불편했던\s*점/u.test(item.title),
   );
-  if (inconvenienceQuestions.length > 1) {
+  const duplicateInconvenience = inconvenienceQuestions.some((item, index) =>
+    inconvenienceQuestions.slice(index + 1).some((candidate) => {
+      const itemConstruct = normalize(item.measuredConstruct ?? item.measuredVariable ?? "");
+      const candidateConstruct = normalize(
+        candidate.measuredConstruct ?? candidate.measuredVariable ?? "",
+      );
+      const itemAspect = item.title.match(/의\s*(.+?)와\s*관련해\s*불편/u)?.[1] ?? null;
+      const candidateAspect =
+        candidate.title.match(/의\s*(.+?)와\s*관련해\s*불편/u)?.[1] ?? null;
+      if (itemAspect && candidateAspect && normalize(itemAspect) !== normalize(candidateAspect)) {
+        return false;
+      }
+      const itemHead = meaningfulTokens(item.title)[0] ?? "";
+      const candidateHead = meaningfulTokens(candidate.title)[0] ?? "";
+      return (
+        (itemConstruct.length > 0 && itemConstruct === candidateConstruct) ||
+        semanticTextMatch(item.title, [candidate.title]) ||
+        (!itemAspect &&
+          !candidateAspect &&
+          itemHead.length > 0 &&
+          normalize(itemHead) === normalize(candidateHead))
+      );
+    }),
+  );
+  if (duplicateInconvenience) {
     fatalFailures.push(
       issue(
         "DUPLICATE_CONSTRUCT",

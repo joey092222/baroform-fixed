@@ -106,6 +106,7 @@ import {
   deriveSurveyBriefFromCanonicalIntentV2,
   deriveSurveyPlanFromCanonicalIntentV2,
   normalizeCanonicalSurveyIntentV2EvidenceSpans,
+  normalizeCanonicalSurveyIntentV2ObjectRoles,
   normalizeCanonicalSurveyIntentV2ReferenceIds,
   validateCanonicalSurveyIntentV2,
   type CanonicalSurveyIntentV2,
@@ -2488,11 +2489,8 @@ function normalizeCanonicalV2GenerationMetadata(
         normalizedPaths.push(`${path}.${index}`);
         return [replacement];
       }
-      if (references.values.size === 0) {
-        normalizedPaths.push(`${path}.${index}`);
-        return [];
-      }
-      return [value];
+      normalizedPaths.push(`${path}.${index}`);
+      return [];
     });
   const questions = generation.survey.questions.map((question, index) => ({
     ...question,
@@ -2578,13 +2576,17 @@ export function parseSurveyDraftResponseV2(
     parsed.data.canonical_intent_v2,
     request.prompt,
   );
-  const referenceNormalization = normalizeCanonicalSurveyIntentV2ReferenceIds(
+  const objectRoleNormalization = normalizeCanonicalSurveyIntentV2ObjectRoles(
     evidenceNormalization.intent,
+  );
+  const referenceNormalization = normalizeCanonicalSurveyIntentV2ReferenceIds(
+    objectRoleNormalization.intent,
   );
   const intent = referenceNormalization.intent;
   recordSurveyModelOutputDiagnostics(trace, {
     normalizedInternalMetadataPaths: [
       ...evidenceNormalization.normalizedPaths,
+      ...objectRoleNormalization.normalizedPaths,
       ...referenceNormalization.normalizedPaths,
     ],
   });
@@ -2685,6 +2687,7 @@ export function parseSurveyDraftResponseV2(
   recordSurveyModelOutputDiagnostics(trace, {
     normalizedInternalMetadataPaths: [
       ...evidenceNormalization.normalizedPaths,
+      ...objectRoleNormalization.normalizedPaths,
       ...referenceNormalization.normalizedPaths,
       ...normalized.normalizedPaths,
       ...normalizedV2.normalizedPaths,

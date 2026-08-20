@@ -447,10 +447,90 @@ export function normalizeCanonicalSurveyIntentV2EvidenceSpans(
     }
   }
 
+  if (
+    intent.explicit_timeframe?.provenance === "user_explicit" &&
+    intent.explicit_timeframe.evidence[0] &&
+    intent.explicit_timeframe.value !== intent.explicit_timeframe.evidence[0].text
+  ) {
+    intent.explicit_timeframe.value = intent.explicit_timeframe.evidence[0].text;
+    normalizedPaths.push("explicit_timeframe.value");
+  }
+
   return {
     intent,
     normalizedPaths: [...new Set(normalizedPaths)],
   };
+}
+
+const purposeAttributeEntityTypes = new Set<CanonicalSurveyIntentV2["survey_objects"][number]["entity_type"]>([
+  "attitude_perception",
+  "satisfaction_evaluation",
+  "need_demand",
+  "relationship_analysis",
+]);
+
+const comparableEntityTypes = new Set<CanonicalSurveyIntentV2["survey_objects"][number]["entity_type"]>([
+  "academic_organization",
+  "organization",
+  "university_building",
+  "place_facility",
+  "service",
+  "platform",
+  "product",
+  "program_event",
+]);
+
+export function normalizeCanonicalSurveyIntentV2ObjectRoles(
+  input: CanonicalSurveyIntentV2,
+) {
+  const intent = structuredClone(input);
+  const normalizedPaths: string[] = [];
+  const hasConcreteEntity = intent.survey_objects.some((item) =>
+    comparableEntityTypes.has(item.entity_type),
+  );
+  if (hasConcreteEntity && intent.relationships.length === 0) {
+    const retained = intent.survey_objects.filter(
+      (item) => !purposeAttributeEntityTypes.has(item.entity_type),
+    );
+    if (retained.length > 0 && retained.length !== intent.survey_objects.length) {
+      const retainedIds = new Set(retained.map((item) => item.id));
+      intent.survey_objects = retained;
+      intent.activities = intent.activities.map((item, index) => {
+        const objectIds = item.object_ids.filter((id) => retainedIds.has(id));
+        if (objectIds.length !== item.object_ids.length) {
+          normalizedPaths.push(`activities.${index}.object_ids`);
+        }
+        return { ...item, object_ids: objectIds };
+      });
+      intent.purposes = intent.purposes.map((item, index) => {
+        const objectIds = item.object_ids.filter((id) => retainedIds.has(id));
+        if (objectIds.length !== item.object_ids.length) {
+          normalizedPaths.push(`purposes.${index}.object_ids`);
+        }
+        return { ...item, object_ids: objectIds };
+      });
+      normalizedPaths.push("survey_objects");
+    }
+  }
+
+  const comparableObjectCount = intent.survey_objects.filter((item) =>
+    comparableEntityTypes.has(item.entity_type),
+  ).length;
+  const relationshipHasTwoVariables = intent.relationships.some(
+    (item) =>
+      compact(item.predictor.name) !== compact(item.outcome.name) ||
+      item.comparison_targets.length > 1,
+  );
+  const targetCardinality =
+    comparableObjectCount > 1 || relationshipHasTwoVariables
+      ? "multiple"
+      : "single";
+  if (intent.target_cardinality !== targetCardinality) {
+    intent.target_cardinality = targetCardinality;
+    normalizedPaths.push("target_cardinality");
+  }
+
+  return { intent, normalizedPaths: [...new Set(normalizedPaths)] };
 }
 
 export function normalizeCanonicalSurveyIntentV2ReferenceIds(
@@ -597,14 +677,19 @@ export function validateCanonicalSurveyIntentV2(
   const preservedNegations = compact(
     [
       ...intent.negation_constraints.map((item) => item.text),
+      intent.target_population.display_text,
       ...intent.target_population.exclusion_conditions,
       ...intent.eligibility_conditions
         .filter((item) => item.polarity === "exclude")
         .map((item) => item.text),
     ].join(" "),
   );
+  const preservedNegationMeaning =
+    /(?:비이용|미이용|비참여|미참여|미구매|하지않|하지못|지않|적없|안쓴|안쓰|못쓰|해지|탈퇴)/u.test(
+      preservedNegations,
+    );
   for (const cue of rawNegations) {
-    if (!preservedNegations.includes(compact(cue))) {
+    if (!preservedNegationMeaning) {
       issues.push({
         code: "EXPLICIT_NEGATION_NOT_PRESERVED",
         path: "negation_constraints",
@@ -918,11 +1003,13 @@ export function canonicalIntentV2PromptContract() {
     "응답 대상, 참여 조건, 맥락 실체, 조사 대상, 활동, 조사 목적을 서로 바꾸거나 합치지 않는다.",
     "명시적 부정 조건, 기관·학과·학년, 기간, 실제 복수 대상은 원문 evidence span과 함께 보존한다. 비이용·비참여·미구매처럼 부정된 집단은 eligibility_conditions와 negation_constraints 양쪽에 빠짐없이 기록한다.",
     "각 evidence의 start/end는 user 메시지 원문의 UTF-16 문자열 인덱스이며 text는 해당 slice와 정확히 같아야 한다.",
-    "survey_objects는 응답자 집단이 아니라 조사할 실체·행동·구성개념이다.",
+    "survey_objects는 응답자 집단이 아니라 조사할 실체·행동·구성개념이다. 다만 구체적인 서비스·시설·제품이 이미 있으면 만족도·수요·개선 요구 같은 속성은 별도 survey_object로 늘리지 말고 purpose의 construct_names에 둔다. 관계 분석의 predictor/outcome처럼 독립적으로 측정하는 구성개념은 survey_object로 둔다.",
+    "target_cardinality는 조사 목적의 개수가 아니라 실제 병렬 비교 대상 또는 관계 변수의 개수다. 하나의 서비스에 만족도·빈도·개선 요구가 여러 개 있어도 single이다.",
     "서비스·플랫폼·제품·실제 시설만 is_usage_object=true로 둘 수 있다. 이동·경험·태도·만족도·수요는 이용 대상이 아니다.",
     "관계형 요청은 predictor와 outcome을 분리하고 두 변수를 각각 직접 측정하는 문항을 만든다.",
-    "애매한 핵심 역할을 근거 없이 채우지 말고 clarification.required=true로 반환한다. 비교할 대상의 이름이 없거나, 응답 대상만 있고 조사할 구체적 경험·행동·대상·구성개념이 없으면 설문을 추측해 만들지 않는다.",
+    "애매한 핵심 역할을 근거 없이 채우지 말고 clarification.required=true로 반환한다. 비교할 대상의 이름이 없거나, 응답 대상만 있고 조사할 구체적 경험·행동·대상·구성개념이 없으면 설문을 추측해 만들지 않는다. 조직·기관이 특정되지 않은 직원 경험·업무 환경 개선처럼 어느 조직을 평가할지 정할 수 없는 요청도 clarification으로 확인한다.",
     "survey와 survey_plan은 canonical_intent_v2만을 근거로 만들고 모든 required purpose를 포함한다.",
+    "모든 질문의 purpose_ids, object_ids, relationship_ids에는 canonical_intent_v2에 실제 존재하는 ID만 사용한다. 새 ID를 만들지 않는다.",
     "요소 N, 핵심 경험 N, 선행 값, 결과 값, 독립변수, 종속변수, 변수 A/B 같은 내부 placeholder를 쓰지 않는다.",
   ].join("\n");
 }

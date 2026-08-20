@@ -404,6 +404,20 @@ test("필수 개념 동의 표현을 선택지까지 포함해 인식한다", ()
     conceptPresent("이용 시간", "지난 7일 하루 평균 스마트폰 화면 시간"),
     true,
   );
+  assert.equal(conceptPresent("이용 빈도", "지난 한 달 동안 음식 배달을 몇 번 주문했나요?"), true);
+  assert.equal(conceptPresent("이용 의향", "앞으로 이 서비스를 다시 구독할 생각이 있나요?"), true);
+  assert.equal(conceptPresent("개선 수요", "가장 우선적으로 개선되어야 할 점"), true);
+});
+
+test("첫 경험 여부 문항은 목적 설명이 있어도 자격 확인으로 분류한다", () => {
+  assert.equal(
+    classifySurveyQuestionRole({
+      ...question("최근 두 달 동안 배송앱에서 주문한 적이 있나요?", "single", ["예", "아니요"]),
+      questionPurpose: "최근 이용 경험을 확인한다.",
+      measuredConstruct: "주문 경험",
+    }),
+    "eligibility_screening",
+  );
 });
 
 test("식별 토큰이 있는 placeholder는 전체 문구가 있을 때만 감지한다", () => {
