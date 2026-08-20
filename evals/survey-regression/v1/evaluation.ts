@@ -383,7 +383,7 @@ const statusQuestionPattern =
 const statusChoicePattern =
   /(?:경험|이용|사용|참여|방문|구매).*(?:있음|없음)|(?:예|네).*(?:아니요|아님)|해당함.*해당하지\s*않음/u;
 const substantiveStatusLookalikePattern =
-  /(?:얼마나\s*자주|몇\s*(?:번|회)|며칠|빈도|횟수|어떤\s*(?:목적|이유)|주된\s*목적|이용\s*목적)/u;
+  /(?:얼마나\s*(?:자주|만족|편리|쉬|어렵|불편|도움|필요|안전|위험|혼잡)|몇\s*(?:번|회)|며칠|빈도|횟수|어떤\s*(?:목적|이유)|주된\s*목적|이용\s*목적)/u;
 
 function questionMetadataText(question: EvaluatedQuestion) {
   return [
