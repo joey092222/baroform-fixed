@@ -1,0 +1,12 @@
+{
+  "version": "v1.2-intent-authority-audited",
+  "sourceVersion": "v1.1-audited",
+  "auditedAt": "2026-08-20T00:00:00.000Z",
+  "caseCount": 100,
+  "expectationChanges": [],
+  "notes": [
+    "모델 결과를 보기 전에 기존 100개 사례의 의미 역할 필드를 재감사했다.",
+    "명백한 dataset specification error가 발견되지 않아 기대값을 변경하지 않았다.",
+    "v1.1 원본 JSON을 내용 해시로 동결하고 v1.2 manifest에서 참조한다."
+  ]
+}

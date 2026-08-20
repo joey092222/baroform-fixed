@@ -1,0 +1,30 @@
+{
+  "version": "survey-intent-v2-static-100-v1",
+  "datasetVersion": "v1.2-intent-authority-audited",
+  "actualOpenAiCalls": 0,
+  "caseCount": 100,
+  "architecture": {
+    "semanticAuthorityVersion": "canonical-intent-v2",
+    "authoritativeIntegratedModelOutput": 1,
+    "v2DeriveFunctionsReadingRawInput": 0,
+    "legacyShadowEnabled": true,
+    "legacyInfluencedOutput": false,
+    "rawInputOccurrencesInModelRequest": 1,
+    "developerRawInputOccurrences": 0,
+    "parsedLegacyIntentPayloadsInModelRequest": 0
+  },
+  "goldenProjection": {
+    "evaluated": 100,
+    "projectionFailures": 0,
+    "consistencyFailures": 0,
+    "consistencyFailureDetails": [],
+    "relationCases": 9
+  },
+  "legacyGoldenDivergence": {
+    "targetDivergence": 21,
+    "objectDivergence": 17,
+    "purposeDivergence": 81,
+    "clarificationDivergence": 8
+  },
+  "limitation": "정적 단계는 golden canonical fixture와 pure projection 경계를 검증한다. 모델의 실제 의미 해석 정확도는 Preview targeted 단계에서만 판정한다."
+}
