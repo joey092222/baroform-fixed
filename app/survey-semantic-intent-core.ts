@@ -2053,7 +2053,7 @@ export function validateSurveyIntentCandidate(
       decisionGoalCovered = true;
     }
     if (
-      /부족|구하기\s*어려|충족되지\s*않|아쉬|불편|필요한\s*(?:품목|서비스|시설|매장|공간)/.test(
+      /부족|구하기\s*어려|충족되지\s*않|아쉬|불편|필요한\s*(?:품목|서비스|시설|매장|공간|기능|지원|조건)/.test(
         text,
       ) &&
       (contextEntities.length === 0 ||

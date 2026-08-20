@@ -1305,12 +1305,14 @@ function shouldPreferSurveyIntent(intent: SurveyIntent) {
     intent.decisionGoals.length > 0 ||
     intent.objectKind === "ability_skill" ||
     (intent.includesNonUsers &&
-      intent.objects.some((item) =>
-        ["product_or_service", "concrete_object"].includes(item.role),
-      ) &&
-      /(?:모르는|알지\s*못하는|안\s*(?:쓰는|사용하는|이용하는|방문하는|참여하는|가는)|가지\s*않는|(?:이용|사용|쓰|방문|참여|가입|참가)하지\s*않는)/.test(
-        intent.targetPopulation ?? intent.rawInput,
-      )) ||
+      ((intent.objectKind === "behavior_usage" &&
+        /하지\s*않(?:는|은)\s+.+$/u.test(intent.targetPopulation ?? "")) ||
+        (intent.objects.some((item) =>
+          ["product_or_service", "concrete_object"].includes(item.role),
+        ) &&
+          /(?:모르는|알지\s*못하는|안\s*(?:쓰는|사용하는|이용하는|방문하는|참여하는|가는)|가지\s*않(?:는|은)|(?:이용|사용|쓰|방문|참여|가입|참가|실천)하지\s*않(?:는|은))/.test(
+            intent.targetPopulation ?? intent.rawInput,
+          )))) ||
     (intent.objectKind === "attitude_perception" &&
       /(?:비이용자|비사용자|(?:사용|이용)해\s*본\s*적이\s*없는|한\s*번도\s*(?:사용|이용)하지\s*않은).*(?:포함|까지)/.test(
         intent.rawInput,
@@ -4747,9 +4749,12 @@ function nonUserIntentBlueprint(brief: SurveyBrief): SurveyBlueprint | null {
   const intent = brief.surveyIntent;
   if (
     !intent.includesNonUsers ||
-    !/(?:모르는|알지\s*못하는|안\s*(?:쓰는|사용하는|이용하는|방문하는|참여하는|가는)|가지\s*않는|(?:이용|사용|쓰|방문|참여|가입|참가)하지\s*않는)/.test(
-      intent.targetPopulation ?? "",
-    )
+    (intent.objectKind === "behavior_usage"
+      ? !/하지\s*않(?:는|은)\s+.+$/u.test(intent.targetPopulation ?? "")
+      :
+      !/(?:모르는|알지\s*못하는|안\s*(?:쓰는|사용하는|이용하는|방문하는|참여하는|가는)|가지\s*않(?:는|은)|(?:이용|사용|쓰|방문|참여|가입|참가)하지\s*않(?:는|은))/.test(
+        intent.targetPopulation ?? "",
+      ))
   ) {
     return null;
   }
@@ -4757,58 +4762,118 @@ function nonUserIntentBlueprint(brief: SurveyBrief): SurveyBlueprint | null {
   const hasConcreteUsageTarget = intent.objects.some((item) =>
     ["product_or_service", "concrete_object"].includes(item.role),
   );
-  if (!object || !hasConcreteUsageTarget) return null;
+  if (!object || (!hasConcreteUsageTarget && intent.objectKind !== "behavior_usage")) {
+    return null;
+  }
   const isVisitTarget = ["place", "facility", "university_building"].includes(
     brief.parsedSurveyContext.entityType,
   );
-  const actionLabel = isVisitTarget ? "방문" : "이용";
+  const targetPopulation = intent.targetPopulation ?? "";
+  const actionLabel = /가입하지|미가입/.test(targetPopulation)
+    ? "가입"
+    : /참여하지|비참여/.test(targetPopulation)
+      ? "참여"
+      : /구매하지|미구매/.test(targetPopulation)
+        ? "구매"
+        : intent.objectKind === "behavior_usage"
+          ? "실천"
+          : isVisitTarget
+            ? "방문"
+            : "이용";
+  const actionTarget = /^(?:가입|참여)$/.test(actionLabel)
+    ? `${object}에`
+    : labelWithParticle(object, "을", "를");
+  const contextualConstruct = intent.constructs.find(
+    (construct) =>
+      !/(?:비이용|비사용|비참여|비실천|미가입|미구매|탈퇴)\s*(?:이유|원인)|장벽|방해\s*요인|향후|의향|가능성|지원|조건/u.test(
+        construct,
+      ),
+  );
+  const contextQuestion = contextualConstruct
+    ? /적응/u.test(contextualConstruct)
+      ? question(
+          1,
+          `현재 ${contextualConstruct.replace(/\s*적응.*$/u, "")}에 어느 정도 적응했다고 느끼나요?`,
+          `${contextualConstruct} 수준을 비참여 이유와 별도로 측정함.`,
+          "scale",
+        )
+      : /인식|이미지/u.test(contextualConstruct)
+        ? question(
+            1,
+            `${object}에 대해 전반적으로 어떤 인상을 가지고 있나요?`,
+            `${contextualConstruct}을 비이용 이유와 별도로 측정함.`,
+            "scale",
+          )
+        : question(
+            1,
+            `${contextualConstruct}의 현재 수준은 어느 정도인가요?`,
+            `${contextualConstruct}을 비이용 이유와 별도로 측정함.`,
+            "scale",
+          )
+    : intent.objectKind === "behavior_usage"
+      ? question(
+          1,
+          `현재 ${actionTarget} 실천하는 빈도에 가장 가까운 답을 골라주세요.`,
+          `${object} 비실천 조건을 같은 빈도 기준으로 확인함.`,
+          "single",
+          ["전혀 하지 않음", "월 1회 미만", "월 1~3회", "주 1회", "주 2회 이상"],
+        )
+      : question(
+          1,
+          `${object}에 대해 어느 정도 알고 있나요?`,
+          "비이용 이유를 해석하기 위한 사전 인지 수준을 확인함.",
+          "single",
+          ["잘 알고 있음", "어느 정도 알고 있음", "이름만 들어봄", "거의 모름", "전혀 모름"],
+        );
 
   const plan = createSurveyPlan(intent, 7);
   const rawQuestions = [
-    question(
-      1,
-      `${object}에 대해 어느 정도 알고 있나요?`,
-      "비이용 이유를 해석하기 위한 사전 인지 수준을 확인함.",
-      "single",
-      ["잘 알고 있음", "어느 정도 알고 있음", "이름만 들어봄", "거의 모름", "전혀 모름"],
-    ),
+    contextQuestion,
     question(
       2,
-      `${labelWithParticle(object, "을", "를")} ${actionLabel}하지 않는 가장 큰 이유는 무엇인가요?`,
+      `${actionTarget} ${actionLabel}하지 않는 가장 큰 이유는 무엇인가요?`,
       "현재 비이용을 설명하는 핵심 이유를 한 가지로 구분함.",
       "single",
       ["필요성을 느끼지 못함", "이용 방법을 모름", "접근하거나 시작하기 어려움", "비용이나 조건이 부담됨", "대체 수단을 이용함", "신뢰하기 어려움", "기타"],
     ),
     question(
       3,
-      `현재 ${object}에서 부족하거나 ${actionLabel}하기 어렵다고 느끼는 점을 모두 골라주세요.`,
+      `${actionTarget} ${actionLabel}하기 어렵게 만드는 점을 모두 골라주세요.`,
       "비이용으로 이어지는 구체적인 장벽을 복수로 파악함.",
       "multiple",
       ["정보가 부족함", "사용 방법이 복잡함", "접근성이 낮음", "시간이 부족함", "비용이 부담됨", "원하는 기능이 부족함", "특별히 어려운 점 없음", "기타"],
     ),
     question(
       4,
-      `${labelWithParticle(object, "을", "를")} ${actionLabel}하기 위해 필요한 지원을 모두 골라주세요.`,
+      `${actionTarget} ${actionLabel}하기 위해 필요한 지원을 모두 골라주세요.`,
       "비이용자가 실제로 필요로 하는 지원 조건을 구분함.",
       "multiple",
       ["쉬운 사용 안내", "체험 기회", "접근 절차 간소화", "비용 지원", "상담·문의 창구", "개인 상황에 맞는 추천", "별도 지원이 필요하지 않음", "기타"],
     ),
-    question(
-      5,
-      `${object}에 가장 필요하다고 생각하는 기능이나 조건을 모두 골라주세요.`,
-      "향후 개선에서 우선할 기능과 운영 조건을 파악함.",
-      "multiple",
-      ["쉽고 명확한 안내", "간단한 이용 절차", "개인 맞춤 기능", "문제 발생 시 빠른 지원", "합리적인 비용", "접근성 개선", "기타"],
-    ),
+    intent.objectKind === "behavior_usage"
+      ? question(
+          5,
+          `앞으로 ${actionTarget} ${actionLabel}하는 데 필요한 조건을 모두 골라주세요.`,
+          "향후 실천에서 우선할 지원과 환경 조건을 파악함.",
+          "multiple",
+          ["쉽고 명확한 안내", "간단한 시작 방법", "개인 상황에 맞는 지원", "함께할 사람이나 모임", "비용 지원", "접근성 개선", "기타"],
+        )
+      : question(
+          5,
+          `${object}에 가장 필요하다고 생각하는 기능이나 조건을 모두 골라주세요.`,
+          "향후 개선에서 우선할 기능과 운영 조건을 파악함.",
+          "multiple",
+          ["쉽고 명확한 안내", "간단한 이용 절차", "개인 맞춤 기능", "문제 발생 시 빠른 지원", "합리적인 비용", "접근성 개선", "기타"],
+        ),
     question(
       6,
-      `필요한 지원과 기능이 제공된다면 앞으로 ${labelWithParticle(object, "을", "를")} ${actionLabel}할 의향이 어느 정도인가요?`,
+      `필요한 지원과 조건이 마련된다면 앞으로 ${actionTarget} ${actionLabel}할 의향이 어느 정도인가요?`,
       "개선 조건이 충족됐을 때의 실제 이용 가능성을 측정함.",
       "scale",
     ),
     question(
       7,
-      `${labelWithParticle(object, "을", "를")} ${actionLabel}하기 어려운 이유나 필요한 지원을 더 적어주세요.`,
+      `${actionTarget} ${actionLabel}하기 어려운 이유나 필요한 지원을 더 적어주세요.`,
       "선택지에 담기지 않은 비이용 맥락과 요구를 수집함.",
       "text",
       undefined,
@@ -4824,7 +4889,7 @@ function nonUserIntentBlueprint(brief: SurveyBrief): SurveyBlueprint | null {
     intentLabel: "비이용 이유·필요 조건",
     subject: object,
     title: brief.surveyTitle,
-    description: `${brief.targetRespondents}이 ${labelWithParticle(object, "을", "를")} ${actionLabel}하지 않는 이유와 장벽, 필요한 기능과 지원을 파악하기 위한 설문입니다.`,
+    description: `${brief.targetRespondents}이 ${actionTarget} ${actionLabel}하지 않는 이유와 장벽, 필요한 조건과 지원을 파악하기 위한 설문입니다.`,
     templateTitle: `${object} 비이용자 핵심 문항`,
     templateSummary: "비이용자를 실제 이용자로 가정하지 않고 이유·장벽·지원 조건을 순서대로 확인해요.",
     detectedSignals: [
@@ -4901,6 +4966,24 @@ function multipleTargetIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
         `앞으로도 ${labelWithParticle(target, "을", "를")} 계속 이용할 의향이 어느 정도인가요?`,
         `${target}의 ${dimension}을 다른 대상과 같은 척도로 측정함.`,
         "scale",
+      );
+    }
+    if (/(?:선택|선호|결정)\s*(?:이유|요인|기준)/.test(dimension)) {
+      return question(
+        questions.length + 1,
+        `${labelWithParticle(target, "을", "를")} 선택하는 주된 이유를 모두 골라주세요.`,
+        `${target}의 ${dimension}를 다른 대상과 같은 선택지로 측정함.`,
+        "multiple",
+        [
+          "위치와 접근성",
+          "가격과 비용",
+          "내용과 품질",
+          "대기·소요 시간",
+          "주변의 추천과 평판",
+          "익숙함과 개인 선호",
+          "선택한 적 없음",
+          "기타",
+        ],
       );
     }
     const dimensionLabel = dimension.replace(/\s*만족도$/, "").trim();
@@ -5943,13 +6026,15 @@ function relationalIntentBlueprint(brief: SurveyBrief): SurveyBlueprint | null {
     ),
   );
   const title = researchIntentTitle(research) ?? `${brief.researchSubject} 조사`;
+  const canonicalRelationshipTarget =
+    intent.surveyObject ?? directVariables.map((item) => item.name).join(" 및 ");
   const description =
     researchIntentDescription(research) ??
     `${brief.targetRespondents}의 핵심 변수를 직접 측정하고 관계를 분석하기 위한 설문입니다.`;
   return {
     kind: "general",
     intentLabel: "변수 관계 분석",
-    subject: directVariables.map((item) => item.name).join("과 "),
+    subject: canonicalRelationshipTarget,
     title,
     description,
     templateTitle: `${directVariables.map((item) => item.name).join("·")} 핵심 문항`,
@@ -5962,7 +6047,7 @@ function relationalIntentBlueprint(brief: SurveyBrief): SurveyBlueprint | null {
     templateQuestions: questions.slice(0, 5),
     aiQuestions: questions,
     respondentGroup: research.targetPopulation ?? brief.targetRespondents,
-    evaluationTarget: directVariables.map((item) => item.name).join("과 "),
+    evaluationTarget: canonicalRelationshipTarget,
     goal: research.analysisGoals[0]?.description ?? brief.researchGoal,
     assumptions: [],
     domain: brief.domain,
@@ -6098,9 +6183,6 @@ function semanticIntentBlueprint(brief: SurveyBrief) {
   }
   const relational = relationalIntentBlueprint(brief);
   if (relational) return relational;
-  const nonUser = nonUserIntentBlueprint(brief);
-  if (nonUser) return nonUser;
-  if (!shouldPreferSurveyIntent(brief.surveyIntent)) return null;
   if (
     brief.surveyIntent.targetCardinality === "multiple" &&
     brief.surveyIntent.measurementMode === "comparison" &&
@@ -6108,6 +6190,9 @@ function semanticIntentBlueprint(brief: SurveyBrief) {
   ) {
     return multipleTargetIntentBlueprint(brief);
   }
+  const nonUser = nonUserIntentBlueprint(brief);
+  if (nonUser) return nonUser;
+  if (!shouldPreferSurveyIntent(brief.surveyIntent)) return null;
   const primaryPurposeKind = brief.surveyIntent.purposeBlocks[0]?.kind;
   const includesUsagePurpose = brief.surveyIntent.purposeBlocks.some(
     (purpose) => purpose.kind === "usage_experience",

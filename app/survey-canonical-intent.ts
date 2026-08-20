@@ -691,6 +691,80 @@ function resolveQualifiedRespondentPurposeTail(
   };
 }
 
+function resolveNegatedBehaviorThresholdClause(
+  normalizedInput: string,
+): ResolvedRelationalClause | null {
+  const match = normalizedInput.match(
+    new RegExp(
+      `^(.{2,100}?)(?:하지\\s*않(?:는|은))\\s+(.*?${relationalAudienceHead})(?:들)?(?:의|이|가)?\\s+(.+)$`,
+    ),
+  );
+  if (!match) return null;
+
+  const qualifiedBehavior = normalize(match[1]);
+  const audienceHead = normalize(match[2]);
+  const purposeTail = normalize(match[3]);
+  if (!/(?:이유|원인|장벽|방해\s*요인|어려움|불편|의향|가능성|수요|필요)/u.test(purposeTail)) {
+    return null;
+  }
+
+  const thresholdMatch = qualifiedBehavior.match(
+    /^(?:(?:주|월|하루|일주일|한\s*주|한\s*달)\s*(?:\d+|한|두|세|네)\s*회도|한\s*번도|거의|전혀)\s+(.+)$/u,
+  );
+  if (!thresholdMatch) return null;
+  const activity = normalize(thresholdMatch[1]);
+  if (!activity || /(?:이유|요인|의향|수요|만족|인식)/u.test(activity)) {
+    return null;
+  }
+
+  const audience = normalize(`${qualifiedBehavior}하지 않는 ${audienceHead}`);
+  const purposeWithoutActivity = normalize(
+    purposeTail.replace(
+      new RegExp(
+        `^${activity.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*`,
+      ),
+      "",
+    ),
+  );
+  const corePurpose = purposeWithoutActivity || purposeTail;
+  const researchConstructs = [
+    ...new Set([
+      /(?:이유|원인|장벽|방해\s*요인|어려움|불편)/u.test(corePurpose)
+        ? "비실천 이유"
+        : corePurpose,
+      corePurpose,
+      /(?:의향|가능성|수요|필요)/u.test(corePurpose) ? null : "향후 실천 조건",
+    ].filter((item): item is string => Boolean(item))),
+  ];
+  const entity = canonicalEntity(activity, "construct", "primary_entity", [
+    normalizedInput,
+    `빈도·실천 조건이 붙은 부정 응답자: ${audience}`,
+  ]);
+
+  return {
+    audience,
+    audienceEvidence: audience,
+    primaryEntity: entity,
+    entityType: "construct",
+    objectKind: "behavior_usage",
+    activity: null,
+    activityKind: null,
+    researchGoal: `${activity} 비실천 이유와 향후 실천 조건 파악`,
+    researchConstructs,
+    surveyArchetype: "attitude",
+    isUsageObject: false,
+    includesNonUsers: true,
+    purposeKinds: researchConstructs.map((construct) =>
+      /향후|조건|수요|필요|의향/.test(construct)
+        ? "need_demand"
+        : "attitude_perception",
+    ),
+    eligibilityCondition: audience,
+    screeningRequired: true,
+    screeningReason: `${audience}에 해당하는지 확인해야 함`,
+  };
+}
+
 function shouldJoinContextAndSubject(input: {
   context: string;
   subject: string;
@@ -1167,6 +1241,11 @@ function resolveComparisonClause(
       `^(.{1,80}?)(?:와|과)\\s+(.{1,80}?)(?:을|를)\\s+(.{1,50}?)(?:는|은)\\s+(.*?${relationalAudienceHead})(?:들)?(?:의)\\s+(.+?)\\s*비교$`,
     ),
   );
+  const actorDecisionComparison = normalizedInput.match(
+    new RegExp(
+      `^(.*?${relationalAudienceHead})(?:들)?(?:이|가)\\s+(.{1,80}?)(?:와|과)\\s+(.{1,80}?)(?:을|를)\\s+((?:선택|선호|결정)하는\\s+.+?)\\s*비교$`,
+    ),
+  );
   const nominalComparison = normalizedInput.match(
     /^(.{1,80}?)(?:와|과)\s+(.{1,80}?)(?:의)\s+(.+?)\s*비교$/,
   );
@@ -1175,6 +1254,7 @@ function resolveComparisonClause(
   );
   if (
     !actorComparison &&
+    !actorDecisionComparison &&
     !qualifiedComparison &&
     !activityAudienceComparison &&
     !nominalComparison &&
@@ -1185,6 +1265,7 @@ function resolveComparisonClause(
 
   const firstTarget = stripRelationalEntityDescriptor(
     actorComparison?.[2] ??
+      actorDecisionComparison?.[2] ??
       qualifiedComparison?.[1] ??
       activityAudienceComparison?.[1] ??
       nominalComparison?.[1] ??
@@ -1193,6 +1274,7 @@ function resolveComparisonClause(
   );
   const secondTarget = stripRelationalEntityDescriptor(
     actorComparison?.[3] ??
+      actorDecisionComparison?.[3] ??
       qualifiedComparison?.[2] ??
       activityAudienceComparison?.[2] ??
       nominalComparison?.[2] ??
@@ -1202,18 +1284,24 @@ function resolveComparisonClause(
   if (!firstTarget || !secondTarget || firstTarget === secondTarget) return null;
 
   const activityVerb = normalize(
-    actorComparison?.[4] ?? activityAudienceComparison?.[3] ?? "",
+    actorComparison?.[4] ??
+      actorDecisionComparison?.[4]?.match(/^(선택|선호|결정)/)?.[1] ??
+      activityAudienceComparison?.[3] ??
+      "",
   );
   const audienceHead = normalize(qualifiedComparison?.[3] ?? "");
   const constructExpression =
     actorComparison?.[5] ??
+    actorDecisionComparison?.[4] ??
     qualifiedComparison?.[4] ??
     activityAudienceComparison?.[5] ??
     nominalComparison?.[3] ??
     (impactComparison?.[3]
       ? `${normalize(impactComparison[3])}에 미치는 영향`
       : "만족도");
-  const constructs = splitRelationalConstructs(constructExpression);
+  const constructs = splitRelationalConstructs(constructExpression).map((construct) =>
+    construct.replace(/(?:선택|선호|결정)하는\s*이유/u, "선택 이유"),
+  );
   const targetValues = [firstTarget, secondTarget];
   const inferredTargetTypes = targetValues.map((target) =>
     inferRelationalEntityType(
@@ -1224,6 +1312,7 @@ function resolveComparisonClause(
   if (
     nominalComparison &&
     !actorComparison &&
+    !actorDecisionComparison &&
     !qualifiedComparison &&
     !activityAudienceComparison &&
     !impactComparison &&
@@ -1238,7 +1327,7 @@ function resolveComparisonClause(
     const inferredType = inferRelationalEntityType(target, usageCue);
     const entityType =
       inferredType === "unknown"
-        ? activityAudienceComparison || impactComparison
+        ? actorDecisionComparison || activityAudienceComparison || impactComparison
           ? "construct"
           : "service"
         : inferredType;
@@ -1262,8 +1351,8 @@ function resolveComparisonClause(
     }
     return `${withAccusativeParticle(targetPhrase)} 모두 경험해 본 응답자`;
   })();
-  const audience = actorComparison
-    ? normalize(actorComparison[1])
+  const audience = actorComparison || actorDecisionComparison
+    ? normalize(actorComparison?.[1] ?? actorDecisionComparison?.[1] ?? "")
     : activityAudienceComparison
       ? normalize(
           `${firstTarget}와 ${withAccusativeParticle(secondTarget)} ${activityAudienceComparison[3]}는 ${activityAudienceComparison[4]}`,
@@ -1276,8 +1365,8 @@ function resolveComparisonClause(
 
   return {
     audience,
-    audienceEvidence: actorComparison
-      ? normalize(actorComparison[1])
+    audienceEvidence: actorComparison || actorDecisionComparison
+      ? normalize(actorComparison?.[1] ?? actorDecisionComparison?.[1] ?? "")
       : activityAudienceComparison
         ? normalize(activityAudienceComparison[0])
         : qualifiedComparison
@@ -1886,6 +1975,9 @@ function resolveRelationalClause(
   if (frontedPurpose) return frontedPurpose;
   const prequalifiedPurpose = resolvePrequalifiedPurposeClause(normalizedInput);
   if (prequalifiedPurpose) return prequalifiedPurpose;
+  const negatedBehaviorThreshold =
+    resolveNegatedBehaviorThresholdClause(normalizedInput);
+  if (negatedBehaviorThreshold) return negatedBehaviorThreshold;
   const qualifiedPurposeTail = resolveQualifiedRespondentPurposeTail(normalizedInput);
   if (qualifiedPurposeTail) return qualifiedPurposeTail;
   const qualifiedAudience = resolveQualifiedAudienceClause(normalizedInput);
@@ -2910,6 +3002,9 @@ export function parseCanonicalSurveyIntent(
     normalizedInput,
     initialContext.audience ?? surveyIntent.targetPopulation,
   );
+  const prefersResearchRelation =
+    surveyIntent.researchIntent.relationCueDetected &&
+    surveyIntent.researchIntent.relations.length > 0;
   const preservesCompositeDecision =
     surveyIntent.intentMode === "composite" ||
     (surveyIntent.objectKind === "decision_support" &&
@@ -2944,6 +3039,7 @@ export function parseCanonicalSurveyIntent(
     generationContext = reconciled.context;
   } else if (
     !preservesCompositeDecision &&
+    !prefersResearchRelation &&
     !preservesExplicitActivityObject &&
     relationalClause
   ) {

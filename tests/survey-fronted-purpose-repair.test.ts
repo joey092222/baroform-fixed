@@ -339,3 +339,74 @@ test("관계 오류 repair는 원문 밖 서비스를 제거하고 eligibility�
     [],
   );
 });
+
+test("복수 결과 관계 설문의 repair는 해당 문항만 canonical 변수로 복구한다", () => {
+  const input =
+    "대학생의 월 용돈 규모가 외식 빈도와 충동구매에 미치는 영향";
+  const canonical = parseCanonicalSurveyIntent(input, "research");
+  const fallback = analyzeSurveyPrompt(input, canonical);
+  const questions = fallback.aiQuestions.map((item) => ({
+    ...item,
+    options: item.options ? [...item.options] : undefined,
+  }));
+  assert.ok(questions[1]);
+  questions[1] = {
+    ...questions[1],
+    title: "별빛 멤버십 서비스를 이용한 적이 있나요?",
+    measuredConstruct: "별빛 멤버십 서비스 이용 경험",
+    measuredVariable: "별빛 멤버십 서비스 이용 여부",
+  };
+  const modelSurvey = {
+    ...fallback,
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
+  };
+  const repaired = repairInvalidQuestions({
+    survey: modelSurvey,
+    intent: canonical.surveyIntent,
+    plan: createSurveyPlan(canonical.surveyIntent, 7),
+    violations: [
+      {
+        code: "SEMANTIC_RELATION_INVALID",
+        severity: "repairable",
+        message: "원문에 없는 서비스 이용 관계가 추가되었습니다.",
+        questionId: 2,
+        evidence: "별빛 멤버십 서비스",
+        origin: "question",
+      },
+    ],
+    getFallback: () => fallback,
+  });
+
+  assert.deepEqual(repaired.repairedQuestionIds, [2]);
+  assert.deepEqual(repaired.preservedQuestionIds, [1, 3, 4, 5, 6, 7]);
+  assert.equal(
+    repaired.survey.aiQuestions[1]?.title,
+    fallback.aiQuestions[1]?.title,
+  );
+  for (const index of [0, 2, 3, 4, 5, 6]) {
+    assert.deepEqual(
+      repaired.survey.aiQuestions[index],
+      modelSurvey.aiQuestions[index],
+    );
+  }
+  assert.doesNotMatch(
+    repaired.survey.aiQuestions.map((item) => item.title).join(" "),
+    /별빛\s*멤버십/,
+  );
+  assert.deepEqual(
+    validateSurveyIntentCandidate(canonical.surveyIntent, {
+      questions: repaired.survey.aiQuestions,
+    }),
+    [],
+  );
+  assert.deepEqual(
+    validateSurvey(
+      input,
+      parseSurveyBrief(input, canonical),
+      repaired.survey,
+      canonical.surveyIntent.surveyObject ?? undefined,
+    ),
+    [],
+  );
+});

@@ -105,6 +105,29 @@ test("관계형 fallback은 canonical SurveyPlan의 필수 측정 차원을 그�
   );
 });
 
+test("하나의 선행 변수가 복수 결과에 미치는 영향은 결과 변수를 각각 보존한다", () => {
+  const prompt =
+    "대학생의 월 용돈 규모가 외식 빈도와 충동구매에 미치는 영향";
+  const canonical = parseCanonicalSurveyIntent(prompt, "research");
+  const blueprint = analyzeSurveyPrompt(prompt, canonical);
+  const variableNames = canonical.researchIntent.variables
+    .filter((variable) => variable.scope === "respondent_level")
+    .map((variable) => variable.name);
+  const titles = blueprint.aiQuestions.map((question) => question.title);
+
+  assert.equal(canonical.surveyArchetype, "relationship_analysis");
+  assert.equal(canonical.objectKind, "relationship_analysis");
+  assert.deepEqual(variableNames, ["월 용돈 규모", "외식 빈도", "충동구매"]);
+  assert.equal(canonical.researchIntent.relations.length, 2);
+  assert.ok(titles.some((title) => /월 용돈 규모/.test(title)));
+  assert.ok(titles.some((title) => /외식.*얼마나 자주|외식 빈도/.test(title)));
+  assert.ok(titles.some((title) => /충동구매/.test(title)));
+  assert.doesNotMatch(
+    titles.join(" "),
+    /외식 빈도와 충동구매(?:는|가).*한(?:\s|$)/u,
+  );
+});
+
 test("실제 POST 경로도 canonical plan fallback으로 관계 설문을 완성한다", async () => {
   const previousKey = process.env.OPENAI_API_KEY;
   const previousMockMode = process.env.AI_MOCK_MODE;

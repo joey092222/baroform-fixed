@@ -550,3 +550,64 @@ test("부정 응답자 관형절과 후행 복수 목적을 survey object와 분
     }
   }
 });
+
+test("비참여 응답자의 독립 목적은 이용 경험 템플릿으로 평탄화하지 않는다", () => {
+  const input = "동아리 안 한 신입생한테 학교 적응이랑 가입 안 한 이유 물어보기";
+  const canonical = parseCanonicalSurveyIntent(input);
+  const blueprint = analyzeSurveyPrompt(input, canonical);
+  const corpus = blueprint.aiQuestions.map((question) => question.title).join(" ");
+
+  assert.equal(blueprint.respondentGroup, "동아리에 참여하지 않은 신입생");
+  assert.equal(blueprint.evaluationTarget, "동아리");
+  assert.match(corpus, /학교.*적응/);
+  assert.match(corpus, /동아리.*(?:참여|가입)하지 않는.*이유/);
+  assert.doesNotMatch(corpus, /동아리.*이용한 적|핵심 경험|요소\s*\d/u);
+});
+
+test("빈도 임계값이 붙은 비실천자는 응답 조건과 행동 대상을 분리한다", () => {
+  const fixtures = [
+    {
+      input: "주 1회도 운동하지 않는 성인의 운동 방해 요인",
+      audience: "주 1회도 운동하지 않는 성인",
+      object: "운동",
+    },
+    {
+      input: "월 1회도 독서하지 않는 직장인의 독서 장벽",
+      audience: "월 1회도 독서하지 않는 직장인",
+      object: "독서",
+    },
+  ];
+
+  for (const fixture of fixtures) {
+    const canonical = parseCanonicalSurveyIntent(fixture.input);
+    const blueprint = analyzeSurveyPrompt(fixture.input, canonical);
+    const corpus = blueprint.aiQuestions.map((question) => question.title).join(" ");
+
+    assert.equal(canonical.surveyIntent.targetPopulation, fixture.audience);
+    assert.equal(canonical.surveyIntent.surveyObject, fixture.object);
+    assert.equal(canonical.surveyIntent.includesNonUsers, true);
+    assert.match(canonical.surveyIntent.purpose ?? "", /비실천 이유/);
+    assert.match(corpus, /실천하지 않는 가장 큰 이유|실천하기 어렵게 만드는/);
+    assert.doesNotMatch(corpus, /성인의.*요인.*선택|핵심 경험|요소\s*\d/u);
+  }
+});
+
+test("응답자가 두 대상을 선택하는 이유와 만족도를 비교하면 대상별 같은 척도를 만든다", () => {
+  const input =
+    "연세대 학생이 한경관 학식과 고를샘 식당을 선택하는 이유와 만족도 비교";
+  const canonical = parseCanonicalSurveyIntent(input);
+  const blueprint = analyzeSurveyPrompt(input, canonical);
+  const titles = blueprint.aiQuestions.map((question) => question.title);
+
+  assert.equal(canonical.surveyIntent.targetPopulation, "연세대 학생");
+  assert.deepEqual(canonical.surveyIntent.evaluationTargets, [
+    "한경관 학식",
+    "고를샘 식당",
+  ]);
+  assert.deepEqual(canonical.surveyIntent.constructs, ["선택 이유", "만족도"]);
+  assert.ok(titles.some((title) => /한경관 학식.*선택하는.*이유/.test(title)));
+  assert.ok(titles.some((title) => /고를샘 식당.*선택하는.*이유/.test(title)));
+  assert.ok(titles.some((title) => /한경관 학식.*전반적으로.*만족/.test(title)));
+  assert.ok(titles.some((title) => /고를샘 식당.*전반적으로.*만족/.test(title)));
+  assert.doesNotMatch(titles.join(" "), /이유와 만족도 비교.*만족/u);
+});

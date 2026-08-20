@@ -102,6 +102,23 @@ test("경영대 시설과 경영대학 시설의 표기 차이를 허용한다",
   );
 });
 
+test("복수 구성개념의 및·과·와 표기를 같은 대상으로 인식한다", () => {
+  assert.equal(
+    evaluationTargetsSemanticallyMatch(
+      "학업 몰입 및 심리적 안녕",
+      "학업 몰입과 심리적 안녕",
+    ),
+    true,
+  );
+  assert.equal(
+    evaluationTargetsSemanticallyMatch(
+      "결과 분석 및 만족도",
+      "결과 분석과 만족도",
+    ),
+    true,
+  );
+});
+
 test("단일 대상의 복수 목적을 여러 조사 대상으로 분리하지 않는다", () => {
   const facility = entity(
     "경영대 시설",

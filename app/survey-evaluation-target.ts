@@ -49,6 +49,33 @@ function targetMatchScore(
   if (!canonical || !candidate) return 0;
   if (canonical === candidate) return 100;
 
+  // The canonical parser joins coordinated constructs with "및", while the
+  // model or a verified source may use the natural Korean particles "과/와".
+  // Treat those spellings as equivalent only when one side explicitly uses
+  // the coordination marker. This avoids globally stripping "과" from words
+  // such as "결과" or "학과".
+  const coordinatedVariants = (value: string) => {
+    const parts = cleanTarget(value)
+      .toLocaleLowerCase("ko-KR")
+      .split(/\s+및\s+/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (parts.length < 2) return new Set<string>();
+    return new Set(
+      [" 및 ", "과 ", "와 "].map((separator) =>
+        normalizeEvaluationTargetForComparison(parts.join(separator)),
+      ),
+    );
+  };
+  const canonicalVariants = coordinatedVariants(canonicalTarget);
+  const candidateVariants = coordinatedVariants(candidateTarget ?? "");
+  if (
+    canonicalVariants.has(candidate) ||
+    candidateVariants.has(canonical)
+  ) {
+    return 98;
+  }
+
   // A verified label may add an affiliation or a harmless type descriptor to
   // the user-facing canonical target (e.g. "대우관" -> "연세대 대우관").
   if (candidate.length > canonical.length && candidate.includes(canonical)) {

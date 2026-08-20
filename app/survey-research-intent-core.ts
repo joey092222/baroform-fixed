@@ -371,33 +371,64 @@ function uniqueVariables(variables: ResearchVariable[]) {
   );
 }
 
+function coordinatedOutcomeLabels(label: string) {
+  const labels = label
+    .split(/\s*(?:와|과|및)\s*/u)
+    .map(cleanVariableLabel)
+    .filter((item) => item.length >= 2);
+  return labels.length >= 2 ? labels : [cleanVariableLabel(label)];
+}
+
 function outcomeVariables(label: string, sourceExpression: string) {
-  const metricType = derivedMetricType(label);
-  if (!metricType) {
-    return {
-      respondentVariables: [makeVariable(label, "outcome", sourceExpression)],
-      metric: null,
-    };
-  }
-  const directName = directVariableName(label);
-  const primary = makeVariable(directName, "outcome", sourceExpression);
-  const respondentVariables = [primary];
-  if (/자취\s*비율/.test(label)) {
-    respondentVariables.push(
-      makeVariable("자취 여부", "outcome", sourceExpression, {
-        measurementLevel: "binary",
+  const groups = coordinatedOutcomeLabels(label).map((outcomeLabel) => {
+    const metricType = derivedMetricType(outcomeLabel);
+    if (!metricType) {
+      return {
+        respondentVariables: [
+          makeVariable(outcomeLabel, "outcome", sourceExpression),
+        ],
+        metric: null,
+      };
+    }
+    const directName = directVariableName(outcomeLabel);
+    const primary = makeVariable(directName, "outcome", sourceExpression);
+    const respondentVariables = [primary];
+    if (/자취\s*비율/.test(outcomeLabel)) {
+      respondentVariables.push(
+        makeVariable("자취 여부", "outcome", sourceExpression, {
+          measurementLevel: "binary",
+          directlyAskable: false,
+        }),
+      );
+    }
+    const metricVariable = makeVariable(
+      outcomeLabel,
+      "derived_metric",
+      sourceExpression,
+      {
+        scope: "aggregate_derived",
+        measurementLevel: "numeric",
         directlyAskable: false,
-      }),
+      },
     );
-  }
-  const metricVariable = makeVariable(label, "derived_metric", sourceExpression, {
-    scope: "aggregate_derived",
-    measurementLevel: metricType === "mean" ? "numeric" : "numeric",
-    directlyAskable: false,
+    return {
+      respondentVariables,
+      metric: {
+        metricType,
+        metricVariable,
+        sourceVariableIds: respondentVariables.map((item) => item.id),
+        primaryVariableId: primary.id,
+      },
+    };
   });
   return {
-    respondentVariables,
-    metric: { metricType, metricVariable },
+    respondentVariables: uniqueVariables(
+      groups.flatMap((group) => group.respondentVariables),
+    ),
+    relationVariables: groups.map((group) => group.respondentVariables[0]),
+    metrics: groups
+      .map((group) => group.metric)
+      .filter((metric): metric is NonNullable<typeof metric> => Boolean(metric)),
   };
 }
 
@@ -445,52 +476,60 @@ export function parseSurveyResearchIntentCore(
     predictor,
     ...outcome.respondentVariables,
   ]);
-  const primaryOutcome = outcome.respondentVariables[0];
-  const metricVariable = outcome.metric?.metricVariable ?? null;
+  const outcomeRelationVariables = outcome.relationVariables;
+  const metricVariables = outcome.metrics.map((item) => item.metricVariable);
   const variables = uniqueVariables([
     ...respondentVariables,
-    ...(metricVariable ? [metricVariable] : []),
+    ...metricVariables,
   ]);
-  const relation: ResearchRelation = {
-    id: stableId("relation", parts.expression),
-    type: parts.type,
-    fromVariableId: predictor.id,
-    toVariableId: primaryOutcome.id,
-    sourceExpression: parts.expression,
-  };
-  const derivedMetrics: DerivedMetric[] = outcome.metric && metricVariable
-    ? [
-        {
-          id: stableId("metric", metricVariable.name),
-          name: metricVariable.name,
-          metricType: outcome.metric.metricType,
-          sourceVariableIds: outcome.respondentVariables.map((item) => item.id),
-          groupingVariableIds: [predictor.id],
-        },
-      ]
-    : [];
-  const analysisDescription = derivedMetrics[0]
-    ? `${predictor.name} 구간별 ${derivedMetrics[0].name} 비교`
-    : `${predictor.name}과 ${primaryOutcome.name}의 관계 분석`;
-  const goals: ResearchAnalysisGoal[] = [
-    {
-      id: stableId("goal", analysisDescription),
+  const relations: ResearchRelation[] = outcomeRelationVariables.map(
+    (outcomeVariable) => ({
+      id: stableId("relation", `${parts.expression}:${outcomeVariable.name}`),
       type: parts.type,
-      description: analysisDescription,
-      variableIds: [predictor.id, primaryOutcome.id],
+      fromVariableId: predictor.id,
+      toVariableId: outcomeVariable.id,
+      sourceExpression: parts.expression,
+    }),
+  );
+  const derivedMetrics: DerivedMetric[] = outcome.metrics.map((metric) => ({
+    id: stableId("metric", metric.metricVariable.name),
+    name: metric.metricVariable.name,
+    metricType: metric.metricType,
+    sourceVariableIds: metric.sourceVariableIds,
+    groupingVariableIds: [predictor.id],
+  }));
+  const goals: ResearchAnalysisGoal[] = outcomeRelationVariables.flatMap(
+    (outcomeVariable) => {
+      const metricDefinition = outcome.metrics.find(
+        (item) => item.primaryVariableId === outcomeVariable.id,
+      );
+      const analysisDescription = metricDefinition
+        ? `${predictor.name} 구간별 ${metricDefinition.metricVariable.name} 비교`
+        : `${withAndParticle(predictor.name)} ${outcomeVariable.name}의 관계 분석`;
+      return [
+        {
+          id: stableId("goal", analysisDescription),
+          type: parts.type,
+          description: analysisDescription,
+          variableIds: [predictor.id, outcomeVariable.id],
+        },
+        {
+          id: stableId(
+            "goal",
+            `${predictor.name}-${outcomeVariable.name}-cross-tab`,
+          ),
+          type: "cross_tabulation" as const,
+          description: `${withAndParticle(predictor.name)} ${outcomeVariable.name} 교차 분석`,
+          variableIds: [predictor.id, outcomeVariable.id],
+        },
+      ];
     },
-    {
-      id: stableId("goal", `${predictor.name}-${primaryOutcome.name}-cross-tab`),
-      type: "cross_tabulation",
-      description: `${predictor.name}과 ${primaryOutcome.name} 교차 분석`,
-      variableIds: [predictor.id, primaryOutcome.id],
-    },
-  ];
+  );
 
   return {
     targetPopulation: options.targetPopulation ?? null,
     variables,
-    relations: [relation],
+    relations,
     derivedMetrics,
     analysisGoals: goals,
     explicitTimeframe: options.explicitTimeframe ?? null,
