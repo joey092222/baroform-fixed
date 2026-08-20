@@ -204,10 +204,45 @@ test("전체 집단과 이용자 집단의 범위 차이를 동의 표현으로 
 
 test("필수 개념 동의 표현을 선택지까지 포함해 인식한다", () => {
   assert.equal(conceptPresent("비이용 이유", "친환경 세제를 사지 않는 이유"), true);
+  assert.equal(
+    conceptPresent(
+      "비이용 이유",
+      "다온 플랫폼에 참여하지 않은 가장 큰 이유는 무엇인가요?",
+    ),
+    true,
+  );
+  assert.equal(
+    conceptPresent("비이용 이유", "행사에 참여하지 않았던 이유를 알려주세요"),
+    true,
+  );
   assert.equal(conceptPresent("이용 빈도", "최근 한 달 동안 얼마나 자주 방문했나요?"), true);
   assert.equal(conceptPresent("학습 효과", "취업 준비에 얼마나 도움이 되었나요?"), true);
   assert.equal(conceptPresent("개선 요구", "가장 먼저 바뀌었으면 하는 점"), true);
   assert.equal(conceptPresent("대상 비교", "어떤 프로그램에 참여했나요?"), true);
+});
+
+test("비이용 목적은 자연스러운 과거 관형형으로 표현돼도 누락으로 오판하지 않는다", () => {
+  const evaluated = evaluateSemanticResult(
+    frontedCase("fronted-noisy-005"),
+    result({
+      finalRespondentGroup: "다온 플랫폼을 안 쓰는 직장인",
+      finalEvaluationTarget: "다온 플랫폼",
+      title: "다온 플랫폼에 참여하지 않는 직장인 조사",
+      description: "참여하지 않은 이유와 앞으로 고려하게 될 조건을 조사합니다.",
+      questions: [
+        question("현재 직장에 다니고 있나요?", "single", ["예", "아니요"]),
+        question("다온 플랫폼에 참여해 본 적이 있나요?", "single", ["예", "아니요"]),
+        question("다온 플랫폼에 대해 얼마나 알고 있었나요?", "scale"),
+        question("다온 플랫폼에 참여하지 않은 가장 큰 이유는 무엇인가요?", "single"),
+        question("참여 여부를 판단하려면 어떤 정보가 더 필요한가요?", "multiple"),
+        question("어떤 조건이면 참여를 고려하시겠나요?", "single"),
+        question("바뀌거나 보완됐으면 하는 점을 적어주세요", "text"),
+      ],
+    }),
+  );
+  const codes = new Set(evaluated.fatalFailures.map((item) => item.code));
+  assert.equal(codes.has("REQUIRED_PURPOSE_MISSING"), false);
+  assert.equal(codes.has("REQUIRED_QUESTION_CONCEPT_MISSING"), false);
 });
 
 test("비이용 조건과 개선 요구가 보존된 설문을 부정 손실로 오판하지 않는다", () => {
