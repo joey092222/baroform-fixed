@@ -458,21 +458,46 @@ function generationIntegrityIssues(
   ) {
     issues.push("설문 계획의 최소·최대 경로 문항 수가 실제 구조와 맞지 않습니다.");
   }
+  // 아래 두 항목은 설문 구조의 정합성이 아니라 모델의 자기보고다.
+  // 체크가 false라는 것은 "확신하지 못했다"는 뜻이고, 그 이유로 설문
+  // 전체를 폐기하면 정상 문항까지 사라진다. 주의 표시로 남긴다.
+  const cautions: string[] = [];
   if (
     generation.research.search_status === "failed" &&
     generation.status !== "ready_with_caution"
   ) {
-    issues.push("검색 실패 결과는 주의 상태로 표시해야 합니다.");
+    cautions.push("공개 자료 검색이 실패해 주의 상태로 표시했습니다.");
   }
+  // 품질 체크는 두 종류가 섞여 있다. 설문 자체의 정합성(분기 유효성,
+  // 문항 수, 중복 제거)은 틀리면 못 쓰는 설문이므로 거부한다. 반면 조사
+  // 완결성(검색 수행 여부, 근거 확보)은 확신 수준의 문제이고, 이미
+  // ready_with_caution 과 researchLimitations 로 표현할 수 있다.
+  const researchCompletenessChecks = new Set([
+    "all_named_entities_searched",
+    "all_specific_claims_grounded",
+    "mobile_readability_checked",
+    "respondent_path_simulation_passed",
+  ]);
   const failedQualityChecks = Object.entries(generation.quality_check)
     .filter(([key, value]) => key !== "warnings" && value !== true)
     .map(([key]) => key);
-  if (failedQualityChecks.length > 0) {
+  const blockingFailures = failedQualityChecks.filter(
+    (key) => !researchCompletenessChecks.has(key),
+  );
+  const cautionFailures = failedQualityChecks.filter((key) =>
+    researchCompletenessChecks.has(key),
+  );
+  if (blockingFailures.length > 0) {
     issues.push(
-      `완료되지 않은 품질 검사가 있습니다: ${failedQualityChecks.join(", ")}`,
+      `완료되지 않은 품질 검사가 있습니다: ${blockingFailures.join(", ")}`,
     );
   }
-  return [...new Set(issues)];
+  if (cautionFailures.length > 0) {
+    cautions.push(
+      `모델이 확인을 완료하지 못한 항목: ${cautionFailures.join(", ")}`,
+    );
+  }
+  return { issues: [...new Set(issues)], cautions: [...new Set(cautions)] };
 }
 
 function structuredGenerationToLegacy(
@@ -780,6 +805,20 @@ function naturalQuestionTitle(
   }
 }
 
+// 빈도 문항은 기준 기간이 필수다(survey-intent.ts의 "이용 빈도에 기준 기간이
+// 없습니다" 검증). 반면 사용자가 기간을 적지 않았는데 "최근 3개월" 같은 구간을
+// 넣으면 INVENTED_TIMEFRAME으로 잡힌다. 두 규칙을 동시에 만족시키려면
+// 구간을 발명하지 않는 습관 표현("평소")을 기본값으로 채운다.
+const frequencyQuestionPattern = /(?:얼마나\s*자주|이용\s*빈도|사용\s*빈도)/;
+const referencePeriodPattern =
+  /(?:평소|최근|지난|하루|일주일|한\s*달|한달|1개월|3개월|학기|일\s*동안|주\s*동안|월\s*동안)/;
+
+function withDefaultReferencePeriod(title: string) {
+  if (!frequencyQuestionPattern.test(title)) return title;
+  if (referencePeriodPattern.test(title)) return title;
+  return `평소 ${title}`;
+}
+
 function normalizeQuestion(value: unknown, id: number): SurveyQuestion {
   if (!isRecord(value)) throw new Error("AI 질문 형식이 올바르지 않습니다.");
   const type = cleanText(value.type, 20) as SurveyQuestion["type"];
@@ -799,7 +838,9 @@ function normalizeQuestion(value: unknown, id: number): SurveyQuestion {
   ) {
     throw new Error("AI 질문 유형이 올바르지 않습니다.");
   }
-  const title = naturalQuestionTitle(cleanText(value.title, 170), type);
+  const title = withDefaultReferencePeriod(
+    naturalQuestionTitle(cleanText(value.title, 170), type),
+  );
   const reason = formatQuestionReason(cleanText(value.reason, 300));
   if (title.length < 2 || reason.length < 2) {
     throw new Error("AI 질문 내용이 비어 있습니다.");
@@ -1108,7 +1149,17 @@ function assertSurveyDepth(
   questions: SurveyQuestion[],
   expected: number,
   expectsReferences: boolean,
+  trustModel = false,
 ) {
+  // trustModel 모드에서는 설계 심사를 폐기 사유로 쓰지 않고 주의로만 남긴다.
+  const cautions: string[] = [];
+  const judge = (message: string, sink: string[]) => {
+    if (trustModel) {
+      sink.push(message);
+      return;
+    }
+    throw new Error(message);
+  };
   if (!isRecord(rawDesignPlan)) {
     throw new Error("AI 설문 설계 근거가 비어 있습니다.");
   }
@@ -1123,7 +1174,7 @@ function assertSurveyDepth(
     axes.map((axis) => axis.replace(/\s+/g, "").toLocaleLowerCase("ko-KR")),
   );
   if (normalizedAxes.size < 2) {
-    throw new Error("AI 설문 분석축이 충분히 구체적이지 않습니다.");
+    judge("AI 설문 분석축이 충분히 구체적이지 않습니다.", cautions);
   }
 
   const allowedRoles = new Set<string>(questionRoles);
@@ -1136,9 +1187,12 @@ function assertSurveyDepth(
   ) {
     throw new Error("AI 문항 역할 설계가 올바르지 않습니다.");
   }
-  const minimumRoles = expected === 1 ? 1 : expected >= 7 ? 5 : expected >= 5 ? 3 : 2;
+  // 퇴화한 설문(모든 문항이 같은 역할)은 계속 거부한다. 다만 7문항에
+  // 서로 다른 역할 5개를 요구하면 정상적인 만족도 설문(세부 차원 3문항)까지
+  // 폐기되므로 기준을 낮춘다.
+  const minimumRoles = expected === 1 ? 1 : expected >= 5 ? 3 : 2;
   if (new Set(roles).size < minimumRoles) {
-    throw new Error("AI 설문 문항의 역할이 단조롭습니다.");
+    judge("AI 설문 문항의 역할이 단조롭습니다.", cautions);
   }
 
   const grounding = Array.isArray(rawDesignPlan.referenceGrounding)
@@ -1174,45 +1228,52 @@ function assertSurveyDepth(
     }
   }
 
+  // 문항 유형 구성도 응답 품질에 영향은 주지만 정합성 문제가 아니다.
+  // 앱의 로컬 템플릿 자체가 척도형을 연속으로 내보내므로, 모델 출력만
+  // 이 기준으로 폐기하면 더 나쁜 결과로 대체된다.
   const types = questions.map((question) => question.type);
   const typeSet = new Set(types);
+  const hasChoice = types.some(
+    (type) => type === "single" || type === "multiple" || type === "dropdown",
+  );
   if (expected >= 8) {
-    const hasChoice = types.some(
-      (type) =>
-        type === "single" || type === "multiple" || type === "dropdown",
-    );
     if (
       !typeSet.has("scale") ||
       (!typeSet.has("text") && !typeSet.has("shortText")) ||
       !hasChoice
     ) {
-      throw new Error("AI 설문 문항 유형이 단조롭습니다.");
+      judge("AI 설문 문항 유형이 단조롭습니다.", cautions);
     }
   } else if (expected >= 6) {
-    const hasChoice = types.some(
-      (type) =>
-        type === "single" || type === "multiple" || type === "dropdown",
-    );
     if (typeSet.size < 2 || !hasChoice) {
-      throw new Error("AI 설문 문항 유형이 단조롭습니다.");
+      judge("AI 설문 문항 유형이 단조롭습니다.", cautions);
     }
   } else if (expected >= 4 && typeSet.size < 2) {
-    throw new Error("AI 설문 문항 유형이 단조롭습니다.");
+    judge("AI 설문 문항 유형이 단조롭습니다.", cautions);
   }
 
   if (expected >= 7) {
     const scaleCount = types.filter((type) => type === "scale").length;
     if (scaleCount > Math.ceil(expected * 0.6)) {
-      throw new Error("AI 설문이 척도형 문항에 지나치게 치우쳤습니다.");
+      judge("AI 설문이 척도형 문항에 지나치게 치우쳤습니다.", cautions);
     }
+    // 연속 길이만으로 폐기하지 않는다. 유형이 한 종류뿐인 퇴화 설문은
+    // 위의 typeSet 검사와 척도 편중 검사가 이미 거부하므로, 이 규칙은
+    // 고유한 보호를 주지 못하면서 정상적인 만족도 설문(척도 연속 구성)만
+    // 폐기했다. 앱의 로컬 템플릿도 척도를 연속으로 내보낸다.
+    let longestRun = 1;
     let currentRun = 1;
     for (let index = 1; index < types.length; index += 1) {
       currentRun = types[index] === types[index - 1] ? currentRun + 1 : 1;
-      if (currentRun >= 4) {
-        throw new Error("같은 문항 유형이 지나치게 반복됩니다.");
-      }
+      longestRun = Math.max(longestRun, currentRun);
+    }
+    if (longestRun >= 4) {
+      cautions.push(
+        `같은 문항 유형이 ${longestRun}개 연속으로 반복됩니다.`,
+      );
     }
   }
+  return cautions;
 }
 
 function contextualCoverageRules(
@@ -1499,9 +1560,33 @@ export function repairInvalidQuestions({
   const fallbackQuestions = resizeSurveyQuestions(
     fallback.aiQuestions,
     questionCount,
+    survey.subject || survey.evaluationTarget,
   );
   const repairedQuestionIds: number[] = [];
   const preservedQuestionIds: number[] = [];
+  // 교체 문항이 살아남는 문항과 겹치면 2차 검증에서 "앞선 문항과 중복"으로
+  // 다시 탈락하고, 앱이 스스로 만든 중복 때문에 요청 전체가 실패한다.
+  const repairTitleKey = (value: string) =>
+    value.replace(/[\s?！!.,·]/g, "").toLocaleLowerCase("ko-KR");
+  const claimedTitles = new Set(
+    survey.aiQuestions
+      .filter((_, index) => !invalidIndexes.has(index))
+      .map((question) => repairTitleKey(question.title)),
+  );
+  const pickFallbackQuestion = (index: number) => {
+    const candidates = [
+      fallbackQuestions[index],
+      ...fallbackQuestions,
+      fallbackQuestions.at(-1),
+    ];
+    for (const candidate of candidates) {
+      if (!candidate) continue;
+      if (claimedTitles.has(repairTitleKey(candidate.title))) continue;
+      claimedTitles.add(repairTitleKey(candidate.title));
+      return candidate;
+    }
+    return fallbackQuestions[index] ?? fallbackQuestions.at(-1) ?? null;
+  };
   const aiQuestions = survey.aiQuestions.map((question, index) => {
     if (!invalidIndexes.has(index)) {
       preservedQuestionIds.push(question.id);
@@ -1510,7 +1595,7 @@ export function repairInvalidQuestions({
     repairedQuestionIds.push(question.id);
     return planBasedReplacement(
       question,
-      fallbackQuestions[index] ?? fallbackQuestions.at(-1) ?? question,
+      pickFallbackQuestion(index) ?? question,
       plan,
       intent,
       index,
@@ -1560,6 +1645,27 @@ function replacementForPlanBlock(
   };
 }
 
+const eligibilityQuestionPattern =
+  /(?:이용|사용|방문|참여|구매|수강)(?:한|해\s*본)?\s*(?:적|경험)|경험이\s*있나요|경험에\s*가장\s*가까운/;
+
+function withEligibilityBeforeFrequency(questions: SurveyQuestion[]) {
+  const frequencyIndex = questions.findIndex((question) =>
+    frequencyQuestionPattern.test(question.title),
+  );
+  if (frequencyIndex < 0) return questions;
+  const eligibilityIndex = questions.findIndex(
+    (question, index) =>
+      index > frequencyIndex &&
+      eligibilityQuestionPattern.test(question.title) &&
+      !frequencyQuestionPattern.test(question.title),
+  );
+  if (eligibilityIndex < 0) return questions;
+  const reordered = [...questions];
+  const [eligibility] = reordered.splice(eligibilityIndex, 1);
+  reordered.splice(frequencyIndex, 0, eligibility);
+  return reordered.map((question, index) => ({ ...question, id: index + 1 }));
+}
+
 export function restoreMissingRequiredPlanBlocks({
   survey,
   intent,
@@ -1586,6 +1692,7 @@ export function restoreMissingRequiredPlanBlocks({
   const fallbackQuestions = resizeSurveyQuestions(
     getFallback().aiQuestions,
     survey.aiQuestions.length,
+    survey.subject || survey.evaluationTarget,
   );
   const requiredBlocks = plan.blocks.filter(
     (block) =>
@@ -1695,6 +1802,14 @@ export function restoreMissingRequiredPlanBlocks({
   };
 }
 
+// 실험용 플래그. 기본값은 현재 동작(의미 검증 + 수리 수행).
+// BAROFORM_TRUST_MODEL=true 로 켜면 계약 검사(스키마·문항 수·선택지·분기
+// 정합성)만 남기고, 설계 심사(의미 위반 판정)와 문항 교체(수리)를 생략한다.
+// 대조 실험을 위한 것이며 제품 기본값을 바꾸지 않는다.
+function trustModelOutput() {
+  return process.env.BAROFORM_TRUST_MODEL === "true";
+}
+
 export function parseSurveyDraftResponse(
   rawPayload: unknown,
   prompt: string,
@@ -1725,6 +1840,10 @@ export function parseSurveyDraftResponse(
   }
 
   let structuredGeneration: SurveyGeneration | null = null;
+
+  // 정합성 문제는 아니지만 사용자에게 알릴 만한 설계 주의 사항.
+
+  const qualityCautions: string[] = [];
   recordSurveyValidation(trace, "output-schema-validation");
   const decodedSurvey = isRecord(decoded) && isRecord(decoded.survey)
     ? decoded.survey
@@ -1745,7 +1864,7 @@ export function parseSurveyDraftResponse(
     const preNormalizationIssues = generationIntegrityIssues(
       structuredResult.data,
       questionCount,
-    );
+    ).issues;
     const normalized = normalizeModelGeneratedSurveyMetadata(
       structuredResult.data,
       questionCount,
@@ -1755,10 +1874,12 @@ export function parseSurveyDraftResponse(
       normalizedInternalMetadataPaths: normalized.normalizedPaths,
       questionStructureIssues: preNormalizationIssues,
     });
-    const integrityIssues = generationIntegrityIssues(
+    const integrity = generationIntegrityIssues(
       structuredGeneration,
       questionCount,
     );
+    const integrityIssues = integrity.issues;
+    qualityCautions.push(...integrity.cautions);
     if (integrityIssues.length > 0) {
       recordSurveySchemaDiagnostics(trace, {
         stage: "generation_integrity_validation",
@@ -1892,7 +2013,9 @@ export function parseSurveyDraftResponse(
   });
   const brief = parseSurveyBrief(prompt);
   recordSurveyValidation(trace, "semantic-validation");
-  const semanticViolations = shouldEnforceSurveyIntentValidation(
+  const semanticViolations = trustModelOutput()
+    ? []
+    : shouldEnforceSurveyIntentValidation(
     brief.surveyIntent,
   )
     ? validateSurveyIntentCandidate(brief.surveyIntent, {
@@ -1927,11 +2050,14 @@ export function parseSurveyDraftResponse(
   });
   try {
     assertQuestionQuality(normalizedAiQuestions, questionCount);
-    assertSurveyDepth(
-      result.designPlan,
-      normalizedAiQuestions,
-      questionCount,
-      expectsReferences,
+    qualityCautions.push(
+      ...assertSurveyDepth(
+        result.designPlan,
+        normalizedAiQuestions,
+        questionCount,
+        expectsReferences,
+        trustModelOutput(),
+      ),
     );
     if (semanticViolations.length === 0) {
       assertExplicitMeasurementCoverage(prompt, normalizedAiQuestions);
@@ -2065,7 +2191,11 @@ export function parseSurveyDraftResponse(
     if (localFallback) return localFallback;
     const rawFallback = analyzeSurveyPrompt(prompt);
     const fallbackQuestions = applyTargetGradeToQuestions(
-      resizeSurveyQuestions(rawFallback.aiQuestions, questionCount),
+      resizeSurveyQuestions(
+        rawFallback.aiQuestions,
+        questionCount,
+        rawFallback.subject || rawFallback.evaluationTarget,
+      ),
       targetGrade,
       questionCount,
     ).map((item) => ({
@@ -2096,7 +2226,9 @@ export function parseSurveyDraftResponse(
       item.includes(":") ? item.slice(0, item.indexOf(":")) : item,
     ),
   });
-  const shouldRepair =
+  const shouldRepair = trustModelOutput()
+    ? false
+    :
     semanticViolations.length > 0 ||
     (validationIssues.length > 0 &&
       shouldEnforceSurveyIntentValidation(brief.surveyIntent));
@@ -2118,20 +2250,21 @@ export function parseSurveyDraftResponse(
     });
     repairedQuestionIds = repair.repairedQuestionIds;
     preservedQuestionIds = repair.preservedQuestionIds;
-    if (process.env.NODE_ENV !== "production") {
-      console.info("survey-generation-partial-repair", {
-        trigger:
-          semanticViolations.length > 0
-            ? "semantic-violation"
-            : "quality-validation",
-        violationCodes: semanticViolations.map((item) => item.code),
-        initialQualityIssues: validationIssues.length,
-        repairedQuestionIds: repair.repairedQuestionIds,
-        preservedQuestionIds: repair.preservedQuestionIds,
-        questionCount,
-        objectKind: brief.surveyIntent.objectKind,
-      });
-    }
+    // 모델 문항이 교체된 사실은 프로덕션에서도 남겨야 한다. 이 로그가 개발
+    // 환경에만 있어서, 사용자가 "이상한 설문이 나왔다"고 해도 서버 로그로
+    // 재현할 수 없었다. 문항 본문 대신 코드와 ID만 남긴다.
+    console.info("survey-generation-partial-repair", {
+      trigger:
+        semanticViolations.length > 0
+          ? "semantic-violation"
+          : "quality-validation",
+      violationCodes: semanticViolations.map((item) => item.code),
+      initialQualityIssues: validationIssues.length,
+      repairedQuestionIds: repair.repairedQuestionIds,
+      preservedQuestionIds: repair.preservedQuestionIds,
+      questionCount,
+      objectKind: brief.surveyIntent.objectKind,
+    });
   }
 
   const requiredCoverageRepair = restoreMissingRequiredPlanBlocks({
@@ -2141,6 +2274,23 @@ export function parseSurveyDraftResponse(
     getFallback: getPlanBasedFallback,
   });
   blueprint = requiredCoverageRepair.survey;
+  // 수리로 문항을 갈아끼운 경우에만 순서를 바로잡는다. 자격·경험 확인이
+  // 빈도 문항보다 뒤로 밀리면 이용 여부를 모른 채 이용 빈도를 묻게 되는데,
+  // 지금까지 이 순서는 검증 규칙이 어떤 문항을 쳐냈는지에 따라 우연히
+  // 정해져 있었다. 수리가 없었던 모델 출력의 순서는 그대로 존중한다.
+  if (
+    repairedQuestionIds.length > 0 ||
+    requiredCoverageRepair.repairedQuestionIds.length > 0
+  ) {
+    const reordered = withEligibilityBeforeFrequency(blueprint.aiQuestions);
+    if (reordered !== blueprint.aiQuestions) {
+      blueprint = {
+        ...blueprint,
+        aiQuestions: reordered,
+        templateQuestions: reordered.slice(0, 5),
+      };
+    }
+  }
   recordSurveyPlanCoverageTrace(trace, {
     initial: requiredCoverageRepair.initialCoverage,
     final: requiredCoverageRepair.finalCoverage,
@@ -2215,6 +2365,17 @@ export function parseSurveyDraftResponse(
     });
     throw new SurveyValidationError(validationIssues);
   }
+  if (qualityCautions.length > 0) {
+    console.info("survey-generation-quality-caution", {
+      cautions: qualityCautions,
+    });
+    recordSurveySemanticDiagnostics(trace, {
+      qualityViolationCodes: [
+        ...(trace?.qualityViolationCodes ?? []),
+        ...qualityCautions,
+      ],
+    });
+  }
   recordSurveyPostprocessTrace(trace, {
     final: blueprint.aiQuestions.map((item) => item.title),
   });
@@ -2233,7 +2394,8 @@ export function parseSurveyDraftResponse(
 
   const status =
     structuredGeneration?.status === "ready_with_caution" ||
-    researchClassification !== "verified"
+    researchClassification !== "verified" ||
+    qualityCautions.length > 0
       ? "ready_with_caution"
       : "ready";
   markSurveyGenerationStage(trace, "response-ready");

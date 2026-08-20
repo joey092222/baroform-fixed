@@ -639,7 +639,11 @@ function applyDraftSettings(
     );
   const templateCount = Math.min(5, questionCount);
   const aiQuestions = applyTargetGradeToQuestions(
-    resizeSurveyQuestions(blueprint.aiQuestions, questionCount),
+    resizeSurveyQuestions(
+      blueprint.aiQuestions,
+      questionCount,
+      blueprint.subject || blueprint.evaluationTarget,
+    ),
     targetGrade,
     questionCount,
   ).map((question) => ({
@@ -661,7 +665,11 @@ function applyDraftSettings(
       `응답 학년 · ${targetGrade}`,
     ],
     templateQuestions: applyTargetGradeToQuestions(
-      resizeSurveyQuestions(blueprint.templateQuestions, templateCount),
+      resizeSurveyQuestions(
+        blueprint.templateQuestions,
+        templateCount,
+        blueprint.subject || blueprint.evaluationTarget,
+      ),
       targetGrade,
       templateCount,
     ).map((question) => ({
@@ -1175,7 +1183,9 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     ),
   });
   markSurveyGenerationStage(trace, "intent-analysis");
-  if (process.env.NODE_ENV !== "production") {
+  // 입력 원문은 남기지 않고 길이·분류 결과만 남긴다. 짧은 입력에서 의도
+  // 분석이 어떻게 갈렸는지가 생성 품질 문제의 1차 단서다.
+  {
     console.info("survey-generation-request", {
       requestId,
       clientRequestId,
@@ -1816,6 +1826,34 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         trace.failureStage ?? trace.stage,
       );
     };
+    // 모델이 응답을 마쳤는데 앱의 자체 검증이 거부한 경우는, 의도 종류와
+    // 무관하게 계획 기반 설문으로 응답한다. 이전에는 composite 의도만
+    // fallback을 받고 나머지는 422로 나가서, 같은 실패가 "설문이 나온다" 와
+    // "에러가 뜬다" 로 갈렸다.
+    if (upstreamCompleted && error instanceof SurveyValidationError) {
+      if (!trace.parseFailureStage) {
+        recordSurveySchemaDiagnostics(trace, {
+          stage:
+            error.category === "schema"
+              ? "survey_output_schema_validation"
+              : "survey_semantic_validation",
+          issues: [],
+        });
+      }
+      console.warn("survey-generation-output-fallback", {
+        requestId,
+        name: error.name,
+        category: error.category,
+        issues: error.issues.slice(0, 8),
+      });
+      return respondWithPlanBasedFallback(
+        "model-output-rejected",
+        intent.intentMode === "composite"
+          ? "composite_plan_fallback"
+          : outputRejectionFallbackSource(trace, error),
+      );
+    }
+
     if (
       upstreamCompleted &&
       intent.intentMode === "composite" &&
@@ -1870,8 +1908,15 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         searchUsed: false,
         outcome: "validation-error",
       });
+      // 내부 검증 코드(PLAN_REQUIRED_BLOCK_MISSING 등)는 사용자에게 의미가
+      // 없고 진단 정보만 노출한다. 상세 내용은 로그와 trace에만 남긴다.
+      console.warn("survey-generation-validation-error", {
+        requestId,
+        category: error.category,
+        issues: error.issues.slice(0, 8),
+      });
       return tracedError(
-        `생성된 설문 구조를 안전하게 적용하지 못했어요. ${error.issues.join(" ")}`,
+        "생성된 설문 구조를 안전하게 적용하지 못했어요. 잠시 후 다시 시도해주세요.",
         error.category === "schema"
           ? "OUTPUT_SCHEMA_INVALID"
           : "SEMANTIC_VALIDATION_FAILED",

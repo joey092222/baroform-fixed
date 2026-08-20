@@ -101,6 +101,27 @@ function cleanAudience(value: string) {
 }
 
 function splitAudience(value: string) {
+  // "X를 이용하는 재학생을 대상으로 Y를 조사" 형태. 이 패턴이 없으면
+  // 문장 전체가 subject로 남아 primaryEntity가 의뢰문이 되어버린다.
+  const explicitAudience = value.match(/^(.*?)(?:을|를)\s*대상으로\s*(.+)$/);
+  if (explicitAudience) {
+    const prefix = explicitAudience[1].trim();
+    const remainder = explicitAudience[2].trim();
+    // 뒤에 실제 조사 주제가 없으면("1학년을 대상으로 조사") 이 패턴을 쓰지
+    // 않는다. 그대로 두면 조사 대상 이름이 "조사"가 된다.
+    const remainderTopic = remainder
+      .replace(/\s*(?:설문\s*조사|설문|조사)\s*$/g, "")
+      .trim();
+    if (remainderTopic.length >= 2) {
+      const audienceTail = prefix.match(
+        new RegExp(`(${audienceHead}(?:들)?)$`),
+      );
+      return {
+        audience: cleanAudience(audienceTail ? audienceTail[1] : prefix),
+        subject: remainder,
+      };
+    }
+  }
   const objectThenAudience = value.match(
     new RegExp(`^(.+?)(?:의)\\s+(${audienceHead}(?:들)?)(?:의)?\\s+(.+)$`),
   );
@@ -134,6 +155,33 @@ function splitAudience(value: string) {
     };
   }
   return { audience: null, subject: value.trim() };
+}
+
+// 조사 대상 이름에서 의뢰문 잔여물을 걷어낸다. 이 값이 문항 검증의
+// 기준(정답지)으로 쓰이므로, "교내 셔틀버스 조사"처럼 꼬리가 붙어 있으면
+// 이후 판정이 연쇄적으로 어긋난다.
+const subjectConstructHead =
+  /\s(?:이용|사용|참여|방문|수강|구매)(?=\s|$)|\s(?:경험|만족도|불편|개선|인식|태도|수요|현황|실태)/;
+
+// 끝의 조사는 제거하지 않는다. "와이파이"·"서울"·"마을"처럼 조사와 같은
+// 글자로 끝나는 명사를 훼손하고, 실제로 필요한 절단은 아래 명사구 절단이
+// 모두 처리한다.
+function cleanSurveySubject(value: string) {
+  let cleaned = value.trim();
+  for (let pass = 0; pass < 3; pass += 1) {
+    cleaned = cleaned
+      .replace(/\s*(?:설문\s*조사|설문|조사)$/g, "")
+      .replace(/\s*(?:에\s*대한|에\s*관한|와\s*관련한|과\s*관련한|에\s*대해|에\s*관해)$/g, "")
+      .replace(/[,·]$/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  // 대상 이름 뒤에 조사 내용이 이어지면 앞의 명사구만 남긴다.
+  const headMatch = cleaned.match(subjectConstructHead);
+  if (headMatch && headMatch.index !== undefined && headMatch.index >= 2) {
+    cleaned = cleaned.slice(0, headMatch.index).trim();
+  }
+  return cleaned || value.trim();
 }
 
 function cleanEntity(value: string) {
@@ -247,6 +295,31 @@ function mixedContext(
   };
 }
 
+type UsageEntityKind = Extract<
+  SurveyContextEntityType,
+  "platform" | "product" | "service" | "facility"
+>;
+
+// 대상이 "이용하는 것"인지는 사용자가 이용·사용 동사를 썼는지와 무관하게
+// 대상 자체의 종류로 정해진다. 한 줄 입력("학생식당 만족도 조사")에는 동사가
+// 없으므로, 동사에 의존하면 식당·도서관이 추상 개념으로 분류되고
+// lintSurveyQuestionSemantics가 정상적인 이용·빈도 문항을 위반으로 잡는다.
+function classifyUsageEntityKind(text: string): UsageEntityKind | null {
+  if (/웹툰|플랫폼|사이트|SNS|OTT|포털|커뮤니티/.test(text)) return "platform";
+  if (/제품|기기|상품|굿즈/.test(text)) return "product";
+  if (
+    /시설|공간|도서관|식당|카페|건물|강의실|열람실|매점|편의점|헬스장|체육관|기숙사|주차장|라운지|셔틀|버스|정류장/.test(
+      text,
+    )
+  ) {
+    return "facility";
+  }
+  if (/서비스|앱|어플|도구|프로그램|홈페이지|웹사이트|시스템|플랫폼/.test(text)) {
+    return "service";
+  }
+  return null;
+}
+
 export function parseSurveyGenerationContext(
   rawUserInput: string,
 ): ParsedSurveyContext {
@@ -275,26 +348,19 @@ export function parseSurveyGenerationContext(
     };
   }
 
-  const usageObject = cleanEntity(subject);
-  const isPlatform = /웹툰|플랫폼|사이트|SNS|OTT/.test(subject);
-  const isProduct = /제품|기기|상품/.test(subject);
-  const isService = /서비스|앱|어플|도구|프로그램/.test(subject);
+  const usageObject = cleanSurveySubject(cleanEntity(subject));
+  const subjectEntityKind = classifyUsageEntityKind(subject);
   if (
     /(?:이용|사용|구매|방문)\s*(?:경험|현황|행태|실태|빈도)/.test(
       normalizedInput,
     )
   ) {
-    const entityType: SurveyContextEntityType = isPlatform
-      ? "platform"
-      : isProduct
-        ? "product"
+    const entityType: SurveyContextEntityType =
+      subjectEntityKind === "platform" || subjectEntityKind === "product"
+        ? subjectEntityKind
         : verified?.entityType === "building"
           ? "university_building"
-          : /시설|공간|도서관|식당|카페|건물/.test(subject)
-            ? "facility"
-            : isService
-              ? "service"
-              : "service";
+          : subjectEntityKind ?? "service";
     const surveyArchetype: SurveyArchetype =
       entityType === "platform"
         ? "platform_usage"
@@ -353,16 +419,27 @@ export function parseSurveyGenerationContext(
       : /인식|태도|의견|생각/.test(subject)
         ? "attitude"
         : "attitude";
-  const primaryEntity = subject
-    .replace(/\s*(?:만족도|만족|평가|인식|태도|의견|생각|수요|필요)(?:\s*조사)?$/g, "")
-    .trim() || subject;
+  const primaryEntity =
+    cleanSurveySubject(
+      subject.replace(
+        /\s*(?:만족도|만족|평가|인식|태도|의견|생각|수요|필요)(?:\s*조사)?$/g,
+        "",
+      ),
+    ) || subject;
+  // 조사 목적어(만족도/인식/수요)를 걷어낸 뒤 남은 대상 이름으로 종류를 판정한다.
+  // "학생식당 만족도 조사"의 대상은 만족도가 아니라 학생식당이다.
+  const entityKind = classifyUsageEntityKind(primaryEntity);
+  const isUniversityBuilding = verified?.entityType === "building";
+  const entityType: SurveyContextEntityType = isUniversityBuilding
+    ? "university_building"
+    : entityKind ?? "construct";
   return {
     rawUserInput,
     normalizedInput,
     audience,
     primaryEntity,
-    entityType: verified?.entityType === "building" ? "university_building" : "construct",
-    activity: null,
+    entityType,
+    activity: entityKind || isUniversityBuilding ? `${primaryEntity} 이용` : null,
     researchGoal:
       surveyArchetype === "demand"
         ? `${primaryEntity}에 대한 필요와 수요 파악`
@@ -376,7 +453,8 @@ export function parseSurveyGenerationContext(
           ? ["전반적 만족도", "세부 평가", "불편", "개선 수요"]
           : ["인지", "태도", "의견", "우려", "개선 수요"],
     surveyArchetype,
-    isUsageObject: false,
+    // 시설·서비스·플랫폼·제품은 프롬프트에 동사가 없어도 이용 대상이다.
+    isUsageObject: Boolean(entityKind) || isUniversityBuilding,
   };
 }
 
