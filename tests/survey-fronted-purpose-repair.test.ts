@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   repairInvalidQuestions,
+  restoreMissingRequiredPlanBlocks,
 } from "../app/survey-ai";
 import { parseCanonicalSurveyIntent } from "../app/survey-canonical-intent";
 import {
@@ -11,7 +12,10 @@ import {
   parseSurveyBrief,
   validateSurvey,
 } from "../app/survey-intent";
-import { createSurveyPlan } from "../app/survey-planning";
+import {
+  createSurveyPlan,
+  evaluateSurveyPlanCoverage,
+} from "../app/survey-planning";
 import { validateSurveyIntentCandidate } from "../app/survey-semantic-intent";
 
 test("fronted purpose fallback은 응답자 존재가 아니라 실제 적격 조건을 확인한다", () => {
@@ -129,6 +133,84 @@ test("만족도 coverage는 중요도·재이용 의향을 직접 만족도로 �
     }),
     true,
   );
+});
+
+test("구어체 복수 세부평가는 대상·차원·전반적 만족도를 분리한다", () => {
+  const input = "맛나샘 학생들 맛 서비스 둘다 어떤지 불편도";
+  const canonical = parseCanonicalSurveyIntent(input);
+  const fallback = analyzeSurveyPrompt(input, canonical);
+  const plan = createSurveyPlan(canonical.surveyIntent, 7);
+
+  assert.equal(canonical.surveyIntent.targetPopulation, "맛나샘 이용 학생");
+  assert.equal(canonical.surveyIntent.surveyObject, "맛나샘");
+  assert.deepEqual(canonical.surveyIntent.constructs, [
+    "맛 만족도",
+    "서비스 만족도",
+    "전반적 만족도",
+    "불편",
+  ]);
+  assert.ok(plan.blocks.some((item) => item.id === "overall-satisfaction"));
+  assert.ok(
+    fallback.aiQuestions.some((item) =>
+      directlyMeasuresOverallSatisfaction(item),
+    ),
+  );
+});
+
+test("세부 만족도만 있는 설문은 보조 문항 하나를 전반적 만족도로 교체한다", () => {
+  const inputs = [
+    "누리 앱의 기능 만족도와 불편 조사",
+    "솔빛관 시설 만족도와 불편 조사",
+    "새길 행사 만족도와 불편 조사",
+    "통계학 수업 만족도와 불편 조사",
+    "한결 제품 만족도와 불편 조사",
+  ];
+
+  for (const input of inputs) {
+    const canonical = parseCanonicalSurveyIntent(input);
+    const fallback = analyzeSurveyPrompt(input, canonical);
+    const plan = createSurveyPlan(canonical.surveyIntent, 7);
+    const directIndex = fallback.aiQuestions.findIndex((item) =>
+      directlyMeasuresOverallSatisfaction(item),
+    );
+    assert.ok(directIndex >= 0, input);
+    const questions = fallback.aiQuestions.map((item) => ({
+      ...item,
+      options: item.options ? [...item.options] : undefined,
+    }));
+    questions[directIndex] = {
+      ...questions[directIndex],
+      title: "세부 기능의 편리함에 얼마나 만족하시나요?",
+      measuredConstruct: "기능 편리성 만족도",
+      measuredVariable: "기능 편리성 만족도",
+      questionPurpose: "세부 기능의 편리성을 평가함.",
+      reason: "세부 기능의 편리성을 평가함.",
+    };
+    const modelSurvey = {
+      ...fallback,
+      templateQuestions: questions.slice(0, 5),
+      aiQuestions: questions,
+    };
+    const initial = evaluateSurveyPlanCoverage(plan, modelSurvey.aiQuestions);
+    assert.ok(initial.missingRequiredBlockIds.includes("overall-satisfaction"), input);
+
+    const repaired = restoreMissingRequiredPlanBlocks({
+      survey: modelSurvey,
+      intent: canonical.surveyIntent,
+      plan,
+      getFallback: () => fallback,
+    });
+
+    assert.equal(repaired.survey.aiQuestions.length, questions.length, input);
+    assert.equal(repaired.repairedQuestionIds.length, 1, input);
+    assert.ok(
+      repaired.survey.aiQuestions.some((item) =>
+        directlyMeasuresOverallSatisfaction(item),
+      ),
+      input,
+    );
+    assert.deepEqual(repaired.finalCoverage.missingRequiredBlockIds, [], input);
+  }
 });
 
 test("중복 문항 repair는 canonical 위치의 조사 목적을 복구하고 정상 문항을 보존한다", () => {

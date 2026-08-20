@@ -1779,6 +1779,76 @@ function resolveNoisyAudienceObjectPurposeClause(
   };
 }
 
+function resolveNamedObjectStudentEvaluationClause(
+  normalizedInput: string,
+): ResolvedRelationalClause | null {
+  const match = normalizedInput.match(
+    /^(.{2,60}?)\s+(학생|이용자|사용자|고객|주민)(?:들)?\s+(.+)$/u,
+  );
+  if (!match) return null;
+
+  const object = normalize(match[1]);
+  const audienceHead = normalize(match[2]);
+  const rawPurpose = normalize(match[3]);
+  if (
+    !object ||
+    !/(?:둘\s*다|모두).*(?:어떤지|어떠한지|괜찮|만족)/u.test(rawPurpose)
+  ) {
+    return null;
+  }
+
+  const dimensionText = rawPurpose
+    .split(/(?:둘\s*다|모두)/u)[0]
+    ?.replace(/(?:의|에\s*대한)$/u, "")
+    .trim();
+  const dimensions = (dimensionText ?? "")
+    .split(/\s*(?:와|과|및|,)\s*|\s+/u)
+    .map(normalize)
+    .filter(
+      (item) =>
+        item.length > 0 &&
+        !/(?:만족|평가|어떤지|어떠한지|괜찮|불편|개선)/u.test(item),
+    )
+    .map((item) => `${item} 만족도`);
+  const constructs = [
+    ...dimensions,
+    "전반적 만족도",
+    ...(/불편/u.test(rawPurpose) ? ["불편"] : []),
+    ...(/개선|바라는/u.test(rawPurpose) ? ["개선 수요"] : []),
+  ].filter((item, index, items) => items.indexOf(item) === index);
+  const inferredType = inferRelationalEntityType(object);
+  const entityType = inferredType === "unknown" ? "service" : inferredType;
+  const audience =
+    audienceHead === "학생"
+      ? `${object} 이용 학생`
+      : audienceHead === "이용자" || audienceHead === "사용자"
+        ? `${object} ${audienceHead}`
+        : `${object} 이용 ${audienceHead}`;
+
+  return {
+    audience,
+    audienceEvidence: normalize(`${object} ${audienceHead}`),
+    primaryEntity: canonicalEntity(
+      object,
+      entityType,
+      "primary_entity",
+      [match[0], "고유 대상 뒤의 응답자와 구어체 복수 평가 차원을 분리"],
+    ),
+    entityType,
+    objectKind: "satisfaction_evaluation",
+    activity: null,
+    activityKind: null,
+    researchGoal: `${object}의 ${constructs.join(", ")} 파악`,
+    researchConstructs: constructs,
+    surveyArchetype: "satisfaction",
+    isUsageObject: false,
+    includesNonUsers: false,
+    purposeKinds: /불편|개선|바라는/u.test(rawPurpose)
+      ? ["satisfaction", "need_demand"]
+      : ["satisfaction"],
+  };
+}
+
 function resolveRelationalClause(
   normalizedInput: string,
 ): ResolvedRelationalClause | null {
@@ -1811,6 +1881,9 @@ function resolveRelationalClause(
   }
   const concretePossessive = resolveConcretePossessiveClause(normalizedInput);
   if (concretePossessive) return concretePossessive;
+  const namedObjectStudentEvaluation =
+    resolveNamedObjectStudentEvaluationClause(normalizedInput);
+  if (namedObjectStudentEvaluation) return namedObjectStudentEvaluation;
   const noisyAudiencePurpose = resolveNoisyAudienceObjectPurposeClause(normalizedInput);
   if (noisyAudiencePurpose) return noisyAudiencePurpose;
 

@@ -96,7 +96,9 @@ type SatisfactionQuestionLike = Pick<
 
 export function directlyMeasuresOverallSatisfaction(
   question: SatisfactionQuestionLike,
+  evaluationTarget?: string | null,
 ) {
+  void evaluationTarget;
   const title = question.title.trim();
   const metadata = [
     question.measuredConstruct,
@@ -117,6 +119,7 @@ export function directlyMeasuresOverallSatisfaction(
     /(?:전반적|종합적)?\s*(?:으로\s*)?(?:얼마나\s*)?만족|만족도(?:는|가|를|을)?\s*(?:어느|얼마나)|만족(?:한|하신)\s*정도/.test(
       title,
     );
+  const hasOverallCue = /전반적|종합적|전체적/.test(title);
   const asksOverallEvaluation =
     /(?:전반적|종합적).*(?:어땠|어떠셨|평가)|(?:어땠|어떠셨)나요/.test(title);
   const hasPositiveSatisfactionAnchor =
@@ -125,11 +128,15 @@ export function directlyMeasuresOverallSatisfaction(
     /불만족|만족(?:하지|스럽지)\s*않|전혀\s*만족|좋지\s*않/.test(labels);
   const hasBalancedSatisfactionScale =
     hasPositiveSatisfactionAnchor && hasNegativeSatisfactionAnchor;
-  const metadataDeclaresSatisfaction = /전반적\s*만족|만족도/.test(metadata);
+  const supportsSatisfactionResponse =
+    question.type === "scale" || hasBalancedSatisfactionScale;
+  void metadata;
 
   return (
-    asksDirectSatisfaction ||
-    ((asksOverallEvaluation || metadataDeclaresSatisfaction) &&
+    (asksDirectSatisfaction &&
+      supportsSatisfactionResponse &&
+      hasOverallCue) ||
+    (asksOverallEvaluation &&
       (question.type === "scale" || hasBalancedSatisfactionScale))
   );
 }
@@ -6546,11 +6553,15 @@ export function validateSurvey(
 
   const requiresDirectSatisfactionMeasure =
     brief.surveyIntent.objectKind === "satisfaction_evaluation" ||
-    brief.surveyIntent.constructs.some((construct) => /만족/.test(construct)) ||
+    brief.surveyIntent.constructs.some((construct) =>
+      /(?:전반적|종합적|전체적)\s*만족/.test(construct),
+    ) ||
     brief.surveyIntent.purposeBlocks.some((block) => block.kind === "satisfaction");
   if (
     requiresDirectSatisfactionMeasure &&
-    !blueprint.aiQuestions.some(directlyMeasuresOverallSatisfaction)
+    !blueprint.aiQuestions.some((item) =>
+      directlyMeasuresOverallSatisfaction(item, expectedEvaluationTarget),
+    )
   ) {
     const indirectSatisfactionQuestion = blueprint.aiQuestions.find((item) => {
       const optionText = item.options?.join(" ") ?? "";

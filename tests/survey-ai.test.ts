@@ -2957,8 +2957,16 @@ test("모델의 넓은 target과 대상 없는 안내문은 canonical audience�
     result.blueprint.aiQuestions.map((item) => item.title.replace(/[.!?]+$/g, "")),
     questions.map((item) => item.title.replace(/[.!?]+$/g, "")),
   );
+  assert.equal(result.blueprint.aiQuestions[0]?.type, "scale");
   assert.equal(diagnostics.modelCallCount, 0);
-  assert.equal(diagnostics.repairCount, 0);
+  assert.deepEqual(diagnostics.semanticViolationCodes, []);
+  assert.deepEqual(diagnostics.qualityViolationCodes, []);
+  assert.deepEqual(diagnostics.repairedQuestionIds, ["1"]);
+  assert.deepEqual(diagnostics.initialMissingRequiredBlockIds, [
+    "overall-satisfaction",
+  ]);
+  assert.deepEqual(diagnostics.finalMissingRequiredBlockIds, []);
+  assert.equal(diagnostics.repairCount, 1);
 });
 
 test("AI 수정 요청은 현재 설문 전체를 보존 가능한 구조로 전달한다", () => {

@@ -359,6 +359,35 @@ function normalizedCoverageText(question: SurveyPlanCoverageQuestion) {
     .trim();
 }
 
+function directlyMeasuresOverallSatisfaction(
+  question: SurveyPlanCoverageQuestion,
+  block: SurveyPlanBlock,
+) {
+  void block;
+  const title = question.title.replace(/\s+/g, " ").trim();
+  const labels = (question.options ?? []).join(" ");
+  const asksSatisfaction =
+    /(?:전반적|종합적|전체적)?\s*(?:으로\s*)?(?:얼마나\s*)?만족|만족도(?:는|가|를|을)?\s*(?:어느|얼마나)/u.test(
+      title,
+    );
+  const hasOverallCue = /전반적|종합적|전체적/u.test(title);
+  const asksOverallEvaluation =
+    /(?:전반적|종합적|전체적).*(?:어땠|어떠셨|평가)|(?:전반적|종합적|전체적).*어떤가/u.test(
+      title,
+    );
+  const balancedSatisfactionOptions =
+    /만족/u.test(labels) && /불만족|만족(?:하지|스럽지)\s*않/u.test(labels);
+  const supportsSatisfactionResponse =
+    question.type === "scale" || balancedSatisfactionOptions;
+  return (
+    (asksSatisfaction &&
+      supportsSatisfactionResponse &&
+      hasOverallCue) ||
+    (asksOverallEvaluation &&
+      (question.type === "scale" || balancedSatisfactionOptions))
+  );
+}
+
 function perceptionVariableIsDirectlyMeasured(
   question: SurveyPlanCoverageQuestion,
   block: SurveyPlanBlock,
@@ -524,6 +553,9 @@ export function questionCoversSurveyPlanBlock(
   block: SurveyPlanBlock,
 ) {
   if (block.kind !== "measurement" || !block.directlyAskable) return false;
+  if (block.id === "overall-satisfaction") {
+    return directlyMeasuresOverallSatisfaction(question, block);
+  }
   const text = normalizedCoverageText(question);
   const specialMatchers: Record<string, RegExp> = {
     "usage-status":
@@ -567,7 +599,8 @@ export function evaluateSurveyPlanCoverage(
   const requiredBlocks = askableMeasurementBlocks.filter(
     (block) =>
       block.required &&
-      (isCanonicalFallbackPurposeBlock(block) ||
+      (block.id === "overall-satisfaction" ||
+        isCanonicalFallbackPurposeBlock(block) ||
         [
           "usage-status",
           "usage-frequency",
@@ -1025,6 +1058,35 @@ export function createSurveyPlan(
   const decisionGoalIds = intent.decisionGoals.map((item) => item.id);
   const contextPrefix = context ? `${context.text} ` : "";
   const blocks: SurveyPlanBlock[] = usagePlanBlocks(intent, decisionGoalIds);
+
+  const satisfactionPurpose = intent.purposeBlocks.find(
+    (item) => item.kind === "satisfaction",
+  );
+  if (satisfactionPurpose && !blocks.some((item) => item.id === "usage-satisfaction")) {
+    const target =
+      satisfactionPurpose.target ??
+      intent.evaluationTargets[0] ??
+      intent.surveyObject ??
+      "조사 대상";
+    const measuredEntityIds = [
+      ...new Set([
+        ...satisfactionPurpose.targetEntityIds,
+        ...satisfactionPurpose.constructEntityIds,
+      ]),
+    ];
+    const overallSatisfaction = makeBlock(
+      "overall-satisfaction",
+      `${target} 전반적 만족도`,
+      "construct",
+      "scale",
+      "세부 평가와 구분되는 전체 경험의 전반적 만족도를 직접 측정함.",
+      measuredEntityIds,
+      decisionGoalIds,
+    );
+    overallSatisfaction.purposeBlockId = satisfactionPurpose.id;
+    overallSatisfaction.measuredEntityIds = measuredEntityIds;
+    blocks.push(overallSatisfaction);
+  }
 
   if (category) {
     blocks.push(
