@@ -71,6 +71,8 @@ import {
   recordSurveyIntentTrace,
   recordSurveyModelResponseTrace,
   recordSurveyPlanTrace,
+  recordSurveyFallbackSelection,
+  recordSurveyPostprocessError,
   recordSurveyPostprocessTrace,
   recordSurveyRequestTrace,
   recordSurveySchemaDiagnostics,
@@ -371,6 +373,25 @@ function traceHeaders(trace: SurveyGenerationTrace) {
     "x-baroform-model-rejection-issues": encodeURIComponent(
       snapshot.modelOutputRejectionIssues.join(" | "),
     ).slice(0, 1200),
+    "x-baroform-postprocess-error-name": snapshot.postprocessErrorName ?? "",
+    "x-baroform-postprocess-error-code": snapshot.postprocessErrorCode ?? "",
+    "x-baroform-postprocess-error-stage": snapshot.postprocessErrorStage ?? "",
+    "x-baroform-postprocess-error-location":
+      snapshot.postprocessErrorLocation ?? "",
+    "x-baroform-postprocess-issue-codes":
+      snapshot.postprocessIssueCodes.join(","),
+    "x-baroform-postprocess-issue-paths":
+      snapshot.postprocessIssuePaths.join(","),
+    "x-baroform-postprocess-issue-messages": encodeURIComponent(
+      snapshot.postprocessIssueMessages.join(" | "),
+    ).slice(0, 1200),
+    "x-baroform-first-invalid-question-id":
+      snapshot.firstInvalidQuestionId ?? "",
+    "x-baroform-repair-attempted": String(snapshot.repairAttempted),
+    "x-baroform-repair-failure-code": snapshot.repairFailureCode ?? "",
+    "x-baroform-fallback-selected-because": encodeURIComponent(
+      snapshot.fallbackSelectedBecause ?? "",
+    ).slice(0, 600),
     "x-baroform-normalized-metadata": snapshot.normalizedInternalMetadataPaths
       .join(",")
       .slice(0, 1200),
@@ -2118,6 +2139,13 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
             ? error.issues.slice(0, 8)
             : undefined,
       });
+      recordSurveyFallbackSelection(
+        trace,
+        trace.modelOutputRejectionCode ??
+          (error instanceof SurveyValidationError
+            ? `survey-validation:${error.category}`
+            : "validated-plan-fallback"),
+      );
       return respondWithPlanBasedFallback(
         "model-output-rejected",
         intent.intentMode === "composite"
@@ -2225,9 +2253,31 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     }
 
     if (upstreamCompleted && error instanceof Error) {
+      if (!trace.postprocessErrorCode) {
+        recordSurveyPostprocessError(trace, {
+          error,
+          code: "UNCLASSIFIED_POSTPROCESS_ERROR",
+          stage: trace.stage,
+          location: "app/api/survey-draft/route.ts:POST",
+          repairAttempted: trace.repairCount > 0,
+          repairFailureCode:
+            trace.repairCount > 0
+              ? trace.modelOutputRejectionCode ?? "POSTPROCESS_FAILED_AFTER_REPAIR"
+              : null,
+          fallbackSelectedBecause: "upstream-completed-postprocess-error",
+        });
+      } else {
+        recordSurveyFallbackSelection(
+          trace,
+          `postprocess:${trace.postprocessErrorCode}`,
+        );
+      }
       console.warn("survey-generation-output-fallback", {
         requestId,
         name: error.name,
+        postprocessErrorCode: trace.postprocessErrorCode,
+        postprocessErrorStage: trace.postprocessErrorStage,
+        firstInvalidQuestionId: trace.firstInvalidQuestionId,
       });
       return respondWithPlanBasedFallback(
         "model-output-rejected",

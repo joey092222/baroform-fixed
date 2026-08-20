@@ -12,6 +12,7 @@ import {
   recordSurveyModelCall,
   recordSurveyModelResponseTrace,
   recordSurveyPlanTrace,
+  recordSurveyPostprocessError,
   recordSurveyPostprocessTrace,
   recordSurveyRequestTrace,
   recordSurveySemanticDiagnostics,
@@ -360,6 +361,62 @@ test("OpenAI parse failure fallback의 경로와 실제 원인을 구분한다",
   assert.equal(snapshot.generationSource, "openai_parse_failure_fallback");
   assert.equal(snapshot.fallbackReason, "output-parse-failed");
   assert.equal(snapshot.fallbackCount, 1);
+});
+
+test("일반 Error도 postprocess code, stage, path와 최초 문항 ID를 보존한다", () => {
+  const trace = createSurveyGenerationTrace("request-postprocess-error");
+  recordSurveyPostprocessError(trace, {
+    error: new Error("AI 객관식 선택지가 부족합니다."),
+    code: "QUESTION_OPTIONS_INSUFFICIENT",
+    stage: "question-normalization",
+    location: "app/survey-ai.ts:normalizeQuestion",
+    issueCodes: ["QUESTION_OPTIONS_INSUFFICIENT"],
+    issuePaths: ["result.aiQuestions.2.options"],
+    firstInvalidQuestionId: "question-3",
+    repairAttempted: false,
+    fallbackSelectedBecause: "postprocess:QUESTION_OPTIONS_INSUFFICIENT",
+  });
+
+  const snapshot = surveyGenerationTraceSnapshot(trace);
+  assert.equal(snapshot.postprocessErrorName, "Error");
+  assert.equal(
+    snapshot.postprocessErrorCode,
+    "QUESTION_OPTIONS_INSUFFICIENT",
+  );
+  assert.equal(snapshot.postprocessErrorStage, "question-normalization");
+  assert.equal(
+    snapshot.postprocessErrorLocation,
+    "app/survey-ai.ts:normalizeQuestion",
+  );
+  assert.deepEqual(snapshot.postprocessIssuePaths, [
+    "result.aiQuestions.2.options",
+  ]);
+  assert.deepEqual(snapshot.postprocessIssueMessages, [
+    "AI 객관식 선택지가 부족합니다.",
+  ]);
+  assert.equal(snapshot.firstInvalidQuestionId, "question-3");
+  assert.equal(snapshot.repairAttempted, false);
+  assert.equal(
+    snapshot.fallbackSelectedBecause,
+    "postprocess:QUESTION_OPTIONS_INSUFFICIENT",
+  );
+});
+
+test("postprocess 진단에서 비밀처럼 보이는 값은 저장하지 않는다", () => {
+  const trace = createSurveyGenerationTrace("request-redacted-postprocess-error");
+  recordSurveyPostprocessError(trace, {
+    error: new Error(
+      "authorization: Bearer-secret cookie=session-secret sk-testsecret123456789",
+    ),
+    code: "QUESTION_NORMALIZATION_FAILED",
+    stage: "question-normalization",
+    location: "app/survey-ai.ts:normalizeQuestion",
+  });
+
+  const snapshot = surveyGenerationTraceSnapshot(trace);
+  const diagnostics = snapshot.postprocessIssueMessages.join(" ");
+  assert.doesNotMatch(diagnostics, /Bearer-secret|session-secret|sk-testsecret/u);
+  assert.match(diagnostics, /\[redacted\]/u);
 });
 
 test("운영 trace는 원문을 숨기고 분류·개수·Responses 상태만 남긴다", () => {

@@ -170,6 +170,17 @@ export type SurveyGenerationTrace = {
   modelOutputRejectionCode: string | null;
   modelOutputRejectionIssues: string[];
   modelOutputRejectionIssuePaths: string[];
+  postprocessErrorName: string | null;
+  postprocessErrorCode: string | null;
+  postprocessErrorStage: string | null;
+  postprocessErrorLocation: string | null;
+  postprocessIssueCodes: string[];
+  postprocessIssuePaths: string[];
+  postprocessIssueMessages: string[];
+  firstInvalidQuestionId: string | null;
+  repairAttempted: boolean;
+  repairFailureCode: string | null;
+  fallbackSelectedBecause: string | null;
   modelOutputHasTitle: boolean;
   modelOutputHasIntro: boolean;
   modelOutputHasSurveyPlan: boolean;
@@ -279,6 +290,17 @@ export function createSurveyGenerationTrace(
     modelOutputRejectionCode: null,
     modelOutputRejectionIssues: [],
     modelOutputRejectionIssuePaths: [],
+    postprocessErrorName: null,
+    postprocessErrorCode: null,
+    postprocessErrorStage: null,
+    postprocessErrorLocation: null,
+    postprocessIssueCodes: [],
+    postprocessIssuePaths: [],
+    postprocessIssueMessages: [],
+    firstInvalidQuestionId: null,
+    repairAttempted: false,
+    repairFailureCode: null,
+    fallbackSelectedBecause: null,
     modelOutputHasTitle: false,
     modelOutputHasIntro: false,
     modelOutputHasSurveyPlan: false,
@@ -533,6 +555,84 @@ export function recordSurveyPostprocessTrace(
       .slice(0, 30)
       .map((item) => item.slice(0, 240));
   }
+}
+
+function safePostprocessDiagnosticText(value: unknown, maximum: number) {
+  if (typeof value !== "string") return "";
+  return value
+    .replace(/(?:authorization|cookie|x-vercel-protection-bypass)\s*[:=]\s*[^\s,;]+/giu, "[redacted]")
+    .replace(/\bsk-[A-Za-z0-9_-]{12,}\b/gu, "[redacted]")
+    .replace(/[\u0000-\u001f\u007f]/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim()
+    .slice(0, maximum);
+}
+
+export function recordSurveyPostprocessError(
+  trace: SurveyGenerationTrace | undefined,
+  details: {
+    error: unknown;
+    code: string;
+    stage: string;
+    location: string;
+    issueCodes?: string[];
+    issuePaths?: string[];
+    issueMessages?: string[];
+    firstInvalidQuestionId?: string | number | null;
+    repairAttempted?: boolean;
+    repairFailureCode?: string | null;
+    fallbackSelectedBecause?: string | null;
+  },
+) {
+  if (!trace) return;
+  trace.postprocessErrorName =
+    details.error instanceof Error
+      ? safePostprocessDiagnosticText(details.error.name, 120) || "Error"
+      : "UnknownError";
+  trace.postprocessErrorCode = safePostprocessDiagnosticText(details.code, 120);
+  trace.postprocessErrorStage = safePostprocessDiagnosticText(details.stage, 120);
+  trace.postprocessErrorLocation = safePostprocessDiagnosticText(
+    details.location,
+    200,
+  );
+  trace.postprocessIssueCodes = (details.issueCodes ?? [details.code])
+    .slice(0, 20)
+    .map((item) => safePostprocessDiagnosticText(item, 120))
+    .filter(Boolean);
+  trace.postprocessIssuePaths = (details.issuePaths ?? [])
+    .slice(0, 20)
+    .map((item) => safePostprocessDiagnosticText(item, 200))
+    .filter(Boolean);
+  trace.postprocessIssueMessages = (
+    details.issueMessages ??
+    (details.error instanceof Error ? [details.error.message] : [])
+  )
+    .slice(0, 20)
+    .map((item) => safePostprocessDiagnosticText(item, 240))
+    .filter(Boolean);
+  trace.firstInvalidQuestionId =
+    details.firstInvalidQuestionId === undefined ||
+    details.firstInvalidQuestionId === null
+      ? null
+      : safePostprocessDiagnosticText(
+          String(details.firstInvalidQuestionId),
+          120,
+        );
+  trace.repairAttempted = details.repairAttempted ?? trace.repairCount > 0;
+  trace.repairFailureCode = details.repairFailureCode
+    ? safePostprocessDiagnosticText(details.repairFailureCode, 120)
+    : null;
+  trace.fallbackSelectedBecause = details.fallbackSelectedBecause
+    ? safePostprocessDiagnosticText(details.fallbackSelectedBecause, 240)
+    : trace.fallbackSelectedBecause;
+}
+
+export function recordSurveyFallbackSelection(
+  trace: SurveyGenerationTrace | undefined,
+  reason: string,
+) {
+  if (!trace) return;
+  trace.fallbackSelectedBecause = safePostprocessDiagnosticText(reason, 240);
 }
 
 type RepairAuditQuestion = Record<string, unknown> & { id?: unknown };
@@ -873,6 +973,7 @@ export function recordSurveyRepair(
     throw new Error("설문 의미 복구 상한을 초과했습니다.");
   }
   trace.repairCount += 1;
+  trace.repairAttempted = true;
   trace.repairedQuestionIds = repairedQuestionIds.map(String);
   trace.preservedQuestionIds = preservedQuestionIds.map(String);
   markSurveyGenerationStage(trace, "local-repair");
@@ -988,6 +1089,17 @@ export function surveyGenerationTraceSnapshot(trace: SurveyGenerationTrace) {
     modelOutputRejectionCode: trace.modelOutputRejectionCode,
     modelOutputRejectionIssues: [...trace.modelOutputRejectionIssues],
     modelOutputRejectionIssuePaths: [...trace.modelOutputRejectionIssuePaths],
+    postprocessErrorName: trace.postprocessErrorName,
+    postprocessErrorCode: trace.postprocessErrorCode,
+    postprocessErrorStage: trace.postprocessErrorStage,
+    postprocessErrorLocation: trace.postprocessErrorLocation,
+    postprocessIssueCodes: [...trace.postprocessIssueCodes],
+    postprocessIssuePaths: [...trace.postprocessIssuePaths],
+    postprocessIssueMessages: [...trace.postprocessIssueMessages],
+    firstInvalidQuestionId: trace.firstInvalidQuestionId,
+    repairAttempted: trace.repairAttempted,
+    repairFailureCode: trace.repairFailureCode,
+    fallbackSelectedBecause: trace.fallbackSelectedBecause,
     modelOutputHasTitle: trace.modelOutputHasTitle,
     modelOutputHasIntro: trace.modelOutputHasIntro,
     modelOutputHasSurveyPlan: trace.modelOutputHasSurveyPlan,
@@ -1070,6 +1182,17 @@ export function surveyGenerationLogSnapshot(trace: SurveyGenerationTrace) {
     modelOutputRejectionCode: snapshot.modelOutputRejectionCode,
     modelOutputRejectionIssues: snapshot.modelOutputRejectionIssues,
     modelOutputRejectionIssuePaths: snapshot.modelOutputRejectionIssuePaths,
+    postprocessErrorName: snapshot.postprocessErrorName,
+    postprocessErrorCode: snapshot.postprocessErrorCode,
+    postprocessErrorStage: snapshot.postprocessErrorStage,
+    postprocessErrorLocation: snapshot.postprocessErrorLocation,
+    postprocessIssueCodes: snapshot.postprocessIssueCodes,
+    postprocessIssuePaths: snapshot.postprocessIssuePaths,
+    postprocessIssueMessages: snapshot.postprocessIssueMessages,
+    firstInvalidQuestionId: snapshot.firstInvalidQuestionId,
+    repairAttempted: snapshot.repairAttempted,
+    repairFailureCode: snapshot.repairFailureCode,
+    fallbackSelectedBecause: snapshot.fallbackSelectedBecause,
     modelOutputHasTitle: snapshot.modelOutputHasTitle,
     modelOutputHasIntro: snapshot.modelOutputHasIntro,
     modelOutputHasSurveyPlan: snapshot.modelOutputHasSurveyPlan,

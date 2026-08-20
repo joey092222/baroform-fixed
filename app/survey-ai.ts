@@ -72,6 +72,7 @@ import {
   recordSurveyGenerationSource,
   recordSurveyModelOutputDiagnostics,
   recordSurveyModelOutputRejection,
+  recordSurveyPostprocessError,
   recordSurveyQuestionOutcome,
   recordSurveyPostprocessTrace,
   recordSurveyRepairAudit,
@@ -920,6 +921,15 @@ function canonicalizeQuestionReferencePeriods(
         brief.recommendedTimeframe,
     );
   });
+}
+
+function questionNormalizationErrorCode(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  if (message.includes("질문 형식")) return "QUESTION_FORMAT_INVALID";
+  if (message.includes("질문 유형")) return "QUESTION_TYPE_INVALID";
+  if (message.includes("질문 내용")) return "QUESTION_CONTENT_EMPTY";
+  if (message.includes("객관식 선택지")) return "QUESTION_OPTIONS_INSUFFICIENT";
+  return "QUESTION_NORMALIZATION_FAILED";
 }
 
 function preserveCanonicalEvaluationTargetMetadata(
@@ -2398,12 +2408,36 @@ export function parseSurveyDraftResponse(
         .slice(0, 4)
     : [];
   markSurveyGenerationStage(trace, "question-normalization");
-  const normalizedAiQuestions = Array.isArray(result.aiQuestions)
-    ? result.aiQuestions.map((item, index) => normalizeQuestion(item, index + 1))
-    : [];
   recordSurveyPostprocessTrace(trace, {
-    before: normalizedAiQuestions.map((item) => item.title),
+    before: Array.isArray(result.aiQuestions)
+      ? result.aiQuestions.map((item) =>
+          isRecord(item) ? cleanText(item.title, 240) : "",
+        )
+      : [],
   });
+  const normalizedAiQuestions = Array.isArray(result.aiQuestions)
+    ? result.aiQuestions.map((item, index) => {
+        try {
+          return normalizeQuestion(item, index + 1);
+        } catch (error) {
+          const questionId = isRecord(item)
+            ? cleanText(item.id, 120) || index + 1
+            : index + 1;
+          const code = questionNormalizationErrorCode(error);
+          recordSurveyPostprocessError(trace, {
+            error,
+            code,
+            stage: "question-normalization",
+            location: "app/survey-ai.ts:normalizeQuestion",
+            issueCodes: [code],
+            issuePaths: [`result.aiQuestions.${index}`],
+            firstInvalidQuestionId: questionId,
+            repairAttempted: false,
+          });
+          throw error;
+        }
+      })
+    : [];
   const brief = parseSurveyBrief(prompt, canonicalIntent);
   const targetGrade = isTargetGrade(requestedTargetGrade)
     ? requestedTargetGrade

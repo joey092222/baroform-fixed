@@ -140,6 +140,17 @@ export type SurveyRegressionResult = {
   modelOutputRejectionCode: string | null;
   modelOutputRejectionIssues: string[];
   modelOutputRejectionIssuePaths: string[];
+  postprocessErrorName?: string | null;
+  postprocessErrorCode?: string | null;
+  postprocessErrorStage?: string | null;
+  postprocessErrorLocation?: string | null;
+  postprocessIssueCodes?: string[];
+  postprocessIssuePaths?: string[];
+  postprocessIssueMessages?: string[];
+  firstInvalidQuestionId?: string | null;
+  repairAttempted?: boolean;
+  repairFailureCode?: string | null;
+  fallbackSelectedBecause?: string | null;
   classification: GenerationPath;
   canonicalTargetPopulation: string | null;
   finalRespondentGroup: string | null;

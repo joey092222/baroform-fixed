@@ -61,6 +61,17 @@ type TraceSnapshot = {
   modelOutputRejectionCode?: unknown;
   modelOutputRejectionIssues?: unknown;
   modelOutputRejectionIssuePaths?: unknown;
+  postprocessErrorName?: unknown;
+  postprocessErrorCode?: unknown;
+  postprocessErrorStage?: unknown;
+  postprocessErrorLocation?: unknown;
+  postprocessIssueCodes?: unknown;
+  postprocessIssuePaths?: unknown;
+  postprocessIssueMessages?: unknown;
+  firstInvalidQuestionId?: unknown;
+  repairAttempted?: unknown;
+  repairFailureCode?: unknown;
+  fallbackSelectedBecause?: unknown;
   semanticViolationCodes?: unknown;
   qualityViolationCodes?: unknown;
   schemaIssuePaths?: unknown;
@@ -389,6 +400,34 @@ function traceFromResponse(response: Response): TraceSnapshot {
       headers,
       "x-baroform-model-rejection-paths",
     ),
+    postprocessErrorName: headers.get("x-baroform-postprocess-error-name"),
+    postprocessErrorCode: headers.get("x-baroform-postprocess-error-code"),
+    postprocessErrorStage: headers.get("x-baroform-postprocess-error-stage"),
+    postprocessErrorLocation: headers.get(
+      "x-baroform-postprocess-error-location",
+    ),
+    postprocessIssueCodes: headerStrings(
+      headers,
+      "x-baroform-postprocess-issue-codes",
+    ),
+    postprocessIssuePaths: headerStrings(
+      headers,
+      "x-baroform-postprocess-issue-paths",
+    ),
+    postprocessIssueMessages: decodedHeaderStrings(
+      headers,
+      "x-baroform-postprocess-issue-messages",
+    ),
+    firstInvalidQuestionId: headers.get(
+      "x-baroform-first-invalid-question-id",
+    ),
+    repairAttempted:
+      headers.get("x-baroform-repair-attempted") === "true",
+    repairFailureCode: headers.get("x-baroform-repair-failure-code"),
+    fallbackSelectedBecause: decodedHeaderStrings(
+      headers,
+      "x-baroform-fallback-selected-because",
+    ).join(" | "),
     semanticViolationCodes: headerStrings(
       headers,
       "x-baroform-final-role-mismatches",
@@ -809,6 +848,20 @@ async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegres
       modelOutputRejectionIssuePaths: strings(
         finalTrace.modelOutputRejectionIssuePaths,
       ),
+      postprocessErrorName: text(finalTrace.postprocessErrorName) || null,
+      postprocessErrorCode: text(finalTrace.postprocessErrorCode) || null,
+      postprocessErrorStage: text(finalTrace.postprocessErrorStage) || null,
+      postprocessErrorLocation:
+        text(finalTrace.postprocessErrorLocation) || null,
+      postprocessIssueCodes: strings(finalTrace.postprocessIssueCodes),
+      postprocessIssuePaths: strings(finalTrace.postprocessIssuePaths),
+      postprocessIssueMessages: strings(finalTrace.postprocessIssueMessages),
+      firstInvalidQuestionId:
+        text(finalTrace.firstInvalidQuestionId) || null,
+      repairAttempted: finalTrace.repairAttempted === true,
+      repairFailureCode: text(finalTrace.repairFailureCode) || null,
+      fallbackSelectedBecause:
+        text(finalTrace.fallbackSelectedBecause) || null,
       canonicalTargetPopulation: canonical.surveyIntent.targetPopulation,
       finalRespondentGroup: text(blueprint?.respondentGroup) || null,
       canonicalSurveyObject:
