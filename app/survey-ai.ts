@@ -30,9 +30,11 @@ import {
 import { zodTextFormat } from "openai/helpers/zod";
 import {
   createSurveyGenerationSchema,
+  createSurveyGenerationV2Schema,
   supportedSurveyLogic,
   supportedSurveyQuestionTypes,
   type SurveyGeneration,
+  type SurveyGenerationV2,
 } from "./lib/ai/survey-generation-schema";
 import { SURVEY_SYSTEM_PROMPT } from "./lib/ai/survey-system-prompt";
 import { NATURAL_KOREAN_SURVEY_COPY_PROMPT } from "./lib/ai/survey-korean-copy-prompt";
@@ -69,6 +71,7 @@ import {
 } from "./survey-planning";
 import {
   markSurveyGenerationStage,
+  recordCanonicalSurveyIntentV2Trace,
   recordSurveyGenerationSource,
   recordSurveyModelOutputDiagnostics,
   recordSurveyModelOutputRejection,
@@ -95,6 +98,18 @@ import {
   resolveCanonicalEvaluationTarget,
   type CanonicalEvaluationTargetResolution,
 } from "./survey-evaluation-target";
+import {
+  SURVEY_INTENT_AUTHORITY_VERSION,
+  SURVEY_INTENT_PROMPT_VERSION,
+  canonicalIntentV2PromptContract,
+  compareLegacyShadowToCanonicalIntentV2,
+  deriveSurveyBriefFromCanonicalIntentV2,
+  deriveSurveyPlanFromCanonicalIntentV2,
+  validateCanonicalSurveyIntentV2,
+  type CanonicalSurveyIntentV2,
+  type LegacyIntentShadowSummary,
+  type LegacyIntentV2Divergence,
+} from "./survey-intent-v2";
 
 export class SurveyValidationError extends Error {
   readonly issues: string[];
@@ -142,12 +157,23 @@ export type SurveyDraftResult =
       surveyPlan?: SurveyGeneration["survey_plan"];
       qualityCheck?: SurveyGeneration["quality_check"];
       completionMessage?: string;
+      canonicalIntentV2?: CanonicalSurveyIntentV2;
+      canonicalPlan?: SurveyPlan;
+      semanticAuthorityVersion?: string;
+      legacyInfluencedOutput?: false;
+      legacyShadow?: LegacyIntentShadowSummary;
+      legacyV2Divergence?: LegacyIntentV2Divergence;
     }
   | {
       status: "needs_clarification";
       prompt: string;
       clarification: SurveyClarification;
       research: SurveyResearch;
+      canonicalIntentV2?: CanonicalSurveyIntentV2;
+      semanticAuthorityVersion?: string;
+      legacyInfluencedOutput?: false;
+      legacyShadow?: LegacyIntentShadowSummary;
+      legacyV2Divergence?: LegacyIntentV2Divergence;
     };
 
 type JsonRecord = Record<string, unknown>;
@@ -223,6 +249,7 @@ export type SurveyGenerationResponseErrorCode =
   | "SURVEY_GENERATION_REFUSED"
   | "SURVEY_GENERATION_MESSAGE_MISSING"
   | "SURVEY_GENERATION_OUTPUT_MISSING"
+  | "SURVEY_GENERATION_OUTPUT_INVALID"
   | "SURVEY_GENERATION_UPSTREAM_FAILED";
 
 export class SurveyGenerationResponseError extends Error {
@@ -2268,6 +2295,381 @@ function descriptionWithPreservedAudience({
     : ensureAudienceInDescription(description, respondentGroup);
 }
 
+const prohibitedIntentV2Placeholders = [
+  "요소 N",
+  "핵심 경험 N",
+  "선행 값",
+  "결과 값",
+  "독립변수",
+  "종속변수",
+  "변수 A",
+  "변수 B",
+  "첫 번째 값",
+  "두 번째 값",
+];
+
+function intentV2Kind(intent: CanonicalSurveyIntentV2): SurveyIntentKind {
+  const purposeTypes = new Set(intent.purposes.map((item) => item.purpose_type));
+  if (purposeTypes.has("satisfaction")) return "satisfaction";
+  if (purposeTypes.has("need_demand")) return "needs";
+  if (
+    purposeTypes.has("usage_experience") ||
+    purposeTypes.has("behavior_usage")
+  ) {
+    return "usage";
+  }
+  if (intent.survey_objects.some((item) => item.entity_type === "program_event")) {
+    return "event";
+  }
+  return "general";
+}
+
+function canonicalV2QuestionIssues(
+  generation: SurveyGenerationV2,
+  intent: CanonicalSurveyIntentV2,
+) {
+  const issues: string[] = [];
+  const purposeIds = new Set(intent.purposes.map((item) => item.id));
+  const objectIds = new Set(intent.survey_objects.map((item) => item.id));
+  const relationshipIds = new Set(intent.relationships.map((item) => item.id));
+  const coveredPurposes = new Set<string>();
+  const coveredRelationships = new Set<string>();
+  for (const [index, question] of generation.survey.questions.entries()) {
+    const corpus = [
+      question.text,
+      question.helper_text ?? "",
+      question.analysis.construct,
+      question.analysis.variable_name,
+      question.analysis.purpose,
+      ...question.options.map((item) => item.label),
+    ].join(" ");
+    for (const placeholder of prohibitedIntentV2Placeholders) {
+      if (corpus.includes(placeholder)) {
+        issues.push(
+          `PROHIBITED_INTERNAL_PLACEHOLDER: 문항 ${index + 1}에 '${placeholder}'이 포함되었습니다.`,
+        );
+      }
+    }
+    for (const purposeId of question.purpose_ids) {
+      if (!purposeIds.has(purposeId)) {
+        issues.push(
+          `UNKNOWN_PURPOSE_REFERENCE: 문항 ${index + 1}이 존재하지 않는 목적 ${purposeId}를 참조합니다.`,
+        );
+      } else {
+        coveredPurposes.add(purposeId);
+      }
+    }
+    for (const objectId of question.object_ids) {
+      if (!objectIds.has(objectId)) {
+        issues.push(
+          `UNKNOWN_OBJECT_REFERENCE: 문항 ${index + 1}이 존재하지 않는 조사 대상 ${objectId}를 참조합니다.`,
+        );
+      }
+    }
+    for (const relationshipId of question.relationship_ids) {
+      if (!relationshipIds.has(relationshipId)) {
+        issues.push(
+          `UNKNOWN_RELATIONSHIP_REFERENCE: 문항 ${index + 1}이 존재하지 않는 관계 ${relationshipId}를 참조합니다.`,
+        );
+      } else {
+        coveredRelationships.add(relationshipId);
+      }
+    }
+  }
+  for (const purpose of intent.purposes) {
+    if (purpose.required && !coveredPurposes.has(purpose.id)) {
+      issues.push(
+        `PURPOSE_COVERAGE_MISSING: 필수 조사 목적 ${purpose.id}가 문항에 연결되지 않았습니다.`,
+      );
+    }
+  }
+  for (const relationship of intent.relationships) {
+    if (!coveredRelationships.has(relationship.id)) {
+      issues.push(
+        `RELATIONSHIP_COVERAGE_MISSING: 관계 ${relationship.id}가 문항에 연결되지 않았습니다.`,
+      );
+    }
+  }
+  const modelTarget = generation.survey_plan.target;
+  if (
+    !audienceMentionedInText(intent.target_population.display_text, modelTarget) &&
+    !audienceMentionedInText(modelTarget, intent.target_population.display_text)
+  ) {
+    issues.push(
+      "TARGET_POPULATION_MISMATCH: 모델 설문 계획의 응답 대상이 canonical intent와 다릅니다.",
+    );
+  }
+  const eligibilityCorpus = generation.survey_plan.eligibility;
+  for (const condition of intent.eligibility_conditions) {
+    if (!eligibilityCorpus.includes(condition.text)) {
+      issues.push(
+        `ELIGIBILITY_CONDITION_MISSING: '${condition.text}' 조건이 설문 계획에 보존되지 않았습니다.`,
+      );
+    }
+  }
+  return issues;
+}
+
+export function parseSurveyDraftResponseV2(
+  rawPayload: unknown,
+  request: {
+    prompt: string;
+    surveyMode: SurveyMode;
+    questionCount: number;
+    targetGrade: TargetGrade;
+    expectsReferences: boolean;
+    legacyShadow?: LegacyIntentShadowSummary;
+  },
+  trace?: SurveyGenerationTrace,
+): SurveyDraftResult {
+  if (!isRecord(rawPayload)) {
+    throw new SurveyValidationError(["AI 응답을 읽을 수 없습니다."], "schema");
+  }
+  markSurveyGenerationStage(trace, "model-response");
+  markSurveyGenerationStage(trace, "output-parsing");
+  const completedSearch = assertCompletedResponse(rawPayload);
+  const decoded = rawPayload.output_parsed;
+  if (decoded === undefined || decoded === null) {
+    recordSurveySchemaDiagnostics(trace, { stage: "output_parsed_missing" });
+    throw new SurveyGenerationResponseError(
+      "SURVEY_GENERATION_OUTPUT_MISSING",
+      "생성된 설문 구조를 확인하지 못했어요. 다시 시도해주세요.",
+    );
+  }
+  recordSurveyValidation(trace, "output-schema-validation");
+  const parsed = createSurveyGenerationV2Schema(request.questionCount).safeParse(decoded);
+  if (!parsed.success) {
+    recordSurveySchemaDiagnostics(trace, {
+      stage: "canonical_v2_output_schema_validation",
+      issues: parsed.error.issues.map((issue) => ({
+        path: issue.path,
+        code: issue.code,
+        expected: "expected" in issue ? issue.expected : undefined,
+        received: schemaValueType(valueAtSchemaPath(decoded, issue.path)),
+      })),
+    });
+    recordSurveyModelOutputRejection(trace, {
+      at: "canonical_v2_output_schema_validation",
+      code: "MODEL_OUTPUT_SCHEMA_INVALID",
+      issues: parsed.error.issues.map((issue) => issue.message),
+      issuePaths: parsed.error.issues.map((issue) => issue.path.map(String).join(".")),
+    });
+    throw new SurveyValidationError(
+      parsed.error.issues
+        .slice(0, 8)
+        .map((issue) => `${issue.path.join(".")}: ${issue.message}`),
+      "schema",
+    );
+  }
+  const intent = parsed.data.canonical_intent_v2;
+  recordCanonicalSurveyIntentV2Trace(trace, intent);
+  const legacyV2Divergence = request.legacyShadow
+    ? compareLegacyShadowToCanonicalIntentV2(request.legacyShadow, intent)
+    : undefined;
+  const consistencyIssues = validateCanonicalSurveyIntentV2(intent, {
+    rawUserInput: request.prompt,
+    surveyMode: request.surveyMode,
+    requestedQuestionCount: request.questionCount,
+  });
+  if (consistencyIssues.length > 0) {
+    recordSurveySemanticDiagnostics(trace, {
+      violationCodes: consistencyIssues.map((item) => item.code),
+      violationOrigins: consistencyIssues.map(() => "schema"),
+    });
+    recordSurveyModelOutputRejection(trace, {
+      at: "canonical_v2_consistency_validation",
+      code: "CANONICAL_INTENT_V2_INVALID",
+      issues: consistencyIssues.map((item) => item.message),
+      issuePaths: consistencyIssues.map((item) => item.path),
+    });
+    throw new SurveyValidationError(
+      consistencyIssues.map((item) => `${item.code}: ${item.message}`),
+    );
+  }
+  const sources = extractSurveySources(rawPayload).slice(0, 5);
+  const research: SurveyResearch = {
+    status: completedSearch && sources.length > 0 ? "searched" : "fallback",
+    entity: intent.survey_objects[0]?.name ?? null,
+    summary:
+      completedSearch && sources.length > 0
+        ? "필요한 공개 자료를 확인해 설문을 구성했어요."
+        : "사용자 입력과 조사 설계 원칙을 바탕으로 설문을 구성했어요.",
+    facts: [],
+    sources,
+    classification: completedSearch && sources.length > 0 ? "verified" : "unresolved",
+    limitations: parsed.data.research.limitations,
+  };
+  if (intent.clarification.required) {
+    recordSurveyGenerationSource(trace, "clarification");
+    markSurveyGenerationStage(trace, "response-ready");
+    return {
+      status: "needs_clarification",
+      prompt: request.prompt,
+      clarification: {
+        question:
+          intent.clarification.question ??
+          "설문을 정확히 만들기 위해 조사 대상을 조금 더 알려주세요.",
+        reason:
+          intent.clarification.ambiguity_reasons.join(" ") ||
+          "핵심 의미 역할을 하나로 확정하기 어렵습니다.",
+        options: [],
+      },
+      research,
+      canonicalIntentV2: intent,
+      semanticAuthorityVersion: SURVEY_INTENT_AUTHORITY_VERSION,
+      legacyInfluencedOutput: false,
+      ...(request.legacyShadow
+        ? {
+            legacyShadow: request.legacyShadow,
+            legacyV2Divergence,
+          }
+        : {}),
+    };
+  }
+  const preNormalizationIssues = generationIntegrityIssues(
+    parsed.data,
+    request.questionCount,
+    { webSearchRequested: completedSearch },
+  );
+  const normalized = normalizeModelGeneratedSurveyMetadata(
+    parsed.data,
+    request.questionCount,
+    { webSearchRequested: completedSearch },
+  );
+  const generation = {
+    ...normalized.generation,
+    canonical_intent_v2: intent,
+    survey: {
+      ...normalized.generation.survey,
+      questions: normalized.generation.survey.questions.map((question, index) => ({
+        ...question,
+        purpose_ids: parsed.data.survey.questions[index].purpose_ids,
+        object_ids: parsed.data.survey.questions[index].object_ids,
+        relationship_ids: parsed.data.survey.questions[index].relationship_ids,
+      })),
+    },
+  } satisfies SurveyGenerationV2;
+  const structuralIssues = generationIntegrityIssues(
+    generation,
+    request.questionCount,
+    { webSearchRequested: completedSearch },
+  );
+  const copyIssues = respondentCopyIssues(generation);
+  const canonicalQuestionIssues = canonicalV2QuestionIssues(generation, intent);
+  const allIssues = [
+    ...preNormalizationIssues.filter((item) => !isRecoverableQuestionIntegrityIssue(item)),
+    ...structuralIssues,
+    ...copyIssues,
+    ...canonicalQuestionIssues,
+  ];
+  if (allIssues.length > 0) {
+    recordSurveySemanticDiagnostics(trace, {
+      violationCodes: canonicalQuestionIssues.map((item) => item.split(":")[0]),
+      qualityViolationCodes: [...structuralIssues, ...copyIssues],
+    });
+    recordSurveyModelOutputRejection(trace, {
+      at: "canonical_v2_final_acceptance",
+      code: "MODEL_FINAL_ACCEPTANCE_FAILED",
+      issues: allIssues,
+    });
+    throw new SurveyValidationError([...new Set(allIssues)]);
+  }
+  markSurveyGenerationStage(trace, "question-normalization");
+  const canonicalPlan = deriveSurveyPlanFromCanonicalIntentV2(intent);
+  const questions: SurveyQuestion[] = generation.survey.questions.map((question, index) => ({
+    id: index + 1,
+    title: question.text,
+    reason: formatQuestionReason(question.analysis.purpose),
+    type: legacyQuestionType(question.type),
+    options: question.options.map((option) => option.label),
+    required: question.required,
+    description: question.helper_text ?? undefined,
+    shuffleOptions: question.randomize_options,
+    scaleMin: question.scale?.min,
+    scaleMax: question.scale?.max,
+    scaleMinLabel: question.scale?.min_label,
+    scaleMaxLabel: question.scale?.max_label,
+    measuredConstruct: question.analysis.construct,
+    measuredVariable: question.analysis.variable_name,
+    measuredRole: canonicalPlan.blocks.find((block) =>
+      question.purpose_ids.includes(block.purposeBlockId ?? ""),
+    )?.role,
+    planBlockId: canonicalPlan.blocks.find((block) =>
+      question.purpose_ids.includes(block.purposeBlockId ?? ""),
+    )?.id,
+    purposeBlockId: question.purpose_ids[0],
+    measuredEntityIds: question.object_ids,
+    questionPurpose: question.analysis.purpose,
+    explicitTimeframe: question.reference_period,
+  }));
+  const brief = deriveSurveyBriefFromCanonicalIntentV2(intent);
+  const respondentGroup =
+    request.targetGrade === "전학년"
+      ? brief.targetPopulation
+      : `${brief.targetPopulation} 중 ${request.targetGrade}`;
+  const evaluationTarget = brief.surveyObjects.join(", ");
+  const description = descriptionWithPreservedAudience({
+    description: generation.survey.intro,
+    respondentGroup,
+  });
+  const kind = intentV2Kind(intent);
+  const blueprint: SurveyBlueprint = {
+    kind,
+    intentLabel: generation.survey_plan.survey_type,
+    subject: evaluationTarget,
+    title: generation.survey.title,
+    description,
+    templateTitle: generation.survey.title,
+    templateSummary: "AI가 canonical intent에서 설계한 문항 초안",
+    detectedSignals: [
+      `응답 대상 · ${respondentGroup}`,
+      `조사 대상 · ${evaluationTarget}`,
+      `조사 목적 · ${brief.primaryPurpose}`,
+    ],
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
+    respondentGroup,
+    evaluationTarget,
+    goal: brief.primaryPurpose,
+    assumptions: [],
+    aiTitle: generation.survey.title,
+    domain: "general",
+    semanticPlan: canonicalPlan,
+  };
+  recordSurveyGenerationSource(trace, "openai");
+  recordSurveyPostprocessTrace(trace, {
+    before: questions.map((item) => item.title),
+    final: questions.map((item) => item.title),
+  });
+  recordSurveyQuestionOutcome(trace, {
+    originalQuestionCount: questions.length,
+    preservedQuestionIds: questions.map((item) => item.id),
+  });
+  markSurveyGenerationStage(trace, "response-ready");
+  return {
+    status:
+      generation.status === "ready_with_caution" || research.status !== "searched"
+        ? "ready_with_caution"
+        : "ready",
+    prompt: request.prompt,
+    blueprint,
+    research,
+    surveyPlan: generation.survey_plan,
+    qualityCheck: generation.quality_check,
+    completionMessage: generation.survey.completion_message,
+    canonicalIntentV2: intent,
+    canonicalPlan,
+    semanticAuthorityVersion: SURVEY_INTENT_AUTHORITY_VERSION,
+    legacyInfluencedOutput: false,
+    ...(request.legacyShadow
+      ? {
+          legacyShadow: request.legacyShadow,
+          legacyV2Divergence,
+        }
+      : {}),
+  };
+}
+
 export function parseSurveyDraftResponse(
   rawPayload: unknown,
   prompt: string,
@@ -3054,6 +3456,209 @@ export function parseSurveyDraftResponse(
         }
       : {}),
   };
+}
+
+export type SurveyIntentV2RequestAuthorityDiagnostics = {
+  rawInputOccurrencesInRequest: number;
+  userRoleRawInputOccurrences: number;
+  developerRawInputOccurrences: number;
+  parsedIntentPayloadCount: number;
+  semanticAuthorityVersion: typeof SURVEY_INTENT_AUTHORITY_VERSION;
+  legacyShadowEnabled: true;
+  legacyInfluencedOutput: false;
+};
+
+function literalOccurrences(haystack: string, needle: string) {
+  if (!needle) return 0;
+  let count = 0;
+  let cursor = 0;
+  while (cursor <= haystack.length - needle.length) {
+    const found = haystack.indexOf(needle, cursor);
+    if (found < 0) break;
+    count += 1;
+    cursor = found + needle.length;
+  }
+  return count;
+}
+
+function requestContentText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(requestContentText).join("\n");
+  if (!isRecord(value)) return "";
+  if (value.type === "input_text" && typeof value.text === "string") {
+    return value.text;
+  }
+  return Object.values(value)
+    .filter((item) => typeof item !== "string" || !item.startsWith("data:"))
+    .map(requestContentText)
+    .join("\n");
+}
+
+export function inspectSurveyIntentV2RequestAuthority(
+  request: { input?: unknown },
+  rawUserInput: string,
+): SurveyIntentV2RequestAuthorityDiagnostics {
+  const messages = Array.isArray(request.input) ? request.input : [];
+  const userText = messages
+    .filter((item) => isRecord(item) && item.role === "user")
+    .map((item) => requestContentText((item as JsonRecord).content))
+    .join("\n");
+  const developerText = messages
+    .filter((item) => isRecord(item) && item.role === "developer")
+    .map((item) => requestContentText((item as JsonRecord).content))
+    .join("\n");
+  const userRoleRawInputOccurrences = literalOccurrences(userText, rawUserInput);
+  const developerRawInputOccurrences = literalOccurrences(
+    developerText,
+    rawUserInput,
+  );
+  return {
+    rawInputOccurrencesInRequest:
+      userRoleRawInputOccurrences + developerRawInputOccurrences,
+    userRoleRawInputOccurrences,
+    developerRawInputOccurrences,
+    parsedIntentPayloadCount: 0,
+    semanticAuthorityVersion: SURVEY_INTENT_AUTHORITY_VERSION,
+    legacyShadowEnabled: true,
+    legacyInfluencedOutput: false,
+  };
+}
+
+export function buildSurveyAiRequestV2(
+  prompt: string,
+  model: string,
+  options: {
+    surveyMode: SurveyMode;
+    targetGrade: string;
+    questionCount: number;
+    reasoningEffort?: BaroformReasoningEffort;
+    serviceTier?: BaroformServiceTier;
+    references?: {
+      images?: Array<{ name: string; dataUrl: string }>;
+      files?: Array<{
+        name: string;
+        mimeType: string;
+        dataUrl?: string;
+        fileId?: string;
+      }>;
+      links?: string[];
+    };
+  },
+) {
+  const surveyMode = options.surveyMode;
+  const modeConfig = getSurveyModeGenerationConfig(surveyMode);
+  const requestedQuestionCount = Math.min(
+    30,
+    Math.max(1, Math.round(options.questionCount)),
+  );
+  const referenceImages = (options.references?.images ?? []).slice(0, 10);
+  const referenceFiles = (options.references?.files ?? []).slice(0, 3);
+  const referenceLinks = (options.references?.links ?? []).slice(0, 3);
+  const useWebSearch = shouldUseWebSearchForSurvey(prompt, surveyMode, {
+    links: referenceLinks,
+  });
+  const developerContext = [
+    `[의미 권한] ${SURVEY_INTENT_AUTHORITY_VERSION}`,
+    `[프롬프트 버전] ${SURVEY_INTENT_PROMPT_VERSION}`,
+    "사용자 원문은 user 메시지에 정확히 한 번 제공된다. developer 메시지에서 원문을 추측하거나 재구성하지 않는다.",
+    canonicalIntentV2PromptContract(),
+    "",
+    "[UI가 정한 변경 불가 조건]",
+    `survey_mode=${surveyMode}`,
+    `requested_question_count=${requestedQuestionCount}`,
+    `target_grade=${options.targetGrade || "전학년"}`,
+    "",
+    "[첨부 자료]",
+    JSON.stringify({
+      links: referenceLinks,
+      images: referenceImages.map((item) => item.name),
+      files: referenceFiles.map((item) => ({
+        name: item.name,
+        mimeType: item.mimeType,
+      })),
+    }),
+    "",
+    "설문 문장은 응답자가 바로 이해할 수 있는 자연스럽고 중립적인 한국어로 작성한다.",
+    "문항 수와 선택지·척도·ID·섹션 참조는 JSON Schema를 정확히 따른다.",
+    "canonical_intent_v2.raw_user_input은 user 메시지 원문을 한 글자도 바꾸지 않고 복사한다.",
+    "canonical_intent_v2.normalized_user_input은 줄바꿈과 연속 공백만 한 칸으로 정리한다.",
+    useWebSearch
+      ? "정확한 고유명사·최신 사실만 한 번 검색하고, 검색 사실은 출처와 연결한다."
+      : "외부 검색을 사용하지 않는다.",
+  ].join("\n");
+  const userContent =
+    referenceImages.length > 0 || referenceFiles.length > 0
+      ? [
+          { type: "input_text" as const, text: prompt },
+          ...referenceFiles.map((file) => ({
+            type: "input_file" as const,
+            ...(file.fileId
+              ? { file_id: file.fileId }
+              : { filename: file.name, file_data: file.dataUrl }),
+          })),
+          ...referenceImages.map((image) => ({
+            type: "input_image" as const,
+            image_url: image.dataUrl,
+            detail: surveyMode === "research" ? ("high" as const) : ("low" as const),
+          })),
+        ]
+      : prompt;
+  const request = {
+    model,
+    reasoning: {
+      effort: options.reasoningEffort ?? modeConfig.reasoningEffort,
+    },
+    service_tier: options.serviceTier ?? "default",
+    ...(useWebSearch
+      ? {
+          tools: [
+            {
+              type: "web_search" as const,
+              search_context_size: modeConfig.searchContextSize,
+              user_location: {
+                type: "approximate" as const,
+                country: "KR",
+                timezone: "Asia/Seoul",
+              },
+            },
+          ],
+          tool_choice: "required" as const,
+          max_tool_calls: 1,
+          include: ["web_search_call.action.sources" as const],
+        }
+      : {}),
+    store: false,
+    max_output_tokens:
+      surveyMode === "research"
+        ? Math.max(20_000, 8_000 + requestedQuestionCount * 700)
+        : Math.max(12_000, 5_000 + requestedQuestionCount * 550),
+    instructions:
+      "You are Baroform's canonical survey intent compiler and survey designer. Return only the structured output requested by the schema.",
+    input: [
+      { role: "developer" as const, content: developerContext },
+      { role: "user" as const, content: userContent },
+    ],
+    text: {
+      format: zodTextFormat(
+        createSurveyGenerationV2Schema(requestedQuestionCount),
+        "baroform_survey_generation_v2",
+      ),
+    },
+  };
+  const authorityDiagnostics = inspectSurveyIntentV2RequestAuthority(
+    request,
+    prompt,
+  );
+  if (
+    authorityDiagnostics.userRoleRawInputOccurrences !== 1 ||
+    authorityDiagnostics.developerRawInputOccurrences !== 0
+  ) {
+    throw new SurveyGenerationResponseError(
+      "SURVEY_GENERATION_OUTPUT_INVALID",
+      "설문 생성 요청의 원문 전달 경계를 확인하지 못했어요.",
+    );
+  }
+  return request;
 }
 
 export function buildSurveyAiRequest(

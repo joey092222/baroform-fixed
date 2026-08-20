@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { canonicalSurveyIntentV2Schema } from "@/app/survey-intent-v2";
 
 export const supportedSurveyQuestionTypes = [
   "single_choice",
@@ -168,4 +169,23 @@ export function createSurveyGenerationSchema(questionCount: number) {
   });
 }
 
+export function createSurveyGenerationV2Schema(questionCount: number) {
+  const count = Math.min(30, Math.max(1, Math.round(questionCount)));
+  const base = createSurveyGenerationSchema(count);
+  const v2QuestionSchema = questionSchema.extend({
+    purpose_ids: z.array(z.string().min(1).max(80)).min(1).max(12),
+    object_ids: z.array(z.string().min(1).max(80)).max(12),
+    relationship_ids: z.array(z.string().min(1).max(80)).max(12),
+  });
+  return base.extend({
+    canonical_intent_v2: canonicalSurveyIntentV2Schema,
+    survey: base.shape.survey.extend({
+      questions: z.array(v2QuestionSchema).length(count),
+    }),
+  });
+}
+
 export type SurveyGeneration = z.infer<ReturnType<typeof createSurveyGenerationSchema>>;
+export type SurveyGenerationV2 = z.infer<
+  ReturnType<typeof createSurveyGenerationV2Schema>
+>;

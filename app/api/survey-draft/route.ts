@@ -11,7 +11,10 @@ import {
 } from "../../survey-intent";
 import {
   buildSurveyAiRequest,
+  buildSurveyAiRequestV2,
+  inspectSurveyIntentV2RequestAuthority,
   parseSurveyDraftResponse,
+  parseSurveyDraftResponseV2,
   SurveyGenerationResponseError,
   SurveyValidationError,
   type SurveyDraftResult,
@@ -60,6 +63,14 @@ import {
   type CanonicalSurveyIntent,
 } from "../../survey-canonical-intent";
 import {
+  SURVEY_INTENT_AUTHORITY_VERSION,
+  SURVEY_INTENT_PROMPT_VERSION,
+  SURVEY_INTENT_REPAIR_VERSION,
+  SURVEY_INTENT_SCHEMA_VERSION,
+  intentPipelineV2Enabled,
+  summarizeLegacyCanonicalIntent,
+} from "../../survey-intent-v2";
+import {
   createSurveyGenerationTrace,
   failSurveyGenerationTrace,
   markSurveyGenerationStage,
@@ -67,6 +78,7 @@ import {
   recordSurveyFallback,
   recordSurveyGenerationSource,
   recordCanonicalSurveyIntentTrace,
+  recordSurveyIntentV2AuthorityTrace,
   recordSurveyContextTrace,
   recordSurveyIntentTrace,
   recordSurveyModelResponseTrace,
@@ -354,6 +366,36 @@ function traceHeaders(trace: SurveyGenerationTrace) {
     "x-baroform-regeneration-count": String(snapshot.regenerationCount),
     "x-baroform-generation-ms": String(snapshot.elapsedMs),
     "x-baroform-generation-source": snapshot.generationSource ?? "unknown",
+    "x-baroform-semantic-authority":
+      snapshot.semanticAuthorityVersion ?? "legacy-canonical-intent-v1",
+    "x-baroform-legacy-shadow": String(snapshot.legacyShadowEnabled),
+    "x-baroform-legacy-influenced-output": String(
+      snapshot.legacyInfluencedOutput,
+    ),
+    "x-baroform-raw-input-occurrences": String(
+      snapshot.rawInputOccurrencesInRequest ?? 0,
+    ),
+    "x-baroform-user-raw-input-occurrences": String(
+      snapshot.userRoleRawInputOccurrences ?? 0,
+    ),
+    "x-baroform-developer-raw-input-occurrences": String(
+      snapshot.developerRawInputOccurrences ?? 0,
+    ),
+    "x-baroform-parsed-intent-payload-count": String(
+      snapshot.parsedIntentPayloadCount ?? 0,
+    ),
+    "x-baroform-v2-target": encodeURIComponent(
+      snapshot.canonicalV2TargetPopulation ?? "",
+    ).slice(0, 500),
+    "x-baroform-v2-objects": encodeURIComponent(
+      snapshot.canonicalV2SurveyObjects.join(" | "),
+    ).slice(0, 1000),
+    "x-baroform-v2-purposes": encodeURIComponent(
+      snapshot.canonicalV2Purposes.join(" | "),
+    ).slice(0, 1000),
+    "x-baroform-v2-clarification": String(
+      snapshot.canonicalV2ClarificationRequired ?? false,
+    ),
     "x-baroform-ai-fallback": snapshot.fallbackReason ?? "",
     "x-baroform-openai-status": snapshot.responseStatus ?? "unknown",
     "x-baroform-openai-incomplete-reason":
@@ -1312,7 +1354,11 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     references.images.length > 0 ||
     references.files.length > 0 ||
     references.links.length > 0;
+  const useIntentPipelineV2 = intentPipelineV2Enabled();
   markSurveyGenerationStage(trace, "intent-extraction");
+  // The legacy parser remains available as a shadow diagnostic while V2 is
+  // enabled. Nothing derived from this object may influence the V2 request,
+  // validation, repair, cache namespace, or response.
   const canonicalIntent = parseCanonicalSurveyIntent(
     enteredPrompt,
     surveyMode === "research" ? "research" : "general",
@@ -1354,6 +1400,11 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         includesNonUsers: intent.includesNonUsers,
         ambiguityLevel: intent.ambiguityLevel,
       },
+      semanticAuthorityVersion: useIntentPipelineV2
+        ? SURVEY_INTENT_AUTHORITY_VERSION
+        : "legacy-canonical-intent-v1",
+      legacyShadowEnabled: useIntentPipelineV2,
+      legacyInfluencedOutput: false,
     });
   }
   if (enteredPrompt.length > 300 || (enteredPrompt.length < 2 && !hasReferences)) {
@@ -1376,13 +1427,21 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       ? Math.min(30, Math.max(1, payload.questionCount))
       : 7;
   const isDirectProportion =
-    !hasReferences && isSimpleProportionSurveyRequest(prompt);
+    !useIntentPipelineV2 &&
+    !hasReferences &&
+    isSimpleProportionSurveyRequest(prompt);
   const isDirectFrequency =
-    !hasReferences && isLiteralFrequencySurveyRequest(prompt);
+    !useIntentPipelineV2 &&
+    !hasReferences &&
+    isLiteralFrequencySurveyRequest(prompt);
   const isDirectSleepDuration =
-    !hasReferences && isSleepDurationSurveyRequest(prompt);
+    !useIntentPipelineV2 &&
+    !hasReferences &&
+    isSleepDurationSurveyRequest(prompt);
   const isDirectDuration =
-    !hasReferences && isExplicitDurationSurveyRequest(prompt);
+    !useIntentPipelineV2 &&
+    !hasReferences &&
+    isExplicitDurationSurveyRequest(prompt);
   const questionCount = isDirectProportion
     ? targetGrade === "전학년"
       ? 1
@@ -1400,19 +1459,25 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     attachmentCount:
       references.images.length + references.files.length + references.links.length,
   });
-  const surveyPlan = createSurveyPlan(intent, questionCount);
+  const surveyPlan = useIntentPipelineV2
+    ? null
+    : createSurveyPlan(intent, questionCount);
   recordSurveyPlanTrace(trace, {
     intentKind: intent.objectKind,
     intentMode: intent.intentMode,
     purposeKinds: intent.purposeBlocks.map((block) => block.kind),
     purposeBlockCount: intent.purposeBlocks.length,
-    blocks: surveyPlan.blocks.map(
+    blocks: (surveyPlan?.blocks ?? []).map(
       (block) =>
         `${block.id}:${block.kind}:required=${block.required}:askable=${block.directlyAskable}:variables=${block.variableIds.join("+")}:question=${block.questionType ?? "none"}:analysis=${block.analysisType ?? "none"}`,
     ),
   });
 
-  if (enteredPrompt && intent.requiresCreatorClarification) {
+  if (
+    !useIntentPipelineV2 &&
+    enteredPrompt &&
+    intent.requiresCreatorClarification
+  ) {
     const clarification = creatorClarificationResult(prompt, intent);
     recordSurveyGenerationSource(trace, "intent_clarification");
     markSurveyGenerationStage(trace, "response-ready");
@@ -1446,6 +1511,18 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
     targetGrade,
     questionCount,
     referenceKey,
+    semanticAuthorityVersion: useIntentPipelineV2
+      ? SURVEY_INTENT_AUTHORITY_VERSION
+      : "legacy-canonical-intent-v1",
+    promptVersion: useIntentPipelineV2
+      ? SURVEY_INTENT_PROMPT_VERSION
+      : "survey-ai-v1",
+    schemaVersion: useIntentPipelineV2
+      ? SURVEY_INTENT_SCHEMA_VERSION
+      : "survey-generation-v1",
+    repairVersion: useIntentPipelineV2
+      ? SURVEY_INTENT_REPAIR_VERSION
+      : "legacy-repair-v1",
   });
   const cached = responseCache.get(cacheKey);
   if (cached && cached.expiresAt > now) {
@@ -1516,6 +1593,18 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
   const mockMode = shouldMockOpenAi();
   if (!apiKey || mockMode) {
     const fallbackReason = !apiKey ? "api-key-missing" : "mock-mode";
+    if (useIntentPipelineV2) {
+      return apiError(
+        "AI 의미 분석 연결을 확인하는 중이에요. 잠시 후 다시 시도해주세요.",
+        "SURVEY_INTENT_V2_AI_UNAVAILABLE",
+        503,
+        {
+          "x-baroform-semantic-authority": SURVEY_INTENT_AUTHORITY_VERSION,
+          "x-baroform-ai-fallback": fallbackReason,
+        },
+        requestId,
+      );
+    }
     if (hasReferences && !mockMode) {
       return apiError(
         "첨부 자료 분석 연결을 확인하는 중이에요. 잠시 후 다시 시도해주세요.",
@@ -1734,17 +1823,32 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
 
   const lifecycle = combineRequestAndDeadlineSignals(request);
   const openai = createTrackedOpenAiClient(apiKey, openAiTimeoutMs);
-  const modelRequest = buildSurveyAiRequest(prompt, null, model, {
-    surveyMode,
-    targetGrade,
-    questionCount,
-    references,
-    organizationLocationContext,
-    reasoningEffort: modelRoute.reasoningEffort,
-    serviceTier: modelRoute.requestedServiceTier,
-    canonicalIntent,
-    surveyPlan,
-  });
+  const modelRequest = useIntentPipelineV2
+    ? buildSurveyAiRequestV2(prompt, model, {
+        surveyMode,
+        targetGrade,
+        questionCount,
+        references,
+        reasoningEffort: modelRoute.reasoningEffort,
+        serviceTier: modelRoute.requestedServiceTier,
+      })
+    : buildSurveyAiRequest(prompt, null, model, {
+        surveyMode,
+        targetGrade,
+        questionCount,
+        references,
+        organizationLocationContext,
+        reasoningEffort: modelRoute.reasoningEffort,
+        serviceTier: modelRoute.requestedServiceTier,
+        canonicalIntent,
+        surveyPlan: surveyPlan!,
+      });
+  const v2AuthorityDiagnostics = useIntentPipelineV2
+    ? inspectSurveyIntentV2RequestAuthority(modelRequest, prompt)
+    : null;
+  if (v2AuthorityDiagnostics) {
+    recordSurveyIntentV2AuthorityTrace(trace, v2AuthorityDiagnostics);
+  }
   traceAiEvent({
     requestId,
     stage: "prompt_built",
@@ -1753,7 +1857,10 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       selectedInput.rawUserInput,
       {
         timeoutMs: openAiTimeoutMs,
-        developerPromptVersion: "survey-ai-v1",
+        developerPromptVersion: useIntentPipelineV2
+          ? SURVEY_INTENT_PROMPT_VERSION
+          : "survey-ai-v1",
+        ...(v2AuthorityDiagnostics ?? {}),
       },
     ),
   });
@@ -1919,7 +2026,11 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         });
       }
 
-      if (isInvalidStructuredOutput && intent.intentMode === "composite") {
+      if (
+        !useIntentPipelineV2 &&
+        isInvalidStructuredOutput &&
+        intent.intentMode === "composite"
+      ) {
         return respondWithPlanBasedFallback(
           "model-output-rejected",
           "composite_plan_fallback",
@@ -1927,6 +2038,10 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       }
 
       if (isTimeout || isInvalidStructuredOutput || isHttpFailure) {
+        throw error;
+      }
+
+      if (useIntentPipelineV2) {
         throw error;
       }
 
@@ -1950,26 +2065,43 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       requestId,
       stage: "parse_started",
       data: {
-        parserFunction: "parseSurveyDraftResponse",
-        schema: "surveyGenerationResponseSchema",
+        parserFunction: useIntentPipelineV2
+          ? "parseSurveyDraftResponseV2"
+          : "parseSurveyDraftResponse",
+        schema: useIntentPipelineV2
+          ? SURVEY_INTENT_SCHEMA_VERSION
+          : "surveyGenerationResponseSchema",
         rawResponse: summarizeOpenAiResponseForTrace(rawResult),
       },
     });
     let result: SurveyDraftResult;
     try {
-      result = parseSurveyDraftResponse(
-        rawResult as unknown,
-        prompt,
-        questionCount,
-        targetGrade,
-        hasReferences,
-        trace,
-        {
-          canonicalIntent,
-          surveyPlan,
-          webSearchRequested: requestUsesWebSearch(modelRequest),
-        },
-      );
+      result = useIntentPipelineV2
+        ? parseSurveyDraftResponseV2(
+            rawResult as unknown,
+            {
+              prompt,
+              surveyMode,
+              questionCount,
+              targetGrade,
+              expectsReferences: hasReferences,
+              legacyShadow: summarizeLegacyCanonicalIntent(canonicalIntent),
+            },
+            trace,
+          )
+        : parseSurveyDraftResponse(
+            rawResult as unknown,
+            prompt,
+            questionCount,
+            targetGrade,
+            hasReferences,
+            trace,
+            {
+              canonicalIntent,
+              surveyPlan: surveyPlan!,
+              webSearchRequested: requestUsesWebSearch(modelRequest),
+            },
+          );
       traceAiEvent({
         requestId,
         stage: "parse_succeeded",
@@ -1987,7 +2119,9 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         requestId,
         stage: "parse_failed",
         data: {
-          parserFunction: "parseSurveyDraftResponse",
+          parserFunction: useIntentPipelineV2
+            ? "parseSurveyDraftResponseV2"
+            : "parseSurveyDraftResponse",
           errorName: error instanceof Error ? error.name : "UnknownError",
           errorMessage: error instanceof Error ? error.message : null,
           jsonRepairExecuted: false,
@@ -2047,14 +2181,16 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       });
     }
 
-    cacheResult(
-      cacheKey,
-      now,
-      result,
-      "model",
-      trace.fallbackReason ?? undefined,
-      trace.generationSource ?? "openai",
-    );
+    if (!useIntentPipelineV2 || result.status !== "needs_clarification") {
+      cacheResult(
+        cacheKey,
+        now,
+        result,
+        "model",
+        trace.fallbackReason ?? undefined,
+        trace.generationSource ?? "openai",
+      );
+    }
     markSurveyGenerationStage(trace, "response-ready");
     logGenerationMetric({
       surveyMode,
@@ -2072,6 +2208,13 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         "x-baroform-ai-mode": "model",
         "x-baroform-ai-attempt": "single-response",
         "x-baroform-survey-mode": surveyMode,
+        ...(useIntentPipelineV2
+          ? {
+              "x-baroform-semantic-authority":
+                SURVEY_INTENT_AUTHORITY_VERSION,
+              "x-baroform-legacy-influenced-output": "false",
+            }
+          : {}),
         ...traceHeaders(trace),
       },
       requestId,
@@ -2105,6 +2248,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       );
     };
     const canUseValidatedPlanFallback =
+      !useIntentPipelineV2 &&
       upstreamCompleted &&
       (error instanceof SurveyValidationError ||
         (intent.intentMode === "composite" &&
@@ -2256,7 +2400,7 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       );
     }
 
-    if (upstreamCompleted && error instanceof Error) {
+    if (!useIntentPipelineV2 && upstreamCompleted && error instanceof Error) {
       if (!trace.postprocessErrorCode) {
         recordSurveyPostprocessError(trace, {
           error,
@@ -2455,24 +2599,35 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
     }
     const modelRoute = resolveSurveyGenerationModel("research");
     const model = modelRoute.model;
+    const useIntentPipelineV2 = intentPipelineV2Enabled();
     const canonicalIntent = parseCanonicalSurveyIntent(
       context.prompt,
       "research",
     );
-    const surveyPlan = createSurveyPlan(
-      canonicalIntent.surveyIntent,
-      context.questionCount,
-    );
-    const parseParams = buildSurveyAiRequest(context.prompt, null, model, {
-      surveyMode: "research",
-      targetGrade: context.targetGrade,
-      questionCount: context.questionCount,
-      organizationLocationContext: context.organizationLocationContext,
-      reasoningEffort: modelRoute.reasoningEffort,
-      serviceTier: modelRoute.requestedServiceTier,
-      canonicalIntent,
-      surveyPlan,
-    });
+    const surveyPlan = useIntentPipelineV2
+      ? null
+      : createSurveyPlan(
+          canonicalIntent.surveyIntent,
+          context.questionCount,
+        );
+    const parseParams = useIntentPipelineV2
+      ? buildSurveyAiRequestV2(context.prompt, model, {
+          surveyMode: "research",
+          targetGrade: context.targetGrade,
+          questionCount: context.questionCount,
+          reasoningEffort: modelRoute.reasoningEffort,
+          serviceTier: modelRoute.requestedServiceTier,
+        })
+      : buildSurveyAiRequest(context.prompt, null, model, {
+          surveyMode: "research",
+          targetGrade: context.targetGrade,
+          questionCount: context.questionCount,
+          organizationLocationContext: context.organizationLocationContext,
+          reasoningEffort: modelRoute.reasoningEffort,
+          serviceTier: modelRoute.requestedServiceTier,
+          canonicalIntent,
+          surveyPlan: surveyPlan!,
+        });
     const backgroundCacheKey = generationCacheKey({
       requestScope: context.requestScope,
       surveyMode: "research",
@@ -2480,30 +2635,56 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
       targetGrade: context.targetGrade,
       questionCount: context.questionCount,
       referenceKey: context.referenceKey,
+      semanticAuthorityVersion: useIntentPipelineV2
+        ? SURVEY_INTENT_AUTHORITY_VERSION
+        : "legacy-canonical-intent-v1",
+      promptVersion: useIntentPipelineV2
+        ? SURVEY_INTENT_PROMPT_VERSION
+        : "survey-ai-v1",
+      schemaVersion: useIntentPipelineV2
+        ? SURVEY_INTENT_SCHEMA_VERSION
+        : "survey-generation-v1",
+      repairVersion: useIntentPipelineV2
+        ? SURVEY_INTENT_REPAIR_VERSION
+        : "legacy-repair-v1",
     });
     backgroundGenerationCache.delete(backgroundCacheKey);
     let result: SurveyDraftResult;
     try {
       const parsedResponse = parseResponse(response, parseParams);
-      result = parseSurveyDraftResponse(
-        parsedResponse,
-        context.prompt,
-        context.questionCount,
-        context.targetGrade,
-        context.hasReferences,
-        trace,
-        {
-          canonicalIntent,
-          surveyPlan,
-          webSearchRequested: requestUsesWebSearch(parseParams),
-        },
-      );
+      result = useIntentPipelineV2
+        ? parseSurveyDraftResponseV2(
+            parsedResponse,
+            {
+              prompt: context.prompt,
+              surveyMode: "research",
+              questionCount: context.questionCount,
+              targetGrade: context.targetGrade,
+              expectsReferences: context.hasReferences,
+              legacyShadow: summarizeLegacyCanonicalIntent(canonicalIntent),
+            },
+            trace,
+          )
+        : parseSurveyDraftResponse(
+            parsedResponse,
+            context.prompt,
+            context.questionCount,
+            context.targetGrade,
+            context.hasReferences,
+            trace,
+            {
+              canonicalIntent,
+              surveyPlan: surveyPlan!,
+              webSearchRequested: requestUsesWebSearch(parseParams),
+            },
+          );
       if (result.status === "ready" || result.status === "ready_with_caution") {
         recordSurveyPostprocessTrace(trace, {
           before: result.blueprint.aiQuestions.map((item) => item.title),
         });
       }
     } catch (error) {
+      if (useIntentPipelineV2) throw error;
       if (
         error instanceof SyntaxError ||
         error instanceof SurveyGenerationResponseError ||
@@ -2555,12 +2736,16 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
     }
 
     const isDirectProportion =
+      !useIntentPipelineV2 &&
       !context.hasReferences && isSimpleProportionSurveyRequest(context.prompt);
     const isDirectFrequency =
+      !useIntentPipelineV2 &&
       !context.hasReferences && isLiteralFrequencySurveyRequest(context.prompt);
     const isDirectSleepDuration =
+      !useIntentPipelineV2 &&
       !context.hasReferences && isSleepDurationSurveyRequest(context.prompt);
     const isDirectDuration =
+      !useIntentPipelineV2 &&
       !context.hasReferences && isExplicitDurationSurveyRequest(context.prompt);
     if (
       result.status !== "needs_clarification" &&
@@ -2596,14 +2781,16 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
       });
     }
 
-    cacheResult(
-      backgroundCacheKey,
-      Date.now(),
-      result,
-      "model",
-      undefined,
-      "openai",
-    );
+    if (!useIntentPipelineV2 || result.status !== "needs_clarification") {
+      cacheResult(
+        backgroundCacheKey,
+        Date.now(),
+        result,
+        "model",
+        undefined,
+        "openai",
+      );
+    }
     markSurveyGenerationStage(trace, "response-ready");
     logTrace(trace);
     return apiSuccess(
@@ -2612,6 +2799,13 @@ async function handleBackgroundStatus(request: Request, requestId: string) {
         "x-baroform-ai-mode": "background",
         "x-baroform-ai-attempt": "single-background-response",
         "x-baroform-survey-mode": "research",
+        ...(useIntentPipelineV2
+          ? {
+              "x-baroform-semantic-authority":
+                SURVEY_INTENT_AUTHORITY_VERSION,
+              "x-baroform-legacy-influenced-output": "false",
+            }
+          : {}),
         ...traceHeaders(trace),
       },
       requestId,

@@ -1,5 +1,6 @@
 import type { ParsedSurveyContext } from "./survey-context";
 import type { PlanCoverageResult } from "./survey-planning";
+import type { CanonicalSurveyIntentV2 } from "./survey-intent-v2";
 import type { SurveyGenerationSource } from "./survey-generation-response";
 import {
   currentBuildDiagnostics,
@@ -53,6 +54,17 @@ export type GenerationDiagnostics = {
   changedFieldsByQuestion: Record<string, string[]>;
   metadataOnlyNormalization: boolean;
   respondentFacingContentChanged: boolean;
+  semanticAuthorityVersion: string | null;
+  legacyShadowEnabled: boolean;
+  legacyInfluencedOutput: boolean;
+  rawInputOccurrencesInRequest: number | null;
+  userRoleRawInputOccurrences: number | null;
+  developerRawInputOccurrences: number | null;
+  parsedIntentPayloadCount: number | null;
+  canonicalV2TargetPopulation: string | null;
+  canonicalV2SurveyObjects: string[];
+  canonicalV2Purposes: string[];
+  canonicalV2ClarificationRequired: boolean | null;
   intentMode: "single" | "composite" | null;
   purposeKinds: string[];
   purposeBlockCount: number;
@@ -134,6 +146,17 @@ export type SurveyGenerationTrace = {
   changedFieldsByQuestion: Record<string, string[]>;
   metadataOnlyNormalization: boolean;
   respondentFacingContentChanged: boolean;
+  semanticAuthorityVersion: string | null;
+  legacyShadowEnabled: boolean;
+  legacyInfluencedOutput: boolean;
+  rawInputOccurrencesInRequest: number | null;
+  userRoleRawInputOccurrences: number | null;
+  developerRawInputOccurrences: number | null;
+  parsedIntentPayloadCount: number | null;
+  canonicalV2TargetPopulation: string | null;
+  canonicalV2SurveyObjects: string[];
+  canonicalV2Purposes: string[];
+  canonicalV2ClarificationRequired: boolean | null;
   rawUserInput: string | null;
   normalizedInput: string | null;
   parsedSurveyContext: ParsedSurveyContext | null;
@@ -256,6 +279,17 @@ export function createSurveyGenerationTrace(
     changedFieldsByQuestion: {},
     metadataOnlyNormalization: false,
     respondentFacingContentChanged: false,
+    semanticAuthorityVersion: null,
+    legacyShadowEnabled: false,
+    legacyInfluencedOutput: false,
+    rawInputOccurrencesInRequest: null,
+    userRoleRawInputOccurrences: null,
+    developerRawInputOccurrences: null,
+    parsedIntentPayloadCount: null,
+    canonicalV2TargetPopulation: null,
+    canonicalV2SurveyObjects: [],
+    canonicalV2Purposes: [],
+    canonicalV2ClarificationRequired: null,
     rawUserInput: null,
     normalizedInput: null,
     parsedSurveyContext: null,
@@ -345,6 +379,53 @@ export function recordSurveyRequestTrace(
   trace.requestedQuestionCount = details.questionCount;
   trace.targetGrade = details.targetGrade.slice(0, 80);
   trace.attachmentCount = details.attachmentCount;
+}
+
+export function recordSurveyIntentV2AuthorityTrace(
+  trace: SurveyGenerationTrace | undefined,
+  details: {
+    semanticAuthorityVersion: string;
+    legacyShadowEnabled: boolean;
+    legacyInfluencedOutput: false;
+    rawInputOccurrencesInRequest: number;
+    userRoleRawInputOccurrences: number;
+    developerRawInputOccurrences: number;
+    parsedIntentPayloadCount: number;
+  },
+) {
+  if (!trace) return;
+  trace.semanticAuthorityVersion = details.semanticAuthorityVersion.slice(0, 80);
+  trace.legacyShadowEnabled = details.legacyShadowEnabled;
+  trace.legacyInfluencedOutput = details.legacyInfluencedOutput;
+  trace.rawInputOccurrencesInRequest = details.rawInputOccurrencesInRequest;
+  trace.userRoleRawInputOccurrences = details.userRoleRawInputOccurrences;
+  trace.developerRawInputOccurrences = details.developerRawInputOccurrences;
+  trace.parsedIntentPayloadCount = details.parsedIntentPayloadCount;
+}
+
+export function recordCanonicalSurveyIntentV2Trace(
+  trace: SurveyGenerationTrace | undefined,
+  intent: CanonicalSurveyIntentV2,
+) {
+  if (!trace) return;
+  trace.semanticAuthorityVersion = "canonical-intent-v2";
+  trace.legacyShadowEnabled = true;
+  trace.legacyInfluencedOutput = false;
+  trace.canonicalV2TargetPopulation = intent.target_population.display_text.slice(0, 180);
+  trace.canonicalV2SurveyObjects = intent.survey_objects
+    .slice(0, 20)
+    .map((item) => `${item.id}:${item.entity_type}:${item.name}`.slice(0, 260));
+  trace.canonicalV2Purposes = intent.purposes
+    .slice(0, 20)
+    .map((item) => `${item.id}:${item.purpose_type}:${item.text}`.slice(0, 320));
+  trace.canonicalV2ClarificationRequired = intent.clarification.required;
+  trace.selectedSurveyType =
+    intent.relationships.length > 0
+      ? "relationship_analysis"
+      : intent.purposes.length > 1
+        ? "composite"
+        : intent.survey_objects[0]?.entity_type ?? "other";
+  trace.selectedTemplateKey = "canonical-intent-v2";
 }
 
 export function recordSurveyContextTrace(
@@ -1065,6 +1146,18 @@ export function surveyGenerationTraceSnapshot(trace: SurveyGenerationTrace) {
     ),
     metadataOnlyNormalization: trace.metadataOnlyNormalization,
     respondentFacingContentChanged: trace.respondentFacingContentChanged,
+    semanticAuthorityVersion: trace.semanticAuthorityVersion,
+    legacyShadowEnabled: trace.legacyShadowEnabled,
+    legacyInfluencedOutput: trace.legacyInfluencedOutput,
+    rawInputOccurrencesInRequest: trace.rawInputOccurrencesInRequest,
+    userRoleRawInputOccurrences: trace.userRoleRawInputOccurrences,
+    developerRawInputOccurrences: trace.developerRawInputOccurrences,
+    parsedIntentPayloadCount: trace.parsedIntentPayloadCount,
+    canonicalV2TargetPopulation: trace.canonicalV2TargetPopulation,
+    canonicalV2SurveyObjects: [...trace.canonicalV2SurveyObjects],
+    canonicalV2Purposes: [...trace.canonicalV2Purposes],
+    canonicalV2ClarificationRequired:
+      trace.canonicalV2ClarificationRequired,
     rawUserInput: trace.rawUserInput,
     normalizedInput: trace.normalizedInput,
     parsedSurveyContext: trace.parsedSurveyContext,
