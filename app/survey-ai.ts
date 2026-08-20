@@ -621,10 +621,12 @@ function assertCompletedResponse(payload: JsonRecord) {
     if (!isRecord(item)) continue;
     if (item.type === "web_search_call") {
       const status = cleanText(item.status, 40);
-      if (status && status !== "completed") {
-        throw new Error("AI 정보조사가 끝까지 완료되지 않았습니다.");
-      }
-      completedSearch = true;
+      // A completed Responses API result can contain more than one web-search
+      // item, including an earlier failed attempt followed by a completed one.
+      // The response-level status and final message are the completion contract;
+      // research metadata validation below decides whether failed or partial
+      // search evidence requires ready_with_caution.
+      if (status === "completed") completedSearch = true;
     }
     if (item.type !== "message" || !Array.isArray(item.content)) continue;
     hasFinalMessage = true;

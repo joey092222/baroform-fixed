@@ -1753,6 +1753,31 @@ test("검색 신뢰도가 미확정이면 설문은 유지하고 검증 사실�
   assert.deepEqual(result.research.facts, []);
 });
 
+test("완료 응답의 실패한 검색 시도는 뒤이은 완료 검색과 최종 설문을 폐기하지 않는다", () => {
+  const payload = structuredReadyPayload();
+  payload.output.unshift({
+    type: "web_search_call",
+    status: "failed",
+    action: { sources: [] },
+  });
+
+  const result = parseSurveyDraftResponse(
+    payload,
+    "대학생 네이버웹툰 이용 현황 조사",
+    7,
+    "전학년",
+    false,
+    undefined,
+    { webSearchRequested: true },
+  );
+
+  assert.match(result.status, /^ready/);
+  if (result.status !== "ready" && result.status !== "ready_with_caution") {
+    assert.fail("완성된 설문 결과가 필요합니다.");
+  }
+  assert.equal(result.blueprint.aiQuestions.length, 7);
+});
+
 test("research background 완료 결과도 조사 대상 메타데이터만 보정한다", async () => {
   const previousKey = process.env.OPENAI_API_KEY;
   const previousFetch = globalThis.fetch;
