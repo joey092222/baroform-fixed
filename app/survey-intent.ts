@@ -144,6 +144,7 @@ export function directlyMeasuresOverallSatisfaction(
 export function resizeSurveyQuestions(
   questions: SurveyQuestion[],
   requestedCount: number,
+  expansionQuestions: SurveyQuestion[] = [],
 ) {
   const count = Math.min(30, Math.max(1, Math.round(requestedCount)));
   if (questions.length >= count) {
@@ -158,19 +159,26 @@ export function resizeSurveyQuestions(
   if (lastText && result.length < count) {
     result.splice(result.indexOf(lastText), 1);
   }
-  while (result.length < count - (lastText ? 1 : 0)) {
-    const number = result.length + 1;
-    result.push({
-      id: number,
-      title: `이 주제와 관련해 중요하게 생각하는 요소 ${number - 1}은 어느 정도인가요?`,
-      reason: "조사 주제의 세부 경험을 빠짐없이 확인하기 위한 질문이에요.",
-      type: "scale",
-      required: true,
-      scaleMin: 1,
-      scaleMax: 5,
-      scaleMinLabel: "전혀 그렇지 않음",
-      scaleMaxLabel: "매우 그러함",
-    });
+  const lastTextTitle = lastText
+    ? normalizedSurveyText(lastText.title)
+    : null;
+  const existingTitles = new Set(
+    result.map((question) => normalizedSurveyText(question.title)),
+  );
+  const candidates = expansionQuestions.filter((question) => {
+    const normalizedTitle = normalizedSurveyText(question.title);
+    return (
+      normalizedTitle.length > 0 &&
+      !existingTitles.has(normalizedTitle) &&
+      normalizedTitle !== lastTextTitle
+    );
+  });
+  for (const candidate of candidates) {
+    if (result.length >= count - (lastText ? 1 : 0)) break;
+    const normalizedTitle = normalizedSurveyText(candidate.title);
+    if (existingTitles.has(normalizedTitle)) continue;
+    result.push({ ...candidate });
+    existingTitles.add(normalizedTitle);
   }
   if (lastText && result.length < count) result.push(lastText);
   return result.slice(0, count).map((question, index) => ({
@@ -2490,6 +2498,28 @@ function multipleSatisfactionBlueprint(
     {
       ...question(
         1,
+        "두 대상을 비교했을 때 만족도 차이가 가장 크게 느껴진 부분은 무엇인가요?",
+        "대상별 만족도 차이가 발생한 구체적인 평가 차원을 확인함.",
+        "single",
+        [
+          "내용과 품질",
+          "이용 편의성",
+          "접근성과 시간",
+          "비용 대비 가치",
+          "정보와 지원",
+          "뚜렷한 차이 없음",
+        ],
+      ),
+      planBlockId: "target-difference-driver",
+      measuredConstruct: "대상별 만족도 차이 요인",
+      measuredVariable: "만족도 차이 평가 차원",
+      measuredRole: "construct",
+      questionPurpose: "복수 대상의 만족도 차이를 설명하는 평가 차원을 구분함.",
+      objectRole: "real_world_object",
+    },
+    {
+      ...question(
+        1,
         "가장 만족도가 높은 수업은 무엇인가요?",
         "대상별 척도 응답과 함께 상대적 우선순위를 확인함.",
         "single",
@@ -2697,20 +2727,37 @@ function satisfactionBlueprint(
     ],
     question(
       1,
+      profile.strengthsTitle,
+      "전체 만족도를 높이는 구체적인 강점 영역을 구분함.",
+      "multiple",
+      [...profile.areaOptions, "아직 만족한 부분이 없음"],
+    ),
+    question(
+      1,
       profile.detailTitles[0],
-      "전체 점수만으로 보이지 않는 첫 번째 핵심 경험을 별도로 진단해요.",
+      "세부 만족도 차원을 전체 만족도와 구분해 측정함.",
       "scale",
     ),
     question(
       1,
       profile.detailTitles[1],
-      "개선 가능한 두 번째 핵심 경험을 같은 척도로 비교해요.",
+      "또 다른 세부 만족도 차원을 같은 척도로 비교함.",
       "scale",
     ),
     question(
       1,
       profile.detailTitles[2],
-      "대상과 주제에 맞는 세 번째 핵심 경험의 만족도를 확인해요.",
+      "주제에 맞는 세부 만족도 차원을 직접 확인함.",
+      "scale",
+    ),
+    question(
+      1,
+      movement
+        ? "현재 이동 환경이 앞으로도 계속 오가기에 적절하다고 느끼시나요?"
+        : `${labelWithParticle(evaluationTarget, "을", "를")} 주변 사람에게 추천할 의향이 어느 정도인가요?`,
+      movement
+        ? "세부 이동 경험과 별도로 현재 이동 환경의 지속 이용 가능성을 확인함."
+        : "세부 만족도와 별도로 전체 경험에 대한 추천 의향을 확인함.",
       "scale",
     ),
     question(

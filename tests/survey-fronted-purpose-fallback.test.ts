@@ -16,6 +16,56 @@ function titlesFor(input: string) {
   };
 }
 
+test("문항 수 확장은 명시적인 설계 후보만 사용하고 범용 filler를 만들지 않는다", () => {
+  const base = [
+    {
+      id: 1,
+      title: "현재 경험을 전반적으로 어떻게 평가하시나요?",
+      reason: "전체 평가를 확인함.",
+      type: "scale" as const,
+      required: true,
+      scaleMin: 1,
+      scaleMax: 5,
+    },
+    {
+      id: 2,
+      title: "추가 의견을 적어주세요.",
+      reason: "구체적인 의견을 수집함.",
+      type: "text" as const,
+      required: false,
+    },
+  ];
+  const expansion = [
+    ...base,
+    {
+      id: 3,
+      title: "가장 만족한 부분은 무엇인가요?",
+      reason: "강점 영역을 확인함.",
+      type: "multiple" as const,
+      required: true,
+      options: ["내용", "편의성", "지원"],
+    },
+  ];
+
+  const withoutCandidates = resizeSurveyQuestions(base, 7);
+  const withCandidates = resizeSurveyQuestions(base, 7, expansion);
+
+  assert.equal(withoutCandidates.length, 2);
+  assert.deepEqual(
+    withCandidates.map((question) => question.title),
+    [
+      "현재 경험을 전반적으로 어떻게 평가하시나요?",
+      "가장 만족한 부분은 무엇인가요?",
+      "추가 의견을 적어주세요.",
+    ],
+  );
+  assert.ok(
+    [...withoutCandidates, ...withCandidates].every(
+      (question) => !/중요하게 생각하는 요소/.test(question.title),
+    ),
+  );
+});
+
 test("시설 인식 목적은 이용 경험 설문으로 바뀌지 않고 적격 기간을 보존한다", () => {
   const { blueprint, titles } = titlesFor(
     "시설 인식은 푸른 체육관을 최근 두 달 이용한 주민에게 조사",

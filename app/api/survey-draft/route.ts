@@ -783,7 +783,11 @@ function applyDraftSettings(
       `응답 학년 · ${targetGrade}`,
     ],
     templateQuestions: applyTargetGradeToQuestions(
-      resizeSurveyQuestions(blueprint.templateQuestions, templateCount),
+      resizeSurveyQuestions(
+        blueprint.templateQuestions,
+        templateCount,
+        blueprint.aiQuestions,
+      ),
       targetGrade,
       templateCount,
       finalRespondentGroup,
