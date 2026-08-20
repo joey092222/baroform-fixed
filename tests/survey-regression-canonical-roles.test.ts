@@ -325,6 +325,60 @@ test("전체 집단의 이용 경험 조사는 적격 이용자로 응답 대상
   assert.ok(blueprint.aiQuestions.some((question) => /이용한 적|이용 여부/.test(question.title)));
 });
 
+test("명시된 이동 경험 모집단은 방문자로 축소하지 않고 비경험 경로를 유지한다", () => {
+  const input = "새길대학교 학생들의 온빛관 등하교 경험";
+  const canonical = parseCanonicalSurveyIntent(input);
+  const blueprint = analyzeSurveyPrompt(input, canonical);
+
+  assert.equal(canonical.surveyIntent.targetPopulation, "새길대학교 학생");
+  assert.equal(canonical.surveyIntent.includesNonUsers, true);
+  assert.equal(blueprint.respondentGroup, "새길대학교 학생");
+  assert.ok(
+    blueprint.aiQuestions[0]?.options?.some((option) => /경험 없음/.test(option)),
+  );
+});
+
+test("복수 대상만 명시된 비교는 전체 요청을 대상화하지 않고 공통 경험자를 파생한다", () => {
+  const input = "새길대학교 온빛 식당과 별하 식당의 가격·맛·대기시간 비교";
+  const canonical = parseCanonicalSurveyIntent(input);
+  const blueprint = analyzeSurveyPrompt(input, canonical);
+  const corpus = blueprint.aiQuestions.map((question) => question.title).join(" ");
+
+  assert.equal(canonical.surveyIntent.targetCardinality, "multiple");
+  assert.match(canonical.surveyIntent.targetPopulation ?? "", /온빛 식당.*별하 식당.*모두 이용/);
+  assert.deepEqual(canonical.surveyIntent.evaluationTargets, [
+    "새길대학교 온빛 식당",
+    "별하 식당",
+  ]);
+  assert.equal(blueprint.evaluationTarget, "새길대학교 온빛 식당·별하 식당");
+  assert.match(corpus, /새길대학교 온빛 식당.*가격/);
+  assert.match(corpus, /별하 식당.*가격/);
+  assert.match(corpus, /새길대학교 온빛 식당.*맛/);
+  assert.match(corpus, /별하 식당.*맛/);
+  assert.match(corpus, /새길대학교 온빛 식당.*대기시간/);
+  assert.match(corpus, /별하 식당.*대기시간/);
+  assert.doesNotMatch(corpus, /가격·맛·대기시간 비교를 이용/);
+});
+
+test("플랫폼 비교는 두 이용 대상을 보존하고 사용성과 지속 사용 의향을 각각 측정한다", () => {
+  const input = "iOS용 공부 앱과 안드로이드용 공부 앱의 사용성 및 지속 사용 의향 비교";
+  const canonical = parseCanonicalSurveyIntent(input);
+  const blueprint = analyzeSurveyPrompt(input, canonical);
+  const corpus = blueprint.aiQuestions.map((question) => question.title).join(" ");
+
+  assert.equal(canonical.surveyIntent.targetCardinality, "multiple");
+  assert.match(canonical.surveyIntent.targetPopulation ?? "", /iOS용 공부 앱.*안드로이드용 공부 앱.*모두 사용/);
+  assert.deepEqual(canonical.surveyIntent.evaluationTargets, [
+    "iOS용 공부 앱",
+    "안드로이드용 공부 앱",
+  ]);
+  assert.match(corpus, /iOS용 공부 앱.*사용성/);
+  assert.match(corpus, /안드로이드용 공부 앱.*사용성/);
+  assert.match(corpus, /iOS용 공부 앱.*계속 이용할 의향/);
+  assert.match(corpus, /안드로이드용 공부 앱.*계속 이용할 의향/);
+  assert.doesNotMatch(corpus, /사용성 및 지속 사용 의향 비교를 이용/);
+});
+
 test("역할 연결어가 없는 bare 명사열은 억지 설문 대신 clarification으로 남긴다", () => {
   const intent = parseCanonicalSurveyIntent("별마루 카페 새 메뉴 주민 조사");
 

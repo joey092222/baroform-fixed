@@ -38,7 +38,7 @@ test("대우관 등하교 요청은 대상·건물·이동·목적을 분리한�
       isUsageObject: context.isUsageObject,
     },
     {
-      audience: "대우관을 이용하거나 방문하는 연세대학교 학생",
+      audience: "연세대학교 학생",
       primaryEntity: "대우관",
       entityType: "university_building",
       activity: "대우관 수업이나 활동을 위해 오가는 이동",
@@ -55,7 +55,7 @@ test("대우관 등하교 요청은 대상·건물·이동·목적을 분리한�
   assert.equal(brief.researchSubject, "대우관 등하교 경험");
   assert.equal(
     brief.targetRespondents,
-    "대우관을 이용하거나 방문하는 연세대학교 학생",
+    "연세대학교 학생",
   );
 });
 

@@ -1097,6 +1097,18 @@ function withAccusativeParticle(value: string) {
   return `${normalized}${hasFinalConsonant ? "을" : "를"}`;
 }
 
+function withConjunctiveParticle(value: string) {
+  const normalized = normalize(value);
+  const lastCharacter = normalized.at(-1);
+  if (!lastCharacter) return normalized;
+  const codePoint = lastCharacter.charCodeAt(0);
+  if (codePoint < 0xac00 || codePoint > 0xd7a3) {
+    return `${normalized}와`;
+  }
+  const hasFinalConsonant = (codePoint - 0xac00) % 28 !== 0;
+  return `${normalized}${hasFinalConsonant ? "과" : "와"}`;
+}
+
 function stripRelationalEntityDescriptor(value: string) {
   const normalized = normalize(value);
   const descriptor = normalized.match(/^(.{2,80})인\s+(.+)$/);
@@ -1232,6 +1244,24 @@ function resolveComparisonClause(
         : inferredType;
     return canonicalEntity(target, entityType, "primary_entity", [normalizedInput]);
   });
+  const inferredComparisonAudience = (() => {
+    const targetPhrase = `${withConjunctiveParticle(firstTarget)} ${secondTarget}`;
+    if (
+      inferredTargetTypes.every((entityType) =>
+        ["service", "platform", "product"].includes(entityType),
+      )
+    ) {
+      return `${withAccusativeParticle(targetPhrase)} 모두 사용해 본 응답자`;
+    }
+    if (
+      inferredTargetTypes.every((entityType) =>
+        ["facility", "place", "university_building"].includes(entityType),
+      )
+    ) {
+      return `${withAccusativeParticle(targetPhrase)} 모두 이용해 본 응답자`;
+    }
+    return `${withAccusativeParticle(targetPhrase)} 모두 경험해 본 응답자`;
+  })();
   const audience = actorComparison
     ? normalize(actorComparison[1])
     : activityAudienceComparison
@@ -1242,7 +1272,7 @@ function resolveComparisonClause(
         ? `${firstTarget}와 ${secondTarget} ${audienceHead}`
         : impactComparison
           ? `${firstTarget}와 ${secondTarget}을 경험한 응답자`
-          : "관련 경험이 있는 응답자";
+          : inferredComparisonAudience;
 
   return {
     audience,
@@ -1252,9 +1282,9 @@ function resolveComparisonClause(
         ? normalize(activityAudienceComparison[0])
         : qualifiedComparison
           ? normalize(`${qualifiedComparison[1]}와 ${qualifiedComparison[2]} ${audienceHead}`)
-          : impactComparison
+        : impactComparison
             ? normalize(impactComparison[0])
-            : "비교 대상만 명시됨",
+            : `비교 대상의 공통 경험 자격을 응답 대상으로 파생함: ${inferredComparisonAudience}`,
     targets,
     researchConstructs: constructs,
     activityVerb: activityVerb || null,
@@ -1924,11 +1954,10 @@ function resolveRelationalClause(
     const statedAudience = normalize(audienceMovement[1]);
     const object = normalize(audienceMovement[2]);
     const movementKind = normalize(audienceMovement[3]);
-    const objectWithParticle = withAccusativeParticle(object);
     const entityType = inferRelationalEntityType(object);
     const resolvedEntityType = entityType === "unknown" ? "place" : entityType;
     return {
-      audience: `${objectWithParticle} 이용하거나 방문하는 ${statedAudience}`,
+      audience: statedAudience,
       audienceEvidence: normalize(`${audienceMovement[1]}의 ${object} ${movementKind} 경험`),
       primaryEntity: canonicalEntity(
         object,
@@ -1952,7 +1981,7 @@ function resolveRelationalClause(
       ],
       surveyArchetype: "mobility_experience",
       isUsageObject: false,
-      includesNonUsers: false,
+      includesNonUsers: true,
       purposeKinds: ["behavior_usage", "need_demand"],
     };
   }
@@ -2676,7 +2705,7 @@ function reconcileComparisonIntent(
       screeningRequired: false,
       screeningReason: null,
       eligibilityCondition: resolved.audience,
-      includesNonUsers: false,
+      includesNonUsers: true,
       ambiguityLevel: "low",
       requiresCreatorClarification: false,
       missingInformation: [],

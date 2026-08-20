@@ -1296,6 +1296,9 @@ function shouldPreferSurveyIntent(intent: SurveyIntent) {
   if (hasRelationalResearchIntent(intent.researchIntent)) return true;
   if (intent.ambiguityLevel !== "low") return false;
   return (
+    (intent.targetCardinality === "multiple" &&
+      intent.measurementMode === "comparison" &&
+      intent.evaluationTargets.length >= 2) ||
     intent.activities.some((item) => item.source === "explicit") ||
     intent.objectKind === "category_set" ||
     intent.objectKind === "decision_support" ||
@@ -4843,13 +4846,21 @@ function nonUserIntentBlueprint(brief: SurveyBrief): SurveyBlueprint | null {
 function multipleTargetIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
   const intent = brief.surveyIntent;
   const targets = intent.evaluationTargets.slice(0, 4);
-  const includesFrequency = intent.constructs.some((item) => /빈도|현황/.test(item));
   const includesTimeUse = intent.constructs.some((item) => /시간\s*(?:사용|투입)|이용\s*시간/.test(item));
   const usageTargets = intent.objects
     .filter((item) => intent.evaluationTargets.includes(item.text))
     .every((item) => item.role === "product_or_service");
+  const comparisonDimensions = [
+    ...new Set(
+      intent.constructs
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .filter((item) => !/^(?:비교|차이|경험)$/.test(item)),
+    ),
+  ];
   const comparisonDimension =
-    intent.constructs.find((item) => /만족|평가|사용성|편의|지원/.test(item)) ??
+    comparisonDimensions.find((item) => /만족|평가|사용성|편의|지원/.test(item)) ??
+    comparisonDimensions[0] ??
     "전반적 경험";
   const frequencyOptions = [
     "거의 매일",
@@ -4860,46 +4871,54 @@ function multipleTargetIntentBlueprint(brief: SurveyBrief): SurveyBlueprint {
     "이용한 적 없음",
   ];
   const questions: SurveyQuestion[] = [];
-  if (includesTimeUse) {
-    for (const target of targets) {
-      questions.push(
-        question(
-          questions.length + 1,
-          `평소 ${target}에 하루 평균 어느 정도 시간을 쓰나요?`,
-          `${target}에 쓰는 시간을 다른 대상과 같은 구간으로 측정함.`,
-          "single",
-          ["30분 미만", "30분 이상 1시간 미만", "1시간 이상 2시간 미만", "2시간 이상 3시간 미만", "3시간 이상", "해당 활동을 하지 않음"],
-        ),
-      );
-    }
-  }
-  if (includesFrequency) {
-    for (const target of targets) {
-      questions.push(
-        question(
-          questions.length + 1,
-          usageTargets
-            ? `평소 ${labelWithParticle(target, "을", "를")} 얼마나 자주 이용하시나요?`
-            : `평소 ${labelWithParticle(target, "을", "를")} 얼마나 자주 하나요?`,
-          `${target}의 실제 빈도를 다른 대상과 같은 기준으로 측정함.`,
-          "single",
-          frequencyOptions,
-        ),
-      );
-    }
-  }
-  for (const target of targets) {
-    const satisfactionTitle = /^만족도$|전반적\s*만족도/.test(comparisonDimension)
-      ? `${target}에 전반적으로 얼마나 만족하시나요?`
-      : `${target}의 ${comparisonDimension.replace(/\s*만족도$/, "")}에 얼마나 만족하시나요?`;
-    questions.push(
-      question(
+  const dimensionsToMeasure = comparisonDimensions.length > 0
+    ? comparisonDimensions
+    : [comparisonDimension];
+  const questionForDimension = (target: string, dimension: string) => {
+    if (/빈도|횟수/.test(dimension)) {
+      return question(
         questions.length + 1,
-        satisfactionTitle,
-        `${target}의 ${comparisonDimension}을 다른 대상과 같은 척도로 측정함.`,
+        usageTargets
+          ? `평소 ${labelWithParticle(target, "을", "를")} 얼마나 자주 이용하시나요?`
+          : `평소 ${labelWithParticle(target, "을", "를")} 얼마나 자주 경험하시나요?`,
+        `${target}의 ${dimension}를 다른 대상과 같은 기준으로 측정함.`,
+        "single",
+        frequencyOptions,
+      );
+    }
+    if (/시간\s*(?:사용|투입)|이용\s*시간/.test(dimension)) {
+      return question(
+        questions.length + 1,
+        `평소 ${target}에 하루 평균 어느 정도 시간을 쓰나요?`,
+        `${target}의 ${dimension}을 다른 대상과 같은 구간으로 측정함.`,
+        "single",
+        ["30분 미만", "30분 이상 1시간 미만", "1시간 이상 2시간 미만", "2시간 이상 3시간 미만", "3시간 이상", "해당 활동을 하지 않음"],
+      );
+    }
+    if (/(?:지속|계속|향후|재)(?:\s*사용|\s*이용|방문|등록|가입)?\s*(?:의향|가능성)|의향/.test(dimension)) {
+      return question(
+        questions.length + 1,
+        `앞으로도 ${labelWithParticle(target, "을", "를")} 계속 이용할 의향이 어느 정도인가요?`,
+        `${target}의 ${dimension}을 다른 대상과 같은 척도로 측정함.`,
         "scale",
-      ),
+      );
+    }
+    const dimensionLabel = dimension.replace(/\s*만족도$/, "").trim();
+    return question(
+      questions.length + 1,
+      /^만족도$|전반적\s*만족도/.test(dimension)
+        ? `${target}에 전반적으로 얼마나 만족하시나요?`
+        : `${target}의 ${dimensionLabel}에 얼마나 만족하시나요?`,
+      `${target}의 ${dimension}을 다른 대상과 같은 척도로 측정함.`,
+      "scale",
     );
+  };
+  for (const dimension of dimensionsToMeasure) {
+    for (const target of targets) {
+      if (questions.length >= 6) break;
+      questions.push(questionForDimension(target, dimension));
+    }
+    if (questions.length >= 6) break;
   }
   questions.push(
     question(
@@ -6082,6 +6101,13 @@ function semanticIntentBlueprint(brief: SurveyBrief) {
   const nonUser = nonUserIntentBlueprint(brief);
   if (nonUser) return nonUser;
   if (!shouldPreferSurveyIntent(brief.surveyIntent)) return null;
+  if (
+    brief.surveyIntent.targetCardinality === "multiple" &&
+    brief.surveyIntent.measurementMode === "comparison" &&
+    brief.surveyIntent.evaluationTargets.length >= 2
+  ) {
+    return multipleTargetIntentBlueprint(brief);
+  }
   const primaryPurposeKind = brief.surveyIntent.purposeBlocks[0]?.kind;
   const includesUsagePurpose = brief.surveyIntent.purposeBlocks.some(
     (purpose) => purpose.kind === "usage_experience",
