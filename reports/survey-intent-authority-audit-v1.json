@@ -1,0 +1,151 @@
+{
+  "version": "survey-intent-authority-audit-v1",
+  "branch": "codex/unify-survey-intent-pipeline-v2",
+  "baselineSha": "40ce532ff39f19dd3589ee86982ae1a99e43ace3",
+  "productionRoute": "POST /api/survey-draft",
+  "finding": "CanonicalSurveyIntent is the nominal aggregate but context, semantic, research, reconciliation, brief, fallback, and postprocess stages retain semantic authority.",
+  "metrics": {
+    "directRawSemanticReaders": 9,
+    "targetDecisionStages": 5,
+    "objectDecisionStages": 6,
+    "purposeDecisionStages": 5,
+    "derivedSemanticPayloadsInDeveloperPrompt": 6,
+    "userRoleRawInputOccurrences": 1,
+    "developerRawInputOccurrences": 0,
+    "minimumPostParseOverwriteSites": 8,
+    "semanticRegexOperations": {
+      "files": [
+        "app/survey-canonical-intent.ts",
+        "app/survey-context-core.ts",
+        "app/survey-semantic-intent-core.ts"
+      ],
+      "testCalls": 273,
+      "matchCalls": 81,
+      "replaceCalls": 120
+    }
+  },
+  "promptPayloads": [
+    "compactSurveyIntent",
+    "canonicalSurveyIntentProjection",
+    "parsedSurveyContext",
+    "compactSurveyPlan",
+    "measurementPolicy",
+    "minimalSurveyBrief"
+  ],
+  "authorities": [
+    {
+      "function": "parseSurveyGenerationContextCore",
+      "file": "app/survey-context-core.ts",
+      "line": 422,
+      "readsRawInput": true,
+      "decides": ["targetPopulation", "contextEntity", "surveyObject", "purpose", "surveyArchetype"],
+      "classification": "authoritative_internal_parser",
+      "reachesModelPrompt": true,
+      "canInfluenceFinalOutput": true
+    },
+    {
+      "function": "parseSurveyIntentFromCanonicalSource",
+      "file": "app/survey-semantic-intent-core.ts",
+      "line": 1224,
+      "readsRawInput": true,
+      "decides": ["targetPopulation", "eligibility", "contextEntity", "surveyObject", "purpose", "objectKind", "cardinality", "clarification"],
+      "classification": "authoritative_internal_parser",
+      "reachesModelPrompt": true,
+      "canInfluenceFinalOutput": true
+    },
+    {
+      "function": "parseSurveyResearchIntentCore",
+      "file": "app/survey-research-intent-core.ts",
+      "line": 441,
+      "readsRawInput": true,
+      "decides": ["relationshipVariables", "relationshipType", "analysisGoals", "relationClarification"],
+      "classification": "authoritative_internal_parser",
+      "reachesModelPrompt": true,
+      "canInfluenceFinalOutput": true
+    },
+    {
+      "function": "parseCanonicalSurveyIntent",
+      "file": "app/survey-canonical-intent.ts",
+      "line": 3072,
+      "readsRawInput": true,
+      "decides": ["allSemanticRoles", "reconciliation", "clarification"],
+      "classification": "nominal_authority_and_reconciler",
+      "reachesModelPrompt": true,
+      "canInfluenceFinalOutput": true
+    },
+    {
+      "function": "parseSurveyBrief",
+      "file": "app/survey-intent.ts",
+      "line": 1446,
+      "readsRawInput": true,
+      "decides": ["targetRespondents", "researchSubject", "researchGoal", "timeframe", "dimensions", "title"],
+      "classification": "downstream_semantic_authority",
+      "reachesModelPrompt": true,
+      "canInfluenceFinalOutput": true
+    },
+    {
+      "function": "analyzeSurveyPrompt",
+      "file": "app/survey-intent.ts",
+      "line": 6517,
+      "readsRawInput": true,
+      "decides": ["fallbackTemplate", "questionSemantics", "evaluationTarget"],
+      "classification": "fallback_template_authority",
+      "reachesModelPrompt": true,
+      "canInfluenceFinalOutput": true
+    },
+    {
+      "function": "createSurveyPlan",
+      "file": "app/survey-planning.ts",
+      "line": 1110,
+      "readsRawInput": false,
+      "decides": ["requiredMeasurementBlocks", "analysisBlocks", "coverage"],
+      "classification": "downstream_planning_authority",
+      "reachesModelPrompt": true,
+      "canInfluenceFinalOutput": true
+    },
+    {
+      "function": "buildSurveyAiRequest",
+      "file": "app/survey-ai.ts",
+      "line": 3059,
+      "readsRawInput": true,
+      "decides": ["modelPrompt", "webSearch", "schema"],
+      "classification": "prompt_composition_authority",
+      "reachesModelPrompt": true,
+      "canInfluenceFinalOutput": true
+    },
+    {
+      "function": "parseSurveyDraftResponse",
+      "file": "app/survey-ai.ts",
+      "line": 2271,
+      "readsRawInput": true,
+      "decides": ["finalRespondent", "finalEvaluationTarget", "repair", "fallback"],
+      "classification": "postprocess_authority",
+      "reachesModelPrompt": false,
+      "canInfluenceFinalOutput": true
+    }
+  ],
+  "callGraph": [
+    "POST /api/survey-draft",
+    "selectSurveyUserInput",
+    "normalizeUserInput",
+    "parseCanonicalSurveyIntent",
+    "parseSurveyGenerationContextCore",
+    "parseSurveyIntentFromCanonicalSource",
+    "parseSurveyResearchIntentCore",
+    "createSurveyPlan",
+    "parseSurveyBrief/analyzeSurveyPrompt fallback preparation",
+    "buildSurveyAiRequest",
+    "OpenAI Responses API",
+    "parseSurveyDraftResponse",
+    "schema/semantic/quality/coverage validation",
+    "repair or fallback",
+    "SurveyDraftResult"
+  ],
+  "migrationBoundary": {
+    "semanticAuthorityVersion": "canonical_intent_v2",
+    "legacyMode": "shadow_only",
+    "legacyInfluencedOutputRequired": false,
+    "defaultModelCallDesign": "integrated_single_call",
+    "featureFlag": "BAROFORM_INTENT_PIPELINE_V2"
+  }
+}
