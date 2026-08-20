@@ -14,6 +14,7 @@ import {
   createSurveyPlan,
   evaluateSurveyPlanCoverage,
   inferExplicitUsageQuestionRole,
+  questionCoversSurveyPlanBlock,
 } from "../app/survey-planning";
 
 const usagePrompt = "대학생의 네이버 웹툰 이용 경험을 조사하고 싶다";
@@ -230,4 +231,78 @@ test("시간대 선택지는 선언 metadata가 빈도여도 usage-time-context�
   };
 
   assert.equal(inferExplicitUsageQuestionRole(timeQuestion), "usage-time-context");
+});
+
+test("시설 인식 목적은 canonical purpose block에 연결되고 직접 인식 문항을 요구한다", () => {
+  const prompt = "시설 인식은 늘빛 체육관을 최근 두 달 이용한 주민에게 조사해줘";
+  const intent = parseSurveyIntent(prompt);
+  const plan = createSurveyPlan(intent, 7);
+  const perceptionBlock = plan.blocks.find((block) => /인식/u.test(block.variable));
+  const perceptionPurpose = intent.purposeBlocks.find(
+    (block) => block.kind === "attitude_perception",
+  );
+
+  assert.ok(perceptionPurpose);
+  assert.ok(perceptionBlock);
+  assert.equal(perceptionBlock.purposeBlockId, perceptionPurpose.id);
+  assert.deepEqual(perceptionBlock.measuredEntityIds, perceptionBlock.sourceEntityIds);
+
+  const satisfactionOnly = [
+    "최근 두 달 동안 늘빛 체육관을 이용한 적이 있나요?",
+    "최근 두 달 동안 늘빛 체육관을 얼마나 자주 이용했나요?",
+    "늘빛 체육관을 주로 어떤 목적으로 이용하나요?",
+    "늘빛 체육관 이용 경험에 전반적으로 얼마나 만족하나요?",
+    "늘빛 체육관을 이용하기 얼마나 편리했나요?",
+    "늘빛 체육관을 이용하며 불편했던 점은 무엇인가요?",
+    "늘빛 체육관을 다시 이용할 의향은 어느 정도인가요?",
+  ].map((title, index) => question(index + 1, title));
+  const coverage = evaluateSurveyPlanCoverage(plan, satisfactionOnly);
+
+  assert.ok(coverage.missingRequiredBlockIds.includes(perceptionBlock.id));
+  assert.equal(
+    satisfactionOnly.some((item) =>
+      questionCoversSurveyPlanBlock(item, perceptionBlock),
+    ),
+    false,
+  );
+});
+
+test("누락된 시설 인식 문항은 fallback의 직접 인상 문항으로 복원한다", () => {
+  const prompt = "시설 인식은 늘빛 체육관을 최근 두 달 이용한 주민에게 조사해줘";
+  const intent = parseSurveyIntent(prompt);
+  const plan = createSurveyPlan(intent, 7);
+  const fallback = analyzeSurveyPrompt(prompt);
+  const titles = [
+    "최근 두 달 동안 늘빛 체육관을 이용한 적이 있나요?",
+    "최근 두 달 동안 늘빛 체육관을 얼마나 자주 이용했나요?",
+    "늘빛 체육관을 주로 어떤 목적으로 이용하나요?",
+    "늘빛 체육관 이용 경험에 전반적으로 얼마나 만족하나요?",
+    "늘빛 체육관을 이용하기 얼마나 편리했나요?",
+    "늘빛 체육관을 이용하며 불편했던 점은 무엇인가요?",
+    "늘빛 체육관을 다시 이용할 의향은 어느 정도인가요?",
+  ];
+  const survey = {
+    ...fallback,
+    templateQuestions: titles.slice(0, 5).map((title, index) =>
+      question(index + 1, title),
+    ),
+    aiQuestions: titles.map((title, index) => question(index + 1, title)),
+    semanticPlan: plan,
+  };
+
+  const restored = restoreMissingRequiredPlanBlocks({
+    survey,
+    intent,
+    plan,
+    getFallback: () => fallback,
+  });
+  const finalTitles = restored.survey.aiQuestions.map((item) => item.title);
+
+  assert.deepEqual(restored.finalCoverage.missingRequiredBlockIds, []);
+  assert.equal(restored.repairedQuestionIds.length, 1);
+  assert.ok(
+    finalTitles.some((title) =>
+      /전반적으로.*(?:인상|인식)|어떤\s*인상/u.test(title),
+    ),
+  );
 });

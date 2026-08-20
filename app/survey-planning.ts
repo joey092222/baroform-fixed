@@ -359,6 +359,30 @@ function normalizedCoverageText(question: SurveyPlanCoverageQuestion) {
     .trim();
 }
 
+function perceptionVariableIsDirectlyMeasured(
+  question: SurveyPlanCoverageQuestion,
+  block: SurveyPlanBlock,
+) {
+  const title = question.title.replace(/\s+/g, " ").trim();
+  const variable = block.variable.replace(/\s+/g, " ").trim();
+  if (!title || !/(?:인식|인상|이미지|태도)/u.test(variable)) return false;
+
+  // Purpose-bound blocks must be supported by respondent-facing wording. Model
+  // metadata alone is not evidence that the requested construct was measured.
+  if (/(?:개선|좋아지|달라져|바라는\s*점)/u.test(title)) return false;
+  return /(?:전반적|전체적).*(?:인식|인상|이미지|태도|어떻게\s*(?:생각|느끼)|느낌)|(?:어떤|어떻게).*(?:인상|이미지|태도|생각|느끼)/u.test(
+    title,
+  );
+}
+
+function isCanonicalFallbackPurposeBlock(block: SurveyPlanBlock) {
+  return Boolean(
+    block.purposeBlockId &&
+      /^variable-\d+$/u.test(block.id) &&
+      /(?:인식|인상|이미지|태도)/u.test(block.variable),
+  );
+}
+
 function visibleQuestionText(question: SurveyPlanCoverageQuestion) {
   return [question.title, ...(question.options ?? [])]
     .join(" ")
@@ -518,6 +542,9 @@ export function questionCoversSurveyPlanBlock(
     return usageQuestionRoleIsCompatible(question, block.id);
   }
   if (matcher) return matcher.test(text);
+  if (isCanonicalFallbackPurposeBlock(block)) {
+    return perceptionVariableIsDirectlyMeasured(question, block);
+  }
   if (question.planBlockId === block.id) return true;
   const variable = block.variable.replace(/\s+/g, " ").trim();
   return Boolean(
@@ -534,22 +561,26 @@ export function evaluateSurveyPlanCoverage(
   const askableMeasurementBlocks = plan.blocks.filter(
     (block) => block.kind === "measurement" && block.directlyAskable,
   );
-  // Legacy plan blocks predate question-to-plan linking and cannot be enforced safely.
-  // The explicit usage blocks below are the first blocks with deterministic coverage
-  // predicates and server-side restoration candidates.
+  // Legacy, unbound plan blocks predate question-to-plan linking and cannot be
+  // enforced safely. Canonical fallback purpose blocks and the explicit usage
+  // blocks below have deterministic semantic predicates and repair candidates.
   const requiredBlocks = askableMeasurementBlocks.filter(
     (block) =>
       block.required &&
-      [
-        "usage-status",
-        "usage-frequency",
-        "usage-time-context",
-        "usage-preferred-genre",
-      ].includes(block.id),
+      (isCanonicalFallbackPurposeBlock(block) ||
+        [
+          "usage-status",
+          "usage-frequency",
+          "usage-time-context",
+          "usage-preferred-genre",
+        ].includes(block.id)),
   );
   const questionCoverage = questions.map((question, index) => {
     const declaredPlanBlockId = question.planBlockId ?? null;
     const inferredVariable = inferExplicitUsageQuestionRole(question);
+    const declaredBlock = declaredPlanBlockId
+      ? plan.blocks.find((block) => block.id === declaredPlanBlockId)
+      : undefined;
     return {
       questionId: questionId(question, index),
       declaredPlanBlockId,
@@ -557,8 +588,10 @@ export function evaluateSurveyPlanCoverage(
         question.measuredVariable ?? question.measuredConstruct ?? null,
       inferredVariable,
       roleCompatible:
-        !isExplicitUsageBlockId(declaredPlanBlockId ?? undefined) ||
-        inferredVariable === declaredPlanBlockId,
+        declaredBlock && isCanonicalFallbackPurposeBlock(declaredBlock)
+          ? questionCoversSurveyPlanBlock(question, declaredBlock)
+          : !isExplicitUsageBlockId(declaredPlanBlockId ?? undefined) ||
+            inferredVariable === declaredPlanBlockId,
     } satisfies FinalQuestionCoverage;
   });
   const coveredRequiredBlockIds = requiredBlocks
@@ -1185,17 +1218,23 @@ export function createSurveyPlan(
   );
   for (const item of fallbackEntities) {
     if (blocks.length >= Math.max(1, requestedQuestionCount - 1)) break;
-    blocks.push(
-      makeBlock(
-        `variable-${blocks.length + 1}`,
-        item.text,
-        item.role,
-        item.role === "behavior" ? "frequency" : "ordinal",
-        `${item.text}을(를) 분석 가능한 형태로 측정함.`,
-        [item.id],
-        decisionGoalIds,
-      ),
+    const purposeBlock = intent.purposeBlocks.find((candidate) =>
+      candidate.constructEntityIds.includes(item.id),
     );
+    const block = makeBlock(
+      `variable-${blocks.length + 1}`,
+      item.text,
+      item.role,
+      item.role === "behavior" ? "frequency" : "ordinal",
+      `${item.text}을(를) 분석 가능한 형태로 측정함.`,
+      [item.id],
+      decisionGoalIds,
+    );
+    if (purposeBlock) {
+      block.purposeBlockId = purposeBlock.id;
+      block.measuredEntityIds = [item.id];
+    }
+    blocks.push(block);
   }
 
   if (blocks.length < requestedQuestionCount) {
