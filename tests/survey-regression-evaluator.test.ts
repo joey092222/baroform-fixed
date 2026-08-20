@@ -4,10 +4,12 @@ import test from "node:test";
 import { devCases, holdoutCases } from "../evals/survey-regression/v1/dataset-source";
 import { frontedPurposeSmokeCases } from "../evals/survey-regression/v1.1/fronted-purpose-smoke";
 import {
+  classifySurveyQuestionRole,
   conceptPresent,
   evaluateSemanticResult,
   semanticTextMatch,
   targetPopulationMatch,
+  validateScreeningQuestionPosition,
 } from "../evals/survey-regression/v1/evaluation";
 import type { SurveyRegressionResult } from "../evals/survey-regression/v1/schema";
 
@@ -43,7 +45,109 @@ const question = (
   title: string,
   type = "single",
   options: string[] = [],
-): SurveyRegressionResult["questions"][number] => ({ title, type, options });
+  metadata: Partial<SurveyRegressionResult["questions"][number]> = {},
+): SurveyRegressionResult["questions"][number] => ({
+  title,
+  type,
+  options,
+  ...metadata,
+});
+
+test("비이용 이유는 핵심 목적이고 비이용 여부 확인만 eligibility다", () => {
+  assert.equal(
+    classifySurveyQuestionRole(
+      question("다온 플랫폼을 사용하지 않는 가장 큰 이유는 무엇인가요?", "multiple", [], {
+        role: "core",
+        measuredRole: "barrier",
+        disqualifiesRespondent: false,
+      }),
+    ),
+    "core_purpose",
+  );
+  assert.equal(
+    classifySurveyQuestionRole(
+      question("현재 다온 플랫폼을 이용하지 않고 있나요?", "single", ["예", "아니요"], {
+        role: "screening",
+        measuredRole: "eligibility",
+        disqualifiesRespondent: true,
+      }),
+    ),
+    "eligibility_screening",
+  );
+});
+
+test("응답자를 탈락시키지 않는 경험 확인은 routing으로 분류한다", () => {
+  assert.equal(
+    classifySurveyQuestionRole(
+      question("별마루 카페의 새 메뉴를 먹어 본 적이 있나요?", "single", ["예", "아니요"], {
+        id: "q3",
+        role: "screening",
+        measuredRole: "usage_status",
+        disqualifiesRespondent: false,
+      }),
+    ),
+    "non_disqualifying_routing",
+  );
+});
+
+test("선행 일반 이용 문항이 후행 새 메뉴 routing에 의존하지 않으면 위치 오류가 아니다", () => {
+  const questions = [
+    question("최근 한 달 동안 별마루 카페를 이용한 적이 있나요?", "single", ["예", "아니요"], {
+      id: "q1",
+      role: "screening",
+      measuredRole: "eligibility",
+      disqualifiesRespondent: true,
+    }),
+    question("최근 한 달 동안 별마루 카페를 얼마나 자주 방문했나요?", "single", [], {
+      id: "q2",
+      role: "behavior",
+      measuredRole: "frequency",
+      measuredVariable: "카페 방문 빈도",
+    }),
+    question("별마루 카페의 새 메뉴를 먹어 본 적이 있나요?", "single", ["예", "아니요"], {
+      id: "q3",
+      role: "screening",
+      measuredRole: "usage_status",
+      disqualifiesRespondent: false,
+    }),
+    question("별마루 카페의 새 메뉴에 얼마나 만족했나요?", "scale", [], {
+      id: "q4",
+      role: "outcome",
+      measuredRole: "satisfaction",
+      measuredVariable: "새 메뉴 만족도",
+      showIfQuestionIds: ["q3"],
+    }),
+  ];
+  assert.equal(validateScreeningQuestionPosition(questions), null);
+});
+
+test("실제 의존 만족도 뒤에 배치된 경험 확인은 위치 오류다", () => {
+  const questions = [
+    question("새 메뉴에 얼마나 만족했나요?", "scale", [], {
+      id: "q1",
+      role: "outcome",
+      measuredRole: "satisfaction",
+      measuredVariable: "새 메뉴 만족도",
+    }),
+    question("새 메뉴에서 가장 먼저 개선할 점은 무엇인가요?", "text", [], {
+      id: "q2",
+      role: "core",
+      measuredRole: "improvement",
+      measuredVariable: "새 메뉴 개선",
+    }),
+    question("새 메뉴를 먹어 본 적이 있나요?", "single", ["예", "아니요"], {
+      id: "q3",
+      role: "screening",
+      measuredRole: "usage_status",
+      disqualifiesRespondent: false,
+    }),
+  ];
+  assert.deepEqual(validateScreeningQuestionPosition(questions), {
+    entryQuestionId: "q3",
+    entryQuestionIndex: 2,
+    dependentQuestionIds: ["q1", "q2"],
+  });
+});
 
 test("학교 약칭과 정식 명칭은 일반 규칙으로 같은 응답 대상으로 비교한다", () => {
   assert.equal(

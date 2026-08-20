@@ -1,0 +1,65 @@
+{
+  "runId": "fronted-purpose-v5-7a385bb-20260820",
+  "runStatus": "incomplete_transport_interruption",
+  "branch": "codex/fix-survey-regression-root-causes-v1",
+  "buildSha": "7a385bb1dcaa94817c69cf73bd3d9e3bdf1271ab",
+  "deploymentId": "dpl_EshjvGuBAEhoDdEm1xBhx3SC4EYJ",
+  "previewUrl": "https://baroform-fixed-amww5cqys-baroform.vercel.app",
+  "expectedCases": 20,
+  "completedSemanticCases": 8,
+  "transportFailureCases": 1,
+  "notExecutedCases": 11,
+  "modelCalls": 8,
+  "generationPaths": {
+    "clean_model_success": 0,
+    "deterministic_metadata_normalization": 7,
+    "partial_repair": 1,
+    "hard_fallback": 0,
+    "request_failure_after_model_call": 0,
+    "clarification": 0
+  },
+  "automaticFatalFindings": [
+    {
+      "caseId": "fronted-clear-001",
+      "requestId": "0862c01e-f283-419a-b563-a44f20e1870b",
+      "code": "MISPLACED_SCREENING_QUESTION",
+      "auditDisposition": "evaluator_false_positive",
+      "reason": "The cafe-use and cafe-visit-frequency questions before the new-menu experience check do not depend on new-menu experience; dependent new-menu questions follow the check."
+    },
+    {
+      "caseId": "fronted-clear-005",
+      "requestId": "d336b4fe-85ab-46a9-ad5d-276aaef5ef1d",
+      "code": "MISPLACED_SCREENING_QUESTION",
+      "auditDisposition": "evaluator_false_positive",
+      "reason": "The non-use reason question measures the core purpose and does not determine respondent eligibility."
+    }
+  ],
+  "partialRepairAudit": {
+    "caseId": "fronted-clear-002",
+    "requestId": "c645cf0b-c2ad-4561-8925-dc9c99503c48",
+    "changedQuestionIds": ["2"],
+    "changedFieldsByQuestion": {
+      "2": ["title"]
+    },
+    "repairCount": 1,
+    "finalMissingRequiredBlockIds": [],
+    "finalIncompatibleQuestionIds": [],
+    "semanticDuplicateGroups": [],
+    "schemaIssues": [],
+    "semanticViolations": [],
+    "qualityViolations": [],
+    "auditDisposition": "necessary_partial_repair",
+    "metadataOnlySufficient": false,
+    "reason": "The explicit reference-period contract required respondent-facing question wording normalization."
+  },
+  "transportFailure": {
+    "caseId": "fronted-noisy-001",
+    "clientRequestId": "reg-v1-fronted-noisy-001-6cd05055",
+    "code": "VERCEL_CURL_EXIT_1",
+    "serverRequestId": null,
+    "httpStatus": null,
+    "modelCallCount": 0,
+    "countsAsProductFailure": false
+  },
+  "validForGateDecision": false
+}

@@ -211,27 +211,209 @@ function directSatisfactionMeasurementPresent(
   });
 }
 
-function screeningQuestionPresent(
-  questions: Array<{ title: string; options: string[]; reason?: string | null }>,
-) {
-  return questions.some(questionLooksLikeScreening);
+type EvaluatedQuestion = SurveyRegressionResult["questions"][number];
+
+export type EvaluatedQuestionRole =
+  | "eligibility_screening"
+  | "non_disqualifying_routing"
+  | "core_purpose"
+  | "substantive_behavior"
+  | "other";
+
+const corePurposeRolePattern =
+  /^(?:awareness|evaluation|driver|barrier|priority|outcome|open|preference|construct|unmet_need|demand|satisfaction)$/u;
+const behaviorRolePattern = /^(?:behavior|experience|frequency|usage)$/u;
+const corePurposeTitlePattern =
+  /(?:가장\s*(?:큰|주된)?\s*(?:이유|장벽)|이용하지\s*않는\s*이유|사용하지\s*않는\s*이유|비이용\s*이유|비사용\s*이유|불편|만족|개선|인지|알고\s*있|의향|가능성|평가|필요|선호|기대)/u;
+const statusQuestionPattern =
+  /(?:이용|사용|참여|참가|가입|구매|방문|시청|주문|수강|통학|운동|클릭|먹|마시)(?:한\s*적|해\s*본|해본|어\s*본|어본|한\s*경험|하고\s*있|하지\s*않고\s*있|여부)|(?:현재|최근).*(?:해당|맞(?:나요|습니까)|있(?:나요|습니까)|재학|재직|거주)/u;
+const statusChoicePattern =
+  /(?:경험|이용|사용|참여|방문|구매).*(?:있음|없음)|(?:예|네).*(?:아니요|아님)|해당함.*해당하지\s*않음/u;
+
+function questionMetadataText(question: EvaluatedQuestion) {
+  return [
+    question.role,
+    question.measuredRole,
+    question.planBlockId,
+    question.purposeBlockId,
+    question.measuredVariable,
+    question.questionPurpose,
+  ].filter(Boolean).join(" ");
 }
 
-function questionLooksLikeScreening(question: {
-  title: string;
-  options: string[];
-  reason?: string | null;
-}) {
+function questionLooksLikeStatusCheck(question: EvaluatedQuestion) {
   const visible = `${question.title}\n${question.options.join("\n")}`;
-  const asksEligibility =
-    /(?:이용|사용|참여|참가|가입|구매|방문|시청|주문|수강|통학|운동|클릭|먹)(?:한\s*적|해\s*본|한\s*경험|하고\s*있|하지\s*않|여부)|(?:현재|최근).*(?:해당|맞(?:나요|습니까)|있(?:나요|습니까)|재학|재직|거주)/u.test(
-      visible,
+  return statusQuestionPattern.test(visible) || statusChoicePattern.test(visible);
+}
+
+export function isCorePurposeQuestion(question: EvaluatedQuestion) {
+  const role = `${question.role ?? ""} ${question.measuredRole ?? ""}`;
+  if (corePurposeRolePattern.test(question.role ?? "")) return true;
+  if (corePurposeRolePattern.test(question.measuredRole ?? "")) return true;
+  if (/barrier|reason|satisfaction|evaluation|priority|awareness/u.test(role)) {
+    return true;
+  }
+  return corePurposeTitlePattern.test(
+    `${question.title}\n${question.questionPurpose ?? question.reason ?? ""}`,
+  );
+}
+
+export function isEligibilityScreeningQuestion(question: EvaluatedQuestion) {
+  if (isCorePurposeQuestion(question)) return false;
+  const metadata = questionMetadataText(question);
+  const explicitEligibility =
+    question.measuredRole === "eligibility" ||
+    /(?:^|[-_\s])(?:eligibility|respondent-qualification|target-screening)(?:$|[-_\s])/u.test(
+      metadata,
     );
-  const hasStatusChoices =
-    /(?:경험|이용|사용|참여|방문|구매).*(?:있음|없음)|(?:예|네).*(?:아니요|아님)|해당함.*해당하지\s*않음/u.test(
-      visible,
-    );
-  return asksEligibility || hasStatusChoices;
+  if (
+    question.disqualifiesRespondent === true ||
+    explicitEligibility
+  ) {
+    return true;
+  }
+  if (question.disqualifiesRespondent === false) return false;
+  if (question.measuredRole && question.measuredRole !== "eligibility") {
+    return false;
+  }
+  if (question.role && question.role !== "screening") return false;
+  return questionLooksLikeStatusCheck(question);
+}
+
+export function isNonDisqualifyingRoutingQuestion(
+  question: EvaluatedQuestion,
+) {
+  if (isCorePurposeQuestion(question)) return false;
+  const looksLikeStatus = questionLooksLikeStatusCheck(question);
+  if (
+    question.disqualifiesRespondent === false &&
+    looksLikeStatus
+  ) {
+    return true;
+  }
+  if (isEligibilityScreeningQuestion(question)) return false;
+  return (
+    question.role === "screening" &&
+    looksLikeStatus &&
+    (question.showIfQuestionIds?.length ?? 0) > 0
+  );
+}
+
+export function classifySurveyQuestionRole(
+  question: EvaluatedQuestion,
+): EvaluatedQuestionRole {
+  if (isCorePurposeQuestion(question)) return "core_purpose";
+  if (isEligibilityScreeningQuestion(question)) return "eligibility_screening";
+  if (isNonDisqualifyingRoutingQuestion(question)) {
+    return "non_disqualifying_routing";
+  }
+  if (
+    behaviorRolePattern.test(question.role ?? "") ||
+    behaviorRolePattern.test(question.measuredRole ?? "") ||
+    /(?:얼마나\s*자주|몇\s*번|빈도|소요\s*시간|이동\s*수단)/u.test(question.title)
+  ) {
+    return "substantive_behavior";
+  }
+  return "other";
+}
+
+function screeningQuestionPresent(questions: EvaluatedQuestion[]) {
+  return questions.some(
+    (question) =>
+      classifySurveyQuestionRole(question) === "eligibility_screening",
+  );
+}
+
+const prerequisiteTargetStopWords = new Set([
+  "최근",
+  "현재",
+  "동안",
+  "이번",
+  "지난",
+  "해당",
+  "여부",
+  "경험",
+  "이용",
+  "사용",
+  "참여",
+  "구매",
+  "방문",
+  "적이",
+  "있나요",
+  "없나요",
+]);
+
+function entryQuestionTargetTerms(question: EvaluatedQuestion) {
+  const withoutPeriod = question.title
+    .replace(/^(?:최근|지난)\s*[^ ]+(?:\s*동안)?\s*/u, "")
+    .replace(/^이번\s*(?:학기|학년도)에?\s*/u, "")
+    .replace(/[?？.]/gu, "");
+  const beforeAction =
+    withoutPeriod.match(
+      /^(.+?)(?:을|를|에|에서)?\s*(?:이용|사용|참여|구매|방문|시청|수강|먹|마시|재학|재직|거주)/u,
+    )?.[1] ?? "";
+  const normalizedFull = normalize(beforeAction);
+  const tail = beforeAction.split(/(?:의|에서|에 있는)/u).at(-1) ?? "";
+  const tokens = [normalizedFull, normalize(tail)]
+    .filter((item) => item.length >= 2)
+    .filter((item) => !prerequisiteTargetStopWords.has(item));
+  return [...new Set(tokens)].sort((left, right) => right.length - left.length);
+}
+
+function questionDependsOnEntryQuestion(
+  question: EvaluatedQuestion,
+  entryQuestion: EvaluatedQuestion,
+) {
+  if (
+    (question.showIfQuestionIds ?? []).includes(entryQuestion.id ?? "")
+  ) {
+    return true;
+  }
+  const role = classifySurveyQuestionRole(question);
+  if (
+    role === "eligibility_screening" ||
+    role === "non_disqualifying_routing"
+  ) {
+    return false;
+  }
+  if (/(?:재학|재직|거주|연령|학년)/u.test(entryQuestion.title)) {
+    return role !== "other";
+  }
+  const terms = entryQuestionTargetTerms(entryQuestion);
+  if (terms.length === 0) return false;
+  const corpus = normalize(
+    `${question.title} ${question.measuredVariable ?? ""} ${question.questionPurpose ?? question.reason ?? ""}`,
+  );
+  return terms.some((term) => corpus.includes(term));
+}
+
+export function validateScreeningQuestionPosition(
+  questions: EvaluatedQuestion[],
+) {
+  for (let index = 0; index < questions.length; index += 1) {
+    const entryQuestion = questions[index];
+    const entryRole = classifySurveyQuestionRole(entryQuestion);
+    if (
+      entryRole !== "eligibility_screening" &&
+      entryRole !== "non_disqualifying_routing"
+    ) {
+      continue;
+    }
+    const dependentQuestionIds = questions
+      .slice(0, index)
+      .filter((question) =>
+        questionDependsOnEntryQuestion(question, entryQuestion),
+      )
+      .map((question, questionIndex) => question.id ?? String(questionIndex + 1));
+    if (dependentQuestionIds.length > 0) {
+      return {
+        entryQuestionId: entryQuestion.id ?? String(index + 1),
+        entryQuestionIndex: index,
+        dependentQuestionIds,
+      };
+    }
+  }
+  return null;
 }
 
 function issue(
@@ -256,9 +438,14 @@ export function classifyGenerationPath(input: {
   metadataOnlyNormalization?: boolean;
   respondentFacingContentChanged?: boolean;
   outputParsed?: boolean;
+  transportFailureKind?:
+    | "environment_transport_failure"
+    | "environment_auth_failure"
+    | null;
 }): GenerationPath {
   const modelCallCount = input.modelCallCount ?? 0;
   const outputParsed = input.outputParsed ?? false;
+  if (input.transportFailureKind) return input.transportFailureKind;
   if (
     modelCallCount === 0 &&
     !outputParsed &&
@@ -346,7 +533,9 @@ export function evaluateSemanticResult(
 
   if (
     result.classification === "environment_rate_limited" ||
-    result.classification === "environment_runtime_inactive"
+    result.classification === "environment_runtime_inactive" ||
+    result.classification === "environment_transport_failure" ||
+    result.classification === "environment_auth_failure"
   ) {
     return { fatalFailures, warnings };
   }
@@ -507,18 +696,14 @@ export function evaluateSemanticResult(
   if (new Set(normalizedQuestions).size !== normalizedQuestions.length) {
     fatalFailures.push(issue("DUPLICATE_QUESTION", "완전히 중복된 질문이 있음", "question_quality"));
   }
-  const misplacedScreenerIndex = result.questions.findIndex(
-    (item, index) =>
-      questionLooksLikeScreening(item) &&
-      result.questions
-        .slice(0, index)
-        .some((previous) => !questionLooksLikeScreening(previous)),
+  const screeningPositionIssue = validateScreeningQuestionPosition(
+    result.questions,
   );
-  if (misplacedScreenerIndex >= 0) {
+  if (screeningPositionIssue) {
     fatalFailures.push(
       issue(
         "MISPLACED_SCREENING_QUESTION",
-        `응답 적격성 확인 문항이 ${misplacedScreenerIndex + 1}번째에 배치됨`,
+        `응답 적격성·분기 문항이 ${screeningPositionIssue.entryQuestionIndex + 1}번째에 배치돼 선행 문항 ${screeningPositionIssue.dependentQuestionIds.join(", ")}이 해당 조건을 미리 전제함`,
         "question_quality",
       ),
     );

@@ -81,6 +81,8 @@ export const generationPathSchema = z.enum([
   "clarification",
   "environment_rate_limited",
   "environment_runtime_inactive",
+  "environment_transport_failure",
+  "environment_auth_failure",
 ]);
 
 export type GenerationPath = z.infer<typeof generationPathSchema>;
@@ -124,6 +126,7 @@ export type SurveyRegressionResult = {
   repairCount: number;
   fallbackCount: number;
   retryCount: number;
+  transportRetryCount?: number;
   fallbackReason: string | null;
   normalizedMetadataPaths: string[];
   questionsBeforeRepairHash: string | null;
@@ -141,11 +144,37 @@ export type SurveyRegressionResult = {
   title: string | null;
   description: string | null;
   questions: Array<{
+    id?: string | null;
     title: string;
     type: string | null;
     options: string[];
     reason?: string | null;
+    role?: string | null;
+    measuredRole?: string | null;
+    planBlockId?: string | null;
+    purposeBlockId?: string | null;
+    measuredVariable?: string | null;
+    measuredEntityIds?: string[];
+    questionPurpose?: string | null;
+    showIfQuestionIds?: string[];
+    disqualifiesRespondent?: boolean | null;
   }>;
+  screeningClassification?: Array<{
+    questionId: string;
+    role:
+      | "eligibility_screening"
+      | "non_disqualifying_routing"
+      | "core_purpose"
+      | "substantive_behavior"
+      | "other";
+  }>;
+  screeningPositionIssue?: {
+    entryQuestionId: string;
+    dependentQuestionIds: string[];
+  } | null;
+  reorderedQuestionIds?: string[];
+  branchReferencesRemapped?: boolean;
+  transportFailureCode?: string | null;
   questionsBeforePostprocess: string[];
   schemaIssues: string[];
   semanticIssues: string[];
