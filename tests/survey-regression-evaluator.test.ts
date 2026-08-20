@@ -806,3 +806,160 @@ test("무관한 문장에 만족이라는 단어만 있어도 직접 만족도 �
     true,
   );
 });
+
+test("재등록·재가입 가능성과 비참여 이유를 일반적인 의향·이유 coverage로 인정한다", () => {
+  assert.equal(
+    conceptPresent("이용 의향", "등록 기간이 끝난 뒤에도 다시 등록할 가능성"),
+    true,
+  );
+  assert.equal(
+    conceptPresent("참여 의향", "앞으로 이 프로그램에 계속 참여할 가능성"),
+    true,
+  );
+  assert.equal(
+    conceptPresent("비참여 이유", "진로 특강에 참여하지 않은 이유"),
+    true,
+  );
+});
+
+test("찾아가기 쉬움과 실제 분 단위 이동시간을 접근성·소요시간으로 인정한다", () => {
+  assert.equal(
+    conceptPresent("접근성", "건물까지 찾아가는 과정은 얼마나 쉬웠나요?"),
+    true,
+  );
+  assert.equal(
+    conceptPresent("소요 시간", "출발한 곳에서 건물까지 이동하는 데 얼마나 걸리나요?"),
+    true,
+  );
+});
+
+test("대상 동의어는 허용하지만 학년 qualifier 손실은 허용하지 않는다", () => {
+  assert.equal(
+    targetPopulationMatch("팀 프로젝트 경험자", ["팀플 경험자"]),
+    true,
+  );
+  assert.equal(
+    targetPopulationMatch(
+      "넷플릭스와 티빙 구독자",
+      ["OTT 구독자"],
+      ["넷플릭스", "티빙"],
+    ),
+    true,
+  );
+  assert.equal(
+    targetPopulationMatch(
+      "새봄대학교 심리학과 온라인 강의 경험자",
+      ["새봄대학교 심리학과 1학년"],
+    ),
+    false,
+  );
+});
+
+test("이용 패턴과 재등록 의향을 실제 문항 메타데이터까지 사용해 판정한다", () => {
+  const evaluated = evaluateSemanticResult(
+    testCase("dev-complex-004"),
+    result({
+      finalRespondentGroup: "지역 체육관을 다니는 주민",
+      finalEvaluationTarget: "지역 체육관",
+      title: "지역 체육관 이용 경험 조사",
+      description: "이용 방식과 불편, 재등록 생각을 알아봅니다.",
+      questions: [
+        question("평소 체육관을 얼마나 자주 이용하나요?", "single", ["주 1회", "주 2회"]),
+        question("체육관에서는 주로 무엇을 하나요?"),
+        question("체육관을 주로 언제 이용하나요?"),
+        question("체육관 이용은 전반적으로 어땠나요?", "scale", [], {
+          measuredConstruct: "전반적 만족도",
+          measuredVariable: "overall_satisfaction",
+        }),
+        question("체육관을 이용하면서 불편했던 점은 무엇인가요?"),
+        question("가장 먼저 개선됐으면 하는 점은 무엇인가요?"),
+        question("등록 기간이 끝난 뒤에도 다시 등록할 가능성은 어느 정도인가요?", "scale", [], {
+          measuredConstruct: "재등록 의향",
+          measuredVariable: "reregistration_intent",
+        }),
+      ],
+    }),
+  );
+  const messages = evaluated.fatalFailures.map((item) => item.message);
+  assert.equal(messages.some((message) => message.includes("이용 패턴")), false);
+  assert.equal(messages.some((message) => message.includes("이용 의향")), false);
+});
+
+test("집단 구분 문항과 같은 construct 측정은 비교 coverage가 된다", () => {
+  const evaluated = evaluateSemanticResult(
+    testCase("dev-general-008"),
+    result({
+      finalRespondentGroup: "자전거 또는 전동킥보드로 출퇴근하는 사람",
+      finalEvaluationTarget: "자전거 출퇴근·전동킥보드 출퇴근",
+      title: "자전거·전동킥보드 출퇴근 비교",
+      description: "이동 시간과 안전 경험을 비교합니다.",
+      questions: [
+        question("출퇴근할 때 주로 어떤 수단을 이용하나요?", "single", ["자전거", "전동킥보드"], {
+          measuredVariable: "primary_commute_mode",
+        }),
+        question("평소 출퇴근 이용 빈도는 어느 정도인가요?"),
+        question("주로 이용하는 수단으로 편도 출퇴근에 보통 얼마나 걸리나요?", "single", ["10분 미만", "10분 이상"], {
+          measuredVariable: "one_way_commute_time",
+          questionPurpose: "수단별 편도 출퇴근 소요 시간을 비교함",
+        }),
+        question("주로 이용하는 수단으로 출퇴근할 때 얼마나 안전한가요?", "scale", [], {
+          measuredVariable: "perceived_safety",
+          questionPurpose: "수단별 안전 경험을 비교함",
+        }),
+        question("사고가 날 뻔한 상황을 얼마나 자주 겪나요?"),
+        question("안전에 영향을 준 요소는 무엇인가요?"),
+        question("안전을 위해 바뀌었으면 하는 점을 적어주세요", "text"),
+      ],
+    }),
+  );
+  assert.equal(
+    evaluated.fatalFailures.some(
+      (item) =>
+        item.code === "REQUIRED_QUESTION_CONCEPT_MISSING" &&
+        item.message.includes("대상 비교"),
+    ),
+    false,
+  );
+});
+
+test("응답자·목적을 포함한 요청 문장 survey object와 깨진 외국문자를 검출한다", () => {
+  const flattened = evaluateSemanticResult(
+    testCase("dev-general-008"),
+    result({
+      finalRespondentGroup: "자전거 또는 전동킥보드로 출퇴근하는 사람",
+      finalEvaluationTarget: "자전거와 전동킥보드로 출퇴근하는 사람들의 이동 시간과 안전 경험 비교",
+      title: "출퇴근 비교",
+      description: "이동 시간과 안전 경험을 비교합니다.",
+      questions: Array.from({ length: 7 }, (_, index) =>
+        question(`출퇴근 문항 ${index + 1}`),
+      ),
+    }),
+  );
+  assert.equal(
+    flattened.fatalFailures.some((item) => item.code === "SURVEY_OBJECT_MISMATCH"),
+    true,
+  );
+
+  const malformed = evaluateSemanticResult(
+    testCase("dev-general-023"),
+    result({
+      finalRespondentGroup: "원격근무 팀원",
+      finalEvaluationTarget: "원격 협업",
+      title: "원격 협업 조사",
+      description: "협업 도구 피로와 소속감을 조사합니다.",
+      questions: [
+        question("평소 업무에서 नियमित적으로 사용하는 협업 도구는 몇 개인가요?"),
+        question("협업 도구 알림은 얼마나 피로한가요?"),
+        question("도구를 오가는 일은 얼마나 어려운가요?"),
+        question("팀의 일원이라는 느낌이 드나요?"),
+        question("의견을 편하게 말할 수 있나요?"),
+        question("소속감을 낮추는 요인은 무엇인가요?"),
+        question("바뀌었으면 하는 점을 적어주세요", "text"),
+      ],
+    }),
+  );
+  assert.equal(
+    malformed.fatalFailures.some((item) => item.code === "MALFORMED_SEMANTIC_PHRASE"),
+    true,
+  );
+});

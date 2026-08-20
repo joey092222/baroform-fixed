@@ -11,6 +11,8 @@ const normalize = (value: string) =>
     .toLocaleLowerCase("ko-KR")
     .replace(/([가-힣]+)대학\s*재학생/gu, "$1대생")
     .replace(/([가-힣]{2,})대학교/gu, "$1대")
+    .replace(/팀\s*프로젝트/gu, "팀플")
+    .replace(/경험이\s*있는\s*응답자/gu, "경험자")
     .replace(/[\s\p{P}\p{S}]+/gu, "")
     .trim();
 
@@ -22,10 +24,19 @@ const conceptPatterns: Record<string, RegExp[]> = {
   "현재 이용 만족도": [/현재.*이용.*만족/, /현재.*사용.*만족/],
   "이동 빈도": [/얼마나\s*자주.*(?:오가|이동|방문)/, /이동\s*(?:빈도|횟수)/, /방문\s*(?:빈도|횟수)/],
   "이동 수단": [/이동\s*수단/, /교통수단/, /어떤\s*방법으로.*(?:오가|이동)/],
-  "소요 시간": [/소요\s*시간/, /걸리는\s*시간/, /몇\s*분/],
+  "소요 시간": [/소요\s*시간/, /걸리는\s*시간/, /얼마나\s*걸/, /몇\s*분/],
   혼잡: [/혼잡/, /붐비/],
   안전: [/안전/, /위험/],
-  접근성: [/접근성/, /접근.*어려/],
+  접근성: [
+    /접근성/,
+    /접근.*(?:어려|편리|쉬)/,
+    /찾아가는\s*과정.*쉬/,
+    /위치.*찾기\s*쉬/,
+    /도달.*(?:어렵지\s*않|쉬)/,
+    /출입.*편리/,
+    /이동\s*경로.*(?:명확|편리)/,
+    /오가는\s*과정.*편리/,
+  ],
   불편: [/불편/, /어려운\s*점/, /장벽/],
   "개선 요구": [/개선/, /바라는\s*점/, /보완/, /바뀌었으면/, /달라졌으면/],
   만족도: [/만족/, /평가/],
@@ -35,6 +46,7 @@ const conceptPatterns: Record<string, RegExp[]> = {
   "이용 경험": [
     /(?:이용|사용)한\s*적/,
     /(?:이용|사용)해\s*본\s*적/,
+    /(?:써|쓰|썼)\s*본\s*적/,
     /(?:이용|사용)\s*경험/,
   ],
   "방문 경험": [/방문한\s*적/, /방문\s*경험/],
@@ -56,13 +68,33 @@ const conceptPatterns: Record<string, RegExp[]> = {
     /불참\s*이유/,
     /장벽/,
   ],
+  "비참여 이유": [
+    /참여하지\s*않(?:는|은|았던)\s*(?:가장\s*큰\s*)?이유/,
+    /참가하지\s*않(?:는|은|았던)\s*(?:가장\s*큰\s*)?이유/,
+    /불참\s*이유/,
+    /비참여\s*이유/,
+    /참여\s*장벽/,
+  ],
   "미구매 이유": [/미구매\s*(?:이유|요인)/, /구매하지\s*않는\s*이유/, /사지\s*않는\s*이유/],
   "가격 수용도": [/가격\s*수용도/, /얼마나\s*더\s*(?:내|지불)/, /추가\s*비용/, /지불\s*의향/],
-  "이용 의향": [/이용\s*의향/, /사용\s*의향/, /다시\s*(?:이용|사용)/, /쓸\s*생각/],
-  "참여 의향": [/참여\s*의향/, /가입\s*의향/, /재참여/, /참가할\s*생각/],
+  "이용 의향": [
+    /이용\s*의향/,
+    /사용\s*의향/,
+    /다시\s*(?:이용|사용|방문|등록|구매)/,
+    /재(?:이용|방문|등록|구매)/,
+    /(?:이용|사용|방문|등록|구매)할\s*(?:가능성|생각|의향)/,
+    /쓸\s*생각/,
+  ],
+  "참여 의향": [
+    /참여\s*의향/,
+    /가입\s*의향/,
+    /재참여/,
+    /(?:참여|참가|가입)할\s*(?:가능성|생각|의향)/,
+    /계속\s*참여할\s*가능성/,
+  ],
   "서비스 필요성": [/필요/, /도입\s*수요/, /수요/],
   "원하는 기능": [/원하는\s*기능/, /필요한\s*기능/, /기능\s*수요/],
-  사용성: [/사용성/, /편의성/, /사용하기\s*쉬/],
+  사용성: [/사용성/, /편의성/, /사용하기\s*쉬/, /찾고\s*사용.*편리/, /사용\s*과정.*편리/],
   신뢰: [/신뢰/],
   공정성: [/공정/],
   의사소통: [/의사소통/, /소통/],
@@ -74,7 +106,13 @@ const conceptPatterns: Record<string, RegExp[]> = {
   "해결 방식": [/해결/, /대처/],
   "학습 효과": [/학습\s*효과/, /도움\s*정도/, /얼마나\s*도움/, /도움이\s*되/, /자신감/],
   "학교 적응": [/학교\s*적응/, /적응/],
-  "선택 이유": [/선택한\s*이유/, /선택\s*이유/],
+  "선택 이유": [
+    /선택한\s*이유/,
+    /선택\s*이유/,
+    /선택\s*요인/,
+    /선택\s*기준/,
+    /고를\s*때.*중요/,
+  ],
   "이용 목적": [/이용\s*목적/, /사용\s*목적/],
   선호: [/선호/, /관심\s*(?:활동|주제)/],
   충동구매: [/충동\s*구매/],
@@ -86,6 +124,28 @@ const negationPattern =
   /(?:이용|사용|참여|참가|가입|구매|방문|시청|주문|클릭|운동|먹|보)(?:하지\s*않|하지\s*못|한\s*적\s*없|지\s*않)|비이용|미구매|불참|미가입|비방문|비시청|비주문|안\s*(?:쓰|가|하|먹|보)|못\s*(?:쓰|가|하)/;
 
 const genericFillerPatterns = conceptPatterns["generic filler"];
+
+function questionSemanticCorpus(
+  question: SurveyRegressionResult["questions"][number],
+) {
+  return [
+    question.title,
+    ...question.options,
+    question.reason,
+    question.role,
+    question.measuredRole,
+    question.planBlockId,
+    question.purposeBlockId,
+    question.measuredVariable,
+    question.measuredConstruct,
+    question.questionPurpose,
+    ...(question.measuredEntityIds ?? []),
+    question.scaleMinLabel,
+    question.scaleMaxLabel,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
 
 function meaningfulTokens(value: string) {
   return value
@@ -124,11 +184,41 @@ function populationScopeCompatible(actual: string, expected: string) {
   return actualPositiveUser === expectedPositiveUser;
 }
 
-export function targetPopulationMatch(actual: string, candidates: string[]) {
+const strictPopulationQualifierPattern =
+  /(?:[1-6]\s*학년|신입생|졸업생|휴학생|대학원생|학부생|[가-힣A-Za-z0-9]+학과|[가-힣A-Za-z0-9]+학부|[가-힣A-Za-z0-9]+전공)/gu;
+
+function populationQualifiersCompatible(actual: string, expected: string) {
+  const actualNormalized = normalize(actual);
+  const expectedQualifiers = expected.match(strictPopulationQualifierPattern) ?? [];
+  return expectedQualifiers.every((qualifier) =>
+    actualNormalized.includes(normalize(qualifier)),
+  );
+}
+
+function populationHeadCompatible(actual: string, expected: string) {
+  const headPattern = /(?:구독자|이용자|사용자|참여자|경험자|학생|대학생|주민|직장인|학부모|소비자|고령층|청년|성인)/gu;
+  const actualHeads = new Set(actual.match(headPattern) ?? []);
+  return (expected.match(headPattern) ?? []).some((head) => actualHeads.has(head));
+}
+
+export function targetPopulationMatch(
+  actual: string,
+  candidates: string[],
+  expectedSurveyObjects: string[] = [],
+) {
   return candidates.some(
-    (candidate) =>
-      semanticTextMatch(actual, [candidate]) &&
-      populationScopeCompatible(actual, candidate),
+    (candidate) => {
+      if (!populationScopeCompatible(actual, candidate)) return false;
+      if (!populationQualifiersCompatible(actual, candidate)) return false;
+      if (semanticTextMatch(actual, [candidate])) return true;
+      return (
+        populationHeadCompatible(actual, candidate) &&
+        expectedSurveyObjects.length > 1 &&
+        expectedSurveyObjects.every((object) =>
+          semanticTextMatch(actual, [object]),
+        )
+      );
+    },
   );
 }
 
@@ -140,7 +230,9 @@ export function conceptPresent(concept: string, corpus: string) {
 }
 
 const surveyPurposePollutionPattern =
-  /(?:만족도|인지도|인식|이미지|수요|필요성|의향|이유|원인|장벽|개선(?:점|의견|요구)?|평가)/u;
+  /(?:만족도|인지도|인식|이미지|수요|필요성|의향|이유|원인|장벽|개선(?:점|의견|요구)?|평가|비교|미치는\s*영향)/u;
+const respondentFrameInSurveyObjectPattern =
+  /(?:학생|재학생|주민|직장인|학부모|소비자|신입생|사람|응답자)(?:들)?(?:이|가|의|에게|한테)/u;
 
 function surveyObjectRoleCompatible(
   actual: string,
@@ -154,6 +246,10 @@ function surveyObjectRoleCompatible(
     const actualHasPurposeSuffix = surveyPurposePollutionPattern.test(actual.trim());
     const candidateHasPurposeSuffix = surveyPurposePollutionPattern.test(candidate.trim());
     if (actualHasPurposeSuffix && !candidateHasPurposeSuffix) return false;
+    if (
+      respondentFrameInSurveyObjectPattern.test(actual) &&
+      !respondentFrameInSurveyObjectPattern.test(candidate)
+    ) return false;
     if (!semanticTextMatch(semanticCorpus, [candidate])) return false;
     if (semanticTextMatch(actual, [candidate])) return true;
 
@@ -196,16 +292,7 @@ const comparableConcepts = [
 ] as const;
 
 function comparisonQuestionCorpus(question: ComparisonQuestion) {
-  return [
-    question.title,
-    question.reason,
-    question.measuredVariable,
-    question.measuredConstruct,
-    question.questionPurpose,
-    ...question.options,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  return questionSemanticCorpus(question);
 }
 
 function targetAliases(target: string) {
@@ -215,17 +302,39 @@ function targetAliases(target: string) {
     .split(/\s+/u)
     .filter(Boolean);
   const aliases = new Set([target]);
+  for (const token of tokens) {
+    if (
+      token.length >= 2 &&
+      !/^(?:이용|사용|경험|출퇴근|통근|서비스|프로그램|식당|강의|멘토링)$/u.test(token)
+    ) aliases.add(token);
+  }
   if (tokens.length >= 2) aliases.add(tokens.slice(-2).join(" "));
   if (tokens.length >= 3) aliases.add(tokens.slice(-3).join(" "));
-  return [...aliases].filter((alias) => normalize(alias).length >= 3);
+  return [...aliases].filter((alias) => normalize(alias).length >= 2);
+}
+
+function comparisonTargetAliases(target: string, expectedTargets: string[]) {
+  const normalizedTarget = normalize(target);
+  return targetAliases(target).filter((alias) => {
+    const normalizedAlias = normalize(alias);
+    if (normalizedAlias === normalizedTarget) return true;
+    return expectedTargets.every(
+      (candidate) =>
+        normalize(candidate) === normalizedTarget ||
+        !targetAliases(candidate).some(
+          (candidateAlias) => normalize(candidateAlias) === normalizedAlias,
+        ),
+    );
+  });
 }
 
 function questionMeasuresTarget(
   question: ComparisonQuestion,
   target: string,
+  expectedTargets: string[],
 ) {
   const corpus = comparisonQuestionCorpus(question);
-  return targetAliases(target).some((alias) =>
+  return comparisonTargetAliases(target, expectedTargets).some((alias) =>
     normalize(corpus).includes(normalize(alias)),
   );
 }
@@ -272,7 +381,7 @@ function parallelComparableMeasurementPresent(
   const baseConcept = requiredConcept?.replace(/\s*비교\s*/gu, " ").trim();
   const candidatesByTarget = expectedTargets.map((target) =>
     questions.filter((question) => {
-      if (!questionMeasuresTarget(question, target)) return false;
+      if (!questionMeasuresTarget(question, target, expectedTargets)) return false;
       if (baseConcept) {
         return conceptPresent(baseConcept, comparisonQuestionCorpus(question));
       }
@@ -308,9 +417,42 @@ function directComparisonPresent(
     }
     if (expectedTargets.length < 2) return true;
     return expectedTargets.every((target) =>
-      targetAliases(target).some((alias) =>
+      comparisonTargetAliases(target, expectedTargets).some((alias) =>
         normalize(corpus).includes(normalize(alias)),
       ),
+    );
+  });
+}
+
+function groupedComparisonMeasurementPresent(
+  questions: SurveyRegressionResult["questions"],
+  expectedTargets: string[],
+  requiredConcept?: string,
+) {
+  if (expectedTargets.length < 2) return false;
+  const groupQuestion = questions.find((question) => {
+    const corpus = comparisonQuestionCorpus(question);
+    const identifiesGroup =
+      /(?:주로|가장\s*자주).*어떤\s*(?:수단|서비스|대상|앱|프로그램|식당)|주\s*(?:이용|사용|통근)\s*(?:수단|대상|서비스|앱|프로그램)/u.test(
+        corpus,
+      );
+    return (
+      identifiesGroup &&
+      expectedTargets.every((target) =>
+        comparisonTargetAliases(target, expectedTargets).some((alias) =>
+          normalize(corpus).includes(normalize(alias)),
+        ),
+      )
+    );
+  });
+  if (!groupQuestion) return false;
+  const baseConcept = requiredConcept?.replace(/\s*비교\s*/gu, " ").trim();
+  return questions.some((question) => {
+    if (question === groupQuestion) return false;
+    const corpus = comparisonQuestionCorpus(question);
+    if (baseConcept && !conceptPresent(baseConcept, corpus)) return false;
+    return /(?:집단|수단|대상|서비스|앱|프로그램|식당).*비교|비교.*(?:집단|수단|대상|서비스|앱|프로그램|식당)/u.test(
+      corpus,
     );
   });
 }
@@ -326,6 +468,11 @@ function comparisonCoveragePresent(
       questions,
       expectedTargets,
       requiredConcept,
+    ) ||
+    groupedComparisonMeasurementPresent(
+      questions,
+      expectedTargets,
+      requiredConcept,
     )
   );
 }
@@ -336,6 +483,17 @@ function purposeConceptPresent(
   questions: SurveyRegressionResult["questions"],
   expectedTargets: string[],
 ) {
+  if (concept === "이용 패턴") {
+    const behaviorDimensions = [
+      /(?:얼마나\s*자주|이용\s*빈도|방문\s*빈도)/u,
+      /(?:주로\s*무엇|이용\s*목적|주요\s*활동)/u,
+      /(?:주로\s*언제|이용\s*시간대)/u,
+      /(?:주로\s*어떤\s*상황|이용\s*상황)/u,
+    ];
+    return behaviorDimensions.filter((pattern) =>
+      questions.some((question) => pattern.test(questionSemanticCorpus(question))),
+    ).length >= 2;
+  }
   if (!/비교/u.test(concept)) return conceptPresent(concept, semanticCorpus);
   const baseConcept = concept.replace(/\s*비교\s*/gu, " ").trim();
   return (
@@ -348,9 +506,10 @@ function directSatisfactionMeasurementPresent(
   questions: SurveyRegressionResult["questions"],
 ) {
   return questions.some((question) => {
+    const corpus = questionSemanticCorpus(question);
     if (
-      !/(?:전반적으로\s*)?얼마나\s*만족|전반적인\s*만족/u.test(
-        question.title,
+      !/(?:전반적으로\s*)?얼마나\s*만족|전반적인\s*만족|전반.*(?:어땠|평가)|종합.*(?:평가|어느\s*정도)|overall[_\s-]*satisfaction/u.test(
+        corpus,
       )
     ) {
       return false;
@@ -679,7 +838,7 @@ export function evaluateSemanticResult(
   const warnings: SurveyRegressionIssue[] = [];
   const questionTitleText = result.questions.map((item) => item.title).join("\n");
   const questionText = result.questions
-    .map((item) => [item.title, ...item.options, item.reason ?? ""].join(" "))
+    .map((item) => questionSemanticCorpus(item))
     .join("\n");
   const targetText =
     result.finalRespondentGroup ?? result.canonicalTargetPopulation ?? "";
@@ -718,7 +877,11 @@ export function evaluateSemanticResult(
   if (result.classification === "hard_fallback") {
     fatalFailures.push(issue("HARD_FALLBACK", "명확한 입력이 hard fallback으로 처리됨", "hard_fallback"));
   }
-  if (!targetPopulationMatch(targetText, testCase.expectedTargetPopulation)) {
+  if (!targetPopulationMatch(
+    targetText,
+    testCase.expectedTargetPopulation,
+    testCase.expectedSurveyObject,
+  )) {
     fatalFailures.push(issue("TARGET_POPULATION_MISMATCH", `응답 대상 불일치: ${targetText}`, "target_population"));
   }
   for (const condition of testCase.expectedEligibilityConditions ?? []) {
@@ -746,8 +909,10 @@ export function evaluateSemanticResult(
   }
   const surveyObjectMatches =
     testCase.expectedTargetCardinality === "multiple"
-      ? testCase.expectedSurveyObject.every((expected) =>
-          semanticTextMatch(allText, [expected]),
+      ? !surveyPurposePollutionPattern.test(objectText) &&
+        !respondentFrameInSurveyObjectPattern.test(objectText) &&
+        testCase.expectedSurveyObject.every((expected) =>
+          semanticTextMatch(objectText, [expected]),
         )
       : surveyObjectRoleCompatible(
           objectText,
@@ -772,6 +937,9 @@ export function evaluateSemanticResult(
   if (
     /(?:에\s*대해|에\s*관해)(?:를|을)|(?:미치는|교통수단별)(?:은|에)|^에게|묻고\s*싶/u.test(
       malformedSemanticText,
+    ) ||
+    /[\p{Script=Devanagari}\p{Script=Arabic}\p{Script=Cyrillic}]/u.test(
+      questionTitleText,
     )
   ) {
     fatalFailures.push(
