@@ -4054,6 +4054,42 @@ function structuredPayloadForRegressionPrompt(prompt: string) {
   return payload;
 }
 
+test("사용자가 기간을 지정하지 않은 오류 경험 문항에는 추천 기간을 덧붙이지 않는다", () => {
+  const prompt =
+    "누리길 앱 사용자의 기능 편의성과 오류 경험, 앱 전체 만족도를 알아보고 싶어요.";
+  const payload = structuredPayloadForRegressionPrompt(prompt);
+  const errorQuestion = payload.output_parsed.survey.questions[2]!;
+  errorQuestion.type = "single_choice";
+  errorQuestion.text =
+    "누리길 앱을 사용하다 오류나 작동 문제를 겪은 적이 있나요?";
+  errorQuestion.options = ["예", "아니요"].map((label, index) => ({
+    id: `error-status-${index + 1}`,
+    label,
+    exclusive: false,
+    fixed_position: false,
+    allows_text: false,
+  }));
+  errorQuestion.reference_period = null;
+  const trace = createSurveyGenerationTrace("no-invented-error-reference-period");
+
+  const result = parseSurveyDraftResponse(
+    payload,
+    prompt,
+    7,
+    "전학년",
+    false,
+    trace,
+  );
+
+  assert.match(result.status, /^ready/u);
+  if (result.status === "needs_clarification") {
+    assert.fail("명확한 만족도 설문이 clarification으로 바뀌면 안 됩니다.");
+  }
+  const title = result.blueprint.aiQuestions.find((item) => item.id === 3)?.title ?? "";
+  assert.equal(title, "누리길 앱을 사용하다 오류나 작동 문제를 겪은 적이 있나요?");
+  assert.doesNotMatch(title, /평소\s*이용\s*경험/u);
+});
+
 test("복구 가능한 중복 문항은 배달 앱 복합 목적 설문 전체를 hard fallback으로 만들지 않는다", () => {
   const prompt = "배달 앱 한 개를 이용하는 1인 가구의 주문 습관과 지출, 구독 혜택 수요";
   const payload = structuredPayloadForRegressionPrompt(prompt);

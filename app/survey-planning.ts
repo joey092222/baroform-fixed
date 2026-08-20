@@ -426,8 +426,25 @@ function isCanonicalFallbackPurposeBlock(block: SurveyPlanBlock) {
   return Boolean(
     block.purposeBlockId &&
       /^variable-\d+$/u.test(block.id) &&
-      /(?:인식|인상|이미지|태도)/u.test(block.variable),
+      (/(?:인식|인상|이미지|태도)/u.test(block.variable) ||
+        block.role === "pain_point" ||
+        /(?:불편|어려움|문제|장벽)/u.test(block.variable)),
   );
+}
+
+function canonicalFallbackVariableIsDirectlyMeasured(
+  question: SurveyPlanCoverageQuestion,
+  block: SurveyPlanBlock,
+) {
+  if (
+    block.role === "pain_point" ||
+    /(?:불편|어려움|문제|장벽)/u.test(block.variable)
+  ) {
+    return /(?:불편|어려움|어려운\s*점|문제|장벽)/u.test(
+      visibleQuestionText(question),
+    );
+  }
+  return perceptionVariableIsDirectlyMeasured(question, block);
 }
 
 function visibleQuestionText(question: SurveyPlanCoverageQuestion) {
@@ -593,7 +610,7 @@ export function questionCoversSurveyPlanBlock(
   }
   if (matcher) return matcher.test(text);
   if (isCanonicalFallbackPurposeBlock(block)) {
-    return perceptionVariableIsDirectlyMeasured(question, block);
+    return canonicalFallbackVariableIsDirectlyMeasured(question, block);
   }
   if (question.planBlockId === block.id) return true;
   const variable = block.variable.replace(/\s+/g, " ").trim();
@@ -1328,7 +1345,15 @@ export function createSurveyPlan(
   }
 
   const fallbackEntities = intent.constructEntities.filter(
-    (item) => !blocks.some((block) => block.sourceEntityIds.includes(item.id)),
+    (item) =>
+      !blocks.some((block) => block.sourceEntityIds.includes(item.id)) &&
+      !(
+        /(?:빈도|횟수)/u.test(item.text) &&
+        blocks.some(
+          (block) =>
+            block.role === "behavior" && block.variableType === "frequency",
+        )
+      ),
   );
   for (const item of fallbackEntities) {
     if (blocks.length >= Math.max(1, requestedQuestionCount - 1)) break;

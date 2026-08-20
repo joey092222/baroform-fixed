@@ -916,8 +916,7 @@ function canonicalizeQuestionReferencePeriods(
       frequencyQuestion,
       brief.surveyIntent.explicitTimeframe ??
         eligibilityTimeframe ??
-        question.explicitTimeframe ??
-        brief.recommendedTimeframe,
+        question.explicitTimeframe,
     );
   });
 }
@@ -3208,6 +3207,7 @@ export function buildSurveyAiRequest(
     "",
     "의도와 계획의 역할을 합치지 말고 measurement block만 문항으로 만든다. analysis block과 파생 지표는 응답값으로 계산한다.",
     "required=true인 measurement block은 각 block의 variable을 응답자가 직접 답할 수 있는 문항으로 정확히 한 번씩 측정하고, 해당 문항의 plan_block_id에는 제공된 block id를 그대로 쓴다.",
+    "응답자가 직접 답해야 하는 불편·문제·장벽 block은 혼잡도·안전도 같은 세부 지표나 개선 의견만으로 대신하지 말고, 실제 불편·어려움·문제를 직접 묻는 문항으로 측정한다.",
     "서로 다른 required block을 한 문항으로 합치거나 같은 block을 두 번 묻지 않는다. 전반적 만족도 block은 세부 만족도와 별도로 정확히 한 번만 직접 묻는다.",
     "관계 분석은 각 원인·결과 변수를 별도 문항으로 측정한다. '선행 값', '결과 값', '핵심 경험', '요소 1' 같은 내부 설계 용어를 응답자 문항에 쓰지 않는다.",
     "복합 목적은 현재 행동·경험을 먼저 측정하고 미충족 수요·대안 의향을 뒤에 측정하며 어느 목적도 버리지 않는다.",

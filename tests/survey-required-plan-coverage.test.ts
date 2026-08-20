@@ -428,3 +428,33 @@ test("이동 fallback 문항의 계획 메타데이터는 실제 질문 의미�
   assert.match(byId.get(4)?.measuredVariable ?? "", /혼잡/u);
   assert.match(byId.get(5)?.measuredVariable ?? "", /안전/u);
 });
+
+test("명시된 이동 불편은 세부 이동 지표와 별도의 필수 계획 블록으로 검증한다", () => {
+  const prompt = "다온대학교 학생의 통학 불편 조사";
+  const intent = parseSurveyIntent(prompt);
+  const plan = createSurveyPlan(intent, 7);
+  const painBlock = plan.blocks.find(
+    (block) =>
+      block.required &&
+      block.directlyAskable &&
+      /(?:불편|어려움|문제|장벽)/u.test(block.variable),
+  );
+  assert.ok(painBlock);
+
+  const indirectOnly = [
+    question(1, "일주일에 며칠 통학하나요?"),
+    question(2, "주로 어떤 수단으로 통학하나요?"),
+    question(3, "편도 이동에는 얼마나 걸리나요?"),
+    question(4, "이동 경로는 얼마나 혼잡하나요?"),
+    question(5, "이동 경로는 얼마나 안전하다고 느끼나요?"),
+    question(6, "가장 먼저 개선되었으면 하는 점은 무엇인가요?"),
+    question(7, "추가 의견을 적어주세요."),
+  ];
+  const missing = evaluateSurveyPlanCoverage(plan, indirectOnly);
+  assert.ok(missing.missingRequiredBlockIds.includes(painBlock.id));
+
+  const direct = [...indirectOnly];
+  direct[5] = question(6, "통학 과정에서 가장 불편한 점은 무엇인가요?");
+  const covered = evaluateSurveyPlanCoverage(plan, direct);
+  assert.equal(covered.missingRequiredBlockIds.includes(painBlock.id), false);
+});
