@@ -118,6 +118,16 @@ test("행동의 측정 기준을 별도 서비스 이용 대상으로 승격하�
   assert.doesNotMatch(intent.surveyIntent.surveyObject ?? "", /빈도.*이용/);
 });
 
+test("소유격 뒤 응답자와 이용 현황이 이어져도 응답자를 조사 대상에 붙이지 않는다", () => {
+  const intent = parseCanonicalSurveyIntent(
+    "현재 국내 최대 웹툰 플랫폼인 네이버 웹툰의 대학생 이용 현황과 경험을 분석하고 싶어",
+  ).surveyIntent;
+
+  assert.equal(intent.targetPopulation, "대학생");
+  assert.equal(intent.surveyObject, "네이버 웹툰");
+  assert.doesNotMatch(intent.surveyObject ?? "", /대학생|이용 현황|경험/u);
+});
+
 test("이용자 조건과 그 이용자가 평가하는 별도 대상을 분리한다", () => {
   const intent = parseCanonicalSurveyIntent("새봄 서비스 이용자들의 학교생활 만족도");
 
@@ -610,4 +620,49 @@ test("응답자가 두 대상을 선택하는 이유와 만족도를 비교하�
   assert.ok(titles.some((title) => /한경관 학식.*전반적으로.*만족/.test(title)));
   assert.ok(titles.some((title) => /고를샘 식당.*전반적으로.*만족/.test(title)));
   assert.doesNotMatch(titles.join(" "), /이유와 만족도 비교.*만족/u);
+});
+
+test("축약된 비이용자 요청도 응답자·대상·이유·향후 의향으로 분리한다", () => {
+  const canonical = parseCanonicalSurveyIntent(
+    "별숲앱 안쓰는 자영업자 왜안씀 앞으로쓸지 조사",
+  );
+  const intent = canonical.surveyIntent;
+
+  assert.equal(intent.targetPopulation, "별숲앱을 이용하지 않는 자영업자");
+  assert.equal(intent.surveyObject, "별숲앱");
+  assert.equal(intent.includesNonUsers, true);
+  assert.equal(intent.screeningRequired, true);
+  assert.deepEqual(intent.constructs, ["비이용 이유", "향후 사용 의향"]);
+  assert.doesNotMatch(intent.surveyObject ?? "", /왜|안씀|앞으로|조사/u);
+});
+
+test("구체적인 서비스·시설명은 만족도 세부 항목에 의해 덮이지 않는다", () => {
+  const fixtures = [
+    ["한들식당 이용자의 맛, 주문, 직원 대응, 전반적 만족도", "한들식당"],
+    ["누리길 앱 이용자의 앱 전체 만족도와 오류 경험", "누리길 앱"],
+    ["늘해랑 보건소 이용자의 안내, 접근성, 대기 만족도", "늘해랑 보건소"],
+    ["달빛장터 방문객의 행사 만족도와 재방문 의향", "달빛장터"],
+  ] as const;
+
+  for (const [input, expectedObject] of fixtures) {
+    const intent = parseCanonicalSurveyIntent(input).surveyIntent;
+    assert.equal(intent.surveyObject, expectedObject, input);
+    assert.doesNotMatch(
+      intent.surveyObject ?? "",
+      /^(?:맛|주문|직원 대응|앱 전체|오류 경험|안내|접근성|대기|행사)$/u,
+      input,
+    );
+  }
+});
+
+test("학과 학생의 복합 인식·개선 요청은 construct와 purpose로 보존한다", () => {
+  const intent = parseCanonicalSurveyIntent(
+    "새빛대학교 환경공학과 학생의 실험실 안전 인식과 개선 요구 조사",
+  ).surveyIntent;
+
+  assert.equal(intent.targetPopulation, "새빛대학교 환경공학과 학생");
+  assert.equal(intent.surveyObject, "실험실 안전");
+  assert.deepEqual(intent.constructs, ["인식", "개선 요구"]);
+  assert.match(intent.purpose ?? "", /인식/);
+  assert.match(intent.purpose ?? "", /개선 요구/);
 });

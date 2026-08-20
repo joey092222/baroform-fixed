@@ -411,7 +411,7 @@ type ResolvedComparisonClause = {
 };
 
 const relationalAudienceHead =
-  "(?:신입생|졸업생|학부생|대학원생|재학생|휴학생|대학생|학생|일반인|직장인|취업준비생|구직자|고령층|청년층|청소년|청년|성인|사람|교직원|교수|교사|이용자|사용자|소비자|고객|주민|구성원|팀원|참가자|참여자|가입자|보호자|가구|학부모|대생|학과생|전공생)";
+  "(?:신입생|졸업생|학부생|대학원생|재학생|휴학생|대학생|학생|일반인|직장인|자영업자|취업준비생|구직자|고령층|청년층|청소년|청년|성인|사람|교직원|교수|교사|이용자|사용자|구독자|소비자|고객|주민|구성원|팀원|방문객|참가자|참여자|가입자|보호자|가구|학부모|대생|학과생|전공생)";
 
 const relationalTimeframePattern =
   "(?:(?:최근|지난)\\s+(?:\\d+|한|두|세|네)\\s*(?:일|주|주일|개월|달|학기|년)|(?:이번|지난)\\s*(?:주|달|월|학기|학년도|연도))(?:\\s*(?:간|동안))?";
@@ -567,9 +567,15 @@ function resolveQualifiedRespondent(value: string): QualifiedRespondent | null {
 
 function normalizedPurposeConstruct(value: string) {
   const cleaned = normalize(value)
-    .replace(/\s*(?:물어보기|물어보고\s*싶다|알아보기|조사하고\s*싶다|조사|파악)\s*$/u, "")
+    .replace(
+      /\s*(?:을|를)?\s*(?:물어보기|물어보고\s*싶(?:다|어요)?|알아보기|알아보고\s*싶(?:다|어요)?|조사하고\s*싶(?:다|어요)?|조사|파악)\s*$/u,
+      "",
+    )
     .replace(/^(?:왜|어째서)\s+/u, "")
     .trim();
+  if (/^(?:탈퇴|해지)\s*(?:이유|원인|요인)$/u.test(cleaned)) {
+    return cleaned;
+  }
   if (/^(?:이용|사용|구독|시청)하지\s*않(?:는|은)\s*이유$/u.test(cleaned)) {
     return "비이용 이유";
   }
@@ -592,13 +598,14 @@ function normalizedPurposeConstruct(value: string) {
     if (/방문/.test(predicate)) return "비방문 이유";
     return "비이용 이유";
   }
+  if (/^(?:왜)?(?:안|못)씀$/u.test(cleaned)) return "비이용 이유";
   if (/^(?:가입|등록|신청)\s*안\s*한\s*이유$/u.test(cleaned)) return "미가입 이유";
   if (/^(?:참여|참가)\s*안\s*한\s*이유$/u.test(cleaned)) return "비참여 이유";
   if (/^(?:구매)\s*안\s*한\s*이유$/u.test(cleaned)) return "미구매 이유";
   if (/^(?:사용|이용|구독|시청)\s*안\s*한\s*이유$/u.test(cleaned)) return "비이용 이유";
 
   const futureIntention = cleaned.match(
-    /^(?:앞으로|향후)\s*(쓰|쓸|사용|이용|방문|참여|참가|구매|가입|등록|신청|구독|시청|수강|재가입|재등록|재방문)(?:할|할지)?\s*(?:생각|의향|가능성)(?:이\s*있는지|이\s*있는가|\s*있는지|\s*여부)?$/u,
+    /^(?:앞으로|향후|나중에)\s*(쓰|쓸|사용|이용|방문|참여|참가|구매|가입|등록|신청|구독|시청|수강|재가입|재등록|재방문)(?:(?:할)?지|할)?\s*(?:(?:생각|의향|가능성)(?:이\s*있는지|이\s*있는가|\s*있는지|\s*여부)?)?$/u,
   );
   if (futureIntention) {
     const predicate = futureIntention[1]
@@ -1151,7 +1158,11 @@ function splitRelationalConstructs(value: string) {
     .replace(/^대상으로\s+/, "")
     .replace(/\s*(?:비교|조사|파악)\s*$/g, "")
     .replace(/\s*(?:조사|파악)\s*$/g, "")
-    .replace(/((?:는지|하는지))\s+(?=(?:앞으로|향후)\s+)/gu, "$1, ");
+    .replace(/((?:는지|하는지|안씀|못씀))\s+(?=(?:앞으로|향후|나중에)\s*)/gu, "$1, ")
+    .replace(
+      /(이유|원인|장벽|의향|가능성|만족도|적응|요구|불편)하고\s+/gu,
+      "$1, ",
+    );
   const parts = cleaned
     .split(/(?:\s*[,·]\s*|\s+(?:및|그리고)\s+|(?<=[가-힣])(?:이랑|랑|와|과)\s*)/)
     .map((item) => normalize(item).replace(/(?:을|를)$/g, ""))
@@ -1522,7 +1533,7 @@ function resolveAudiencePossessiveClause(
 ): ResolvedRelationalClause | null {
   const match = normalizedInput.match(
     new RegExp(
-      `^(.*?${relationalAudienceHead})(?:들)?(?:의)\\s+(.+?)\\s+((?:이용|사용|방문|참여|구매|주문)?\\s*(?:빈도|패턴|현황|경험|만족도|사용성|오류\\s*경험|편의성|신뢰도|불편|장벽|인지도|의향|이유|개선).*)$`,
+      `^(.*?${relationalAudienceHead})(?:들)?(?:의)\\s+(.+?)\\s+((?:이용|사용|방문|참여|구매|주문)?\\s*(?:빈도|패턴|현황|경험|만족도|사용성|오류\\s*경험|편의성|신뢰도|불편|장벽|인지도|인지|인식|태도|의견|의향|이유|개선).*)$`,
     ),
   );
   if (!match) return null;
@@ -1543,6 +1554,9 @@ function resolveAudiencePossessiveClause(
   const satisfaction = constructs.some((item) => /만족|평가/.test(item));
   const explicitImprovementDemand = constructs.some((item) =>
     /개선|수요|필요|요구|도입|의향/.test(item),
+  );
+  const explicitAttitudeMeasure = constructs.some((item) =>
+    /인지|인식|태도|의견|우려/.test(item),
   );
   const genericEvaluationObject = /^(?:서비스|제품|상품|시설|공간|플랫폼|프로그램|앱|이용|사용|방문)$/.test(
     statedObject,
@@ -1568,6 +1582,8 @@ function resolveAudiencePossessiveClause(
     !embeddedObject &&
     resolvedEntityType === "construct" &&
     !satisfaction &&
+    !explicitAttitudeMeasure &&
+    !explicitImprovementDemand &&
     !hasExplicitUsagePredicate
   ) {
     return null;
@@ -1605,7 +1621,12 @@ function resolveAudiencePossessiveClause(
       ? explicitImprovementDemand
         ? ["satisfaction", "need_demand"]
         : ["satisfaction"]
-      : ["usage_experience", "need_demand"],
+      : resolvedEntityType === "construct"
+        ? [
+            "attitude_perception",
+            ...(explicitImprovementDemand ? (["need_demand"] as const) : []),
+          ]
+        : ["usage_experience", "need_demand"],
   };
 }
 
@@ -1691,7 +1712,7 @@ function resolveObjectAudienceClause(
   normalizedInput: string,
 ): ResolvedRelationalClause | null {
   const objectAudience = normalizedInput.match(
-    /^(.{1,100}?)\s+(이용자|사용자|방문자|참여자|고객)(?:들)?(?:의|이|가)\s+(.+)$/,
+    /^(.{1,100}?)\s+(이용자|사용자|구독자|방문자|방문객|참여자|고객)(?:들)?(?:의|이|가)\s+(.+)$/,
   );
   if (!objectAudience) return null;
 
@@ -1722,7 +1743,14 @@ function resolveObjectAudienceClause(
   const genericAudienceObject = /^(?:앱|서비스|플랫폼|제품|시설)$/.test(
     qualifiedObject,
   );
+  const hasIndependentSingleEvaluationSubject =
+    constructs.length === 1 &&
+    Boolean(evaluationSubject) &&
+    !/(?:전반적|종합적|전체|이용\s*경험|사용\s*경험|방문\s*경험)$/u.test(
+      evaluationSubject,
+    );
   const object =
+    (genericAudienceObject || hasIndependentSingleEvaluationSubject) &&
     satisfaction &&
     evaluationSubject &&
     !/^(?:서비스|제품|상품|시설|공간|플랫폼|프로그램|앱|이용|사용|방문)$/.test(
@@ -3232,6 +3260,49 @@ export function parseCanonicalSurveyIntent(
       surveyObject: subject,
       evaluationTargets: [subject],
     };
+  }
+
+  // Some natural requests put the respondent immediately after a possessive
+  // object ("서비스의 대학생 이용 현황"). The legacy parser can then append the
+  // population head to the object. The semantic context has already resolved
+  // the audience, so separate that suffix before any downstream planner or
+  // research matcher consumes the canonical intent.
+  const contextualAudience = generationContext.audience?.trim() ?? "";
+  const objectWithAudienceSuffix = surveyIntent.surveyObject?.trim() ?? "";
+  if (
+    contextualAudience &&
+    objectWithAudienceSuffix.endsWith(`의 ${contextualAudience}`)
+  ) {
+    const separatedObject = objectWithAudienceSuffix
+      .slice(0, -(`의 ${contextualAudience}`).length)
+      .trim();
+    if (separatedObject) {
+      const canonicalObjectEntity: IntentEntity = {
+        ...(surveyIntent.objects[0] ?? {
+          id: stableId("object", separatedObject),
+          source: "explicit" as const,
+          confidence: 0.94,
+        }),
+        text: separatedObject,
+        normalizedText: separatedObject,
+      };
+      generationContext = {
+        ...generationContext,
+        audience: surveyIntent.targetPopulation ?? contextualAudience,
+        primaryEntity: separatedObject,
+      };
+      surveyIntent = {
+        ...surveyIntent,
+        semanticContext: generationContext,
+        targetPopulation:
+          surveyIntent.targetPopulation ?? contextualAudience,
+        surveyObject: separatedObject,
+        legacyEvaluationTarget: separatedObject,
+        evaluationTargets: [separatedObject],
+        objects: [canonicalObjectEntity],
+        unitOfAnalysis: surveyIntent.targetPopulation ?? contextualAudience,
+      };
+    }
   }
 
   const canonicalObject = surveyIntent.surveyObject?.trim() ?? "";

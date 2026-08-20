@@ -91,7 +91,6 @@ import {
   isRecurringFrequencyQuestion,
 } from "./survey-reference-period";
 import {
-  evaluationTargetsSemanticallyMatch,
   resolveCanonicalEvaluationTarget,
   type CanonicalEvaluationTargetResolution,
 } from "./survey-evaluation-target";
@@ -880,21 +879,13 @@ function canonicalEvaluationTargetFromIntent(
   const intentTargets = canonicalIntent.surveyIntent.evaluationTargets
     .map((item) => item.trim())
     .filter(Boolean);
-  if (
-    surveyObject &&
-    (!normalizedFallbackTarget ||
-      evaluationTargetsSemanticallyMatch(
-        surveyObject,
-        normalizedFallbackTarget,
-      ))
-  ) {
-    return surveyObject;
-  }
+  // CanonicalSurveyIntent is the single source of truth. A legacy fallback may
+  // accidentally promote a purpose phrase such as "구매 장벽" or a detail
+  // dimension such as "안내" to the evaluation target. Never let that derived
+  // label override an explicitly resolved canonical survey object.
+  if (surveyObject) return surveyObject;
   if (intentTargets.length > 1) {
-    return (
-      normalizedFallbackTarget ||
-      intentTargets.join(" 및 ")
-    );
+    return intentTargets.join(" 및 ");
   }
   return (
     normalizedFallbackTarget ||
@@ -1994,6 +1985,12 @@ function replacementForPlanBlock(
 }
 
 function establishesEligibilityOrRouting(question: SurveyQuestion) {
+  if (
+    question.measuredRole === "eligibility" ||
+    question.planBlockId === "eligibility-screening"
+  ) {
+    return true;
+  }
   const title = question.title.replace(/\s+/g, " ").trim();
   if (
     !title ||
@@ -2015,6 +2012,33 @@ function establishesEligibilityOrRouting(question: SurveyQuestion) {
   return asksDirectStatus || frequencyCanRouteNonParticipants;
 }
 
+function deterministicEligibilityQuestion(
+  intent: SurveyIntent,
+  id: number,
+): SurveyQuestion {
+  const condition =
+    intent.eligibilityCondition?.trim() ||
+    intent.targetPopulation?.trim() ||
+    "설문 응답 대상";
+  return {
+    id,
+    title: `${condition}에 해당하시나요?`,
+    reason: "설문에 명시된 응답 대상 조건을 먼저 확인함.",
+    type: "single",
+    options: ["예, 해당합니다", "아니요, 해당하지 않습니다"],
+    required: true,
+    measuredConstruct: "응답 적격성",
+    measuredVariable: condition,
+    measuredRole: "eligibility",
+    planBlockId: "eligibility-screening",
+    questionPurpose: "설문에 명시된 응답 대상 조건 충족 여부를 확인함.",
+    unitOfAnalysis: intent.unitOfAnalysis,
+    subjectRole: "target_population",
+    objectRole: "eligibility",
+    explicitTimeframe: intent.explicitTimeframe,
+  };
+}
+
 export function restoreMissingRequiredPlanBlocks({
   survey,
   intent,
@@ -2027,7 +2051,13 @@ export function restoreMissingRequiredPlanBlocks({
   getFallback: () => SurveyBlueprint;
 }) {
   const initialCoverage = evaluateSurveyPlanCoverage(plan, survey.aiQuestions);
-  if (initialCoverage.missingRequiredBlockIds.length === 0) {
+  const initialScreeningPresent =
+    !plan.screeningRequired ||
+    survey.aiQuestions.some(establishesEligibilityOrRouting);
+  if (
+    initialCoverage.missingRequiredBlockIds.length === 0 &&
+    initialScreeningPresent
+  ) {
     return {
       survey,
       initialCoverage,
@@ -2052,6 +2082,41 @@ export function restoreMissingRequiredPlanBlocks({
   );
   const repairedQuestionIds: number[] = [];
   const questions = survey.aiQuestions.map((item) => ({ ...item }));
+
+  if (!initialScreeningPresent && questions.length > 0) {
+    const requiredBlocksForProtection = plan.blocks.filter(
+      (block) =>
+        block.kind === "measurement" &&
+        block.directlyAskable &&
+        block.required,
+    );
+    const replacementIndex = questions.findLastIndex(
+      (question) =>
+        !requiredBlocksForProtection.some((block) =>
+          questionCoversSurveyPlanBlock(question, block),
+        ),
+    );
+    const index = replacementIndex >= 0 ? replacementIndex : questions.length - 1;
+    const original = questions[index];
+    const fallbackScreening = fallbackQuestions.find(
+      establishesEligibilityOrRouting,
+    );
+    const replacement = fallbackScreening
+      ? {
+          ...fallbackScreening,
+          id: original.id,
+          measuredRole: "eligibility" as const,
+          planBlockId: "eligibility-screening",
+          measuredVariable:
+            intent.eligibilityCondition ?? intent.targetPopulation ?? "응답 적격성",
+          measuredConstruct: "응답 적격성",
+          questionPurpose: "설문에 명시된 응답 대상 조건 충족 여부를 확인함.",
+        }
+      : deterministicEligibilityQuestion(intent, original.id);
+    questions.splice(index, 1);
+    questions.unshift(replacement);
+    repairedQuestionIds.push(original.id);
+  }
 
   const replacedIndexes = new Set<number>();
   for (let attempt = 0; attempt < requiredBlocks.length; attempt += 1) {

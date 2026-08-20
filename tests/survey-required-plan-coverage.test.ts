@@ -344,3 +344,37 @@ test("누락된 시설 인식 문항은 fallback의 직접 인상 문항으로 �
     ),
   );
 });
+
+test("명시된 비이용 응답 조건의 선별 문항이 없으면 문항 수를 유지하며 첫 문항으로 복원한다", () => {
+  const prompt = "별숲앱 안쓰는 자영업자 왜안씀 앞으로쓸지 조사";
+  const intent = parseSurveyIntent(prompt);
+  const plan = createSurveyPlan(intent, 7);
+  const fallback = analyzeSurveyPrompt(prompt);
+  const questions = [
+    "별숲앱을 사용하지 않는 이유는 무엇인가요?",
+    "별숲앱을 알게 된 경로는 무엇인가요?",
+    "별숲앱 대신 사용하는 서비스가 있나요?",
+    "서비스 선택에서 가장 중요한 기준은 무엇인가요?",
+    "앞으로 별숲앱을 사용해 볼 생각이 있나요?",
+    "사용을 고려하게 할 변화는 무엇인가요?",
+    "추가 의견을 적어주세요.",
+  ].map((title, index) => question(index + 1, title));
+  const survey = {
+    ...fallback,
+    templateQuestions: questions.slice(0, 5),
+    aiQuestions: questions,
+    semanticPlan: plan,
+  };
+
+  const restored = restoreMissingRequiredPlanBlocks({
+    survey,
+    intent,
+    plan,
+    getFallback: () => fallback,
+  });
+
+  assert.equal(restored.survey.aiQuestions.length, 7);
+  assert.match(restored.survey.aiQuestions[0]?.title ?? "", /별숲앱.*이용하지 않는 자영업자.*해당/u);
+  assert.equal(restored.survey.aiQuestions[0]?.measuredRole, "eligibility");
+  assert.equal(restored.survey.aiQuestions[0]?.planBlockId, "eligibility-screening");
+});
