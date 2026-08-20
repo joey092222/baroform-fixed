@@ -373,6 +373,244 @@ test("두 대상을 각각 측정하고 더 만족한 대상을 고르게 하면
   );
 });
 
+test("두 대상의 만족도를 같은 scale로 각각 측정하면 별도 비교 문항 없이도 비교 coverage다", () => {
+  const evaluated = evaluateSemanticResult(
+    frontedCase("fronted-control-003"),
+    result({
+      finalRespondentGroup: "별마루 카페 새 메뉴와 기존 메뉴 이용자",
+      finalEvaluationTarget: "별마루 카페 새 메뉴·기존 메뉴",
+      title: "별마루 카페 메뉴 만족도 조사",
+      description: "두 메뉴 이용자의 만족도를 조사합니다.",
+      questions: [
+        question("별마루 카페 새 메뉴를 이용해 본 적이 있나요?"),
+        question("별마루 카페 기존 메뉴를 이용해 본 적이 있나요?"),
+        question("평소 어떤 메뉴를 더 자주 선택하나요?", "single", ["새 메뉴", "기존 메뉴", "비슷함"]),
+        question("새 메뉴에 얼마나 만족했나요?", "scale"),
+        question("기존 메뉴에 얼마나 만족했나요?", "scale"),
+        question("새 메뉴에서 개선할 점은 무엇인가요?"),
+        question("메뉴에 관한 의견을 적어주세요", "text"),
+      ],
+    }),
+  );
+  const comparisonFailures = evaluated.fatalFailures.filter(
+    (item) =>
+      item.code === "REQUIRED_PURPOSE_MISSING" ||
+      (item.code === "REQUIRED_QUESTION_CONCEPT_MISSING" &&
+        item.message.includes("대상 비교")),
+  );
+  assert.deepEqual(comparisonFailures, []);
+});
+
+test("두 대상에 같은 순서의 단일선택 만족도 척도를 쓰면 병렬 비교 측정으로 인정한다", () => {
+  const satisfactionOptions = [
+    "전혀 만족하지 않음",
+    "만족하지 않는 편",
+    "보통",
+    "만족하는 편",
+    "매우 만족",
+  ];
+  const evaluated = evaluateSemanticResult(
+    frontedCase("fronted-control-003"),
+    result({
+      finalRespondentGroup: "별마루 카페 새 메뉴와 기존 메뉴 이용자",
+      finalEvaluationTarget: "별마루 카페 새 메뉴·기존 메뉴",
+      title: "별마루 카페 메뉴 만족도 조사",
+      description: "메뉴별 만족도를 조사합니다.",
+      questions: [
+        question("별마루 카페 새 메뉴를 이용해 본 적이 있나요?"),
+        question("별마루 카페 기존 메뉴를 이용해 본 적이 있나요?"),
+        question("새 메뉴에 얼마나 만족했나요?", "single", satisfactionOptions),
+        question("기존 메뉴에 얼마나 만족했나요?", "single", satisfactionOptions),
+        question("새 메뉴의 맛을 평가해주세요"),
+        question("기존 메뉴의 맛을 평가해주세요"),
+        question("추가 의견을 적어주세요", "text"),
+      ],
+    }),
+  );
+  assert.equal(
+    evaluated.fatalFailures.some(
+      (item) =>
+        item.code === "REQUIRED_QUESTION_CONCEPT_MISSING" &&
+        item.message.includes("대상 비교"),
+    ),
+    false,
+  );
+});
+
+test("두 대상의 응답 척도 유형이 다르면 병렬 비교 측정으로 인정하지 않는다", () => {
+  const evaluated = evaluateSemanticResult(
+    frontedCase("fronted-control-003"),
+    result({
+      finalRespondentGroup: "별마루 카페 새 메뉴와 기존 메뉴 이용자",
+      finalEvaluationTarget: "별마루 카페 새 메뉴·기존 메뉴",
+      title: "별마루 카페 메뉴 만족도 조사",
+      description: "메뉴별 만족도를 조사합니다.",
+      questions: [
+        question("별마루 카페 새 메뉴를 이용해 본 적이 있나요?"),
+        question("별마루 카페 기존 메뉴를 이용해 본 적이 있나요?"),
+        question("새 메뉴에 얼마나 만족했나요?", "scale"),
+        question("기존 메뉴에 얼마나 만족했나요?", "single", ["만족", "보통", "불만족"]),
+        question("새 메뉴의 맛을 평가해주세요"),
+        question("기존 메뉴의 맛을 평가해주세요"),
+        question("추가 의견을 적어주세요", "text"),
+      ],
+    }),
+  );
+  assert.equal(
+    evaluated.fatalFailures.some(
+      (item) =>
+        item.code === "REQUIRED_QUESTION_CONCEPT_MISSING" &&
+        item.message.includes("대상 비교"),
+    ),
+    true,
+  );
+});
+
+test("두 대상에 서로 다른 개념을 측정하면 병렬 비교 측정으로 인정하지 않는다", () => {
+  const evaluated = evaluateSemanticResult(
+    frontedCase("fronted-control-003"),
+    result({
+      finalRespondentGroup: "별마루 카페 새 메뉴와 기존 메뉴 이용자",
+      finalEvaluationTarget: "별마루 카페 새 메뉴·기존 메뉴",
+      title: "별마루 카페 메뉴 만족도 조사",
+      description: "두 메뉴를 조사합니다.",
+      questions: [
+        question("별마루 카페 새 메뉴를 이용해 본 적이 있나요?"),
+        question("별마루 카페 기존 메뉴를 이용해 본 적이 있나요?"),
+        question("새 메뉴에 얼마나 만족했나요?", "scale"),
+        question("기존 메뉴를 얼마나 자주 선택했나요?", "scale"),
+        question("새 메뉴의 맛을 평가해주세요"),
+        question("기존 메뉴의 가격을 평가해주세요"),
+        question("추가 의견을 적어주세요", "text"),
+      ],
+    }),
+  );
+  assert.equal(
+    evaluated.fatalFailures.some(
+      (item) =>
+        item.code === "REQUIRED_QUESTION_CONCEPT_MISSING" &&
+        item.message.includes("대상 비교"),
+    ),
+    true,
+  );
+});
+
+test("대상 이름을 소개 문항에만 언급하면 비교 coverage가 아니다", () => {
+  const evaluated = evaluateSemanticResult(
+    frontedCase("fronted-control-003"),
+    result({
+      finalRespondentGroup: "별마루 카페 새 메뉴와 기존 메뉴 이용자",
+      finalEvaluationTarget: "별마루 카페 새 메뉴·기존 메뉴",
+      title: "별마루 카페 메뉴 만족도 조사",
+      description: "두 메뉴 만족도를 조사합니다.",
+      questions: [
+        question("별마루 카페 새 메뉴와 기존 메뉴를 알고 있나요?"),
+        question("메뉴를 얼마나 자주 주문하나요?"),
+        question("메뉴에 얼마나 만족했나요?", "scale"),
+        question("메뉴의 맛은 어땠나요?"),
+        question("메뉴의 가격은 어땠나요?"),
+        question("메뉴에서 개선할 점은 무엇인가요?"),
+        question("추가 의견을 적어주세요", "text"),
+      ],
+    }),
+  );
+  assert.equal(
+    evaluated.fatalFailures.some(
+      (item) =>
+        item.code === "REQUIRED_QUESTION_CONCEPT_MISSING" &&
+        item.message.includes("대상 비교"),
+    ),
+    true,
+  );
+});
+
+test("비교 문항 하나에 두 대상과 비교 신호가 모두 있으면 직접 비교 coverage다", () => {
+  const evaluated = evaluateSemanticResult(
+    frontedCase("fronted-control-003"),
+    result({
+      finalRespondentGroup: "별마루 카페 새 메뉴와 기존 메뉴 이용자",
+      finalEvaluationTarget: "별마루 카페 새 메뉴·기존 메뉴",
+      title: "별마루 카페 메뉴 만족도 조사",
+      description: "메뉴 만족도를 조사합니다.",
+      questions: [
+        question("별마루 카페 새 메뉴를 이용해 본 적이 있나요?"),
+        question("별마루 카페 기존 메뉴를 이용해 본 적이 있나요?"),
+        question("새 메뉴와 기존 메뉴 중 어느 쪽에 더 만족했나요?", "single", ["새 메뉴", "기존 메뉴", "비슷함"]),
+        question("메뉴에 얼마나 만족했나요?", "scale"),
+        question("메뉴의 맛은 어땠나요?"),
+        question("메뉴에서 개선할 점은 무엇인가요?"),
+        question("추가 의견을 적어주세요", "text"),
+      ],
+    }),
+  );
+  assert.equal(
+    evaluated.fatalFailures.some(
+      (item) =>
+        item.code === "REQUIRED_QUESTION_CONCEPT_MISSING" &&
+        item.message.includes("대상 비교"),
+    ),
+    false,
+  );
+});
+
+test("한 대상의 만족도 문항만 있으면 병렬 비교 coverage가 아니다", () => {
+  const evaluated = evaluateSemanticResult(
+    frontedCase("fronted-control-003"),
+    result({
+      finalRespondentGroup: "별마루 카페 새 메뉴와 기존 메뉴 이용자",
+      finalEvaluationTarget: "별마루 카페 새 메뉴·기존 메뉴",
+      title: "별마루 카페 메뉴 만족도 조사",
+      description: "메뉴 만족도를 조사합니다.",
+      questions: [
+        question("별마루 카페 새 메뉴를 이용해 본 적이 있나요?"),
+        question("별마루 카페 기존 메뉴를 이용해 본 적이 있나요?"),
+        question("새 메뉴에 얼마나 만족했나요?", "scale"),
+        question("새 메뉴의 맛은 어땠나요?"),
+        question("기존 메뉴를 얼마나 자주 선택했나요?"),
+        question("메뉴에서 개선할 점은 무엇인가요?"),
+        question("추가 의견을 적어주세요", "text"),
+      ],
+    }),
+  );
+  assert.equal(
+    evaluated.fatalFailures.some(
+      (item) =>
+        item.code === "REQUIRED_QUESTION_CONCEPT_MISSING" &&
+        item.message.includes("대상 비교"),
+    ),
+    true,
+  );
+});
+
+test("병렬 단일선택 척도의 선택지 방향이 다르면 비교 coverage가 아니다", () => {
+  const evaluated = evaluateSemanticResult(
+    frontedCase("fronted-control-003"),
+    result({
+      finalRespondentGroup: "별마루 카페 새 메뉴와 기존 메뉴 이용자",
+      finalEvaluationTarget: "별마루 카페 새 메뉴·기존 메뉴",
+      title: "별마루 카페 메뉴 만족도 조사",
+      description: "메뉴 만족도를 조사합니다.",
+      questions: [
+        question("별마루 카페 새 메뉴를 이용해 본 적이 있나요?"),
+        question("별마루 카페 기존 메뉴를 이용해 본 적이 있나요?"),
+        question("새 메뉴에 얼마나 만족했나요?", "single", ["불만족", "보통", "만족"]),
+        question("기존 메뉴에 얼마나 만족했나요?", "single", ["만족", "보통", "불만족"]),
+        question("새 메뉴의 맛은 어땠나요?"),
+        question("기존 메뉴의 맛은 어땠나요?"),
+        question("추가 의견을 적어주세요", "text"),
+      ],
+    }),
+  );
+  assert.equal(
+    evaluated.fatalFailures.some(
+      (item) =>
+        item.code === "REQUIRED_QUESTION_CONCEPT_MISSING" &&
+        item.message.includes("대상 비교"),
+    ),
+    true,
+  );
+});
+
 test("시설에 대한 전반적 인상은 인식 측정으로 인정한다", () => {
   const evaluated = evaluateSemanticResult(
     frontedCase("fronted-noisy-006"),

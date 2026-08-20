@@ -169,8 +169,13 @@ export type SurveyRegressionResult = {
     planBlockId?: string | null;
     purposeBlockId?: string | null;
     measuredVariable?: string | null;
+    measuredConstruct?: string | null;
     measuredEntityIds?: string[];
     questionPurpose?: string | null;
+    scaleMin?: number | null;
+    scaleMax?: number | null;
+    scaleMinLabel?: string | null;
+    scaleMaxLabel?: string | null;
     showIfQuestionIds?: string[];
     disqualifiesRespondent?: boolean | null;
   }>;

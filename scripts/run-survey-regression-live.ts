@@ -116,8 +116,10 @@ type BlueprintQuestion = {
   planBlockId?: unknown;
   purposeBlockId?: unknown;
   measuredVariable?: unknown;
+  measuredConstruct?: unknown;
   measuredEntityIds?: unknown;
   questionPurpose?: unknown;
+  scale?: unknown;
   showIf?: unknown;
   show_if?: unknown;
   disqualifiesRespondent?: unknown;
@@ -684,7 +686,9 @@ function blueprintQuestions(blueprint: Blueprint | null) {
   const raw = Array.isArray(blueprint?.aiQuestions)
     ? blueprint?.aiQuestions as BlueprintQuestion[]
     : [];
-  return raw.map((item) => ({
+  return raw.map((item) => {
+    const scale = record(item.scale);
+    return ({
     id: text(item.id) || null,
     title: text(item.title),
     type: text(item.type) || null,
@@ -695,8 +699,13 @@ function blueprintQuestions(blueprint: Blueprint | null) {
     planBlockId: text(item.planBlockId) || null,
     purposeBlockId: text(item.purposeBlockId) || null,
     measuredVariable: text(item.measuredVariable) || null,
+    measuredConstruct: text(item.measuredConstruct) || null,
     measuredEntityIds: strings(item.measuredEntityIds),
     questionPurpose: text(item.questionPurpose) || null,
+    scaleMin: typeof scale?.min === "number" ? scale.min : null,
+    scaleMax: typeof scale?.max === "number" ? scale.max : null,
+    scaleMinLabel: text(scale?.minLabel) || text(scale?.min_label) || null,
+    scaleMaxLabel: text(scale?.maxLabel) || text(scale?.max_label) || null,
     showIfQuestionIds: [
       ...new Set([
         ...conditionQuestionIds(item.showIf),
@@ -707,7 +716,8 @@ function blueprintQuestions(blueprint: Blueprint | null) {
       typeof item.disqualifiesRespondent === "boolean"
         ? item.disqualifiesRespondent
         : null,
-  })).filter((item) => item.title);
+    });
+  }).filter((item) => item.title);
 }
 
 async function executeCase(testCase: SurveyRegressionCase): Promise<SurveyRegressionResult> {

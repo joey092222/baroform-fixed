@@ -164,30 +164,172 @@ const comparisonSignalPatterns = [
   /각각.*(?:만족|평가|점수|정도)/,
 ];
 
-function comparisonCoveragePresent(
-  semanticCorpus: string,
-  expectedTargets: string[],
+type ComparisonQuestion = SurveyRegressionResult["questions"][number];
+
+const comparableConcepts = [
+  "만족도",
+  "인식",
+  "빈도",
+  "이용 시간",
+  "비용",
+  "선호",
+  "사용성",
+  "신뢰",
+  "공정성",
+  "의사소통",
+  "피로",
+  "소속감",
+  "스트레스",
+  "집중도",
+  "학습 효과",
+] as const;
+
+function comparisonQuestionCorpus(question: ComparisonQuestion) {
+  return [
+    question.title,
+    question.reason,
+    question.measuredVariable,
+    question.measuredConstruct,
+    question.questionPurpose,
+    ...question.options,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function targetAliases(target: string) {
+  const tokens = target
+    .normalize("NFKC")
+    .replace(/[\p{P}\p{S}]/gu, " ")
+    .split(/\s+/u)
+    .filter(Boolean);
+  const aliases = new Set([target]);
+  if (tokens.length >= 2) aliases.add(tokens.slice(-2).join(" "));
+  if (tokens.length >= 3) aliases.add(tokens.slice(-3).join(" "));
+  return [...aliases].filter((alias) => normalize(alias).length >= 3);
+}
+
+function questionMeasuresTarget(
+  question: ComparisonQuestion,
+  target: string,
 ) {
-  if (!comparisonSignalPatterns.some((pattern) => pattern.test(semanticCorpus))) {
+  const corpus = comparisonQuestionCorpus(question);
+  return targetAliases(target).some((alias) =>
+    normalize(corpus).includes(normalize(alias)),
+  );
+}
+
+function comparableResponseFormat(
+  left: ComparisonQuestion,
+  right: ComparisonQuestion,
+) {
+  if (left.type !== right.type) return false;
+  if (left.type === "scale") {
+    if (
+      left.scaleMin != null &&
+      right.scaleMin != null &&
+      left.scaleMin !== right.scaleMin
+    ) return false;
+    if (
+      left.scaleMax != null &&
+      right.scaleMax != null &&
+      left.scaleMax !== right.scaleMax
+    ) return false;
+    return true;
+  }
+  if (left.type !== "single") return false;
+  if (left.options.length < 2 || right.options.length < 2) return false;
+  return (
+    left.options.length === right.options.length &&
+    left.options.every(
+      (option, index) => normalize(option) === normalize(right.options[index] ?? ""),
+    )
+  );
+}
+
+function measuredConcepts(question: ComparisonQuestion) {
+  const corpus = comparisonQuestionCorpus(question);
+  return comparableConcepts.filter((concept) => conceptPresent(concept, corpus));
+}
+
+function parallelComparableMeasurementPresent(
+  questions: SurveyRegressionResult["questions"],
+  expectedTargets: string[],
+  requiredConcept?: string,
+) {
+  if (expectedTargets.length < 2) return false;
+  const baseConcept = requiredConcept?.replace(/\s*비교\s*/gu, " ").trim();
+  const candidatesByTarget = expectedTargets.map((target) =>
+    questions.filter((question) => {
+      if (!questionMeasuresTarget(question, target)) return false;
+      if (baseConcept) {
+        return conceptPresent(baseConcept, comparisonQuestionCorpus(question));
+      }
+      return measuredConcepts(question).length > 0;
+    }),
+  );
+  if (candidatesByTarget.some((candidates) => candidates.length === 0)) {
     return false;
   }
-  if (expectedTargets.length < 2) return true;
-  return expectedTargets.every((target) =>
-    semanticTextMatch(semanticCorpus, [target]),
+
+  const firstTargetCandidates = candidatesByTarget[0] ?? [];
+  return firstTargetCandidates.some((first) => {
+    const firstConcepts = baseConcept ? [baseConcept] : measuredConcepts(first);
+    return candidatesByTarget.slice(1).every((candidates) =>
+      candidates.some((candidate) =>
+        comparableResponseFormat(first, candidate) &&
+        firstConcepts.some((concept) =>
+          conceptPresent(concept, comparisonQuestionCorpus(candidate)),
+        ),
+      ),
+    );
+  });
+}
+
+function directComparisonPresent(
+  questions: SurveyRegressionResult["questions"],
+  expectedTargets: string[],
+) {
+  return questions.some((question) => {
+    const corpus = comparisonQuestionCorpus(question);
+    if (!comparisonSignalPatterns.some((pattern) => pattern.test(corpus))) {
+      return false;
+    }
+    if (expectedTargets.length < 2) return true;
+    return expectedTargets.every((target) =>
+      targetAliases(target).some((alias) =>
+        normalize(corpus).includes(normalize(alias)),
+      ),
+    );
+  });
+}
+
+function comparisonCoveragePresent(
+  questions: SurveyRegressionResult["questions"],
+  expectedTargets: string[],
+  requiredConcept?: string,
+) {
+  return (
+    directComparisonPresent(questions, expectedTargets) ||
+    parallelComparableMeasurementPresent(
+      questions,
+      expectedTargets,
+      requiredConcept,
+    )
   );
 }
 
 function purposeConceptPresent(
   concept: string,
   semanticCorpus: string,
-  questionCorpus: string,
+  questions: SurveyRegressionResult["questions"],
   expectedTargets: string[],
 ) {
   if (!/비교/u.test(concept)) return conceptPresent(concept, semanticCorpus);
   const baseConcept = concept.replace(/\s*비교\s*/gu, " ").trim();
   return (
     (!baseConcept || conceptPresent(baseConcept, semanticCorpus)) &&
-    comparisonCoveragePresent(questionCorpus, expectedTargets)
+    comparisonCoveragePresent(questions, expectedTargets, concept)
   );
 }
 
@@ -655,7 +797,7 @@ export function evaluateSemanticResult(
       !purposeConceptPresent(
         concept,
         purposeText,
-        questionText,
+        result.questions,
         testCase.expectedSurveyObject,
       )
     ) {
@@ -671,7 +813,7 @@ export function evaluateSemanticResult(
   for (const concept of testCase.requiredQuestionConcepts) {
     const present =
       concept === "대상 비교"
-        ? comparisonCoveragePresent(questionText, testCase.expectedSurveyObject)
+        ? comparisonCoveragePresent(result.questions, testCase.expectedSurveyObject)
         : conceptPresent(concept, questionText);
     if (!present) {
       fatalFailures.push(issue("REQUIRED_QUESTION_CONCEPT_MISSING", `필수 문항 개념 누락: ${concept}`, concept.includes("시간") ? "reference_period" : "purpose_coverage"));
