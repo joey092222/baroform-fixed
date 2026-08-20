@@ -90,6 +90,39 @@ test("응답자를 탈락시키지 않는 경험 확인은 routing으로 분류�
   );
 });
 
+test("공개 응답에서 metadata가 빠진 실제 자격 확인 제목도 eligibility로 분류한다", () => {
+  const titles = [
+    "최근 3개월 동안 다온 앱을 사용했나요?",
+    "지난 주 봄빛 축제에 참여했나요?",
+    "이번 학기에 자녀가 늘봄센터 프로그램에 참여했나요?",
+    "현재 직장에 다니고 있나요?",
+  ];
+
+  for (const title of titles) {
+    assert.equal(
+      classifySurveyQuestionRole(question(title, "single", ["예", "아니요"])),
+      "eligibility_screening",
+      title,
+    );
+  }
+});
+
+test("빈도·목적 문항의 비이용 선택지를 eligibility로 오인하지 않는다", () => {
+  const frequency = question(
+    "최근 3개월 동안 다온 앱을 얼마나 자주 사용했나요?",
+    "single",
+    ["매일", "주 3~4회", "주 1~2회", "월 1~3회", "이용한 적 없음"],
+  );
+  const purpose = question(
+    "다온 앱을 이용하는 가장 큰 목적은 무엇인가요?",
+    "single",
+    ["학습", "업무", "정보 탐색", "소통", "여가", "이용한 적 없음"],
+  );
+
+  assert.equal(classifySurveyQuestionRole(frequency), "substantive_behavior");
+  assert.notEqual(classifySurveyQuestionRole(purpose), "eligibility_screening");
+});
+
 test("선행 일반 이용 문항이 후행 새 메뉴 routing에 의존하지 않으면 위치 오류가 아니다", () => {
   const questions = [
     question("최근 한 달 동안 별마루 카페를 이용한 적이 있나요?", "single", ["예", "아니요"], {

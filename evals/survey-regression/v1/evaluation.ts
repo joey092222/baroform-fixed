@@ -226,9 +226,11 @@ const behaviorRolePattern = /^(?:behavior|experience|frequency|usage)$/u;
 const corePurposeTitlePattern =
   /(?:가장\s*(?:큰|주된)?\s*(?:이유|장벽)|이용하지\s*않는\s*이유|사용하지\s*않는\s*이유|비이용\s*이유|비사용\s*이유|불편|만족|개선|인지|알고\s*있|의향|가능성|평가|필요|선호|기대)/u;
 const statusQuestionPattern =
-  /(?:이용|사용|참여|참가|가입|구매|방문|시청|주문|수강|통학|운동|클릭|먹|마시)(?:한\s*적|해\s*본|해본|어\s*본|어본|한\s*경험|하고\s*있|하지\s*않고\s*있|여부)|(?:현재|최근).*(?:해당|맞(?:나요|습니까)|있(?:나요|습니까)|재학|재직|거주)/u;
+  /(?:이용|사용|참여|참가|가입|구매|방문|시청|주문|수강|통학|운동|클릭|먹|마시)(?:한\s*적|해\s*본|해본|어\s*본|어본|한\s*경험|하고\s*있|하지\s*않고\s*있|했(?:나요|습니까)|했었(?:나요|습니까)|여부)|(?:현재|최근).*(?:해당|맞(?:나요|습니까)|있(?:나요|습니까)|재학|재직|거주|직장에\s*다니고)/u;
 const statusChoicePattern =
   /(?:경험|이용|사용|참여|방문|구매).*(?:있음|없음)|(?:예|네).*(?:아니요|아님)|해당함.*해당하지\s*않음/u;
+const substantiveStatusLookalikePattern =
+  /(?:얼마나\s*자주|몇\s*(?:번|회)|며칠|빈도|횟수|어떤\s*(?:목적|이유)|주된\s*목적|이용\s*목적)/u;
 
 function questionMetadataText(question: EvaluatedQuestion) {
   return [
@@ -242,8 +244,14 @@ function questionMetadataText(question: EvaluatedQuestion) {
 }
 
 function questionLooksLikeStatusCheck(question: EvaluatedQuestion) {
-  const visible = `${question.title}\n${question.options.join("\n")}`;
-  return statusQuestionPattern.test(visible) || statusChoicePattern.test(visible);
+  const titleLooksLikeStatus =
+    !substantiveStatusLookalikePattern.test(question.title) &&
+    statusQuestionPattern.test(question.title);
+  const compactStatusChoices =
+    question.options.length >= 2 &&
+    question.options.length <= 4 &&
+    statusChoicePattern.test(question.options.join("\n"));
+  return titleLooksLikeStatus || compactStatusChoices;
 }
 
 export function isCorePurposeQuestion(question: EvaluatedQuestion) {
@@ -253,9 +261,10 @@ export function isCorePurposeQuestion(question: EvaluatedQuestion) {
   if (/barrier|reason|satisfaction|evaluation|priority|awareness/u.test(role)) {
     return true;
   }
-  return corePurposeTitlePattern.test(
-    `${question.title}\n${question.questionPurpose ?? question.reason ?? ""}`,
-  );
+  // The API intentionally strips internal role metadata from public questions.
+  // A reason such as "대상인지 확인함" may still contain broad purpose words,
+  // so visible title copy is the only safe fallback for this classification.
+  return corePurposeTitlePattern.test(question.title);
 }
 
 export function isEligibilityScreeningQuestion(question: EvaluatedQuestion) {
