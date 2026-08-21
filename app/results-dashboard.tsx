@@ -441,18 +441,21 @@ function ChoiceDistribution({
 /**
  * 순서가 정해진 선택형 문항을 세로 막대로 그린다.
  *
- * 가로 목록은 한 줄에 하나씩이라 '몇 번 만에 붙었나' 같은 분포 모양이 눈에 안 들어온다.
- * 세로로 세우면 왼쪽에서 오른쪽으로 줄어드는 형태가 그대로 보인다.
- * 선택지가 6개를 넘거나 이름이 길면 라벨이 뭉개지므로 가로 목록으로 돌아간다.
+ * 가로 목록은 한 줄에 하나씩이라 분포 모양이 눈에 안 들어온다.
+ * 세로로 세우면 어느 선택지로 몰렸는지가 한눈에 보인다.
+ *
+ * 선택지가 많거나 이름이 길어도 막대로 그린다. 라벨은 두 줄까지 접고,
+ * 칸이 좁아지면 가로로 스크롤한다. 좁은 화면에서 8개를 억지로 우겨넣지 않기 위해서다.
  */
-function OrderedBarChart({
+function ChoiceBarChart({
   choices,
 }: {
   choices: QuestionResult["choices"];
 }) {
   const top = choices.reduce((max, choice) => Math.max(max, choice.percentage), 0);
   return (
-    <div className="results-v2-vbars">
+    <div className="results-v2-vbars-scroll">
+      <div className="results-v2-vbars">
       {choices.map((choice) => {
         const isTop = top > 0 && choice.percentage === top;
         return (
@@ -471,6 +474,7 @@ function OrderedBarChart({
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -545,29 +549,27 @@ function QuestionResultCard({ result, index }: { result: QuestionResult; index: 
         <TextResponseList responses={result.textResponses} />
       ) : (
         (() => {
+          // 선택형 문항은 모두 막대로 그린다.
+          if (result.choices.length === 0) {
+            return <ChoiceDistribution choices={result.choices} />;
+          }
+          // 누적은 순서가 정해진 단일 선택에서만 뜻이 있다.
+          // 다중 선택은 합이 100%를 넘어 누적이 성립하지 않는다.
           const ordered =
             result.hasAuthoredOrder &&
             (result.question.type === "single" || result.question.type === "dropdown");
-          // 라벨이 길거나 선택지가 많으면 세로 막대에서 글자가 뭉개진다.
-          const labelsFit =
-            result.choices.length > 0 &&
-            result.choices.length <= 6 &&
-            result.choices.every((choice) => Array.from(choice.label).length <= 9);
-          if (ordered && labelsFit) {
-            return (
-              <>
+          return (
+            <>
+              {ordered && (
                 <p className="results-v2-cumulative-note">
                   순서형 · 누적{" "}
                   {result.choices
                     .map((choice) => `${choice.cumulativePercentage.toFixed(0)}%`)
                     .join(" → ")}
                 </p>
-                <OrderedBarChart choices={result.choices} />
-              </>
-            );
-          }
-          return (
-            <ChoiceDistribution choices={result.choices} showCumulative={ordered} />
+              )}
+              <ChoiceBarChart choices={result.choices} />
+            </>
           );
         })()
       )}
