@@ -133,7 +133,12 @@ function removePopulationPhrases(value: string, targetPopulation: string | null)
 
 function cleanVariableLabel(value: string) {
   const cleaned = normalize(value)
-    .replace(/^(?:그리고|또한|그에\s*따른|그에\s*따라)\s*/, "")
+    // removePopulationPhrases는 "대학생들의"는 지우지만 이를 되받는 대명사는
+    // 남긴다. 그대로 두면 변수명·제목·설명에 "그들의 지각 빈도"처럼 노출된다.
+    .replace(
+      /^(?:그리고|또한|그에\s*따른|그에\s*따라|그들의|이들의|그\s|이\s|해당|위\s*집단의)\s*/,
+      "",
+    )
     .replace(/(?:에\s*대해(?:서)?|에\s*관해(?:서)?|을|를)\s*$/, "")
     .replace(/(?:의)?\s*(?:관계|상관관계|영향|차이)\s*$/, "")
     .replace(/^현재\s+(?=통학|공부|운동|근무|이용|사용)/, "")

@@ -2147,8 +2147,13 @@ export function validateSurveyIntentCandidate(
       if (/^(?:나이|연령)$/.test(variable.name)) {
         return /나이|연령대?/.test(questionText);
       }
-      if (/지각\s*횟수/.test(variable.name)) {
-        return /지각.*(?:횟수|몇\s*회)|몇\s*회.*지각/.test(questionText);
+      // 생성기(researchVariableQuestion)는 "지각 빈도"를 "수업이나 약속에 늦은
+      // 빈도"로 표현한다. 응답자에게 "지각"이라는 단어를 덜 노출하려는 의도라
+      // 매처도 같은 표현을 알고 있어야 한다.
+      if (/지각\s*(?:횟수|빈도)/.test(variable.name)) {
+        return /지각.*(?:횟수|빈도|몇\s*회)|(?:횟수|빈도|몇\s*회).*지각|늦(?:은|는|었던)\s*(?:횟수|빈도)/.test(
+          questionText,
+        );
       }
       if (/공부\s*시간/.test(variable.name)) {
         return /공부(?:하는)?\s*시간|학습\s*시간/.test(questionText);

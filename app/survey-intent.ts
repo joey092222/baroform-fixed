@@ -240,12 +240,22 @@ export type SurveyBrief = {
   parsedSurveyContext: ParsedSurveyContext;
 };
 
+// 두문자어는 사용자가 소문자로 쳐도 설문 제목과 전 문항에 그대로 박힌다
+// ("sns 이용 시간 조사"). 표기만 바로잡고 의미는 건드리지 않는다.
+const acronymCasing =
+  /(?<![A-Za-z])(sns|ott|ai|mbti|pc|tv|vod|gpa|ktx|atm|qr|lms|ppt|pdf|url|faq|diy)(?![A-Za-z])/gi;
+
+export const normalizeSurveyAcronyms = (value: string) =>
+  value.replace(acronymCasing, (match) => match.toUpperCase());
+
 const normalizePrompt = (value: string) =>
-  value
-    .replace(/[“”"'`]/g, "")
-    .replace(/\s+/g, " ")
-    .replace(/[.!?。]+$/g, "")
-    .trim();
+  normalizeSurveyAcronyms(
+    value
+      .replace(/[“”"'`]/g, "")
+      .replace(/\s+/g, " ")
+      .replace(/[.!?。]+$/g, "")
+      .trim(),
+  );
 
 const personHead =
   "(?:학생|대학생|대학원생|중학생|고등학생|신입생|새내기|재학생|졸업생|교환학생|복학생|수강생|수강자|직장인|청년|이용자|비이용자|사용자|소비자|가입자|회원|참여자|참가자|참석자|방문객|관람객|구매자|고객|직원|교직원|교수|교사|조교|주민|거주자|거주생|자취생|기숙사생|학부모|응답자|지원자|20대|\\d{2}학번)";
@@ -3900,10 +3910,15 @@ function durationMeasurementBlueprint(
   measurement: SurveyMeasurement,
 ): SurveyBlueprint {
   const focus = measurement.target;
-  const isRepeatableActivity =
-    /(이용|사용|시청|게임|공부|학습|운동|독서|통학|등하교|근무)$/.test(
-      focus,
-    );
+  // focus는 이미 행위 명사로 끝난다("SNS 이용"). 여기에 "시간"을 다시 붙이면
+  // 목적을 묻는 대상이 행위가 아니라 시간이 되어 "SNS 이용 시간을 주로 어떤
+  // 목적으로 쓰나요?" 같은 문장이 나온다. 행위와 대상을 분리해 묻는다.
+  const activityVerb =
+    focus.match(/(이용|사용|시청|공부|학습|운동|독서|근무)$/)?.[1] ?? null;
+  const activityObject = activityVerb
+    ? focus.slice(0, -activityVerb.length).trim()
+    : "";
+  const canAskActivityPurpose = Boolean(activityVerb && activityObject);
   const durationOptions = [
     "전혀 하지 않음",
     "30분 미만",
@@ -3942,10 +3957,10 @@ function durationMeasurementBlueprint(
       "multiple",
       ["오전 6~9시", "오전 9시~낮 12시", "낮 12시~오후 3시", "오후 3~6시", "오후 6~9시", "오후 9시 이후"],
     ),
-    isRepeatableActivity
+    canAskActivityPurpose
       ? question(
           5,
-          `${focus} 시간을 주로 어떤 목적으로 쓰나요?`,
+          `${labelWithParticle(activityObject, "을", "를")} 주로 어떤 목적으로 ${activityVerb}하나요?`,
           "같은 이용 시간이라도 목적에 따라 시간 사용의 의미가 달라지는 점을 구분해요.",
           "multiple",
           ["학업·업무", "정보 탐색", "소통·교류", "오락·휴식", "습관적으로", "기타"],
@@ -5306,11 +5321,15 @@ function relationalIntentBlueprint(brief: SurveyBrief): SurveyBlueprint | null {
   } else if (/수면\s*시간.*지각\s*(?:횟수|빈도)|지각\s*(?:횟수|빈도).*수면\s*시간/.test(
     directVariables.map((item) => item.name).join(" "),
   )) {
+    // 사용자가 기간을 적지 않았는데 "이번 학기에"를 붙이면 INVENTED_TIMEFRAME
+    // 위반이 되어 정상 설문이 통째로 폐기된다. 사용자가 기간을 준 경우에만
+    // 그 기간을 쓰고, 아니면 기간을 주장하지 않는 표현으로 묻는다.
+    const scope = research.explicitTimeframe ? `${research.explicitTimeframe}에 ` : "";
     questions.push(
-      question(questions.length + 1, "이번 학기에 일주일 평균 수업이 있는 날은 며칠인가요?", "수면 시간과 지각 횟수의 노출 기회를 보정할 수 있도록 수업일 수를 측정함.", "single", ["1일", "2일", "3일", "4일", "5일 이상"]),
-      question(questions.length + 2, "이번 학기에 오전 10시 이전에 시작하는 수업은 일주일에 며칠인가요?", "이른 수업 일정이 수면과 지각에 미치는 맥락을 구분함.", "single", ["없음", "1일", "2일", "3일", "4일 이상"]),
-      question(questions.length + 3, "평소 등교할 때 편도 통학 시간은 어느 정도인가요?", "수면 시간 외에 지각 횟수와 관련될 수 있는 통학 여건을 측정함.", "single", ["15분 미만", "15분 이상~30분 미만", "30분 이상~60분 미만", "60분 이상~90분 미만", "90분 이상"]),
-      question(questions.length + 4, "이번 학기에 수업에 지각한 주된 이유를 모두 골라주세요.", "지각 횟수의 차이를 설명할 수 있는 원인을 구분함.", "multiple", ["늦게 잠들거나 수면이 부족해서", "알람을 듣지 못해서", "등교 준비가 늦어져서", "대중교통 지연·도로 정체 때문에", "이전 일정이 늦게 끝나서", "지각한 적 없음", "기타"]),
+      question(questions.length + 1, `${scope || "평소 "}일주일에 수업이 있는 날은 며칠인가요?`, "수면 시간과 지각 빈도의 노출 기회를 보정할 수 있도록 수업일 수를 측정함.", "single", ["1일", "2일", "3일", "4일", "5일 이상"]),
+      question(questions.length + 2, `${scope || "평소 "}오전 10시 이전에 시작하는 수업은 일주일에 며칠인가요?`, "이른 수업 일정이 수면과 지각에 미치는 맥락을 구분함.", "single", ["없음", "1일", "2일", "3일", "4일 이상"]),
+      question(questions.length + 3, "평소 등교할 때 편도 통학 시간은 어느 정도인가요?", "수면 시간 외에 지각 빈도와 관련될 수 있는 통학 여건을 측정함.", "single", ["15분 미만", "15분 이상~30분 미만", "30분 이상~60분 미만", "60분 이상~90분 미만", "90분 이상"]),
+      question(questions.length + 4, `${scope}수업에 지각한 주된 이유를 모두 골라주세요.`, "지각 빈도의 차이를 설명할 수 있는 원인을 구분함.", "multiple", ["늦게 잠들거나 수면이 부족해서", "알람을 듣지 못해서", "등교 준비가 늦어져서", "대중교통 지연·도로 정체 때문에", "이전 일정이 늦게 끝나서", "지각한 적 없음", "기타"]),
       question(questions.length + 5, "수면이나 등교 준비와 관련해 덧붙이고 싶은 상황이 있다면 적어주세요.", "선택지에서 놓친 수면 및 등교 상황을 수집함.", "text", undefined, false),
     );
   } else {
@@ -5950,11 +5969,23 @@ export function validateSurvey(
     ? validateSurveyIntentCandidate(brief.surveyIntent, {
         title: blueprint.title,
         description: blueprint.description,
+        // 문항이 어떤 변수를 재는지는 annotatePlannedQuestion이 이미 심어둔다.
+        // 이 필드를 넘기지 않으면 questionCoversVariable이 제목 문자열 매칭만
+        // 남아서, 생성기가 변수명과 다른 표현으로 쓴 정상 문항("지각 빈도" →
+        // "수업이나 약속에 늦은 빈도")을 미측정으로 오판한다.
         questions: blueprint.aiQuestions.map((item) => ({
           id: item.id,
           title: item.title,
+          type: item.type,
           options: item.options,
           reason: item.reason,
+          measuredConstruct: item.measuredConstruct,
+          measuredVariable: item.measuredVariable,
+          measuredRole: item.measuredRole,
+          planBlockId: item.planBlockId,
+          purposeBlockId: item.purposeBlockId,
+          measuredEntityIds: item.measuredEntityIds,
+          questionPurpose: item.questionPurpose,
         })),
       })
     : [];
