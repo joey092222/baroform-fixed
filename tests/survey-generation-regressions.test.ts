@@ -184,6 +184,51 @@ test("관계형 generic 문항은 응답자에게 내부 개념을 노출하지 
   assert.match(corpus, /평소 지각 여부가 달라지는 빈도/);
 });
 
+// 사용자 제보 4: "만족도 조사 결과 개선" 류 프롬프트가 제대로 생성되는지.
+// 파보니 "과"로 끝나는 주제어가 전부 막혀 있었다. 검증기가 끝 글자 "과"를
+// 잘린 접속조사로 보는데, 학과·성과·효과·결과·치과는 명사 자체가 "과"로
+// 끝난다. 접속조사가 없는 정상 요청이 422로 죽었다.
+test("주제어가 '과'로 끝나는 정상 프롬프트가 막히지 않는다", () => {
+  const prompts = [
+    "학과 만족도 조사",
+    "교육 효과 만족도 조사",
+    "동아리 활동 성과 만족도 조사",
+    "치과 진료 만족도 조사",
+    "우리 과 만족도 조사",
+  ];
+  for (const prompt of prompts) {
+    const issues = validateSurvey(
+      prompt,
+      parseSurveyBrief(prompt),
+      analyzeSurveyPrompt(prompt),
+    );
+    assert.deepEqual(
+      issues.filter((item) => item.includes("짧은 명사구")),
+      [],
+      prompt,
+    );
+  }
+});
+
+test("뒤쪽 차원을 뗄 때 이어주던 접속조사도 함께 뗀다", () => {
+  // "X와 만족도 조사" → "만족도 조사"만 떼면 "X와"가 남아
+  // "동아리 활동 성과와에 얼마나 만족하시나요?"가 나갔다.
+  for (const [prompt, expected] of [
+    ["동아리 활동 성과와 만족도 조사", "동아리 활동 성과"],
+    ["교육 효과와 만족도 조사", "교육 효과"],
+  ] as const) {
+    const brief = parseSurveyBrief(prompt);
+    assert.equal(brief.researchSubject, expected, prompt);
+    // surveyObject는 별도 추출 경로다. 여기가 문항 본문에 실린다.
+    assert.equal(parseSurveyIntent(prompt).surveyObject, expected, prompt);
+
+    const corpus = analyzeSurveyPrompt(prompt)
+      .aiQuestions.map((item) => item.title)
+      .join(" ");
+    assert.doesNotMatch(corpus, /와에|와가|와이|와을|와를/, prompt);
+  }
+});
+
 // 이중질문 규칙은 지금까지 발동을 검증하는 테스트가 하나도 없었다. 규칙을
 // 느슨하게 만드는 변경이 진짜 이중질문을 놓쳐도 아무도 못 잡는 상태였다.
 // 양방향으로 고정한다.
