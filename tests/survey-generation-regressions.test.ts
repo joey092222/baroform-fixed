@@ -108,3 +108,92 @@ test("행위 대상이 없는 시간 측정은 목적 문항 대신 맥락 문�
 
   assert.doesNotMatch(corpus, /통학하나요\?/);
 });
+
+// 사용자 제보 3: "지각 여부에 대한에 해당하나요?" / "지각 여부에 대한을(를) ...".
+// cleanVariableLabel이 규칙을 한 번만 훑어서, "관계"를 뗀 뒤 드러난 "에 대한"을
+// 지울 기회가 없었다. 그리고 generic 템플릿은 조사를 하드코딩하고 있었다.
+const danglingSuffixPrompt =
+  "대학생들의 통학 시간과 그에 따른 지각 비율에 대한 관계 조사";
+
+test("변수명에서 관형사형 꼬리가 남지 않는다", () => {
+  const research = parseSurveyIntent(danglingSuffixPrompt).researchIntent;
+  const names = research.variables.map((item) => item.name);
+
+  assert.deepEqual(names, ["통학 시간", "지각 여부", "지각 비율"]);
+  for (const name of names) {
+    assert.doesNotMatch(name, /에\s*대한$|에\s*관한$|에\s*대해$|관련$/);
+  }
+});
+
+test("변수명 정리는 여러 겹으로 쌓인 꼬리도 벗겨낸다", () => {
+  // 한 번만 훑으면 "관계"를 뗀 뒤 드러나는 "에 대한"을 놓친다. fixpoint 확인.
+  for (const prompt of [
+    "대학생들의 통학 시간과 그에 따른 지각 비율에 대한 관계 조사",
+    "대학생들의 통학 시간과 그에 따른 지각 비율에 관한 영향 조사",
+  ]) {
+    const names = parseSurveyIntent(prompt).researchIntent.variables.map(
+      (item) => item.name,
+    );
+    for (const name of names) {
+      assert.doesNotMatch(name, /에\s*(?:대한|관한|대해|관해)/);
+    }
+  }
+});
+
+test("제목과 안내문에 꼬리와 잘못된 조사가 섞이지 않는다", () => {
+  const blueprint = analyzeSurveyPrompt(danglingSuffixPrompt);
+
+  assert.equal(blueprint.title, "대학생의 통학 시간과 지각 여부 조사");
+  assert.match(blueprint.description, /지각 여부를 파악하고/);
+  assert.doesNotMatch(blueprint.description, /에 대한|여부를를|여부을/);
+});
+
+test("generic 문항 템플릿이 조사 플레이스홀더를 노출하지 않는다", () => {
+  const prompts = [
+    danglingSuffixPrompt,
+    "대학생들의 공부 시간에 따라 달라지는 만족도 조사",
+    "직장인의 근무 시간과 그에 따른 이직 의향 조사",
+  ];
+  for (const prompt of prompts) {
+    const blueprint = analyzeSurveyPrompt(prompt);
+    const corpus = blueprint.aiQuestions
+      .flatMap((item) => [item.title, item.reason])
+      .join(" ");
+
+    // "을(를)", "이(가)", "은(는)"이 사용자 화면에 그대로 나가면 안 된다.
+    assert.doesNotMatch(corpus, /을\(를\)|이\(가\)|은\(는\)/, prompt);
+  }
+});
+
+test("이분형 generic 문항이 문장으로 성립한다", () => {
+  const blueprint = analyzeSurveyPrompt(danglingSuffixPrompt);
+  const binary = blueprint.aiQuestions.find((item) =>
+    item.options?.includes("아니요"),
+  );
+
+  assert.equal(binary?.title, "지각 여부를 알려주세요.");
+  assert.doesNotMatch(binary?.title ?? "", /여부에 해당하나요/);
+});
+
+test("관계형 generic 문항은 응답자에게 내부 개념을 노출하지 않는다", () => {
+  const blueprint = analyzeSurveyPrompt(danglingSuffixPrompt);
+  const corpus = blueprint.aiQuestions.map((item) => item.title).join(" ");
+
+  assert.doesNotMatch(corpus, /앞에서 답한 (?:첫 번째 값|값들)/);
+  assert.match(corpus, /평소 통학 시간이 달라지는 주된 상황/);
+  assert.match(corpus, /평소 지각 여부가 달라지는 빈도/);
+});
+
+test("관계형 generic 문항은 자체 품질 검증을 통과한다", () => {
+  for (const prompt of [
+    danglingSuffixPrompt,
+    "대학생들의 공부 시간에 따라 달라지는 만족도 조사",
+    "네이버 웹툰 이용 빈도에 따른 만족도 차이",
+  ]) {
+    assert.deepEqual(
+      validateSurvey(prompt, parseSurveyBrief(prompt), analyzeSurveyPrompt(prompt)),
+      [],
+      prompt,
+    );
+  }
+});

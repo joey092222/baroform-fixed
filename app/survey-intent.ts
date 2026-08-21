@@ -5248,10 +5248,15 @@ function researchVariableQuestion(
       ["매우 낮음", "낮은 편", "보통", "높은 편", "매우 높음"],
     );
   }
+  // 아래 generic 분기는 특례에 없는 모든 변수가 도달하는 마지막 경로다.
+  // 조사를 "은", "을(를)"로 박아두면 받침에 따라 틀리거나 "을(를)"이 화면에
+  // 그대로 노출된다. 받침을 판정하는 labelWithParticle을 쓴다.
+  const nameTopic = labelWithParticle(name, "은", "는");
+  const nameObject = labelWithParticle(name, "을", "를");
   if (/구매\s*금액|지출/.test(name)) {
     return question(
       id,
-      `${timeframe}${name}은 어느 구간에 해당하나요?`,
+      `${timeframe}${nameTopic} 어느 구간에 해당하나요?`,
       "개인별 금액을 겹치지 않는 구간으로 측정함.",
       "single",
       ["1만원 미만", "1만원 이상~3만원 미만", "3만원 이상~5만원 미만", "5만원 이상~10만원 미만", "10만원 이상"],
@@ -5260,8 +5265,8 @@ function researchVariableQuestion(
   if (variable.measurementLevel === "binary") {
     return question(
       id,
-      `${timeframe}${name}에 해당하나요?`,
-      `${name}을(를) 개인별 이분형 변수로 측정함.`,
+      `${timeframe}${nameObject} 알려주세요.`,
+      `${nameObject} 개인별 이분형 변수로 측정함.`,
       "single",
       ["예", "아니요"],
     );
@@ -5274,16 +5279,16 @@ function researchVariableQuestion(
         : ["매우 적음", "적은 편", "보통", "많은 편", "매우 많음"];
     return question(
       id,
-      `${timeframe}${name}은 어느 정도인가요?`,
-      `${name}을(를) 겹치지 않는 순서형 구간으로 측정함.`,
+      `${timeframe}${nameTopic} 어느 정도인가요?`,
+      `${nameObject} 겹치지 않는 순서형 구간으로 측정함.`,
       "single",
       options,
     );
   }
   return question(
     id,
-    `${timeframe}${name}은 어느 수준에 해당하나요?`,
-    `${name}을(를) 비교 가능한 응답 범주로 측정함.`,
+    `${timeframe}${nameTopic} 어느 수준에 해당하나요?`,
+    `${nameObject} 비교 가능한 응답 범주로 측정함.`,
     "single",
     ["매우 낮음", "낮은 편", "보통", "높은 편", "매우 높음"],
   );
@@ -5337,10 +5342,16 @@ function relationalIntentBlueprint(brief: SurveyBrief): SurveyBlueprint | null {
     const outcome = directVariables.find((item) => item.role === "outcome");
     const predictorName = predictor?.name ?? "앞선 조건";
     const outcomeName = outcome?.name ?? "결과";
+    // "앞에서 답한 첫 번째 값"은 응답자가 무엇을 가리키는지 알 수 없다.
+    // 측정 중인 변수명을 그대로 써서 문항 하나만 읽어도 답할 수 있게 한다.
     questions.push(
-      question(questions.length + 1, "앞에서 답한 첫 번째 값이 달라지는 주된 상황을 모두 골라주세요.", `${predictorName}의 차이를 설명할 수 있는 상황 변수를 수집함.`, "multiple", ["평일", "주말·공휴일", "학업·업무가 많은 시기", "개인 일정이 많은 시기", "특별한 상황 없음", "기타"]),
+      question(questions.length + 1, `평소 ${labelWithParticle(predictorName, "이", "가")} 달라지는 주된 상황을 모두 골라주세요.`, `${predictorName}의 차이를 설명할 수 있는 상황 변수를 수집함.`, "multiple", ["평일", "주말·공휴일", "학업·업무가 많은 시기", "개인 일정이 많은 시기", "특별한 상황 없음", "기타"]),
       question(questions.length + 2, `${outcomeName}에 가장 큰 영향을 준 요인은 무엇인가요?`, `${outcomeName}의 차이를 해석할 수 있는 주요 요인을 확인함.`, "single", ["시간", "비용", "접근성", "개인 선호", "주변 환경", "가족·지인의 영향", "기타"]),
-      question(questions.length + 3, "앞에서 답한 값들이 평소와 달라지는 빈도는 어느 정도인가요?", "일시적 사건과 평소 경향을 구분함.", "single", ["거의 달라지지 않음", "드물게 달라짐", "가끔 달라짐", "자주 달라짐", "거의 항상 달라짐"]),
+      // 문구가 두 검증 규칙 사이에 끼어 있다. "평소"가 없으면 빈도 문항의
+      // 기준 기간 규칙에 걸리고, "평소와"로 쓰면 비교 조사 "와"를 이중질문
+      // 규칙이 접속조사로 오인한다("만족도가 평소와 ... 빈도" → 만족+와+빈도).
+      // 선두에 "평소 "를 두면 둘 다 만족한다.
+      question(questions.length + 3, `평소 ${labelWithParticle(outcomeName, "이", "가")} 달라지는 빈도는 어느 정도인가요?`, "일시적 사건과 평소 경향을 구분함.", "single", ["거의 달라지지 않음", "드물게 달라짐", "가끔 달라짐", "자주 달라짐", "거의 항상 달라짐"]),
       question(questions.length + 4, `${labelWithParticle(outcomeName, "이", "가")} 달라졌던 가장 최근의 상황을 적어주세요.`, "분석 결과를 해석할 수 있는 실제 맥락을 수집함.", "shortText", undefined, false),
       question(questions.length + 5, "앞의 응답을 해석할 때 참고할 상황이 있다면 적어주세요.", "정형 문항에서 놓친 응답 맥락을 수집함.", "text", undefined, false),
     );
