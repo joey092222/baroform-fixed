@@ -771,7 +771,37 @@ function withKoreanParticle(
   return `${value}${hasBatchim ? withBatchim : withoutBatchim}`;
 }
 
-function naturalQuestionTitle(
+/**
+ * 리커트 척도 문항은 완전한 평서문이 표준 설계다("나는 어려운 문제를 만나면
+ * 먼저 스스로 생각해 봅니다" + 전혀 그렇지 않음~매우 그렇습니다).
+ * 이것을 명사구로 오해하면 종결어미 뒤에 조사가 붙어
+ * "…생각해 봅니다는 어느 정도인가요?"가 나간다.
+ *
+ * 한국어 평서형 종결어미는 유한한 문법 목록이라 변수명과 달리 규칙으로 다룰 수
+ * 있다. "다"로 끝난다는 것만으로는 부족하다. 바다·소다·사이다처럼 명사도 "다"로
+ * 끝나기 때문이다. 그래서 두 가지로 가른다.
+ *
+ *   1. "니다"로 끝남 — 합니다·봅니다·있습니다. 이렇게 끝나는 명사는 없다
+ *   2. "다" 앞 음절의 받침이 ㄴ — 한다·세운다·만든다·먹는다.
+ *      바다(바)·사이다(이)는 받침이 없어 걸리지 않는다
+ *
+ * 그 밖에 받침 없이 쓰이는 흔한 종결형(있다·없다·같다·싶다)만 따로 받는다.
+ */
+function endsWithDeclarative(title: string) {
+  if (/니다$/.test(title)) return true;
+  if (!/다$/.test(title)) return false;
+  if (/(?:있|없|같|싶)다$/.test(title)) return true;
+  const beforeLast = [...title].at(-2) ?? "";
+  const code = beforeLast.charCodeAt(0);
+  const jongseongNieun = 4;
+  return (
+    code >= 0xac00 &&
+    code <= 0xd7a3 &&
+    (code - 0xac00) % 28 === jongseongNieun
+  );
+}
+
+export function naturalQuestionTitle(
   value: string,
   type: SurveyQuestion["type"],
 ) {
@@ -779,7 +809,8 @@ function naturalQuestionTitle(
   if (
     /(?:[?？]|(?:인가|한가|했나|되나|있나|없나|어떤가|어느가|얼마인가|무엇인가|왜인가|습니까|나요|까요|세요|주세요))$/.test(
       title,
-    )
+    ) ||
+    endsWithDeclarative(title)
   ) {
     return title;
   }

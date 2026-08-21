@@ -9,6 +9,7 @@ import {
 import { parseSurveyIntent } from "../app/survey-semantic-intent";
 import { stripSubjectTails } from "../app/survey-subject-tails";
 import { surveyVariableKind } from "../app/survey-variable-kind";
+import { naturalQuestionTitle } from "../app/survey-ai";
 
 // 사용자 제보 1: "설문 내용을 안전하게 다듬지 못했어요" 토스트로 생성이 막혔다.
 // 생성기는 "지각 빈도"를 "수업이나 약속에 늦은 빈도"로 표현하는데
@@ -472,6 +473,43 @@ test("응답자가 실제로 명시되면 여전히 잡아낸다", () => {
     ["고등학생 진로 상담 만족도 조사", "고등학생"],
   ] as const) {
     assert.equal(parseSurveyIntent(prompt).targetPopulation, population, prompt);
+  }
+});
+
+// 사용자 제보 5: 리커트 문항이 "…생각해 봅니다는 어느 정도인가요?"로 나갔다.
+// naturalQuestionTitle의 "이미 질문인가" 가드에 의문형만 있고 평서형이 없어,
+// 완전한 서술문을 명사구로 오해하고 종결어미 뒤에 조사를 붙였다.
+test("리커트 서술문은 질문으로 변형하지 않는다", () => {
+  const statements = [
+    "어려운 문제를 만나면 다른 도움을 받기 전에 먼저 스스로 생각해 봅니다",
+    "사교육이나 생성형 AI가 제시한 답을 충분히 검토하지 않고 받아들일 때가 있습니다",
+    "나는 스스로 학습 계획을 세운다",
+    "과제를 시작하기 전에 목표를 정한다",
+    "AI 답변을 그대로 제출한 적이 있다",
+    "필요한 자료를 스스로 찾는다",
+  ];
+  for (const text of statements) {
+    assert.equal(naturalQuestionTitle(text, "scale"), text, text);
+    assert.doesNotMatch(naturalQuestionTitle(text, "scale"), /다는 어느 정도|다에 가장/, text);
+  }
+});
+
+test("'다'로 끝나는 명사는 여전히 질문으로 바꾼다", () => {
+  // 평서형 판정이 과하면 바다·사이다 같은 명사까지 문항 제목으로 남는다.
+  // "다" 앞 음절의 받침이 ㄴ인지로 가른다(한다·세운다 vs 바다·사이다).
+  for (const noun of ["바다", "동해 바다", "사이다", "전공 만족도", "학업 스트레스"]) {
+    assert.notEqual(naturalQuestionTitle(noun, "scale"), noun, noun);
+    assert.match(naturalQuestionTitle(noun, "scale"), /어느 정도인가요\?$/, noun);
+  }
+});
+
+test("이미 의문형인 제목은 그대로 둔다", () => {
+  for (const q of [
+    "생성형 AI를 사용한 적이 있나요?",
+    "평소 학습 계획을 얼마나 자주 세우나요?",
+    "가장 어려운 점은 무엇인가",
+  ]) {
+    assert.equal(naturalQuestionTitle(q, "scale"), q, q);
   }
 });
 
