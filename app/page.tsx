@@ -5378,21 +5378,21 @@ async function createInstagramSurveyCard({
   context.fill();
 
   context.fillStyle = "#20345f";
-  context.font = '800 34px "Noto Sans KR Variable", sans-serif';
+  context.font = '800 34px "Pretendard Variable", sans-serif';
   context.fillText("BAROFORM", 178, 119);
   context.fillStyle = "#6676b6";
-  context.font = '800 21px "Noto Sans KR Variable", sans-serif';
+  context.font = '800 21px "Pretendard Variable", sans-serif';
   context.fillText("SURVEY INVITATION", 765, 116);
 
   context.fillStyle = "#dfe6ff";
   drawCanvasRoundedRect(context, 76, 218, 254, 54, 27);
   context.fill();
   context.fillStyle = "#465caa";
-  context.font = '800 22px "Noto Sans KR Variable", sans-serif';
+  context.font = '800 22px "Pretendard Variable", sans-serif';
   context.fillText("지금 참여해주세요", 105, 253);
 
   context.fillStyle = "#182640";
-  context.font = '850 70px "Noto Sans KR Variable", sans-serif';
+  context.font = '850 70px "Pretendard Variable", sans-serif';
   const titleBottom = drawWrappedCanvasText(
     context,
     title || "우리 학교 설문",
@@ -5404,7 +5404,7 @@ async function createInstagramSurveyCard({
   );
 
   context.fillStyle = "#68758f";
-  context.font = '650 29px "Noto Sans KR Variable", sans-serif';
+  context.font = '650 29px "Pretendard Variable", sans-serif';
   context.fillText("당신의 답이 더 좋은 캠퍼스를 만들어요.", 80, titleBottom + 55);
 
   context.fillStyle = "#ffffff";
@@ -5415,25 +5415,25 @@ async function createInstagramSurveyCard({
   context.stroke();
 
   context.fillStyle = "#20345f";
-  context.font = '850 27px "Noto Sans KR Variable", sans-serif';
+  context.font = '850 27px "Pretendard Variable", sans-serif';
   context.fillText("로그인 없이 바로 참여", 126, 866);
   context.fillStyle = "#77839a";
-  context.font = '620 23px "Noto Sans KR Variable", sans-serif';
+  context.font = '620 23px "Pretendard Variable", sans-serif';
   context.fillText("링크를 열고 설문을 완료해주세요.", 126, 913);
 
   context.fillStyle = "#20345f";
   drawCanvasRoundedRect(context, 126, 968, 828, 90, 22);
   context.fill();
   context.fillStyle = "#ffffff";
-  context.font = '750 24px "Noto Sans KR Variable", sans-serif';
+  context.font = '750 24px "Pretendard Variable", sans-serif';
   const displayUrl = surveyUrl.replace(/^https?:\/\//, "");
   drawWrappedCanvasText(context, displayUrl, 164, 1022, 750, 31, 2);
 
   context.fillStyle = "#6d7a96";
-  context.font = '650 22px "Noto Sans KR Variable", sans-serif';
+  context.font = '650 22px "Pretendard Variable", sans-serif';
   context.fillText("바로폼에서 만든 설문 · 익명 응답", 78, 1247);
   context.fillStyle = "#20345f";
-  context.font = '800 22px "Noto Sans KR Variable", sans-serif';
+  context.font = '800 22px "Pretendard Variable", sans-serif';
   context.fillText("baroform", 875, 1247);
 
   return new Promise<Blob>((resolve, reject) => {
@@ -5481,14 +5481,14 @@ async function createInstagramResultCard({
   context.fill();
 
   context.fillStyle = "#273762";
-  context.font = '800 34px "Noto Sans KR Variable", sans-serif';
+  context.font = '800 34px "Pretendard Variable", sans-serif';
   context.fillText("BAROFORM", 180, 122);
   context.fillStyle = "#5969b0";
-  context.font = '800 22px "Noto Sans KR Variable", sans-serif';
+  context.font = '800 22px "Pretendard Variable", sans-serif';
   context.fillText("RESULT CARD", 810, 119);
 
   context.fillStyle = "#172442";
-  context.font = '850 60px "Noto Sans KR Variable", sans-serif';
+  context.font = '850 60px "Pretendard Variable", sans-serif';
   const titleBottom = drawWrappedCanvasText(
     context,
     title || "우리 학교 설문 결과",
@@ -5500,15 +5500,15 @@ async function createInstagramResultCard({
   );
 
   context.fillStyle = "#6f7b9b";
-  context.font = '650 26px "Noto Sans KR Variable", sans-serif';
+  context.font = '650 26px "Pretendard Variable", sans-serif';
   context.fillText("지금까지 모인 실제 응답", 84, titleBottom + 35);
   context.fillStyle = "#273762";
-  context.font = '900 144px "Noto Sans KR Variable", sans-serif';
+  context.font = '900 144px "Pretendard Variable", sans-serif';
   context.fillText(responseCount.toLocaleString("ko-KR"), 80, titleBottom + 190);
   const countWidth = context.measureText(
     responseCount.toLocaleString("ko-KR"),
   ).width;
-  context.font = '850 48px "Noto Sans KR Variable", sans-serif';
+  context.font = '850 48px "Pretendard Variable", sans-serif';
   context.fillText("개", 96 + countWidth, titleBottom + 187);
 
   const insightTop = Math.max(640, titleBottom + 255);
@@ -5516,10 +5516,10 @@ async function createInstagramResultCard({
   drawCanvasRoundedRect(context, 78, insightTop, 924, 400, 42);
   context.fill();
   context.fillStyle = "#9eaded";
-  context.font = '800 23px "Noto Sans KR Variable", sans-serif';
+  context.font = '800 23px "Pretendard Variable", sans-serif';
   context.fillText("가장 눈에 띄는 결과", 130, insightTop + 72);
   context.fillStyle = "#ffffff";
-  context.font = '750 35px "Noto Sans KR Variable", sans-serif';
+  context.font = '750 35px "Pretendard Variable", sans-serif';
   const questionBottom = drawWrappedCanvasText(
     context,
     highlightQuestion,
@@ -5530,7 +5530,7 @@ async function createInstagramResultCard({
     3,
   );
   context.fillStyle = "#f2c66d";
-  context.font = '900 53px "Noto Sans KR Variable", sans-serif';
+  context.font = '900 53px "Pretendard Variable", sans-serif';
   drawWrappedCanvasText(
     context,
     highlightResult,
@@ -5542,18 +5542,18 @@ async function createInstagramResultCard({
   );
 
   context.fillStyle = "#5f6d8f";
-  context.font = '650 24px "Noto Sans KR Variable", sans-serif';
+  context.font = '650 24px "Pretendard Variable", sans-serif';
   context.fillText(
     `응답 ${responseCount.toLocaleString("ko-KR")}개 기준 · 개별 응답 내용은 포함하지 않았어요.`,
     82,
     1184,
   );
   context.fillStyle = "#273762";
-  context.font = '800 25px "Noto Sans KR Variable", sans-serif';
+  context.font = '800 25px "Pretendard Variable", sans-serif';
   const displayUrl = surveyUrl.replace(/^https?:\/\//, "");
   context.fillText(displayUrl, 82, 1245);
   context.fillStyle = "#8190b5";
-  context.font = '600 20px "Noto Sans KR Variable", sans-serif';
+  context.font = '600 20px "Pretendard Variable", sans-serif';
   context.fillText("이 결과는 참여 응답을 요약한 것으로 전체 학생을 대표하지 않을 수 있어요.", 82, 1295);
 
   return new Promise<Blob>((resolve, reject) => {

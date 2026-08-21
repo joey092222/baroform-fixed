@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import "@fontsource-variable/noto-sans-kr";
+import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import {
   defaultOpenGraphImagePath,
   defaultSiteDescription,

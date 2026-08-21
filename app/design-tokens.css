@@ -24,8 +24,11 @@
   --bf-page: 1280px;
   --bf-editor-page: 1580px;
   --bf-section: clamp(92px, 10vw, 150px);
-  --bf-font: "Pretendard Variable", Pretendard, "Noto Sans KR Variable", "Noto Sans KR", Arial, sans-serif;
-  --bf-latin: Inter, "Noto Sans KR Variable", Arial, sans-serif;
+  /* layout.tsx가 실제로 불러오는 건 Pretendard 다이내믹 서브셋 하나뿐이다.
+     스택에 없는 폰트를 적어두면 브라우저가 조용히 건너뛰어서, 토큰을 읽는
+     사람만 착각한다. 뒤쪽은 웹폰트가 실패했을 때의 OS 기본 한글 글꼴이다. */
+  --bf-font: "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --bf-latin: "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   --bf-ease: cubic-bezier(.2, .75, .3, 1);
 }
 
