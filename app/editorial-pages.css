@@ -150,7 +150,7 @@
   font-size: clamp(58px, 5.25vw, 76px);
   font-weight: 790;
   letter-spacing: -.078em;
-  line-height: .98;
+  line-height: 1.15;
   white-space: nowrap;
   word-break: keep-all;
 }
@@ -419,7 +419,7 @@
   font-size: clamp(32px, 2.65vw, 38px);
   font-weight: 700;
   letter-spacing: -.045em;
-  line-height: 1.08;
+  line-height: 1.2;
   white-space: nowrap;
 }
 
@@ -505,7 +505,7 @@
 .landing-share-card strong {
   font-size: 30px;
   letter-spacing: -.045em;
-  line-height: 1.05;
+  line-height: 1.2;
 }
 
 .landing-share-card span {
@@ -601,7 +601,6 @@
 }
 
 .landing-section-heading h2,
-.campus-section-heading h2,
 .my-surveys-heading h2 {
   max-width: 780px;
   margin: 12px 0 0;
@@ -609,7 +608,7 @@
   font-size: clamp(38px, 4.5vw, 58px);
   font-weight: 720;
   letter-spacing: -.055em;
-  line-height: 1.03;
+  line-height: 1.15;
 }
 
 .landing-board-link,
@@ -788,7 +787,7 @@
   font-size: clamp(38px, 3.5vw, 50px);
   font-weight: 710;
   letter-spacing: -.065em;
-  line-height: .98;
+  line-height: 1.18;
   white-space: nowrap;
 }
 
@@ -837,7 +836,7 @@
   font-size: clamp(52px, 6vw, 78px);
   font-weight: 720;
   letter-spacing: -.065em;
-  line-height: .98;
+  line-height: 1.15;
 }
 
 .home-participation-copy p,
@@ -935,10 +934,10 @@
 
 .home-ai-launch h2 {
   margin: 14px 0 12px;
-  font-size: clamp(34px, 3.7vw, 50px);
+  font-size: var(--bf-h2);
   font-weight: 690;
   letter-spacing: -.055em;
-  line-height: 1.06;
+  line-height: 1.18;
   white-space: nowrap;
 }
 
@@ -982,20 +981,28 @@
   align-items: center;
   gap: 7px;
   color: var(--bf-muted);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .home-ai-launch form button {
   display: inline-flex;
-  min-height: 42px;
-  padding: 0 15px;
+  min-height: 46px;
+  padding: 0 20px;
   align-items: center;
   gap: 8px;
+  border: 1px solid var(--bf-navy-strong);
   border-radius: 999px;
-  background: var(--bf-navy);
+  background: var(--bf-navy-strong);
   color: #fff;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 750;
+  line-height: 1;
+  transition: transform .18s var(--bf-ease), background .18s var(--bf-ease);
+}
+
+.home-ai-launch form button:hover {
+  background: #102c51;
+  transform: translateY(-1px);
 }
 
 .home-survey-discovery {
@@ -1042,9 +1049,14 @@
 .community-category-tabs,
 .community-scope-tabs {
   display: flex;
+  padding-right: 28px;
   gap: 8px;
   overflow-x: auto;
   scrollbar-width: none;
+  scroll-snap-type: x proximity;
+  /* 가로로 잘린 항목이 더 있다는 것을 오른쪽 페이드로 알린다.
+     칩이 넘치지 않는 넓은 화면에서는 페이드가 빈 공간에 걸려 보이지 않는다. */
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
 }
 
 .home-category-tabs button,
@@ -1052,8 +1064,9 @@
 .community-category-tabs button,
 .community-scope-tabs button {
   flex: 0 0 auto;
-  min-height: 38px;
+  min-height: 44px;
   padding: 0 15px;
+  scroll-snap-align: start;
   border: 1px solid var(--bf-border);
   border-radius: 999px;
   background: transparent;
@@ -1082,7 +1095,7 @@
 }
 
 .campus-section-heading h2 {
-  font-size: clamp(38px, 4vw, 52px);
+  font-size: var(--bf-h2);
 }
 
 .home-section-controls,
@@ -1387,7 +1400,7 @@
 }
 
 .campus-section-heading.compact h2 {
-  font-size: clamp(32px, 3.2vw, 44px);
+  font-size: var(--bf-h2-compact);
 }
 
 .home-community-list {
@@ -1477,9 +1490,9 @@
 
 .home-organizer-panel h2 {
   margin: 14px 0;
-  font-size: clamp(38px, 4vw, 56px);
+  font-size: var(--bf-h2);
   letter-spacing: -.055em;
-  line-height: 1.02;
+  line-height: 1.18;
   white-space: nowrap;
 }
 
@@ -1565,7 +1578,7 @@
   font-size: clamp(30px, 3vw, 44px);
   font-weight: 650;
   letter-spacing: -.045em;
-  line-height: 1.12;
+  line-height: 1.2;
 }
 
 .pulse-vote-options {
