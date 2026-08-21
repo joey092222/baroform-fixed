@@ -438,6 +438,42 @@ function ChoiceDistribution({
   );
 }
 
+/**
+ * 순서가 정해진 선택형 문항을 세로 막대로 그린다.
+ *
+ * 가로 목록은 한 줄에 하나씩이라 '몇 번 만에 붙었나' 같은 분포 모양이 눈에 안 들어온다.
+ * 세로로 세우면 왼쪽에서 오른쪽으로 줄어드는 형태가 그대로 보인다.
+ * 선택지가 6개를 넘거나 이름이 길면 라벨이 뭉개지므로 가로 목록으로 돌아간다.
+ */
+function OrderedBarChart({
+  choices,
+}: {
+  choices: QuestionResult["choices"];
+}) {
+  const top = choices.reduce((max, choice) => Math.max(max, choice.percentage), 0);
+  return (
+    <div className="results-v2-vbars">
+      {choices.map((choice) => {
+        const isTop = top > 0 && choice.percentage === top;
+        return (
+          <div key={choice.label}>
+            <span className="results-v2-vbar-value">{choice.percentage.toFixed(1)}%</span>
+            <span className="results-v2-vbar-track">
+              <i
+                className={isTop ? "is-top" : ""}
+                style={{ height: `${top > 0 ? Math.max(4, (choice.percentage / top) * 100) : 4}%` }}
+              />
+            </span>
+            <span className="results-v2-vbar-label">{choice.label}</span>
+            <span className="results-v2-vbar-count">
+              {choice.count.toLocaleString("ko-KR")}명
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 function ScaleDistribution({ result }: { result: QuestionResult }) {
   if (result.average === null) {
     return <p className="results-v2-inline-empty">아직 척도 응답이 없어요.</p>;
@@ -508,13 +544,32 @@ function QuestionResultCard({ result, index }: { result: QuestionResult; index: 
       ) : isText ? (
         <TextResponseList responses={result.textResponses} />
       ) : (
-        <ChoiceDistribution
-          choices={result.choices}
-          showCumulative={
+        (() => {
+          const ordered =
             result.hasAuthoredOrder &&
-            (result.question.type === "single" || result.question.type === "dropdown")
+            (result.question.type === "single" || result.question.type === "dropdown");
+          // 라벨이 길거나 선택지가 많으면 세로 막대에서 글자가 뭉개진다.
+          const labelsFit =
+            result.choices.length > 0 &&
+            result.choices.length <= 6 &&
+            result.choices.every((choice) => Array.from(choice.label).length <= 9);
+          if (ordered && labelsFit) {
+            return (
+              <>
+                <p className="results-v2-cumulative-note">
+                  순서형 · 누적{" "}
+                  {result.choices
+                    .map((choice) => `${choice.cumulativePercentage.toFixed(0)}%`)
+                    .join(" → ")}
+                </p>
+                <OrderedBarChart choices={result.choices} />
+              </>
+            );
           }
-        />
+          return (
+            <ChoiceDistribution choices={result.choices} showCumulative={ordered} />
+          );
+        })()
       )}
     </article>
   );
@@ -667,6 +722,15 @@ function SmallEmptyState({ title, description }: { title: string; description: s
   );
 }
 
+/** 필터 이름과 각 상태의 건수를 한 곳에서 만든다. */
+function filterOptionLabel(
+  value: "all" | "changed" | QualityStatus,
+  counts: { all: number; changed: number; usable: number; review: number; exclude: number },
+) {
+  if (value === "all") return `전체 ${counts.all}`;
+  if (value === "changed") return `직접 바꿈 ${counts.changed}`;
+  return `${qualityLabel(value)} ${counts[value]}`;
+}
 const maxAnswerColumns = 3;
 
 function ResponseTable({
@@ -684,6 +748,8 @@ function ResponseTable({
   // "changed"는 사람이 서버 판정을 뒤집은 응답만 모아 본다.
   const [filter, setFilter] = useState<"all" | "changed" | QualityStatus>("all");
   const [pickerOpen, setPickerOpen] = useState(false);
+  // 평소에는 현재 필터만 보여주고, 누르면 나머지 선택지를 아래로 편다.
+  const [filterOpen, setFilterOpen] = useState(false);
 
   // 표에 답을 직접 띄울 문항. 표가 읽히도록 최대 3개까지만 고른다.
   const answerable = useMemo(
@@ -716,6 +782,19 @@ function ResponseTable({
   const changedCount = responses.filter(
     (response) => Boolean(decisions[response.id]),
   ).length;
+  const filterCounts = {
+    all: responses.length,
+    changed: changedCount,
+    usable: responses.filter(
+      (response) => effectiveStatus(response, decisions) === "usable",
+    ).length,
+    review: responses.filter(
+      (response) => effectiveStatus(response, decisions) === "review",
+    ).length,
+    exclude: responses.filter(
+      (response) => effectiveStatus(response, decisions) === "exclude",
+    ).length,
+  };
   return (
     <section className="results-v2-response-section">
       <header className="results-v2-section-heading results-v2-response-heading">
@@ -733,24 +812,36 @@ function ResponseTable({
             표시 문항 {columns.length}
           </button>
         <div className="results-v2-filter" aria-label="품질 상태 필터">
-          <ListFilter size={15} />
+          <button
+            type="button"
+            className={`results-v2-filter-current${filterOpen ? " is-open" : ""}`}
+            aria-expanded={filterOpen}
+            onClick={() => setFilterOpen((open) => !open)}
+          >
+            <ListFilter size={15} />
+            {filterOptionLabel(filter, filterCounts)}
+          </button>
+        </div>
+        </div>
+      </header>
+      {filterOpen && (
+        <div className="results-v2-filter-panel">
           {(["all", "usable", "review", "exclude", "changed"] as const).map((value) => (
             <button
               key={value}
               type="button"
-              className={filter === value ? "active" : ""}
-              onClick={() => setFilter(value)}
+              className={filter === value ? "is-on" : ""}
+              aria-pressed={filter === value}
+              onClick={() => {
+                setFilter(value);
+                setFilterOpen(false);
+              }}
             >
-              {value === "all"
-                ? "전체"
-                : value === "changed"
-                  ? `직접 바꿈 ${changedCount}`
-                  : qualityLabel(value)}
+              {filterOptionLabel(value, filterCounts)}
             </button>
           ))}
         </div>
-        </div>
-      </header>
+      )}
       {pickerOpen && (
         <div className="results-v2-column-picker">
           <p>
@@ -1280,6 +1371,7 @@ export function ResultsDashboard({
   decisions,
   onDecide,
   onResetDecisions,
+  decisionError,
 }: {
   title: string;
   slug: string;
@@ -1307,6 +1399,8 @@ export function ResultsDashboard({
   onDecide: (responseId: string, decision: ResponseDecision | null) => void;
   /** 이 설문에 내린 사람 판단을 전부 지우고 서버 판정으로 되돌린다. */
   onResetDecisions: () => void;
+  /** 판단 저장이 실패했을 때 보여줄 문구. 조용히 되돌리면 사용자는 원인을 알 수 없다. */
+  decisionError: string;
 }) {
   const [activeTab, setActiveTab] = useState<ResultsTab>("overview");
   const [detailResponse, setDetailResponse] = useState<ResultsStoredResponse | null>(null);
@@ -1450,6 +1544,11 @@ export function ResultsDashboard({
 
             {activeTab === "quality" && (
               <div id="results-panel-quality" role="tabpanel" className="results-v2-quality-tab">
+                {decisionError && (
+                  <p className="results-v2-decision-error" role="alert">
+                    {decisionError}
+                  </p>
+                )}
                 <ExclusionImpact
                   baseline={baselineResults}
                   current={questionResults}

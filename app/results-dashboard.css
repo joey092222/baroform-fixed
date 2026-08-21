@@ -1997,3 +1997,131 @@
   border-color: var(--bf-navy);
   color: var(--bf-navy);
 }
+
+.results-v2-decision-error {
+  margin: 0 0 14px;
+  padding: 11px 15px;
+  border: 1px solid #e3bdb9;
+  border-radius: var(--bf-radius-sm);
+  background: #f9efee;
+  color: var(--bf-danger);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* 순서형 문항 세로 막대. 분포 모양을 그대로 보여주는 게 목적이다. */
+.results-v2-cumulative-note {
+  margin: 0 0 14px;
+  color: var(--bf-muted);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.results-v2-vbars {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 10px;
+  align-items: end;
+}
+
+.results-v2-vbars > div {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  justify-items: center;
+}
+
+.results-v2-vbar-value {
+  color: var(--bf-navy-strong);
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+}
+
+.results-v2-vbar-track {
+  display: flex;
+  width: 100%;
+  height: 108px;
+  align-items: flex-end;
+}
+
+.results-v2-vbar-track i {
+  width: 100%;
+  border-radius: 6px 6px 0 0;
+  background: #97a4b6;
+  transition: height .25s var(--bf-ease);
+}
+
+.results-v2-vbar-track i.is-top { background: var(--bf-navy); }
+
+.results-v2-vbar-label {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--bf-navy-strong);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.results-v2-vbar-count {
+  color: var(--bf-muted);
+  font-size: 11px;
+}
+
+@media (max-width: 640px) {
+  .results-v2-vbars { gap: 6px; }
+  .results-v2-vbar-track { height: 82px; }
+  .results-v2-vbar-label { font-size: 11px; }
+  .results-v2-vbar-value { font-size: 11.5px; }
+}
+
+/* 필터는 평소 현재 값만 보여주고 누르면 아래로 펼친다. */
+.results-v2-filter-current {
+  display: inline-flex;
+  min-height: 34px;
+  padding: 0 14px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--bf-border);
+  border-radius: 999px;
+  background: var(--bf-navy-strong);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 750;
+}
+
+.results-v2-filter-current.is-open,
+.results-v2-filter-current:hover {
+  background: #102c51;
+}
+
+.results-v2-filter-panel {
+  display: flex;
+  margin: 0 0 14px;
+  padding: 13px 15px;
+  flex-wrap: wrap;
+  gap: 7px;
+  border: 1px solid var(--bf-border);
+  border-radius: var(--bf-radius-sm);
+  background: var(--bf-surface);
+}
+
+.results-v2-filter-panel button {
+  min-height: 32px;
+  padding: 0 13px;
+  border: 1px solid var(--bf-border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--bf-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.results-v2-filter-panel button.is-on {
+  border-color: var(--bf-navy);
+  background: var(--bf-navy);
+  color: #fff;
+}

@@ -5582,12 +5582,15 @@ function RealAnalyticsView({
   title,
   slug,
   manageToken,
+  authToken,
   questions,
 }: {
   onHome: () => void;
   title: string;
   slug: string;
   manageToken: string;
+  /** 판단 API는 세션 소유자 확인이 필요하다. 결과 조회용 manageToken과는 별개다. */
+  authToken: string;
   questions: Question[];
 }) {
   const [responses, setResponses] = useState<StoredResponse[]>([]);
@@ -5602,6 +5605,7 @@ function RealAnalyticsView({
   const [shareStatus, setShareStatus] = useState("");
   // 설문 주인이 응답별로 내린 포함/제외 판단. 서버에 저장된다.
   const [decisions, setDecisions] = useState<ResponseDecisionMap>({});
+  const [decisionError, setDecisionError] = useState("");
 
   useEffect(() => {
     if (!slug || !manageToken) {
@@ -5644,11 +5648,11 @@ function RealAnalyticsView({
   }, [slug, manageToken]);
 
   useEffect(() => {
-    if (!slug) return;
+    if (!slug || !authToken) return;
     let cancelled = false;
-    // 판단 조회는 세션 소유자만 통과한다. 권한이 없으면 조용히 빈 값으로 둔다.
     void fetch(`/api/surveys/${encodeURIComponent(slug)}/decisions`, {
       cache: "no-store",
+      headers: { authorization: `Bearer ${authToken}` },
     })
       .then(async (response) => {
         // 설문이 바뀌면 이전 설문 판단이 남지 않도록 실패 시에도 비운다.
@@ -5667,26 +5671,39 @@ function RealAnalyticsView({
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, authToken]);
 
   const resetDecisions = useCallback(() => {
-    if (!slug) return;
+    if (!slug || !authToken) return;
     const previous = decisions;
     setDecisions({});
+    setDecisionError("");
     void fetch(`/api/surveys/${encodeURIComponent(slug)}/decisions`, {
       method: "DELETE",
+      headers: { authorization: `Bearer ${authToken}` },
     })
       .then((response) => {
-        if (!response.ok) setDecisions(previous);
+        if (!response.ok) {
+          setDecisions(previous);
+          setDecisionError("되돌리지 못했어요. 잠시 후 다시 시도해주세요.");
+        }
       })
-      .catch(() => setDecisions(previous));
-  }, [decisions, slug]);
+      .catch(() => {
+        setDecisions(previous);
+        setDecisionError("되돌리지 못했어요. 연결을 확인해주세요.");
+      });
+  }, [authToken, decisions, slug]);
 
   const decideResponse = useCallback(
     (responseId: string, decision: ResponseDecision | null) => {
       if (!slug) return;
+      if (!authToken) {
+        setDecisionError("판단을 저장하려면 로그인이 필요해요.");
+        return;
+      }
       // 화면을 먼저 바꾸고 서버에 보낸다. 실패하면 이전 값으로 되돌린다.
       const previous = decisions;
+      setDecisionError("");
       setDecisions((current) => {
         const next = { ...current };
         if (decision) next[responseId] = decision;
@@ -5695,15 +5712,25 @@ function RealAnalyticsView({
       });
       void fetch(`/api/surveys/${encodeURIComponent(slug)}/decisions`, {
         method: "PUT",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${authToken}`,
+        },
         body: JSON.stringify({ responseId, decision }),
       })
         .then((response) => {
-          if (!response.ok) setDecisions(previous);
+          // 조용히 되돌리면 사용자에게는 '아무 일도 안 일어남'으로 보인다.
+          if (!response.ok) {
+            setDecisions(previous);
+            setDecisionError("판단을 저장하지 못했어요. 잠시 후 다시 시도해주세요.");
+          }
         })
-        .catch(() => setDecisions(previous));
+        .catch(() => {
+          setDecisions(previous);
+          setDecisionError("판단을 저장하지 못했어요. 연결을 확인해주세요.");
+        });
     },
-    [decisions, slug],
+    [authToken, decisions, slug],
   );
 
   const analysisResponses = responses.filter((response) => response.quality?.status !== "exclude");
@@ -5937,6 +5964,7 @@ function RealAnalyticsView({
       decisions={decisions}
       onDecide={decideResponse}
       onResetDecisions={resetDecisions}
+      decisionError={decisionError}
     />
   );
 }
@@ -7195,6 +7223,7 @@ export default function Home({
           title={publishedSlug ? surveyTitle : ""}
           slug={publishedSlug}
           manageToken={manageToken}
+          authToken={authToken}
           questions={publishedSlug ? questions : []}
         />
       )}
