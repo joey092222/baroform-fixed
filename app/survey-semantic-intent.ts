@@ -10,6 +10,7 @@ import {
   parseSurveyGenerationContext,
   type ParsedSurveyContext,
 } from "./survey-context";
+import { stripSubjectTails } from "./survey-subject-tails";
 
 export type SurveyIntentStudyType = "general" | "research";
 
@@ -399,19 +400,14 @@ function extractTarget(value: string) {
 }
 
 function normalizedObjectLabel(value: string) {
-  return (
+  // surveyObject는 문항 본문에 직접 실린다. researchSubject와 별도 경로로
+  // 추출되므로 꼬리 정리를 여기서도 해야 한다. 한쪽만 하면 제목만 깨끗해지고
+  // 문항은 "학식 만족도 조사 결과 개선 방안에서의 식사 경험에 전반적으로
+  // 얼마나 만족하시나요?"로 나간다. 규칙은 survey-subject-tails에 모여 있다.
+  return stripSubjectTails(
     value
       .replace(/배달앱/g, "배달 앱")
-      .replace(/네이버\s*웹툰/g, "네이버 웹툰")
-      .replace(/\s+/g, " ")
-      .trim()
-      // "동아리 활동 성과와 만족도 조사"에서 뒤쪽 차원("만족도 조사")만 떼면
-      // 이어주던 접속조사가 남아 "동아리 활동 성과와에 얼마나 만족하시나요?"
-      // 같은 문항이 나간다. 명사가 "와"나 "및"으로 끝나는 일은 거의 없으므로
-      // 안전하게 뗄 수 있다. "과"는 학과·성과·효과처럼 명사의 일부인 경우가
-      // 많고 표면형으로 접속조사와 구분되지 않아 건드리지 않는다.
-      .replace(/\s*(?:와|및)$/, "")
-      .trim()
+      .replace(/네이버\s*웹툰/g, "네이버 웹툰"),
   );
 }
 

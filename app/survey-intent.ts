@@ -1,4 +1,5 @@
 import { lookupVerifiedSurveyKnowledge } from "./survey-knowledge";
+import { stripSubjectTails } from "./survey-subject-tails";
 import {
   parseSurveyIntent,
   parsePurposeSegments,
@@ -1093,32 +1094,7 @@ function briefSubjectFromContent(
     return `${respondentGroup}의 ${teamwork[1].trim()} ${teamwork[3].trim()} 경험`;
   }
 
-  let subject = content
-    .replace(/\s*(?:설문\s*)?조사\s*$/, "")
-    .replace(
-      /\s+(?:인지도|인지|인식)\s*(?:과|와|및)\s*(?:사용|이용)\s*(?:경험|현황|행태|실태|패턴|빈도)\s*(?:(?:설문\s*)?조사)?$/,
-      "",
-    )
-    .replace(
-      /\s+(?:이용|사용|참여|구매|방문|협업)\s*(?:현황|행태|실태|빈도|횟수|시간|경험|패턴|만족도|의향)(?:\s*(?:과|와|및)\s*.+)?$/,
-      "",
-    )
-    .replace(
-      /\s+(?:만족도|불편\s*사항|개선점|갈등|협업\s*경험)(?:\s*(?:과|와|및)\s*.+)?$/,
-      "",
-    )
-    .replace(/\s+/g, " ")
-    .trim();
-
-  // 위 규칙들은 "만족도와 X"(차원이 앞)는 처리하지만 "X와 만족도"(접속조사가
-  // 앞)는 못 한다. 뒤쪽 차원만 떼면 이어주던 접속조사가 남아 "동아리 활동
-  // 성과와에 얼마나 만족하시나요?" 같은 문항이 나온다.
-  //
-  // "와"와 "및"만 뗀다. 한국어 명사는 "와"로 끝나는 일이 거의 없어 안전하다.
-  // "과"는 학과·성과·효과·결과처럼 명사의 일부인 경우가 많고, 접속조사인지
-  // 명사의 일부인지 표면형이 같아 가를 수 없다("수업과 만족도" vs "학과
-  // 만족도"). 잘못 떼면 주제어가 "학"이 되므로 건드리지 않는다.
-  subject = subject.replace(/\s*(?:와|및)$/, "").trim();
+  let subject = stripSubjectTails(content);
 
   if (researchContext && subject.startsWith(`${researchContext} `)) {
     subject = subject.slice(researchContext.length).trim();

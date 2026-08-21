@@ -7,6 +7,7 @@ import {
   validateSurvey,
 } from "../app/survey-intent";
 import { parseSurveyIntent } from "../app/survey-semantic-intent";
+import { stripSubjectTails } from "../app/survey-subject-tails";
 
 // 사용자 제보 1: "설문 내용을 안전하게 다듬지 못했어요" 토스트로 생성이 막혔다.
 // 생성기는 "지각 빈도"를 "수업이나 약속에 늦은 빈도"로 표현하는데
@@ -226,6 +227,56 @@ test("뒤쪽 차원을 뗄 때 이어주던 접속조사도 함께 뗀다", () =
       .aiQuestions.map((item) => item.title)
       .join(" ");
     assert.doesNotMatch(corpus, /와에|와가|와이|와을|와를/, prompt);
+  }
+});
+
+// 조사 요청문에 붙는 메타 표현("조사 결과 개선 방안")이 주제어에 남으면
+// 요청문 전체가 조사 대상이 되어 문항이 요청문을 되뇐다.
+const metaTailPrompts: Array<[string, string]> = [
+  ["학식 만족도 조사 결과 개선 방안", "학식"],
+  ["교내 카페 만족도 조사 후 개선 우선순위 파악", "교내 카페"],
+  ["기숙사 만족도 조사 및 개선 방향 도출", "기숙사"],
+  ["동아리 만족도 조사를 통한 운영 개선", "동아리"],
+  ["셔틀버스 만족도 조사 결과 분석", "셔틀버스"],
+  ["도서관 만족도 조사 자료 수집", "도서관"],
+  ["학식 만족도 실태 파악을 위한 조사", "학식"],
+];
+
+test("조사 요청문의 메타 표현이 주제어에 남지 않는다", () => {
+  for (const [prompt, expected] of metaTailPrompts) {
+    assert.equal(parseSurveyBrief(prompt).researchSubject, expected, prompt);
+    // surveyObject는 별도 경로다. 문항 본문에 실리는 것은 이쪽이라
+    // 한쪽만 고치면 제목만 깨끗해지고 문항은 그대로 깨진 채 나간다.
+    assert.equal(parseSurveyIntent(prompt).surveyObject, expected, prompt);
+  }
+});
+
+test("메타 표현이 붙은 요청문도 문항이 요청문을 되뇌지 않는다", () => {
+  for (const [prompt] of metaTailPrompts) {
+    const corpus = analyzeSurveyPrompt(prompt)
+      .aiQuestions.map((item) => item.title)
+      .join(" ");
+    assert.doesNotMatch(
+      corpus,
+      /조사 결과|개선 방안|개선 우선순위|방향 도출|자료 수집|위한에|를 통한/,
+      prompt,
+    );
+  }
+});
+
+test("'조사'가 대상 명사의 일부일 때는 떼지 않는다", () => {
+  // "학식 만족도 조사"의 조사는 행위지만 "사용자 조사"의 조사는 대상이다.
+  // 맨 끝의 "조사"는 앞이 측정 차원일 때만 뗀다.
+  for (const [input, expected] of [
+    ["학식 만족도 조사", "학식"],
+    ["학식 만족도 조사 결과 개선 방안", "학식"],
+    ["사용자 조사", "사용자 조사"],
+    ["시장 조사", "시장 조사"],
+    ["여론조사 앱 만족도 조사", "여론조사 앱"],
+    // 측정 차원이 앞에 오면 "조사"는 행위다. "학식 실태 조사" → "학식"
+    ["학식 실태 조사", "학식"],
+  ] as const) {
+    assert.equal(stripSubjectTails(input), expected, input);
   }
 });
 
