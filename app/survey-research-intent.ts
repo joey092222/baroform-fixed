@@ -247,9 +247,10 @@ const measurementLevelByKind: Record<SurveyVariableKind, ResearchMeasurementLeve
   ratio: "numeric",
   frequency: "ordinal",
   category: "nominal",
-  // 무엇인지 모를 때의 기본값. 크기 감각을 묻는 문항은 어떤 이름에도
-  // 성립하므로 안전하다.
-  unknown: "ordinal",
+  // 무엇을 재는지 모를 때는 형식을 제한하지 않고 자유응답으로 받는다.
+  // 크기가 있는 변수는 대부분 attitude로 잡히므로, 여기까지 온 것에 크기
+  // 척도를 붙이면 "성별은 어느 수준에 해당하나요?"가 된다.
+  unknown: "text",
 };
 
 function measurementLevelFor(name: string): ResearchMeasurementLevel {

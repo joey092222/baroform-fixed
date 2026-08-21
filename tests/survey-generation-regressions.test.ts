@@ -384,6 +384,57 @@ test("특례에 없는 변수도 부류에 맞는 형태로 묻는다", () => {
   }
 });
 
+// 접미사로 부류를 못 알아낸 변수(unknown)에 5점 척도를 붙이면
+// "성별은 어느 수준에 해당하나요? 매우 낮음~매우 높음"이 나와 답할 수가 없다.
+// 크기가 있는 변수는 대부분 attitude로 잡히므로, unknown의 기본값을
+// 크기 척도에서 자유응답으로 뒤집는다.
+test("크기가 없는 변수에 크기 척도를 붙이지 않는다", () => {
+  const prompts = [
+    "대학생들의 성별과 그에 따른 학업 스트레스 조사",
+    "대학생들의 MBTI와 그에 따른 전공 만족도 조사",
+    "대학생들의 취미와 그에 따른 생활 만족도 조사",
+    "대학생들의 주거지와 그에 따른 통학 피로도 조사",
+    "대학생들의 수강 과목과 그에 따른 학업 만족도 조사",
+    "대학생들의 장래 희망과 그에 따른 진로 불안 조사",
+  ];
+  const scale = ["매우 낮음", "낮은 편", "보통", "높은 편", "매우 높음"];
+  for (const prompt of prompts) {
+    const research = parseSurveyIntent(prompt).researchIntent;
+    const blueprint = analyzeSurveyPrompt(prompt);
+    for (const v of research.variables.filter((x) => x.scope === "respondent_level")) {
+      const q = blueprint.aiQuestions.find((i) => i.measuredVariable === v.name);
+      if (!q?.options) continue;
+      if (!scale.every((s) => q.options!.includes(s))) continue;
+      // 크기 척도가 붙었다면 그 변수는 반드시 태도류여야 한다
+      assert.equal(
+        surveyVariableKind(v.name),
+        "attitude",
+        `${v.name}에 크기 척도가 붙음 (${prompt})`,
+      );
+    }
+  }
+});
+
+test("unknown 변수는 형식을 제한하지 않고 받는다", () => {
+  const blueprint = analyzeSurveyPrompt("대학생들의 성별과 그에 따른 학업 스트레스 조사");
+  const q = blueprint.aiQuestions.find((i) => i.measuredVariable === "성별");
+
+  assert.equal(surveyVariableKind("성별"), "unknown");
+  assert.equal(q?.type, "shortText");
+  assert.equal(q?.title, "성별은 어떻게 되나요?");
+});
+
+test("태도류는 5점 척도를 유지한다", () => {
+  // unknown 기본값을 뒤집는다고 태도류까지 자유응답이 되면 안 된다.
+  const blueprint = analyzeSurveyPrompt(
+    "대학생들의 학업 스트레스와 그에 따른 수면의 질 조사",
+  );
+  const q = blueprint.aiQuestions.find((i) => i.measuredVariable === "학업 스트레스");
+
+  assert.equal(q?.type, "single");
+  assert.ok((q?.options?.length ?? 0) >= 5);
+});
+
 test("접미사 부류 판정은 좁은 규칙이 먼저 이긴다", () => {
   // "이용 빈도"가 뒤의 "도"를 보고 attitude가 되면 횟수 구간을 잃는다.
   assert.equal(surveyVariableKind("이용 빈도"), "frequency");
