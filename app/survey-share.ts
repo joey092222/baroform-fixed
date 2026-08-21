@@ -234,21 +234,68 @@ export function buildUnavailableSurveyMetadata(shareToken?: string): Metadata {
   };
 }
 
-export function fitOpenGraphTitle(title: string) {
-  const clean = cleanShareText(title, 80) || "학생들의 의견을 모으는 설문";
-  const characters = Array.from(clean);
-  const maximumPerLine = 20;
-  const maximumCharacters = maximumPerLine * 2;
-  const visible = characters.slice(0, maximumCharacters);
-  const truncated = characters.length > maximumCharacters;
-  const first = visible.slice(0, maximumPerLine).join("");
-  let second = visible.slice(maximumPerLine).join("");
+/**
+ * 어절 단위로 줄을 나눈다. 한 어절이 한 줄보다 길면 그 어절만 잘라 넘긴다.
+ *
+ * satori는 word-break: keep-all을 따르지 않아서 공유 카드 텍스트는 여기서 미리
+ * 줄을 확정한다. 이전 구현은 글자 수로 그냥 잘라서 "북한에 대 / 해 어떤 인식을"처럼
+ * 단어 중간이 갈렸다.
+ */
+function wrapByWord(text: string, maximumPerLine: number, maximumLines: number) {
+  const lines: string[] = [];
+  let current = "";
 
-  if (truncated) {
-    second = `${Array.from(second).slice(0, maximumPerLine - 1).join("")}…`;
+  const push = () => {
+    if (current) lines.push(current);
+    current = "";
+  };
+
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    if (lines.length >= maximumLines) break;
+
+    const candidate = current ? `${current} ${word}` : word;
+    if (Array.from(candidate).length <= maximumPerLine) {
+      current = candidate;
+      continue;
+    }
+
+    push();
+    if (lines.length >= maximumLines) break;
+
+    // 한 어절이 줄보다 길면 어쩔 수 없이 쪼갠다(URL, 긴 영문 등).
+    let rest = Array.from(word);
+    while (rest.length > maximumPerLine && lines.length < maximumLines) {
+      lines.push(rest.slice(0, maximumPerLine).join(""));
+      rest = rest.slice(maximumPerLine);
+    }
+    current = rest.join("");
   }
 
-  return second ? [first, second] : [first];
+  push();
+  return lines.slice(0, maximumLines);
+}
+
+export function fitOpenGraphTitle(
+  title: string,
+  { maximumPerLine = 20, maximumLines = 2 }: {
+    maximumPerLine?: number;
+    maximumLines?: number;
+  } = {},
+) {
+  const clean = cleanShareText(title, 80) || "학생들의 의견을 모으는 설문";
+  const lines = wrapByWord(clean, maximumPerLine, maximumLines);
+  if (!lines.length) return [clean];
+
+  // 넣지 못한 글자가 남았으면 마지막 줄을 말줄임으로 닫는다.
+  // 긴 어절을 쪼개면 줄 사이에 없던 공백이 생기므로 공백을 뺀 글자 수로 센다.
+  const withoutSpaces = (value: string) => Array.from(value.replace(/\s/g, "")).length;
+  if (withoutSpaces(lines.join("")) < withoutSpaces(clean)) {
+    const last = Array.from(lines[lines.length - 1]);
+    const room = Math.max(1, maximumPerLine - 1);
+    lines[lines.length - 1] = `${last.slice(0, room).join("")}…`;
+  }
+
+  return lines;
 }
 
 export function fitOpenGraphDescription(description: string) {

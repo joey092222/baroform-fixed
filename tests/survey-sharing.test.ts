@@ -133,7 +133,7 @@ test("운영 공개 조회와 share route는 익명 공개 조건과 서버 meta
   assert.match(pageSource, /getPublicSurvey/);
   assert.match(imageSource, /ImageResponse/);
   assert.doesNotMatch(imageSource, /OpenAI|openai/);
-  assert.match(fontSource, /NotoSansKR-Bold-Baroform\.ttf/);
+  assert.match(fontSource, /Pretendard-Bold-Baroform\.ttf/);
   assert.doesNotMatch(fontSource, /\.woff2/);
   assert.match(fontSource, /readFile/);
   assert.doesNotMatch(fontSource, /fetch\(/);
