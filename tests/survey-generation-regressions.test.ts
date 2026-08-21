@@ -439,6 +439,65 @@ test("태도류는 5점 척도를 유지한다", () => {
   assert.ok((q?.options?.length ?? 0) >= 5);
 });
 
+// unknown 기본값을 자유응답으로 뒤집었더니 이번에는 정도를 가진 개념과
+// 행위까지 자유응답이 됐다("사교육 및 생성형 AI 활용은 어떻게 되나요?",
+// "학습자 주체성은 어떻게 되나요?"). 셋을 갈라야 한다.
+test("정도를 가진 구성 개념은 척도로 묻는다", () => {
+  for (const name of [
+    "학습자 주체성", "자율성", "적극성", "안전성", "편의성", "접근성",
+    "학습 의욕", "성취 욕구", "공동체 의식", "비판적 사고", "학업 몰입",
+    "디지털 리터러시",
+  ]) {
+    assert.equal(surveyVariableKind(name), "attitude", name);
+  }
+});
+
+test("'하다'가 붙는 행위는 얼마나 자주 하는지 묻는다", () => {
+  for (const name of [
+    "사교육 및 생성형 AI 활용", "도서관 이용", "동아리 참여",
+    "운동 실천", "복습", "자기주도 학습",
+  ]) {
+    assert.equal(surveyVariableKind(name), "activity", name);
+  }
+
+  const blueprint = analyzeSurveyPrompt("대학생들의 도서관 이용과 그에 따른 학업 부담 조사");
+  const q = blueprint.aiQuestions.find((i) => i.measuredVariable === "도서관 이용");
+  assert.equal(q?.title, "평소 도서관 이용을 얼마나 자주 하나요?");
+  assert.equal(q?.options?.length, 5);
+  // 크기 척도가 붙으면 안 된다
+  assert.doesNotMatch(q?.title ?? "", /어느 수준에 해당|어떻게 되나요/);
+});
+
+test("행위·개념 판정이 시간·빈도 규칙을 가로채지 않는다", () => {
+  // "이용 시간"은 duration, "이용 빈도"는 frequency로 남아야 한다.
+  assert.equal(surveyVariableKind("SNS 이용 시간"), "duration");
+  assert.equal(surveyVariableKind("도서관 이용 빈도"), "frequency");
+  assert.equal(surveyVariableKind("학습 시간"), "duration");
+  assert.equal(surveyVariableKind("도서관 이용"), "activity");
+});
+
+test("속성형 변수는 여전히 자유응답으로 받는다", () => {
+  // 셋으로 가른다고 속성까지 척도로 가면 "성별은 어느 수준에"가 돌아온다.
+  for (const name of ["성별", "MBTI", "취미", "주거지", "수강 과목", "혈액형"]) {
+    assert.equal(surveyVariableKind(name), "unknown", name);
+  }
+  const blueprint = analyzeSurveyPrompt("대학생들의 성별과 그에 따른 진로 불안 조사");
+  const q = blueprint.aiQuestions.find((i) => i.measuredVariable === "성별");
+  assert.equal(q?.title, "성별은 어떻게 되나요?");
+  assert.equal(q?.type, "shortText");
+});
+
+test("연구 초록에서 나온 변수도 부류에 맞는 형태로 묻는다", () => {
+  const abstract =
+    "본 설문조사는 '사교육 및 생성형 AI 활용이 학습자 주체성에 미치는 영향'을 분석하기 위한 학술 연구 목적으로 진행됩니다.";
+  const blueprint = analyzeSurveyPrompt(abstract);
+  const corpus = blueprint.aiQuestions.map((q) => q.title).join(" ");
+
+  assert.match(corpus, /평소 사교육 및 생성형 AI 활용을 얼마나 자주 하나요\?/);
+  assert.match(corpus, /학습자 주체성은 어느 수준에 해당하나요\?/);
+  assert.doesNotMatch(corpus, /활용은 어떻게 되나요|주체성은 어떻게 되나요/);
+});
+
 test("접미사 부류 판정은 좁은 규칙이 먼저 이긴다", () => {
   // "이용 빈도"가 뒤의 "도"를 보고 attitude가 되면 횟수 구간을 잃는다.
   assert.equal(surveyVariableKind("이용 빈도"), "frequency");

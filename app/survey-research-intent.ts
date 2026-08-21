@@ -246,6 +246,7 @@ const measurementLevelByKind: Record<SurveyVariableKind, ResearchMeasurementLeve
   score: "numeric",
   ratio: "numeric",
   frequency: "ordinal",
+  activity: "ordinal",
   category: "nominal",
   // 무엇을 재는지 모를 때는 형식을 제한하지 않고 자유응답으로 받는다.
   // 크기가 있는 변수는 대부분 attitude로 잡히므로, 여기까지 온 것에 크기
