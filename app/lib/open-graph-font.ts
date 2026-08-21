@@ -8,7 +8,10 @@ type OpenGraphFont = {
   style: "normal";
 };
 
-export const openGraphFontPath = "/fonts/NotoSansKR-Bold-Baroform.ttf";
+// 공유 카드는 satori로 그려지므로 사이트가 쓰는 woff2 다이내믹 서브셋을 쓸 수 없다.
+// satori는 TTF/OTF만 읽는다. 제품 본문 글꼴(Pretendard)과 같은 서체의 정적 TTF를
+// public/fonts에 두고 파일로 읽는다. 네트워크 요청은 하지 않는다.
+export const openGraphFontPath = "/fonts/Pretendard-Bold-Baroform.ttf";
 
 let fontPromise: Promise<ArrayBuffer> | null = null;
 
@@ -17,7 +20,7 @@ async function readOpenGraphFont() {
     process.cwd(),
     "public",
     "fonts",
-    "NotoSansKR-Bold-Baroform.ttf",
+    "Pretendard-Bold-Baroform.ttf",
   );
   const data = await readFile(filePath);
   if (data.byteLength < 100_000) {
@@ -35,7 +38,7 @@ export async function loadOpenGraphKoreanFonts(text: string) {
   fontPromise ??= readOpenGraphFont();
   const data = await fontPromise;
   const font: OpenGraphFont = {
-    name: "BaroformNotoKR",
+    name: "BaroformPretendard",
     data,
     weight: 700,
     style: "normal",
