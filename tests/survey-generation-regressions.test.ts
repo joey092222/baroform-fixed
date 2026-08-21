@@ -628,6 +628,49 @@ test("연구 초록도 주제를 살린 설문이 만들어진다", () => {
   assert.deepEqual(validateSurvey(abstract, parseSurveyBrief(abstract), blueprint), []);
 });
 
+// 사용자 제보 6: "신한 슈퍼SOL 앱 보험탭 이용 경험 및 신규 기능 선호도 조사"를
+// 넣으면 문항 7개가 전부 요청문을 되뇌었다. semantics.evaluationTarget이
+// 조사 대상을 읽는 네 번째 경로인데 꼬리 정리를 거치지 않았다.
+test("조사 대상의 네 번째 추출 경로도 측정 차원을 걷어낸다", () => {
+  for (const [prompt, expected] of [
+    ["신한 슈퍼SOL 앱 보험탭 이용 경험 및 신규 기능 선호도 조사", "신한 슈퍼SOL 앱 보험탭"],
+    ["배달앱 이용 경험 및 신규 기능 선호도 조사", "배달앱"],
+  ] as const) {
+    const corpus = analyzeSurveyPrompt(prompt)
+      .aiQuestions.map((q) => q.title)
+      .join(" ");
+    assert.match(corpus, new RegExp(`‘${expected}’`), prompt);
+    assert.doesNotMatch(corpus, /이용 경험 및|신규 기능 선호도/, prompt);
+  }
+});
+
+test("측정 문구가 필요한 청사진은 꼬리를 유지한다", () => {
+  // "SNS 이용 시간"에서 "시간"을 떼면 시간 구간 문항을 만들 수 없다.
+  // 꼬리 정리를 switch 블록에만 적용해야 하는 이유다.
+  const duration = analyzeSurveyPrompt("SNS 이용 시간 조사");
+  assert.equal(duration.title, "SNS 이용 시간 조사");
+  assert.match(duration.aiQuestions[0]?.title ?? "", /평일 하루 평균 SNS 이용 시간/);
+
+  const usage = analyzeSurveyPrompt("교내 셔틀버스 이용 현황 조사");
+  assert.match(usage.aiQuestions.map((q) => q.title).join(" "), /셔틀버스/);
+});
+
+test("'~과 관련해' 문항이 받침에 맞는 조사를 쓴다", () => {
+  // 9곳에 "과"가 하드코딩되어 있어 "'…선호도'과 관련해"가 나갔다.
+  // "도"는 받침이 없으므로 "와"여야 한다.
+  const corpus = analyzeSurveyPrompt("배달앱 이용 경험 및 신규 기능 선호도 조사")
+    .aiQuestions.map((q) => q.title)
+    .join(" ");
+  // 배달앱은 받침이 있으므로 "과"가 맞다
+  assert.match(corpus, /‘배달앱’과 관련해/);
+
+  // 받침 없는 대상은 "와"가 나와야 한다
+  const noBatchim = analyzeSurveyPrompt("교내 카페 이용 경험 및 개선 선호도 조사")
+    .aiQuestions.map((q) => q.title)
+    .join(" ");
+  assert.doesNotMatch(noBatchim, /카페’과 관련/);
+});
+
 // 이중질문 규칙은 지금까지 발동을 검증하는 테스트가 하나도 없었다. 규칙을
 // 느슨하게 만드는 변경이 진짜 이중질문을 놓쳐도 아무도 못 잡는 상태였다.
 // 양방향으로 고정한다.

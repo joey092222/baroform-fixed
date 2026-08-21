@@ -3255,7 +3255,7 @@ function needsBlueprint(plan: NeedDemandPlan): SurveyBlueprint {
     ),
     question(
       5,
-      `${topic}과 관련해 원하는 점을 자유롭게 적어주세요.`,
+      `${topicWithParticle(subject, "과", "와")} 관련해 원하는 점을 자유롭게 적어주세요.`,
       "예상하지 못한 구체적인 요구와 아이디어를 수집해요.",
       "text",
       undefined,
@@ -3400,7 +3400,7 @@ function adaptationBlueprint(subject: string): SurveyBlueprint {
     ),
     question(
       5,
-      `${topic}과 관련해 학교에 바라는 점을 적어주세요.`,
+      `${topicWithParticle(subject, "과", "와")} 관련해 학교에 바라는 점을 적어주세요.`,
       "선택지에서 놓친 개인 경험과 지원 요구를 수집해요.",
       "text",
       undefined,
@@ -4015,35 +4015,35 @@ function generalBlueprint(subject: string): SurveyBlueprint {
   const templateQuestions = [
     question(
       1,
-      `${topic}과 관련해 평소 가장 자주 겪는 상황은 무엇인가요?`,
+      `${topicWithParticle(subject, "과", "와")} 관련해 평소 가장 자주 겪는 상황은 무엇인가요?`,
       "조사 주제가 실제 생활에서 나타나는 상황을 응답 가능한 범주로 측정함.",
       "single",
       ["일상생활", "학업·업무", "이동", "여가", "사람들과의 교류", "해당 경험 없음", "기타"],
     ),
     question(
       2,
-      `${topic}과 관련한 행동은 주로 어떤 상황에서 일어나나요?`,
+      `${topicWithParticle(subject, "과", "와")} 관련한 행동은 주로 어떤 상황에서 일어나나요?`,
       "조사 주제가 실제로 나타나는 행동 맥락을 구분함.",
       "multiple",
       ["일상적으로", "학업·업무 중", "이동 중", "여가 시간", "사람들과 함께할 때", "특정한 상황 없음", "기타"],
     ),
     question(
       3,
-      `${topic}과 관련한 행동이나 선택은 평소 얼마나 자주 일어나나요?`,
+      `${topicWithParticle(subject, "과", "와")} 관련한 행동이나 선택은 평소 얼마나 자주 일어나나요?`,
       "실제 행동의 반복 빈도를 비교 가능한 구간으로 측정함.",
       "single",
       ["거의 매일", "주 3~4회", "주 1~2회", "월 1~3회", "거의 없음"],
     ),
     question(
       4,
-      `${topic}과 관련한 선택에서 중요하게 보는 기준을 모두 골라주세요.`,
+      `${topicWithParticle(subject, "과", "와")} 관련한 선택에서 중요하게 보는 기준을 모두 골라주세요.`,
       "실제 선택 기준과 우선순위를 파악함.",
       "multiple",
       ["편의성", "품질", "비용", "신뢰성", "접근성", "주변 의견", "기타"],
     ),
     question(
       5,
-      `${topic}과 관련해 겪는 어려움이나 부족한 점을 모두 골라주세요.`,
+      `${topicWithParticle(subject, "과", "와")} 관련해 겪는 어려움이나 부족한 점을 모두 골라주세요.`,
       "현재 행동을 방해하거나 충족되지 않은 요구를 구분함.",
       "multiple",
       ["정보 부족", "시간 부담", "비용 부담", "선택지 부족", "접근성", "특별한 문제 없음", "기타"],
@@ -4064,14 +4064,14 @@ function generalBlueprint(subject: string): SurveyBlueprint {
       ...templateQuestions,
       question(
         6,
-        `${topic}과 관련해 가장 먼저 필요한 변화는 무엇인가요?`,
+        `${topicWithParticle(subject, "과", "와")} 관련해 가장 먼저 필요한 변화는 무엇인가요?`,
         "조사 결과가 지원해야 할 개선 우선순위를 확인함.",
         "single",
         ["정보 제공", "비용 개선", "접근성 개선", "선택지 확대", "품질 개선", "별도 변화 필요 없음", "기타"],
       ),
       question(
         7,
-        `${topic}과 관련한 구체적인 경험이나 제안을 자유롭게 적어주세요.`,
+        `${topicWithParticle(subject, "과", "와")} 관련한 구체적인 경험이나 제안을 자유롭게 적어주세요.`,
         "선택지에 포함되지 않은 경험과 근거를 수집함.",
         "text",
         undefined,
@@ -5774,35 +5774,47 @@ export function analyzeSurveyPrompt(enteredPrompt: string): SurveyBlueprint {
   } else if (semantics.measurement?.kind === "duration") {
     blueprint = durationMeasurementBlueprint(subject, semantics.measurement);
   } else {
+    // semantics.evaluationTarget은 조사 대상을 읽어내는 네 번째 경로다.
+    // 앞의 세 곳(parseSurveyBrief·parseSurveyIntent·analyzeSurveyPrompt 진입부)과
+    // 달리 꼬리 정리를 거치지 않아 요청문의 측정 차원이 그대로 남는다.
+    //
+    //   "신한 슈퍼SOL 앱 보험탭 이용 경험 및 신규 기능 선호도 조사"
+    //     → 문항 7개 전부 "'신한 슈퍼SOL 앱 보험탭 이용 경험 및 신규 기능
+    //       선호도'가 현재 얼마나 필요하다고 느끼시나요?" 처럼 요청문을 되뇐다
+    //
+    // 위의 시간·빈도·수면·소비 분기는 측정 문구 전체가 필요하므로
+    // ("SNS 이용 시간"에서 "시간"을 떼면 시간 구간 문항을 만들 수 없다)
+    // 여기 switch 블록에만 적용한다.
+    const topicSubject = stripSubjectTails(subject) || subject;
     switch (semantics.kind) {
       case "membership":
-        blueprint = membershipBlueprint(subject);
+        blueprint = membershipBlueprint(topicSubject);
         break;
       case "problem":
-        blueprint = problemBlueprint(subject);
+        blueprint = problemBlueprint(topicSubject);
         break;
       case "satisfaction":
         blueprint = satisfactionBlueprint(semantics);
         break;
       case "event":
-        blueprint = eventBlueprint(subject, normalized);
+        blueprint = eventBlueprint(topicSubject, normalized);
         break;
       case "adoption":
-        blueprint = adoptionBlueprint(subject);
+        blueprint = adoptionBlueprint(topicSubject);
         break;
       case "usage":
         return generateSurvey(parseSurveyBrief(rawPrompt));
       case "needs":
-        blueprint = needsBlueprint({ targetEntity: subject });
+        blueprint = needsBlueprint({ targetEntity: topicSubject });
         break;
       case "awareness":
-        blueprint = awarenessBlueprint(subject);
+        blueprint = awarenessBlueprint(topicSubject);
         break;
       case "adaptation":
-        blueprint = adaptationBlueprint(subject);
+        blueprint = adaptationBlueprint(topicSubject);
         break;
       default:
-        blueprint = generalBlueprint(subject);
+        blueprint = generalBlueprint(topicSubject);
     }
   }
 
