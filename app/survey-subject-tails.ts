@@ -50,6 +50,26 @@ export const subjectTailStrips: RegExp[] = [
  * 규칙 순서에 대한 의존을 없앤다. 모든 규칙이 문자열을 짧게만 만들므로
  * 수렴하며, 상한은 안전핀이다. 전부 떨어져 비면 직전 상태를 돌려준다.
  */
+/**
+ * "개선이 필요한 부분", "부족한 점"의 "필요/부족"은 수요 신호가 아니다.
+ * 관계절 안에 들어 있고 핵심어는 "부분"이며, 요청의 성격은 새로운 무언가를
+ * 원한다가 아니라 기존 대상의 개선점 파악이다.
+ *
+ * 이걸 수요로 읽으면 "학식 ... 개선이 필요한 부분"이 "현재 생활권에 새로
+ * 생기길 원하는 부분을 골라주세요"가 되어 주제가 통째로 바뀐다. 검증은
+ * 통과하므로 사용자가 눈으로 보기 전까지 드러나지 않는다.
+ *
+ * 같은 판정이 세 곳에 필요하다. survey-context의 surveyArchetype,
+ * survey-intent의 detectIntent, survey-semantic-intent의 decisionOption이
+ * 각각 "필요"를 보고 라우팅한다. 하나만 고치면 나머지 둘이 되돌린다.
+ */
+export function isImprovementNeedClause(value: string) {
+  return (
+    /(?:개선|보완|수정|정비|변화|조치|지원|해결)\s*(?:이|가)?\s*필요/.test(value) ||
+    /부족한\s*(?:부분|점|면)/.test(value)
+  );
+}
+
 export function stripSubjectTails(value: string) {
   let current = value.replace(/\s+/g, " ").trim();
   for (let pass = 0; pass < 8; pass += 1) {

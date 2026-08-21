@@ -280,6 +280,40 @@ test("'조사'가 대상 명사의 일부일 때는 떼지 않는다", () => {
   }
 });
 
+// "개선이 필요한 부분"의 "필요"를 수요 신호로 읽어 주제가 통째로 바뀌었다.
+// "학식 ... 개선이 필요한 부분" → "현재 생활권에 새로 생기길 원하는 부분을
+// 골라주세요". 검증은 통과하므로 눈으로 보기 전까지 드러나지 않았다.
+test("개선점 요청이 수요 조사로 잘못 라우팅되지 않는다", () => {
+  const cases: Array<[string, RegExp]> = [
+    ["학식 만족도 조사 결과 개선이 필요한 부분 조사", /학식/],
+    ["도서관에서 개선이 필요한 부분 조사", /도서관/],
+    ["교내 시설 중 보완이 필요한 부분", /시설|교내/],
+    ["수업에서 부족한 부분 파악", /수업/],
+  ];
+  for (const [prompt, anchor] of cases) {
+    const blueprint = analyzeSurveyPrompt(prompt);
+    const corpus = [
+      blueprint.title,
+      ...blueprint.aiQuestions.flatMap((q) => [q.title, ...(q.options ?? [])]),
+    ].join(" ");
+    // 요청한 주제가 설문 어디엔가 살아 있어야 한다
+    assert.match(corpus, anchor, prompt);
+    // 수요 조사 템플릿의 흔적이 없어야 한다
+    assert.doesNotMatch(corpus, /현재 생활권에 새로 생기길 원하는/, prompt);
+  }
+});
+
+test("진짜 수요 조사는 여전히 수요 템플릿으로 간다", () => {
+  // "필요"를 무조건 제외하면 이쪽이 깨진다. 양방향으로 고정한다.
+  for (const prompt of [
+    "교내에 새로 생기길 원하는 시설 수요 조사",
+    "학생들이 필요한 프로그램 조사",
+  ]) {
+    const blueprint = analyzeSurveyPrompt(prompt);
+    assert.equal(blueprint.kind, "needs", prompt);
+  }
+});
+
 // 이중질문 규칙은 지금까지 발동을 검증하는 테스트가 하나도 없었다. 규칙을
 // 느슨하게 만드는 변경이 진짜 이중질문을 놓쳐도 아무도 못 잡는 상태였다.
 // 양방향으로 고정한다.

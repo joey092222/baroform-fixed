@@ -10,7 +10,10 @@ import {
   parseSurveyGenerationContext,
   type ParsedSurveyContext,
 } from "./survey-context";
-import { stripSubjectTails } from "./survey-subject-tails";
+import {
+  isImprovementNeedClause,
+  stripSubjectTails,
+} from "./survey-subject-tails";
 
 export type SurveyIntentStudyType = "general" | "research";
 
@@ -1252,7 +1255,11 @@ export function parseSurveyIntent(
   const categorySet = categorySetFromClause(primaryClause);
   const decisionOption = decisionOptionFromClause(
     purposeChain.decisionClause ??
-      (/원하는|필요한|부족한|개설|들어오|생기/.test(primaryClause)
+      // "개선이 필요한 부분"은 새 대안을 고르는 요청이 아니라 기존 대상의
+      // 개선점 요청이다. 이걸 의사결정 대안으로 읽으면 surveyObject가 "부분"이
+      // 되어 실제 주제(학식·도서관)가 통째로 사라진다.
+      (/원하는|필요한|부족한|개설|들어오|생기/.test(primaryClause) &&
+      !isImprovementNeedClause(primaryClause)
         ? primaryClause
         : null),
   );

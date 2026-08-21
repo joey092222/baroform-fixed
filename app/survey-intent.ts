@@ -1,5 +1,8 @@
 import { lookupVerifiedSurveyKnowledge } from "./survey-knowledge";
-import { stripSubjectTails } from "./survey-subject-tails";
+import {
+  isImprovementNeedClause,
+  stripSubjectTails,
+} from "./survey-subject-tails";
 import {
   parseSurveyIntent,
   parsePurposeSegments,
@@ -529,6 +532,10 @@ function detectIntent(prompt: string): SurveyIntentKind {
   }
   if (/인지|인식|알고\s*있는지/.test(withoutSurveyNoun)) {
     return "awareness";
+  }
+  // 개선점 요청의 "필요"는 수요 신호가 아니다. isImprovementNeedClause 참고.
+  if (isImprovementNeedClause(withoutSurveyNoun)) {
+    return "problem";
   }
   if (/수요|니즈|필요|원하는|선호/.test(withoutSurveyNoun)) {
     return "needs";

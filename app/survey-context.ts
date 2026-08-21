@@ -1,4 +1,5 @@
 import { lookupVerifiedSurveyKnowledge } from "./survey-knowledge";
+import { isImprovementNeedClause } from "./survey-subject-tails";
 
 export type SurveyArchetype =
   | "service_usage"
@@ -412,7 +413,9 @@ export function parseSurveyGenerationContext(
     };
   }
 
-  const surveyArchetype: SurveyArchetype = /수요|필요/.test(subject)
+  // 개선점 요청의 "필요"는 수요 신호가 아니다. isImprovementNeedClause 참고.
+  const surveyArchetype: SurveyArchetype = /수요/.test(subject) ||
+    (/필요/.test(subject) && !isImprovementNeedClause(subject))
     ? "demand"
     : /만족도|만족|평가/.test(subject)
       ? "satisfaction"
