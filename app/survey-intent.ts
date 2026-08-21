@@ -5860,6 +5860,26 @@ function intervalsOverlap(left: SurveyOptionInterval, right: SurveyOptionInterva
   return true;
 }
 
+// 한국어 "과/와"는 나열(접속조사), 비교("평소와 다르게"), 단어 일부("과제",
+// "결과", "학과") 세 가지로 쓰인다. 이중질문 판정은 나열일 때만 유효한데
+// 글자 하나만 찾으면 나머지 둘까지 걸려 정상 문항을 오탐한다.
+//   - 뒤에 공백을 요구해 단어 내부의 "과"를 배제한다 (접속조사는 어절 끝에 온다)
+//   - 앞선 시간·기준 명사를 lookbehind로 배제해 비교 표현을 뺀다
+// 남는 한 부류: "과"로 끝나는 명사 뒤에 공백이 오는 경우("만족도 조사 결과
+// 개선이..."). 이건 정규식으로 못 가른다. "해결과 개선을"은 해결+과(접속),
+// "결과 개선이"는 결과+공백이라 표면형이 같다. 가르려면 어휘 사전이나 형태소
+// 분석이 필요하다. 여기서 멈추는 것이 의도된 선택이다.
+const listConjunction =
+  "(?<!평소|이전|기존|과거|작년|지난해|지난달|예전|처음|이번|기준|남들)(?:과|와|및)\\s";
+
+const doubleBarreledQuestion = new RegExp(
+  [
+    `(?:만족|평가).*${listConjunction}.*(?:불편|개선|의향|빈도|시간|비용)`,
+    `(?:불편|개선).*${listConjunction}.*(?:만족|의향|빈도|시간)`,
+    `(?:빈도|횟수|시간|비용).*${listConjunction}.*(?:만족|불편|의향)`,
+  ].join("|"),
+);
+
 export function validateSurvey(
   rawBrief: string,
   brief: SurveyBrief,
@@ -5912,9 +5932,7 @@ export function validateSurvey(
       issues.push(`문항 ${item.id}에 잘못 결합된 접속사와 조사가 포함되었습니다.`);
     }
     if (
-      /(?:만족|평가).*(?:과|와|및).*(?:불편|개선|의향|빈도|시간|비용)|(?:불편|개선).*(?:과|와|및).*(?:만족|의향|빈도|시간)|(?:빈도|횟수|시간|비용).*(?:과|와|및).*(?:만족|불편|의향)/.test(
-        item.title,
-      ) ||
+      doubleBarreledQuestion.test(item.title) ||
       /(?:계속|지속)\s*이용.*(?:추천|권유)|(?:추천|권유).*(?:계속|지속)\s*이용/.test(
         item.title,
       )

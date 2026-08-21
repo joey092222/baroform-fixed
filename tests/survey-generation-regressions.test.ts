@@ -184,6 +184,61 @@ test("관계형 generic 문항은 응답자에게 내부 개념을 노출하지 
   assert.match(corpus, /평소 지각 여부가 달라지는 빈도/);
 });
 
+// 이중질문 규칙은 지금까지 발동을 검증하는 테스트가 하나도 없었다. 규칙을
+// 느슨하게 만드는 변경이 진짜 이중질문을 놓쳐도 아무도 못 잡는 상태였다.
+// 양방향으로 고정한다.
+const doubleBarreledIssue = /서로 다른 두 개 이상의 개념/;
+
+function issuesForTitle(title: string) {
+  const prompt = "대학생들의 학식 만족도 조사";
+  const brief = parseSurveyBrief(prompt);
+  const blueprint = analyzeSurveyPrompt(prompt);
+  return validateSurvey(prompt, brief, {
+    ...blueprint,
+    aiQuestions: [{ ...blueprint.aiQuestions[0]!, id: 1, title }],
+  });
+}
+
+test("이중질문 규칙은 실제로 두 개념을 나열한 문항을 잡는다", () => {
+  const doubleBarreled = [
+    "만족도와 불편한 점을 함께 알려주세요.",
+    "서비스 평가와 개선 의향을 알려주세요.",
+    "이용 빈도와 만족도는 어느 정도인가요?",
+    "불편한 점과 만족스러운 점을 모두 골라주세요.",
+    "소요 시간 및 만족도를 평가해주세요.",
+    "대기 시간과 불편함은 어느 정도였나요?",
+  ];
+  for (const title of doubleBarreled) {
+    assert.ok(
+      issuesForTitle(title).some((item) => doubleBarreledIssue.test(item)),
+      `잡아야 하는데 놓침: ${title}`,
+    );
+  }
+});
+
+test("이중질문 규칙은 비교조사와 단어 내부의 과/와를 접속조사로 오인하지 않는다", () => {
+  const singleConcept = [
+    // 비교조사 "와/과"
+    "만족도가 평소와 달라지는 빈도는 어느 정도인가요?",
+    "작년과 비교해 만족도는 어떻게 달라졌나요? 이용 시간 기준으로요.",
+    "이전과 달라진 이용 빈도에 만족하나요?",
+    "기존과 비교했을 때 대기 시간 만족도는 어떤가요?",
+    // 단어 일부인 "과"
+    "만족도는 과제 수행 시간에 어떤 영향을 주나요?",
+    "평가 과정에서 느낀 불편한 점을 적어주세요.",
+    // 단일 개념
+    "평소 이용 빈도는 어느 정도인가요?",
+    "전반적인 만족도를 알려주세요.",
+  ];
+  for (const title of singleConcept) {
+    assert.deepEqual(
+      issuesForTitle(title).filter((item) => doubleBarreledIssue.test(item)),
+      [],
+      `오탐: ${title}`,
+    );
+  }
+});
+
 test("관계형 generic 문항은 자체 품질 검증을 통과한다", () => {
   for (const prompt of [
     danglingSuffixPrompt,
