@@ -392,6 +392,38 @@ test("접미사 부류 판정은 좁은 규칙이 먼저 이긴다", () => {
   assert.equal(surveyVariableKind("이용 여부"), "binary");
 });
 
+// 응답자 그룹 추출이 단어 경계를 확인하지 않아 "학생회"의 앞 두 글자
+// "학생"을 응답자로 뜯어갔다. 조사 대상이 "회 활동"만 남아
+// "회 활동에 전반적으로 얼마나 만족하시나요?"가 나갔다.
+test("응답자 그룹을 단어 중간에서 잘라내지 않는다", () => {
+  for (const [prompt, subject] of [
+    ["학생회 활동 만족도 조사", "학생회 활동"],
+    ["학생회 만족도 조사", "학생회"],
+    ["학생회관 이용 만족도 조사", "학생회관 이용"],
+    ["총학생회 공약 이행 만족도 조사", "총학생회 공약 이행"],
+  ] as const) {
+    assert.equal(parseSurveyIntent(prompt).surveyObject, subject, prompt);
+    assert.equal(parseSurveyIntent(prompt).targetPopulation, null, prompt);
+
+    const corpus = analyzeSurveyPrompt(prompt)
+      .aiQuestions.map((item) => item.title)
+      .join(" ");
+    assert.doesNotMatch(corpus, /(?:^|\s)회\s/, prompt);
+  }
+});
+
+test("응답자가 실제로 명시되면 여전히 잡아낸다", () => {
+  // 경계를 요구한다고 정상 추출까지 막으면 안 된다. 양방향으로 고정한다.
+  for (const [prompt, population] of [
+    ["대학생 학생회 활동 만족도 조사", "대학생"],
+    ["직장인 동호회 활동 만족도 조사", "직장인"],
+    ["대학생들의 학식 만족도 조사", "대학생"],
+    ["고등학생 진로 상담 만족도 조사", "고등학생"],
+  ] as const) {
+    assert.equal(parseSurveyIntent(prompt).targetPopulation, population, prompt);
+  }
+});
+
 // 이중질문 규칙은 지금까지 발동을 검증하는 테스트가 하나도 없었다. 규칙을
 // 느슨하게 만드는 변경이 진짜 이중질문을 놓쳐도 아무도 못 잡는 상태였다.
 // 양방향으로 고정한다.
