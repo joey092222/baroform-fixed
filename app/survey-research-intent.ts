@@ -1,3 +1,8 @@
+import {
+  surveyVariableKind,
+  type SurveyVariableKind,
+} from "./survey-variable-kind";
+
 export type ResearchVariableRole =
   | "predictor"
   | "outcome"
@@ -230,15 +235,28 @@ function relationParts(value: string): RelationParts | null {
   return null;
 }
 
+// 측정 수준은 "무엇을 재는가"의 다른 표현이다. 별도 목록으로 두면 문항
+// 생성기(surveyVariableKind)와 어긋나 한쪽은 범주형이라 하고 다른 쪽은
+// 척도를 붙이는 일이 생긴다. 같은 판정에서 파생시켜 어긋날 수 없게 한다.
+const measurementLevelByKind: Record<SurveyVariableKind, ResearchMeasurementLevel> = {
+  binary: "binary",
+  attitude: "scale",
+  duration: "numeric",
+  amount: "numeric",
+  score: "numeric",
+  ratio: "numeric",
+  frequency: "ordinal",
+  category: "nominal",
+  // 무엇인지 모를 때의 기본값. 크기 감각을 묻는 문항은 어떤 이름에도
+  // 성립하므로 안전하다.
+  unknown: "ordinal",
+};
+
 function measurementLevelFor(name: string): ResearchMeasurementLevel {
-  if (/여부|유무|했는지|중인지/.test(name)) return "binary";
-  if (/만족도|수면의\s*질|스트레스|의향|정도|수준|부담|영향/.test(name)) {
-    return "scale";
-  }
-  if (/시간|거리|금액|지출|소득|횟수|점수/.test(name)) return "numeric";
-  if (/빈도|구간|학년|연령대|성적/.test(name)) return "ordinal";
-  if (/형태|지역|수단|유형|종류|경로/.test(name)) return "nominal";
-  return "ordinal";
+  // 문장형 표현은 접미사로 안 잡히므로 여기서 먼저 본다.
+  if (/했는지|중인지/.test(name)) return "binary";
+  if (/구간|학년|연령대/.test(name)) return "ordinal";
+  return measurementLevelByKind[surveyVariableKind(name)];
 }
 
 function directVariableName(metricName: string) {

@@ -4,6 +4,10 @@ import {
   stripSubjectTails,
 } from "./survey-subject-tails";
 import {
+  numericAnswerHint,
+  surveyVariableKind,
+} from "./survey-variable-kind";
+import {
   parseSurveyIntent,
   parsePurposeSegments,
   shouldEnforceSurveyIntentValidation,
@@ -5255,7 +5259,23 @@ function researchVariableQuestion(
       ["1만원 미만", "1만원 이상~3만원 미만", "3만원 이상~5만원 미만", "5만원 이상~10만원 미만", "10만원 이상"],
     );
   }
-  if (variable.measurementLevel === "binary") {
+  // 여기부터가 특례 25개에 없는 모든 변수가 도달하는 마지막 경로다.
+  // 예전에는 무엇을 재든 "매우 낮음~매우 높음" 5점 척도 하나로 끝나서,
+  // "통학 수단은 어느 수준에 해당하나요?"처럼 답할 수 없는 문항이 나가거나
+  // "카페인 섭취량"을 크기 감각으로만 물어 상관 분석을 못 하게 됐다.
+  //
+  // 이제 변수 이름의 접미사로 무엇을 재는 건지 판정하고(surveyVariableKind)
+  // 부류에 맞는 형태로 묻는다. 개별 변수는 무한하지만 접미사는 닫힌 집합이라
+  // 목록에 없는 새 변수에도 먹힌다.
+  const kind = surveyVariableKind(name);
+
+  // 부류를 먼저 본다. measurementLevel은 부류에서 파생된 값이라, 그걸 먼저
+  // 보면 amount(→numeric)가 시간 구간 분기에 걸려 "카페인 섭취량"에
+  // "1시간 미만"이 붙는다. 부류가 unknown일 때만 level을 참고한다.
+  // measurementLevel은 surveyVariableKind에서 파생되므로 부류만 보면 된다.
+  // 다만 "했는지·중인지"처럼 문장형 이름은 접미사로 안 잡히고 level에서만
+  // binary로 판정되므로 그 경우를 함께 받는다.
+  if (kind === "binary" || variable.measurementLevel === "binary") {
     return question(
       id,
       `${timeframe}${nameObject} 알려주세요.`,
@@ -5264,20 +5284,49 @@ function researchVariableQuestion(
       ["예", "아니요"],
     );
   }
-  if (variable.measurementLevel === "numeric") {
-    const options = /시간/.test(name)
-      ? ["1시간 미만", "1시간 이상~2시간 미만", "2시간 이상~4시간 미만", "4시간 이상~6시간 미만", "6시간 이상"]
-      : /횟수|빈도/.test(name)
-        ? ["0회", "1~2회", "3~5회", "6~10회", "11회 이상"]
-        : ["매우 적음", "적은 편", "보통", "많은 편", "매우 많음"];
+  // 범주형은 크기가 없다. 선택지를 지어내려면 도메인 지식이 필요하므로
+  // (통학 수단 → 버스·지하철·도보) 자유응답으로 받는다. 검증기도 명목형
+  // 변수에는 자유응답을 유효한 측정으로 인정한다(usable()).
+  if (kind === "category" || variable.measurementLevel === "nominal") {
     return question(
       id,
-      `${timeframe}${nameTopic} 어느 정도인가요?`,
-      `${nameObject} 겹치지 않는 순서형 구간으로 측정함.`,
-      "single",
-      options,
+      `${timeframe}${nameObject} 알려주세요.`,
+      `${nameObject} 개인별 범주 변수로 수집함.`,
+      "shortText",
     );
   }
+  // 구간이 응답자 집단과 무관하게 안정적인 두 부류만 구간으로 받는다.
+  if (kind === "frequency") {
+    return question(
+      id,
+      `${timeframe || "평소 "}${nameTopic} 어느 정도인가요?`,
+      `${nameObject} 겹치지 않는 횟수 구간으로 측정함.`,
+      "single",
+      ["0회", "1~2회", "3~5회", "6~10회", "11회 이상"],
+    );
+  }
+  if (kind === "duration") {
+    return question(
+      id,
+      `${timeframe || "평소 "}${nameTopic} 어느 정도인가요?`,
+      `${nameObject} 겹치지 않는 시간 구간으로 측정함.`,
+      "single",
+      ["1시간 미만", "1시간 이상~2시간 미만", "2시간 이상~4시간 미만", "4시간 이상~6시간 미만", "6시간 이상"],
+    );
+  }
+  // 수량·금액·점수·비율은 단위와 범위가 변수마다 다르다. 구간을 지어내면
+  // 틀리므로 숫자를 그대로 받는다. 구간보다 평균·상관 분석에도 낫다.
+  if (kind === "amount" || kind === "score" || kind === "ratio") {
+    return question(
+      id,
+      `${timeframe || "평소 "}${nameTopic} 얼마나 되나요?`,
+      `${nameObject} 구간으로 뭉치지 않고 실제 값으로 수집함. ${numericAnswerHint(kind, name)}`,
+      "shortText",
+    );
+  }
+  // 태도류는 크기가 주관적이라 5점 척도가 원래 맞다. unknown도 여기로 온다.
+  // 크기 감각을 묻는 것은 어떤 이름에도 문법적으로 성립하고 답할 수 있어,
+  // 모르는 상태의 기본값으로 안전하다.
   return question(
     id,
     `${timeframe}${nameTopic} 어느 수준에 해당하나요?`,

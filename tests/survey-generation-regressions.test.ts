@@ -8,6 +8,7 @@ import {
 } from "../app/survey-intent";
 import { parseSurveyIntent } from "../app/survey-semantic-intent";
 import { stripSubjectTails } from "../app/survey-subject-tails";
+import { surveyVariableKind } from "../app/survey-variable-kind";
 
 // 사용자 제보 1: "설문 내용을 안전하게 다듬지 못했어요" 토스트로 생성이 막혔다.
 // 생성기는 "지각 빈도"를 "수업이나 약속에 늦은 빈도"로 표현하는데
@@ -312,6 +313,83 @@ test("진짜 수요 조사는 여전히 수요 템플릿으로 간다", () => {
     const blueprint = analyzeSurveyPrompt(prompt);
     assert.equal(blueprint.kind, "needs", prompt);
   }
+});
+
+// 특례 25개에 없는 변수는 무엇을 재든 "매우 낮음~매우 높음" 5점 척도 하나로
+// 끝났다. "통학 수단은 어느 수준에 해당하나요?"는 답할 수가 없고,
+// "카페인 섭취량"을 크기 감각으로만 물으면 상관 분석을 못 한다.
+// 이름의 접미사로 부류를 판정해 부류에 맞는 형태로 묻는다.
+test("변수 부류를 접미사로 판정한다", () => {
+  for (const [name, expected] of [
+    ["카페인 섭취량", "amount"],
+    ["월 생활비", "amount"],
+    ["걸음 수", "amount"],
+    ["배달 주문 횟수", "frequency"],
+    ["여가 활동 빈도", "frequency"],
+    ["게임 플레이 시간", "duration"],
+    ["학점", "score"],
+    ["아침 결식률", "ratio"],
+    ["참여율", "ratio"],
+    ["통학 수단", "category"],
+    ["등교 방식", "category"],
+    ["장학금 수혜 여부", "binary"],
+    ["자존감", "attitude"],
+    ["학업 스트레스", "attitude"],
+    ["집중력", "attitude"],
+  ] as const) {
+    assert.equal(surveyVariableKind(name), expected, name);
+  }
+});
+
+test("측정 수준은 부류에서 파생되어 문항 생성기와 어긋나지 않는다", () => {
+  // 별도 목록으로 두면 한쪽은 범주형이라 하고 다른 쪽은 척도를 붙인다.
+  const prompt = "대학생들의 통학 수단과 그에 따른 통학 피로도 조사";
+  const research = parseSurveyIntent(prompt).researchIntent;
+  const means = research.variables.find((v) => v.name === "통학 수단");
+  assert.equal(means?.measurementLevel, "nominal");
+  assert.equal(surveyVariableKind("통학 수단"), "category");
+});
+
+test("특례에 없는 변수도 부류에 맞는 형태로 묻는다", () => {
+  const prompts = [
+    "대학생들의 카페인 섭취량과 그에 따른 집중력 조사",
+    "대학생들의 월 생활비와 그에 따른 여가 활동 빈도 조사",
+    "대학생들의 통학 수단과 그에 따른 통학 피로도 조사",
+    "대학생들의 저축액과 그에 따른 경제적 불안 조사",
+    "대학생들의 배달 주문 횟수와 그에 따른 식비 조사",
+    "대학생들의 걸음 수와 그에 따른 체력 조사",
+  ];
+  const vagueScale = ["매우 낮음", "낮은 편", "보통", "높은 편", "매우 높음"];
+  for (const prompt of prompts) {
+    const research = parseSurveyIntent(prompt).researchIntent;
+    const blueprint = analyzeSurveyPrompt(prompt);
+    for (const v of research.variables.filter((x) => x.scope === "respondent_level")) {
+      const q = blueprint.aiQuestions.find((i) => i.measuredVariable === v.name);
+      if (!q) continue;
+      const kind = surveyVariableKind(v.name);
+      // 크기가 없는 범주에 크기 척도를 붙이면 응답이 불가능하다
+      if (kind === "category") {
+        assert.equal(q.type, "shortText", `${v.name} (${prompt})`);
+      }
+      // 수량·금액·점수는 구간을 지어내지 않고 실제 값을 받는다
+      if (kind === "amount" || kind === "score" || kind === "ratio") {
+        assert.equal(q.type, "shortText", `${v.name} (${prompt})`);
+        assert.doesNotMatch(q.title, /1시간 미만|어느 수준에 해당/, v.name);
+      }
+      // 태도류만 5점 척도가 남는다
+      if (q.options && vagueScale.every((s) => q.options!.includes(s))) {
+        assert.equal(kind, "attitude", `${v.name}에 크기 척도가 붙음 (${prompt})`);
+      }
+    }
+  }
+});
+
+test("접미사 부류 판정은 좁은 규칙이 먼저 이긴다", () => {
+  // "이용 빈도"가 뒤의 "도"를 보고 attitude가 되면 횟수 구간을 잃는다.
+  assert.equal(surveyVariableKind("이용 빈도"), "frequency");
+  assert.equal(surveyVariableKind("만족도"), "attitude");
+  assert.equal(surveyVariableKind("이용 시간"), "duration");
+  assert.equal(surveyVariableKind("이용 여부"), "binary");
 });
 
 // 이중질문 규칙은 지금까지 발동을 검증하는 테스트가 하나도 없었다. 규칙을
