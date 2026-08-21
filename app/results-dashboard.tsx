@@ -49,7 +49,16 @@ type QuestionResult = {
   question: SurveyQuestion;
   answeredCount: number;
   unansweredCount: number;
-  choices: Array<{ label: string; count: number; percentage: number }>;
+  choices: Array<{
+    label: string;
+    count: number;
+    percentage: number;
+    cumulativePercentage: number;
+  }>;
+  /** 표시 순서와 무관하게 가장 많이 선택된 항목. 요약 문구에서 쓴다. */
+  topChoice: { label: string; count: number; percentage: number } | null;
+  /** 작성자가 선택지 순서를 정한 문항인지. 정렬하지 않고 그 순서를 지킨다. */
+  hasAuthoredOrder: boolean;
   scaleValues: Array<{ value: number; count: number; percentage: number }>;
   average: number | null;
   textResponses: string[];
@@ -179,13 +188,41 @@ export function buildQuestionResults(
         }
       });
 
-      const choices = [...optionCounts.entries()]
-        .map(([label, count]) => ({
-          label,
-          count,
-          percentage: answeredCount > 0 ? (count / answeredCount) * 100 : 0,
-        }))
-        .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, "ko-KR"));
+      // 작성자가 options로 순서를 정했다면 그 순서가 곧 의미다(1회차 → 2회차 → …).
+      // 빈도순으로 다시 정렬하면 분포 모양이 사라지므로 선언 순서를 지킨다.
+      // options에 없던 값(자유 입력·날짜 등)만 뒤에 붙이고 그것들끼리 빈도순으로 둔다.
+      const authoredOptions = question.options ?? [];
+      const hasAuthoredOrder = authoredOptions.length > 0;
+      const authoredSet = new Set(authoredOptions);
+      const rawCounts = [...optionCounts.entries()].map(([label, count]) => ({
+        label,
+        count,
+        percentage: answeredCount > 0 ? (count / answeredCount) * 100 : 0,
+      }));
+      const byFrequency = (
+        left: { label: string; count: number },
+        right: { label: string; count: number },
+      ) => right.count - left.count || left.label.localeCompare(right.label, "ko-KR");
+      const ordered = hasAuthoredOrder
+        ? [
+            ...authoredOptions
+              .map((option) => rawCounts.find((item) => item.label === option))
+              .filter((item): item is (typeof rawCounts)[number] => Boolean(item)),
+            ...rawCounts.filter((item) => !authoredSet.has(item.label)).sort(byFrequency),
+          ]
+        : [...rawCounts].sort(byFrequency);
+
+      // 누적 비율은 순서가 의미 있는 단일 선택 문항에서만 쓴다.
+      // 다중 선택은 합이 100%를 넘어 누적이 성립하지 않는다.
+      let running = 0;
+      const choices = ordered.map((item) => {
+        running += item.percentage;
+        return { ...item, cumulativePercentage: Math.min(100, running) };
+      });
+      const topChoice =
+        rawCounts.length > 0
+          ? [...rawCounts].sort(byFrequency)[0]
+          : null;
       const scaleMin = question.scaleMin ?? 1;
       const scaleMax = question.scaleMax ?? 5;
       const scaleValues = Array.from(
@@ -210,6 +247,8 @@ export function buildQuestionResults(
         answeredCount,
         unansweredCount: Math.max(0, responses.length - answeredCount),
         choices,
+        topChoice,
+        hasAuthoredOrder,
         scaleValues,
         average: answeredCount > 0 && question.type === "scale" ? scaleTotal / answeredCount : null,
         textResponses,
@@ -296,21 +335,35 @@ function QualityBadge({ status }: { status: QualityStatus }) {
 
 function ChoiceDistribution({
   choices,
+  showCumulative = false,
 }: {
   choices: QuestionResult["choices"];
+  /** 순서가 의미 있는 단일 선택 문항에서만 누적 비율을 붙인다. */
+  showCumulative?: boolean;
 }) {
   if (choices.length === 0) {
     return <p className="results-v2-inline-empty">아직 선택된 응답이 없어요.</p>;
   }
-  const topCount = choices[0]?.count ?? 0;
+  // 선언 순서를 지키므로 choices[0]이 최다가 아니다. 실제 최댓값을 따로 구한다.
+  const topCount = choices.reduce((max, choice) => Math.max(max, choice.count), 0);
   return (
     <div className="results-v2-choice-list">
       {choices.map((choice) => (
         <div className={choice.count === topCount && topCount > 0 ? "is-top" : ""} key={choice.label}>
           <div className="results-v2-choice-copy">
-            <span>{choice.label}</span>
+            <span>
+              {choice.label}
+              {choice.count === topCount && topCount > 0 && (
+                <b className="results-v2-choice-top">가장 많음</b>
+              )}
+            </span>
             <strong>
               {choice.count.toLocaleString("ko-KR")}명 · {choice.percentage.toFixed(1)}%
+              {showCumulative && (
+                <small className="results-v2-choice-cumulative">
+                  누적 {choice.cumulativePercentage.toFixed(1)}%
+                </small>
+              )}
             </strong>
           </div>
           <span className="results-v2-bar" aria-hidden="true">
@@ -392,7 +445,13 @@ function QuestionResultCard({ result, index }: { result: QuestionResult; index: 
       ) : isText ? (
         <TextResponseList responses={result.textResponses} />
       ) : (
-        <ChoiceDistribution choices={result.choices} />
+        <ChoiceDistribution
+          choices={result.choices}
+          showCumulative={
+            result.hasAuthoredOrder &&
+            (result.question.type === "single" || result.question.type === "dropdown")
+          }
+        />
       )}
     </article>
   );
@@ -400,8 +459,8 @@ function QuestionResultCard({ result, index }: { result: QuestionResult; index: 
 
 function overviewResultLabel(result: QuestionResult) {
   if (result.average !== null) return `평균 ${result.average.toFixed(1)}점`;
-  if (result.choices[0]) {
-    return `${result.choices[0].label} · ${result.choices[0].percentage.toFixed(1)}%`;
+  if (result.topChoice) {
+    return `${result.topChoice.label} · ${result.topChoice.percentage.toFixed(1)}%`;
   }
   if (result.textResponses.length > 0) return `작성 응답 ${result.textResponses.length}건`;
   return "응답 없음";
@@ -438,7 +497,7 @@ function QuestionHighlights({
             const percentage =
               result.average !== null
                 ? (result.average / (result.question.scaleMax ?? 5)) * 100
-                : result.choices[0]?.percentage ??
+                : result.topChoice?.percentage ??
                   (result.answeredCount > 0 ? 100 : 0);
             return (
               <article key={result.question.id}>
