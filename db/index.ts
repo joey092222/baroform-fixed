@@ -367,6 +367,22 @@ async function ensureSchema(database: Database) {
     CREATE INDEX IF NOT EXISTS workspace_versions_workspace_created_idx
       ON workspace_versions (workspace_id, created_at DESC)
   `);
+  // 설문 주인이 개별 응답을 집계에 넣을지 뺄지 직접 정한 기록.
+  // 소유자별이 아니라 설문별로 한 벌만 둔다(워크스페이스 공유 시 숫자가 갈리지 않게).
+  await database.execute(sql`
+    CREATE TABLE IF NOT EXISTS response_decisions (
+      survey_id TEXT NOT NULL REFERENCES surveys(id) ON DELETE CASCADE,
+      response_id TEXT NOT NULL REFERENCES responses(id) ON DELETE CASCADE,
+      decision TEXT NOT NULL,
+      decided_by_id TEXT REFERENCES members(id) ON DELETE SET NULL,
+      decided_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (survey_id, response_id)
+    )
+  `);
+  await database.execute(sql`
+    CREATE INDEX IF NOT EXISTS response_decisions_survey_idx
+      ON response_decisions (survey_id)
+  `);
 }
 
 export async function getDb() {
