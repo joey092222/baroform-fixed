@@ -87,8 +87,19 @@ test("Excel과 Word가 공유하는 결과 모델에 원본과 문항 요약을 
   assert.equal(model.totalResponses, 2);
   assert.equal(model.averageSeconds, 30);
   assert.equal(model.rawRows.length, 3);
-  assert.equal(model.rawRows[0].length, 7);
-  assert.equal(model.rawRows[1][5], "좌석 · 환기");
+  // 응답번호·ID·일시·소요시간 + 품질검사·직접판단·집계반영 + 문항 3개 = 10열.
+  // 원본 기록을 지우지 않고 판단을 열로 덧붙이기 때문에 답은 8번째부터 시작한다.
+  assert.equal(model.rawRows[0].length, 10);
+  assert.equal(model.rawRows[0][4], "품질 검사 결과");
+  assert.equal(model.rawRows[0][5], "직접 내린 판단");
+  assert.equal(model.rawRows[0][6], "집계 반영");
+  assert.equal(model.rawRows[1][8], "좌석 · 환기");
+
+  // 판정 정보를 안 실어 보내면 모두 이상 없음으로 보고 전부 집계에 넣는다.
+  assert.equal(model.rawRows[1][4], "이상 없음");
+  assert.equal(model.rawRows[1][5], "바꾸지 않음");
+  assert.equal(model.rawRows[1][6], "반영");
+  assert.equal(model.analysedResponses, 2);
   assert.equal(model.questionSummaries.length, 3);
   assert.equal(model.questionSummaries[0].headline, "평균 4.50 / 5");
   assert.deepEqual(model.questionSummaries[1].distribution[0], {
@@ -99,6 +110,26 @@ test("Excel과 Word가 공유하는 결과 모델에 원본과 문항 요약을 
   assert.deepEqual(model.questionSummaries[2].textResponses, [
     "좌석이 좁고, 안내가 \"복잡해요\".",
   ]);
+});
+
+test("제외한 응답도 원본 행에는 남고 문항 요약에서만 빠진다", () => {
+  const model = buildSurveyExportModel({
+    ...payload,
+    responses: payload.responses.map((response, index) =>
+      index === 0
+        ? { ...response, serverStatus: "usable" as const, decision: "exclude" as const, includedInAnalysis: false }
+        : response,
+    ),
+  });
+
+  // 원본 기록은 그대로 2건.
+  assert.equal(model.rawRows.length, 3);
+  assert.equal(model.rawRows[1][4], "이상 없음");
+  assert.equal(model.rawRows[1][5], "집계에서 제외");
+  assert.equal(model.rawRows[1][6], "제외");
+  // 집계는 1건만 반영.
+  assert.equal(model.totalResponses, 2);
+  assert.equal(model.analysedResponses, 1);
 });
 
 test("CSV는 한글용 BOM과 쉼표·따옴표 이스케이프를 포함한다", () => {
