@@ -45,6 +45,18 @@ body {
   letter-spacing: -.012em;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
 }
 
 button,
