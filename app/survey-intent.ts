@@ -1,6 +1,7 @@
 import { lookupVerifiedSurveyKnowledge } from "./survey-knowledge";
 import {
   isImprovementNeedClause,
+  stripResearchAbstract,
   stripSubjectTails,
 } from "./survey-subject-tails";
 import {
@@ -1325,7 +1326,10 @@ function dimensionsFromSurveyIntent(intent: SurveyIntent) {
   }
 }
 
-export function parseSurveyBrief(rawBrief: string): SurveyBrief {
+export function parseSurveyBrief(entered: string): SurveyBrief {
+  // 조사 대상은 이 경로와 parseSurveyIntent 두 곳에서 따로 추출된다.
+  // 한쪽만 걷어내면 제목만 정리되고 문항은 그대로 조각을 쓴다.
+  const rawBrief = stripResearchAbstract(entered);
   const normalizedRaw = normalizePrompt(rawBrief);
   const primaryRequest =
     rawBrief
@@ -5705,7 +5709,11 @@ export function generateSurvey(brief: SurveyBrief): SurveyBlueprint {
   );
 }
 
-export function analyzeSurveyPrompt(rawPrompt: string): SurveyBlueprint {
+export function analyzeSurveyPrompt(enteredPrompt: string): SurveyBlueprint {
+  // 조사 대상을 읽어내는 진입점이 셋이다. parseSurveyBrief, parseSurveyIntent,
+  // 그리고 여기. 이 함수는 원문을 여러 하위 청사진에 그대로 넘기므로 여기서도
+  // 소개문을 걷어내야 한다. 두 곳만 고치면 제목과 문항에 원문이 그대로 남는다.
+  const rawPrompt = stripResearchAbstract(enteredPrompt);
   const parsedSurveyContext = parseSurveyGenerationContext(rawPrompt);
   const directProportion = parseDirectProportionRequest(rawPrompt);
   if (directProportion) {

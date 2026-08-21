@@ -12,6 +12,7 @@ import {
 } from "./survey-context";
 import {
   isImprovementNeedClause,
+  stripResearchAbstract,
   stripSubjectTails,
 } from "./survey-subject-tails";
 
@@ -1215,9 +1216,13 @@ function buildCompositeSurveyIntent(options: {
 }
 
 export function parseSurveyIntent(
-  rawInput: string,
+  entered: string,
   studyType: SurveyIntentStudyType = "general",
 ): SurveyIntent {
+  // 논문식 소개문을 통째로 붙여넣으면 그 전체를 하나의 조사 대상으로 압축하려다
+  // 조각이 남는다("학술"). 도입부와 목적절만 걷어내면 안쪽은 파서가 다룰 수 있다.
+  // 짧은 주제구는 게이트에 걸리지 않아 그대로 통과한다.
+  const rawInput = stripResearchAbstract(entered);
   const raw = normalize(rawInput);
   const semanticContext = parseSurveyGenerationContext(rawInput);
   const requestStripped = normalizeSurveyRequest(raw)

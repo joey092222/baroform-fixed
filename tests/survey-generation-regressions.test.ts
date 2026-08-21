@@ -7,7 +7,10 @@ import {
   validateSurvey,
 } from "../app/survey-intent";
 import { parseSurveyIntent } from "../app/survey-semantic-intent";
-import { stripSubjectTails } from "../app/survey-subject-tails";
+import {
+  stripResearchAbstract,
+  stripSubjectTails,
+} from "../app/survey-subject-tails";
 import { surveyVariableKind } from "../app/survey-variable-kind";
 import { naturalQuestionTitle } from "../app/survey-ai";
 
@@ -511,6 +514,59 @@ test("이미 의문형인 제목은 그대로 둔다", () => {
   ]) {
     assert.equal(naturalQuestionTitle(q, "scale"), q, q);
   }
+});
+
+// 사용자 제보 5-2: 연구 초록을 통째로 붙여넣으면 그 전체를 하나의 조사 대상으로
+// 압축하려다 조각만 남았다("학술" → "학술을 직접 수행해 본 경험이 있나요?").
+// 도입부와 목적절만 걷어내면 안쪽은 파서가 다룰 수 있는 형태다.
+test("연구 초록에서 조사 주제를 뽑아낸다", () => {
+  for (const [prompt, subject] of [
+    [
+      "본 설문조사는 '사교육 및 생성형 AI 활용이 학습자 주체성에 미치는 영향'을 분석하기 위한 학술 연구 목적으로 진행됩니다.",
+      "사교육 및 생성형 AI 활용이 학습자 주체성에 미치는 영향",
+    ],
+    [
+      "본 연구는 대학생의 스마트폰 과의존이 학업 성취에 미치는 영향을 분석하기 위한 조사입니다.",
+      "대학생의 스마트폰 과의존이 학업 성취에 미치는 영향",
+    ],
+    ["이 설문은 1인 가구 청년의 식생활 실태를 파악하기 위해 실시됩니다.", "1인 가구 청년의 식생활 실태"],
+    ["본 조사는 캠퍼스 내 교통 안전 인식을 알아보고 개선 방안을 도출하고자 합니다.", "캠퍼스 내 교통 안전 인식"],
+    ["대학생의 진로 불안과 취업 준비 행동의 관계를 규명하기 위한 연구입니다.", "대학생의 진로 불안과 취업 준비 행동의 관계"],
+  ] as const) {
+    assert.equal(stripResearchAbstract(prompt), subject, prompt.slice(0, 30));
+  }
+});
+
+test("짧은 주제구는 소개문 제거에 걸리지 않는다", () => {
+  // 게이트가 과하면 모든 프롬프트가 깎인다. 기존 테스트 프롬프트 193개 중
+  // 이 게이트에 걸린 것은 없었다.
+  for (const prompt of [
+    "학식 만족도 조사",
+    "교내 카페 만족도 조사",
+    "대학생들의 수면 시간과 그에 따른 지각 빈도 조사",
+    "대학생들의 통학 시간과 그에 따른 자취 비율 조사",
+    "SNS 이용 시간 조사",
+    "학과 만족도 조사",
+  ]) {
+    assert.equal(stripResearchAbstract(prompt), prompt, prompt);
+  }
+});
+
+test("연구 초록도 주제를 살린 설문이 만들어진다", () => {
+  const abstract =
+    "본 설문조사는 '사교육 및 생성형 AI 활용이 학습자 주체성에 미치는 영향'을 분석하기 위한 학술 연구 목적으로 진행됩니다. 본 연구는 밀착 사교육과 생성형 AI가 주는 편의성 뒤에 숨은 '사고의 외주화' 현상을 살펴보고자 합니다.";
+  const research = parseSurveyIntent(abstract).researchIntent;
+  const blueprint = analyzeSurveyPrompt(abstract);
+
+  // 조각("학술")이 아니라 두 변수로 분해돼야 한다
+  assert.deepEqual(
+    research.variables.filter((v) => v.scope === "respondent_level").map((v) => v.name),
+    ["사교육 및 생성형 AI 활용", "학습자 주체성"],
+  );
+  assert.equal(blueprint.title, "사교육 및 생성형 AI 활용과 학습자 주체성 조사");
+  const corpus = blueprint.aiQuestions.map((q) => q.title).join(" ");
+  assert.doesNotMatch(corpus, /학술을|본 설문조사는|진행됩니다|분석하기 위한/);
+  assert.deepEqual(validateSurvey(abstract, parseSurveyBrief(abstract), blueprint), []);
 });
 
 // 이중질문 규칙은 지금까지 발동을 검증하는 테스트가 하나도 없었다. 규칙을

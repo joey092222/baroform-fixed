@@ -50,6 +50,65 @@ export const subjectTailStrips: RegExp[] = [
  * 규칙 순서에 대한 의존을 없앤다. 모든 규칙이 문자열을 짧게만 만들므로
  * 수렴하며, 상한은 안전핀이다. 전부 떨어져 비면 직전 상태를 돌려준다.
  */
+// 연구 초록·설문 소개문의 상투구. 파서는 짧은 주제구("학식 만족도 조사")를
+// 상정하는데, 사용자가 논문식 소개문을 통째로 붙여넣으면 그 전체를 하나의
+// 조사 대상으로 압축하려다 조각이 남는다.
+//
+//   "본 설문조사는 '…학습자 주체성에 미치는 영향'을 분석하기 위한 학술 연구
+//    목적으로 진행됩니다."  →  조사 대상 "학술"
+//                          →  "학술을 직접 수행해 본 경험이 있나요?"
+//
+// 도입부와 목적절만 걷어내면 안쪽은 이미 파서가 다룰 수 있는 형태다.
+// 위 예시는 걷어낸 뒤 변수 두 개(사교육 및 생성형 AI 활용 / 학습자 주체성)로
+// 정확히 분해된다.
+const abstractIntro =
+  /^(?:본|이번|금번|이|저희)\s*(?:설문\s*조사|설문|조사|연구|리서치)(?:는|은|에서는|에서)\s*/;
+// "~을 분석하기 위한", "~를 파악하기 위해", "~하고자 합니다"
+const abstractPurposeClause =
+  /\s*(?:을|를)?\s*(?:분석|파악|규명|확인|알아보|살펴보|검토|도출|모색|탐색|조사|연구)(?:하기|하고자|해|하려|하고)?\s*(?:위한|위해|위하여)?\s*[^.]*$/;
+const abstractClosing =
+  /\s*(?:입니다|합니다|됩니다|진행됩니다|실시됩니다)\s*[.]?\s*$/;
+
+/**
+ * 소개문처럼 "문장으로 쓰인" 입력일 때만 손댄다. 짧은 주제구는 도입부도
+ * 서술형 종결어미도 없으므로 그대로 통과한다. 기존 테스트 프롬프트 193개
+ * 가운데 이 게이트에 걸리는 것은 없었다.
+ */
+function looksLikeResearchAbstract(raw: string) {
+  const trimmed = raw.trim();
+  return (
+    abstractIntro.test(trimmed) ||
+    /(?:입니다|합니다|됩니다|하고자\s*합니다)\s*[.]?\s*$/.test(trimmed) ||
+    /(?:입니다|합니다|됩니다)[.]/.test(trimmed)
+  );
+}
+
+/**
+ * 연구 초록에서 조사 주제만 남긴다. 소개문이 아니면 원문을 그대로 돌려준다.
+ *
+ * 인용부호 안이 있으면 그것을 우선한다. 논문식 소개문은 연구 주제를 따옴표로
+ * 묶는 관례가 있어 신호가 강하다. normalizePrompt보다 먼저 도는 자리라
+ * 따옴표가 아직 살아 있다.
+ */
+export function stripResearchAbstract(raw: string) {
+  if (!looksLikeResearchAbstract(raw)) return raw;
+  // 주제는 보통 첫 문장에 있다.
+  const firstSentence = raw.split(/(?<=[.。])\s+/)[0] ?? raw;
+  const quoted = firstSentence.match(
+    /[‘'"“]([^’'"”]{6,60})[’'"”]/,
+  )?.[1];
+  if (quoted?.trim()) return quoted.trim();
+  const core = firstSentence
+    .replace(abstractIntro, "")
+    .trim()
+    .replace(abstractClosing, "")
+    .trim()
+    .replace(abstractPurposeClause, "")
+    .trim();
+  // 너무 많이 깎였으면 원문이 낫다.
+  return core.length >= 4 ? core : raw;
+}
+
 /**
  * "개선이 필요한 부분", "부족한 점"의 "필요/부족"은 수요 신호가 아니다.
  * 관계절 안에 들어 있고 핵심어는 "부분"이며, 요청의 성격은 새로운 무언가를
