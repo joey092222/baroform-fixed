@@ -8,17 +8,22 @@ export const imageHeaders = {
   "cache-control": "public, s-maxage=300, stale-while-revalidate=86400",
   "content-type": "image/png",
 };
-const brandPanelWidth = 242;
+const brandPanelWidth = 206;
 
 /**
  * 제목 길이에 따라 줄 폭과 글자 크기를 함께 내린다.
- * 왼쪽 본문 칸은 800 - 242(브랜드 패널) - 92(좌우 여백) = 466px다.
- * 한글 글자 폭은 대략 글자 크기의 0.95배라 아래 조합이 그 안에 들어간다.
+ * 왼쪽 본문 칸은 800 - 206(브랜드 패널) - 78(좌우 여백) = 516px다.
+ * Pretendard 한글은 letter-spacing -0.05em에서 글자 폭이 글자 크기의 약 0.65배다.
+ * (렌더해서 실측한 값이다. 1em으로 잡으면 지나치게 좁게 쓰게 된다.)
+ *
+ * 카톡 말풍선에서 이 카드는 폭 260~330px로 줄어든다. 화면에 찍히는 크기가
+ * 원본의 3분의 1이라 52px 제목은 17px, 18px 칩은 6px가 되어 칩이 안 읽혔다.
+ * 그래서 전체를 한 단계 키우고 여백과 브랜드 패널을 줄여 자리를 만들었다.
  */
 const titleTiers = [
-  { maximumPerLine: 9, maximumLines: 2, fontSize: 52 },
-  { maximumPerLine: 11, maximumLines: 3, fontSize: 44 },
-  { maximumPerLine: 12, maximumLines: 3, fontSize: 38 },
+  { maximumPerLine: 10, maximumLines: 2, fontSize: 68 },
+  { maximumPerLine: 12, maximumLines: 3, fontSize: 58 },
+  { maximumPerLine: 15, maximumLines: 3, fontSize: 48 },
 ] as const;
 
 function fitSurveyCardTitle(title: string) {
@@ -108,7 +113,7 @@ export function surveyImageResponse({
             flex: 1,
             flexDirection: "column",
             justifyContent: "space-between",
-            padding: "46px 40px 46px 52px",
+            padding: "42px 32px 42px 46px",
           }}
         >
           <div style={{ display: "flex", flexDirection: "column" }}>
@@ -134,13 +139,14 @@ export function surveyImageResponse({
                 key={label}
                 style={{
                   display: "flex",
-                  padding: "9px 16px",
+                  padding: "11px 15px",
                   border: "1px solid #d8d5cc",
                   borderRadius: 999,
                   background: "#fcfbf7",
                   color: "#626873",
-                  fontSize: 18,
+                  fontSize: 28,
                   fontWeight: 700,
+                  whiteSpace: "nowrap",
                 }}
               >
                 {label}
@@ -158,7 +164,7 @@ export function surveyImageResponse({
             background: "#071426",
           }}
         >
-          {brandLockup(36, 10, 22)}
+          {brandLockup(44, 12, 27)}
         </div>
       </div>
     ),

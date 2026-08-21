@@ -157,7 +157,7 @@ export async function GET(
     // fitOpenGraphTitle은 빈 입력에 기본 제목을 채우므로 값이 있을 때만 태운다.
     const rawAudience = cleanShareText(survey.targetAudience, 64);
     const audience = rawAudience
-      ? fitOpenGraphTitle(rawAudience, { maximumPerLine: 14, maximumLines: 1 })[0]
+      ? fitOpenGraphTitle(rawAudience, { maximumPerLine: 9, maximumLines: 1 })[0]
       : "대학생";
     const duration = Math.max(1, Math.round(survey.durationMinutes));
     const questionCount = Math.max(1, Math.round(survey.questionCount));
