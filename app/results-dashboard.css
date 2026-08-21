@@ -1877,3 +1877,79 @@
 /* 판단이 끝난 항목은 가라앉힌다. 사라지지는 않는다 — 되돌릴 수 있어야 한다. */
 .results-v2-quality-rows article.is-decided { opacity: .62; }
 .results-v2-quality-rows article.is-decided:hover { opacity: 1; }
+
+/* ③ 개별 응답 표에 답을 직접 띄우기 + 문항 선택기 */
+.results-v2-response-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.results-v2-column-toggle {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--bf-border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--bf-navy);
+  font-size: 12.5px;
+  font-weight: 750;
+}
+
+.results-v2-column-toggle.is-open,
+.results-v2-column-toggle:hover {
+  border-color: var(--bf-navy);
+  background: var(--bf-navy-soft);
+}
+
+.results-v2-column-picker {
+  margin: 0 0 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--bf-border);
+  border-radius: var(--bf-radius-sm);
+  background: var(--bf-surface);
+}
+
+.results-v2-column-picker p {
+  margin: 0 0 10px;
+  color: var(--bf-muted);
+  font-size: 12.5px;
+}
+
+.results-v2-column-picker > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.results-v2-column-picker button {
+  min-height: 32px;
+  padding: 0 13px;
+  border: 1px solid var(--bf-border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--bf-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.results-v2-column-picker button.is-on {
+  border-color: var(--bf-navy);
+  background: var(--bf-navy);
+  color: #fff;
+}
+
+.results-v2-column-picker button:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+.results-v2-answer-cell {
+  max-width: 190px;
+  overflow: hidden;
+  color: var(--bf-navy-strong);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

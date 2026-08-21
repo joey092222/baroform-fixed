@@ -667,14 +667,43 @@ function SmallEmptyState({ title, description }: { title: string; description: s
   );
 }
 
+const maxAnswerColumns = 3;
+
 function ResponseTable({
   responses,
+  questions,
   onOpen,
 }: {
   responses: ResultsStoredResponse[];
+  questions: SurveyQuestion[];
   onOpen: (response: ResultsStoredResponse) => void;
 }) {
   const [filter, setFilter] = useState<"all" | QualityStatus>("all");
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  // 표에 답을 직접 띄울 문항. 표가 읽히도록 최대 3개까지만 고른다.
+  const answerable = useMemo(
+    () => questions.filter((question) => question.type !== "section"),
+    [questions],
+  );
+  const [columnIds, setColumnIds] = useState<number[]>(() =>
+    answerable.slice(0, 2).map((question) => question.id),
+  );
+  const columns = useMemo(
+    () =>
+      columnIds
+        .map((id) => answerable.find((question) => question.id === id))
+        .filter((question): question is SurveyQuestion => Boolean(question)),
+    [answerable, columnIds],
+  );
+  const toggleColumn = useCallback((id: number) => {
+    setColumnIds((current) => {
+      if (current.includes(id)) return current.filter((item) => item !== id);
+      if (current.length >= maxAnswerColumns) return current;
+      return [...current, id];
+    });
+  }, []);
+
   const filtered = responses.filter(
     (response) => filter === "all" || responseStatus(response) === filter,
   );
@@ -685,6 +714,15 @@ function ResponseTable({
           <span>개별 응답</span>
           <h2>제출 기록 {responses.length.toLocaleString("ko-KR")}건</h2>
         </div>
+        <div className="results-v2-response-tools">
+          <button
+            type="button"
+            className={`results-v2-column-toggle${pickerOpen ? " is-open" : ""}`}
+            aria-expanded={pickerOpen}
+            onClick={() => setPickerOpen((open) => !open)}
+          >
+            표시 문항 {columns.length}
+          </button>
         <div className="results-v2-filter" aria-label="품질 상태 필터">
           <ListFilter size={15} />
           {(["all", "usable", "review", "exclude"] as const).map((value) => (
@@ -698,7 +736,33 @@ function ResponseTable({
             </button>
           ))}
         </div>
+        </div>
       </header>
+      {pickerOpen && (
+        <div className="results-v2-column-picker">
+          <p>
+            표에 답을 그대로 띄울 문항을 고르세요. 최대 {maxAnswerColumns}개까지 고를 수 있어요.
+          </p>
+          <div>
+            {answerable.map((question, index) => {
+              const on = columnIds.includes(question.id);
+              const full = !on && columnIds.length >= maxAnswerColumns;
+              return (
+                <button
+                  key={question.id}
+                  type="button"
+                  className={on ? "is-on" : ""}
+                  aria-pressed={on}
+                  disabled={full}
+                  onClick={() => toggleColumn(question.id)}
+                >
+                  Q{String(index + 1).padStart(2, "0")} {question.title.slice(0, 22)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
       {filtered.length === 0 ? (
         <SmallEmptyState
           title={responses.length === 0 ? "아직 제출된 응답이 없어요." : "해당 상태의 응답이 없어요."}
@@ -711,6 +775,9 @@ function ResponseTable({
               <thead>
                 <tr>
                   <th>응답 번호</th>
+                  {columns.map((question) => (
+                    <th key={question.id}>{question.title.slice(0, 16)}</th>
+                  ))}
                   <th>제출 시각</th>
                   <th>품질 상태</th>
                   <th>응답 시간</th>
@@ -723,6 +790,18 @@ function ResponseTable({
                   return (
                     <tr key={response.id}>
                       <td>#{String(responses.length - originalIndex).padStart(3, "0")}</td>
+                      {columns.map((question) => {
+                        const answer = response.answers.find(
+                          (item) => item.questionId === question.id,
+                        );
+                        return (
+                          <td key={question.id} className="results-v2-answer-cell">
+                            {answer && isAnswered(answer.value)
+                              ? formatAnswerValue(answer.value)
+                              : "—"}
+                          </td>
+                        );
+                      })}
                       <td>{formatResponseDate(response.createdAt)}</td>
                       <td><QualityBadge status={responseStatus(response)} /></td>
                       <td>{response.completionSeconds || 0}초</td>
@@ -1315,7 +1394,11 @@ export function ResultsDashboard({
 
             {activeTab === "responses" && (
               <div id="results-panel-responses" role="tabpanel">
-                <ResponseTable responses={responses} onOpen={setDetailResponse} />
+                <ResponseTable
+                  responses={responses}
+                  questions={questions}
+                  onOpen={setDetailResponse}
+                />
               </div>
             )}
 
