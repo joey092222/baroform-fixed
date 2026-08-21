@@ -982,20 +982,28 @@
   align-items: center;
   gap: 7px;
   color: var(--bf-muted);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .home-ai-launch form button {
   display: inline-flex;
-  min-height: 42px;
-  padding: 0 15px;
+  min-height: 46px;
+  padding: 0 20px;
   align-items: center;
   gap: 8px;
+  border: 1px solid var(--bf-navy-strong);
   border-radius: 999px;
-  background: var(--bf-navy);
+  background: var(--bf-navy-strong);
   color: #fff;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 750;
+  line-height: 1;
+  transition: transform .18s var(--bf-ease), background .18s var(--bf-ease);
+}
+
+.home-ai-launch form button:hover {
+  background: #102c51;
+  transform: translateY(-1px);
 }
 
 .home-survey-discovery {
