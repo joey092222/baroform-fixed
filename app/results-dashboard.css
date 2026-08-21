@@ -1673,3 +1673,90 @@
   font-size: 11px;
   font-weight: 650;
 }
+
+/* 제출 구성 막대. 카드 4장이 하던 일을 막대 하나가 한다. */
+.results-v2-flow {
+  margin-bottom: 20px;
+  padding: 16px 18px;
+  border: 1px solid var(--bf-border);
+  border-radius: var(--bf-radius);
+  background: var(--bf-surface);
+}
+
+.results-v2-flow-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.results-v2-flow-head strong {
+  color: var(--bf-navy-strong);
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -.03em;
+}
+
+.results-v2-flow-head span {
+  color: var(--bf-muted);
+  font-size: 12.5px;
+}
+
+.results-v2-flow-bar {
+  display: flex;
+  height: 34px;
+  margin-top: 12px;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.results-v2-flow-seg {
+  display: flex;
+  min-width: 0;
+  padding: 0 6px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.results-v2-flow-seg.is-usable { background: var(--bf-positive); }
+.results-v2-flow-seg.is-review { background: var(--bf-warning); }
+.results-v2-flow-seg.is-exclude { background: var(--bf-danger); }
+
+.results-v2-flow-legend {
+  display: flex;
+  margin: 10px 0 0;
+  padding: 0;
+  flex-wrap: wrap;
+  gap: 14px;
+  color: var(--bf-muted);
+  font-size: 12px;
+  list-style: none;
+}
+
+.results-v2-flow-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.results-v2-flow-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+}
+
+.results-v2-flow-legend i.is-usable { background: var(--bf-positive); }
+.results-v2-flow-legend i.is-review { background: var(--bf-warning); }
+.results-v2-flow-legend i.is-exclude { background: var(--bf-danger); }
+
+.results-v2-quality-lead {
+  margin: 0 0 14px;
+  color: var(--bf-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}

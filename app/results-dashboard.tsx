@@ -256,26 +256,67 @@ export function buildQuestionResults(
     });
 }
 
-function ResultMetricCard({
-  label,
-  value,
-  description,
-  tone = "default",
+/**
+ * 제출 건수를 이상 없음 / 검토 / 제외로 나눈 막대 하나.
+ *
+ * 이전에는 카드 4장(총 응답·분석 반영·검토 필요·분석 제외)이었는데,
+ * 42 = 38 + 4 이면서 8은 38 안에 들어 있는 구조라 카드만 봐서는 산술이
+ * 읽히지 않았다. 같은 다섯 숫자를 막대 하나로 표현하면 합이 눈에 보인다.
+ */
+function ResponseFlowBar({
+  total,
+  usable,
+  review,
+  excluded,
 }: {
-  label: string;
-  value: number;
-  description: string;
-  tone?: "default" | "review" | "exclude";
+  total: number;
+  usable: number;
+  review: number;
+  excluded: number;
 }) {
+  const analysed = usable + review;
+  const segments = [
+    { key: "usable", label: "이상 없음", count: usable, tone: "usable" },
+    { key: "review", label: "검토", count: review, tone: "review" },
+    { key: "excluded", label: "제외", count: excluded, tone: "exclude" },
+  ].filter((segment) => segment.count > 0);
+
   return (
-    <article className={`results-v2-metric results-v2-metric-${tone}`}>
-      <span>{label}</span>
-      <strong>{value.toLocaleString("ko-KR")}건</strong>
-      <p>{description}</p>
-    </article>
+    <section className="results-v2-flow" aria-label="응답 품질 구성">
+      <div className="results-v2-flow-head">
+        <strong>
+          제출 {total.toLocaleString("ko-KR")}건
+        </strong>
+        <span>
+          {total > 0
+            ? `이 중 ${analysed.toLocaleString("ko-KR")}건을 분석에 반영`
+            : "아직 제출된 응답이 없어요."}
+        </span>
+      </div>
+      {total > 0 && (
+        <>
+          <div className="results-v2-flow-bar" role="img"
+            aria-label={`이상 없음 ${usable}건, 검토 ${review}건, 분석 제외 ${excluded}건`}>
+            {segments.map((segment) => (
+              <span
+                key={segment.key}
+                className={`results-v2-flow-seg is-${segment.tone}`}
+                style={{ flexGrow: segment.count }}
+              >
+                {segment.label} {segment.count}
+              </span>
+            ))}
+          </div>
+          <ul className="results-v2-flow-legend">
+            <li><i className="is-usable" />집계 포함</li>
+            <li><i className="is-review" />집계 포함, 확인 권장</li>
+            <li><i className="is-exclude" />집계 제외</li>
+          </ul>
+        </>
+      )}
+    </section>
   );
 }
-
 function LowSampleNotice({ responseCount }: { responseCount: number }) {
   if (responseCount >= LOW_SAMPLE_THRESHOLD) return null;
   return (
@@ -525,9 +566,11 @@ function QualitySummary({
   responses: ResultsStoredResponse[];
   onViewQuality: () => void;
 }) {
-  const usable = responses.filter((response) => responseStatus(response) === "usable").length;
-  const review = responses.filter((response) => responseStatus(response) === "review").length;
-  const excluded = responses.filter((response) => responseStatus(response) === "exclude").length;
+  // 이상 없음 / 검토 / 제외 건수는 화면 위 제출 구성 막대가 이미 보여준다.
+  // 여기서는 사용자가 실제로 할 일(확인이 남은 건수)만 남긴다.
+  const pending = responses.filter(
+    (response) => responseStatus(response) !== "usable",
+  ).length;
   return (
     <section className="results-v2-panel results-v2-quality-summary">
       <header className="results-v2-section-heading">
@@ -537,11 +580,11 @@ function QualitySummary({
         </div>
         <ShieldCheck size={20} />
       </header>
-      <div className="results-v2-quality-counts">
-        <span><small>이상 없음</small><strong>{usable}건</strong></span>
-        <span><small>검토 필요</small><strong>{review}건</strong></span>
-        <span><small>분석 제외</small><strong>{excluded}건</strong></span>
-      </div>
+      <p className="results-v2-quality-lead">
+        {pending > 0
+          ? `확인이 남은 응답이 ${pending.toLocaleString("ko-KR")}건 있어요.`
+          : "확인이 필요한 응답이 없어요."}
+      </p>
       <button type="button" onClick={onViewQuality}>
         품질 검사 결과 보기 <ArrowRight size={15} />
       </button>
@@ -1100,12 +1143,12 @@ export function ResultsDashboard({
             <LowSampleNotice responseCount={responses.length} />
             <ResultsTabs activeTab={activeTab} onChange={changeTab} />
             {exportError && <p className="results-v2-export-error" role="alert">{exportError}</p>}
-            <div className="results-v2-metrics" aria-label="핵심 지표">
-              <ResultMetricCard label="총 응답" value={responses.length} description="저장된 전체 제출 기준" />
-              <ResultMetricCard label="분석 반영" value={analysisResponses.length} description={`${usableResponses.length}건 정상 · ${reviewResponses.length}건 검토 표시`} />
-              <ResultMetricCard label="검토 필요" value={reviewResponses.length} description="분석 반영에 포함된 주의 응답" tone="review" />
-              <ResultMetricCard label="분석 제외" value={excludedResponses.length} description="원본은 보존하고 집계에서 제외" tone="exclude" />
-            </div>
+            <ResponseFlowBar
+              total={responses.length}
+              usable={usableResponses.length}
+              review={reviewResponses.length}
+              excluded={excludedResponses.length}
+            />
 
             {activeTab === "overview" && (
               <div id="results-panel-overview" role="tabpanel" className="results-v2-overview">
@@ -1139,12 +1182,6 @@ export function ResultsDashboard({
 
             {activeTab === "quality" && (
               <div id="results-panel-quality" role="tabpanel" className="results-v2-quality-tab">
-                <div className="results-v2-quality-metrics">
-                  <ResultMetricCard label="전체 응답" value={responses.length} description="품질 검사를 실행한 제출" />
-                  <ResultMetricCard label="이상 없음" value={usableResponses.length} description="별도 확인 신호 없음" />
-                  <ResultMetricCard label="검토 필요" value={reviewResponses.length} description="분석에는 포함해 표시" tone="review" />
-                  <ResultMetricCard label="분석 제외" value={excludedResponses.length} description="원본 데이터는 그대로 보존" tone="exclude" />
-                </div>
                 <QualityReviewList responses={responses} onOpen={setDetailResponse} />
               </div>
             )}
