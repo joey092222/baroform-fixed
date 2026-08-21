@@ -1953,3 +1953,47 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* 원본 판정과 최종 반영 여부를 나란히 */
+.results-v2-included {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.results-v2-included.is-in { color: var(--bf-positive); }
+.results-v2-included.is-out { color: var(--bf-danger); }
+
+.results-v2-included em {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--bf-navy-soft);
+  color: var(--bf-navy);
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.results-v2-review-head-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.results-v2-reset {
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--bf-border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--bf-muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.results-v2-reset:hover {
+  border-color: var(--bf-navy);
+  color: var(--bf-navy);
+}

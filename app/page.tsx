@@ -5669,6 +5669,19 @@ function RealAnalyticsView({
     };
   }, [slug]);
 
+  const resetDecisions = useCallback(() => {
+    if (!slug) return;
+    const previous = decisions;
+    setDecisions({});
+    void fetch(`/api/surveys/${encodeURIComponent(slug)}/decisions`, {
+      method: "DELETE",
+    })
+      .then((response) => {
+        if (!response.ok) setDecisions(previous);
+      })
+      .catch(() => setDecisions(previous));
+  }, [decisions, slug]);
+
   const decideResponse = useCallback(
     (responseId: string, decision: ResponseDecision | null) => {
       if (!slug) return;
@@ -5852,7 +5865,27 @@ function RealAnalyticsView({
     if (responses.length === 0 || exporting) return;
     setExporting(format);
     setExportError("");
-    const payload = { title, questions, responses };
+    // 원본 기록은 하나도 빼지 않는다. 대신 서버 판정과 사람 판단을 같이 실어
+    // 파일 하나에 원본과 바꾼 결과가 모두 남게 한다.
+    const payload = {
+      title,
+      questions,
+      responses: responses.map((response) => {
+        const decision = decisions[response.id] ?? null;
+        const serverStatus = response.quality?.status ?? "usable";
+        return {
+          ...response,
+          serverStatus,
+          decision,
+          includedInAnalysis:
+            decision === "exclude"
+              ? false
+              : decision === "include"
+                ? true
+                : serverStatus !== "exclude",
+        };
+      }),
+    };
     try {
       if (format === "excel") {
         await downloadSurveyExcel(payload);
@@ -5903,6 +5936,7 @@ function RealAnalyticsView({
       onDownloadShare={() => void downloadInstagramCard()}
       decisions={decisions}
       onDecide={decideResponse}
+      onResetDecisions={resetDecisions}
     />
   );
 }

@@ -672,13 +672,17 @@ const maxAnswerColumns = 3;
 function ResponseTable({
   responses,
   questions,
+  decisions,
   onOpen,
 }: {
   responses: ResultsStoredResponse[];
   questions: SurveyQuestion[];
+  /** 표시는 최종 상태로 하되 원본 판정 열은 그대로 남긴다. */
+  decisions: ResponseDecisionMap;
   onOpen: (response: ResultsStoredResponse) => void;
 }) {
-  const [filter, setFilter] = useState<"all" | QualityStatus>("all");
+  // "changed"는 사람이 서버 판정을 뒤집은 응답만 모아 본다.
+  const [filter, setFilter] = useState<"all" | "changed" | QualityStatus>("all");
   const [pickerOpen, setPickerOpen] = useState(false);
 
   // 표에 답을 직접 띄울 문항. 표가 읽히도록 최대 3개까지만 고른다.
@@ -704,9 +708,14 @@ function ResponseTable({
     });
   }, []);
 
-  const filtered = responses.filter(
-    (response) => filter === "all" || responseStatus(response) === filter,
-  );
+  const filtered = responses.filter((response) => {
+    if (filter === "all") return true;
+    if (filter === "changed") return Boolean(decisions[response.id]);
+    return effectiveStatus(response, decisions) === filter;
+  });
+  const changedCount = responses.filter(
+    (response) => Boolean(decisions[response.id]),
+  ).length;
   return (
     <section className="results-v2-response-section">
       <header className="results-v2-section-heading results-v2-response-heading">
@@ -725,14 +734,18 @@ function ResponseTable({
           </button>
         <div className="results-v2-filter" aria-label="품질 상태 필터">
           <ListFilter size={15} />
-          {(["all", "usable", "review", "exclude"] as const).map((value) => (
+          {(["all", "usable", "review", "exclude", "changed"] as const).map((value) => (
             <button
               key={value}
               type="button"
               className={filter === value ? "active" : ""}
               onClick={() => setFilter(value)}
             >
-              {value === "all" ? "전체" : qualityLabel(value)}
+              {value === "all"
+                ? "전체"
+                : value === "changed"
+                  ? `직접 바꿈 ${changedCount}`
+                  : qualityLabel(value)}
             </button>
           ))}
         </div>
@@ -779,7 +792,8 @@ function ResponseTable({
                     <th key={question.id}>{question.title.slice(0, 16)}</th>
                   ))}
                   <th>제출 시각</th>
-                  <th>품질 상태</th>
+                  <th>품질 검사</th>
+                  <th>집계 반영</th>
                   <th>응답 시간</th>
                   <th><span className="sr-only">상세 보기</span></th>
                 </tr>
@@ -803,7 +817,24 @@ function ResponseTable({
                         );
                       })}
                       <td>{formatResponseDate(response.createdAt)}</td>
+                      {/* 서버가 내린 원본 판정. 사람이 뭘 바꾸든 여기 그대로 남는다. */}
                       <td><QualityBadge status={responseStatus(response)} /></td>
+                      <td>
+                        {(() => {
+                          const decided = decisions[response.id];
+                          const included = effectiveStatus(response, decisions) !== "exclude";
+                          return (
+                            <span
+                              className={`results-v2-included${
+                                included ? " is-in" : " is-out"
+                              }${decided ? " is-changed" : ""}`}
+                            >
+                              {included ? "반영" : "제외"}
+                              {decided && <em>직접 바꿈</em>}
+                            </span>
+                          );
+                        })()}
+                      </td>
                       <td>{response.completionSeconds || 0}초</td>
                       <td>
                         <button type="button" onClick={() => onOpen(response)}>
@@ -906,16 +937,20 @@ function QualityReviewList({
   responses,
   decisions,
   onDecide,
+  onResetDecisions,
   onOpen,
 }: {
   responses: ResultsStoredResponse[];
   decisions: ResponseDecisionMap;
   onDecide: (responseId: string, decision: ResponseDecision | null) => void;
+  onResetDecisions: () => void;
   onOpen: (response: ResultsStoredResponse) => void;
 }) {
   // 서버가 신호를 준 응답은 판단이 끝나도 목록에 남긴다. 사라지면 되돌릴 수가 없다.
   const flagged = responses.filter((response) => responseStatus(response) !== "usable");
   const undecided = flagged.filter((response) => !decisions[response.id]).length;
+  // 검토 목록 밖의 응답도 직접 바꿨을 수 있으므로 전체를 센다.
+  const decidedCount = Object.keys(decisions).length;
   return (
     <section className="results-v2-panel results-v2-quality-list">
       <header className="results-v2-section-heading">
@@ -923,11 +958,18 @@ function QualityReviewList({
           <span>검토 목록</span>
           <h2>확인이 필요한 응답</h2>
         </div>
-        <span>
-          {undecided > 0
-            ? `${undecided.toLocaleString("ko-KR")}건 남음 / ${flagged.length.toLocaleString("ko-KR")}건`
-            : `${flagged.length.toLocaleString("ko-KR")}건 모두 확인함`}
-        </span>
+        <div className="results-v2-review-head-right">
+          <span>
+            {undecided > 0
+              ? `${undecided.toLocaleString("ko-KR")}건 남음 / ${flagged.length.toLocaleString("ko-KR")}건`
+              : `${flagged.length.toLocaleString("ko-KR")}건 모두 확인함`}
+          </span>
+          {decidedCount > 0 && (
+            <button type="button" className="results-v2-reset" onClick={onResetDecisions}>
+              원본으로 되돌리기 ({decidedCount})
+            </button>
+          )}
+        </div>
       </header>
       {flagged.length === 0 ? (
         <SmallEmptyState
@@ -1237,6 +1279,7 @@ export function ResultsDashboard({
   onDownloadShare,
   decisions,
   onDecide,
+  onResetDecisions,
 }: {
   title: string;
   slug: string;
@@ -1262,6 +1305,8 @@ export function ResultsDashboard({
   decisions: ResponseDecisionMap;
   /** decision을 null로 부르면 사람 판단을 지우고 서버 판정으로 되돌린다. */
   onDecide: (responseId: string, decision: ResponseDecision | null) => void;
+  /** 이 설문에 내린 사람 판단을 전부 지우고 서버 판정으로 되돌린다. */
+  onResetDecisions: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<ResultsTab>("overview");
   const [detailResponse, setDetailResponse] = useState<ResultsStoredResponse | null>(null);
@@ -1397,6 +1442,7 @@ export function ResultsDashboard({
                 <ResponseTable
                   responses={responses}
                   questions={questions}
+                  decisions={decisions}
                   onOpen={setDetailResponse}
                 />
               </div>
@@ -1414,6 +1460,7 @@ export function ResultsDashboard({
                   responses={responses}
                   decisions={decisions}
                   onDecide={onDecide}
+                  onResetDecisions={onResetDecisions}
                   onOpen={setDetailResponse}
                 />
               </div>
