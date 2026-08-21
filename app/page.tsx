@@ -71,7 +71,11 @@ import {
 import {
   JsonResponseError,
 } from "./lib/http/json-response";
-import { ResultsDashboard } from "./results-dashboard";
+import {
+  ResultsDashboard,
+  type ResponseDecision,
+  type ResponseDecisionMap,
+} from "./results-dashboard";
 import {
   deduplicateSurveyOptions,
   shortenSurveyQuestionTitle,
@@ -5596,6 +5600,8 @@ function RealAnalyticsView({
   const [shareOpen, setShareOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareStatus, setShareStatus] = useState("");
+  // 설문 주인이 응답별로 내린 포함/제외 판단. 서버에 저장된다.
+  const [decisions, setDecisions] = useState<ResponseDecisionMap>({});
 
   useEffect(() => {
     if (!slug || !manageToken) {
@@ -5636,6 +5642,56 @@ function RealAnalyticsView({
       cancelled = true;
     };
   }, [slug, manageToken]);
+
+  useEffect(() => {
+    if (!slug) return;
+    let cancelled = false;
+    // 판단 조회는 세션 소유자만 통과한다. 권한이 없으면 조용히 빈 값으로 둔다.
+    void fetch(`/api/surveys/${encodeURIComponent(slug)}/decisions`, {
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        // 설문이 바뀌면 이전 설문 판단이 남지 않도록 실패 시에도 비운다.
+        if (!response.ok) {
+          if (!cancelled) setDecisions({});
+          return;
+        }
+        const result = (await response.json()) as {
+          decisions?: ResponseDecisionMap;
+        };
+        if (!cancelled) setDecisions(result.decisions ?? {});
+      })
+      .catch(() => {
+        if (!cancelled) setDecisions({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  const decideResponse = useCallback(
+    (responseId: string, decision: ResponseDecision | null) => {
+      if (!slug) return;
+      // 화면을 먼저 바꾸고 서버에 보낸다. 실패하면 이전 값으로 되돌린다.
+      const previous = decisions;
+      setDecisions((current) => {
+        const next = { ...current };
+        if (decision) next[responseId] = decision;
+        else delete next[responseId];
+        return next;
+      });
+      void fetch(`/api/surveys/${encodeURIComponent(slug)}/decisions`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ responseId, decision }),
+      })
+        .then((response) => {
+          if (!response.ok) setDecisions(previous);
+        })
+        .catch(() => setDecisions(previous));
+    },
+    [decisions, slug],
+  );
 
   const analysisResponses = responses.filter((response) => response.quality?.status !== "exclude");
 
@@ -5845,6 +5901,8 @@ function RealAnalyticsView({
       onCloseShare={() => setShareOpen(false)}
       onShareToInstagram={() => void shareResultToInstagram()}
       onDownloadShare={() => void downloadInstagramCard()}
+      decisions={decisions}
+      onDecide={decideResponse}
     />
   );
 }

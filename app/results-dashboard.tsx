@@ -98,6 +98,28 @@ function responseStatus(response: ResultsStoredResponse): QualityStatus {
   return response.quality?.status ?? "usable";
 }
 
+/** 설문 주인이 개별 응답에 내린 판단. 서버 품질 판정을 덮어쓴다. */
+export type ResponseDecision = "include" | "exclude";
+export type ResponseDecisionMap = Record<string, ResponseDecision>;
+
+/**
+ * 서버 판정 위에 사람 판단을 얹은 최종 상태.
+ *
+ * 사람이 include라고 했으면 서버가 exclude라 해도 집계에 넣는다. 그 반대도 같다.
+ * 판단이 없으면 서버 판정을 그대로 쓴다.
+ */
+function effectiveStatus(
+  response: ResultsStoredResponse,
+  decisions: ResponseDecisionMap,
+): QualityStatus {
+  const decided = decisions[response.id];
+  if (decided === "exclude") return "exclude";
+  if (decided === "include") {
+    const base = responseStatus(response);
+    return base === "exclude" ? "usable" : base;
+  }
+  return responseStatus(response);
+}
 function qualityLabel(status: QualityStatus) {
   if (status === "review") return "검토 필요";
   if (status === "exclude") return "분석 제외";
@@ -737,14 +759,84 @@ function ResponseTable({
   );
 }
 
+
+/**
+ * 판단 전후로 대표 수치가 얼마나 달라지는지 비교한다.
+ *
+ * 설문 주인이 실제로 알고 싶은 건 "이 응답이 왜 이상한가"보다
+ * "빼면 결과가 달라지나"다. 안 달라지면 검토에 시간을 안 써도 된다.
+ */
+function ExclusionImpact({
+  baseline,
+  current,
+  excludedCount,
+  totalCount,
+}: {
+  baseline: ReturnType<typeof buildQuestionResults>;
+  current: ReturnType<typeof buildQuestionResults>;
+  excludedCount: number;
+  totalCount: number;
+}) {
+  // 비교 기준은 첫 번째 선택형 문항. 척도만 있는 설문이면 평균을 쓴다.
+  const index = baseline.findIndex(
+    (result) => result.topChoice !== null || result.average !== null,
+  );
+  if (index < 0 || excludedCount === 0) return null;
+
+  const before = baseline[index];
+  const after = current[index];
+  if (!after) return null;
+
+  const isScale = before.average !== null;
+  const beforeValue = isScale ? before.average : before.topChoice?.percentage ?? null;
+  const afterValue = isScale
+    ? after.average
+    : after.choices.find((choice) => choice.label === before.topChoice?.label)
+        ?.percentage ?? null;
+  if (beforeValue === null || afterValue === null) return null;
+
+  const digits = isScale ? 1 : 1;
+  const unit = isScale ? "점" : "%";
+  const delta = afterValue - beforeValue;
+  const label = isScale
+    ? `${before.question.title} 평균`
+    : `${before.question.title} · ${before.topChoice?.label}`;
+
+  return (
+    <section className="results-v2-impact" aria-label="제외가 결과에 미치는 영향">
+      <div>
+        <small>{totalCount.toLocaleString("ko-KR")}건 전부 포함</small>
+        <strong>{beforeValue.toFixed(digits)}{unit}</strong>
+      </div>
+      <span className="results-v2-impact-arrow" aria-hidden="true">→</span>
+      <div>
+        <small>{excludedCount.toLocaleString("ko-KR")}건 제외 (현재)</small>
+        <strong className="is-current">{afterValue.toFixed(digits)}{unit}</strong>
+      </div>
+      <p>
+        <b>{label}</b>
+        {Math.abs(delta) < 0.05
+          ? " 기준으로 결과가 사실상 그대로입니다."
+          : ` 기준으로 ${delta > 0 ? "+" : "−"}${Math.abs(delta).toFixed(digits)}${isScale ? "점" : "%p"} 움직입니다.`}
+      </p>
+    </section>
+  );
+}
+
 function QualityReviewList({
   responses,
+  decisions,
+  onDecide,
   onOpen,
 }: {
   responses: ResultsStoredResponse[];
+  decisions: ResponseDecisionMap;
+  onDecide: (responseId: string, decision: ResponseDecision | null) => void;
   onOpen: (response: ResultsStoredResponse) => void;
 }) {
+  // 서버가 신호를 준 응답은 판단이 끝나도 목록에 남긴다. 사라지면 되돌릴 수가 없다.
   const flagged = responses.filter((response) => responseStatus(response) !== "usable");
+  const undecided = flagged.filter((response) => !decisions[response.id]).length;
   return (
     <section className="results-v2-panel results-v2-quality-list">
       <header className="results-v2-section-heading">
@@ -752,7 +844,11 @@ function QualityReviewList({
           <span>검토 목록</span>
           <h2>확인이 필요한 응답</h2>
         </div>
-        <span>{flagged.length.toLocaleString("ko-KR")}건</span>
+        <span>
+          {undecided > 0
+            ? `${undecided.toLocaleString("ko-KR")}건 남음 / ${flagged.length.toLocaleString("ko-KR")}건`
+            : `${flagged.length.toLocaleString("ko-KR")}건 모두 확인함`}
+        </span>
       </header>
       {flagged.length === 0 ? (
         <SmallEmptyState
@@ -764,8 +860,9 @@ function QualityReviewList({
           {flagged.map((response) => {
             const originalIndex = responses.findIndex((item) => item.id === response.id);
             const reasons = response.quality?.reasons ?? [];
+            const decided = decisions[response.id];
             return (
-              <article key={response.id}>
+              <article key={response.id} className={decided ? `is-decided is-${decided}` : ""}>
                 <div className="results-v2-quality-row-title">
                   <strong>#{String(responses.length - originalIndex).padStart(3, "0")}</strong>
                   <span>{formatResponseDate(response.createdAt)}</span>
@@ -778,11 +875,40 @@ function QualityReviewList({
                 ) : (
                   <p className="results-v2-no-reason">기록된 검토 사유가 없습니다.</p>
                 )}
+                <p className="results-v2-quality-answers">
+                  {response.answers
+                    .filter((answer) => isAnswered(answer.value))
+                    .slice(0, 3)
+                    .map((answer) => (
+                      <span key={answer.questionId}>
+                        {answer.title.slice(0, 18)}
+                        <b>{formatAnswerValue(answer.value).slice(0, 24)}</b>
+                      </span>
+                    ))}
+                </p>
                 <div className="results-v2-quality-row-footer">
                   <span><Clock3 size={14} /> {response.completionSeconds || 0}초 소요</span>
-                  <button type="button" onClick={() => onOpen(response)}>
-                    상세 응답 확인 <ArrowRight size={14} />
-                  </button>
+                  <div className="results-v2-decide">
+                    <button
+                      type="button"
+                      className={decided === "include" ? "is-on is-include" : ""}
+                      aria-pressed={decided === "include"}
+                      onClick={() => onDecide(response.id, decided === "include" ? null : "include")}
+                    >
+                      집계에 포함
+                    </button>
+                    <button
+                      type="button"
+                      className={decided === "exclude" ? "is-on is-exclude" : ""}
+                      aria-pressed={decided === "exclude"}
+                      onClick={() => onDecide(response.id, decided === "exclude" ? null : "exclude")}
+                    >
+                      집계에서 제외
+                    </button>
+                    <button type="button" className="is-link" onClick={() => onOpen(response)}>
+                      전체 보기 <ArrowRight size={14} />
+                    </button>
+                  </div>
                 </div>
               </article>
             );
@@ -1030,6 +1156,8 @@ export function ResultsDashboard({
   onCloseShare,
   onShareToInstagram,
   onDownloadShare,
+  decisions,
+  onDecide,
 }: {
   title: string;
   slug: string;
@@ -1051,6 +1179,10 @@ export function ResultsDashboard({
   onCloseShare: () => void;
   onShareToInstagram: () => void;
   onDownloadShare: () => void;
+  /** 설문 주인이 응답별로 내린 포함/제외 판단. 서버에 저장된 값이다. */
+  decisions: ResponseDecisionMap;
+  /** decision을 null로 부르면 사람 판단을 지우고 서버 판정으로 되돌린다. */
+  onDecide: (responseId: string, decision: ResponseDecision | null) => void;
 }) {
   const [activeTab, setActiveTab] = useState<ResultsTab>("overview");
   const [detailResponse, setDetailResponse] = useState<ResultsStoredResponse | null>(null);
@@ -1072,21 +1204,28 @@ export function ResultsDashboard({
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
   }, []);
 
+  // 아래 집계는 모두 사람 판단이 반영된 상태를 기준으로 센다.
+  // 그래야 '빼고 보기'가 실제로 숫자를 바꾼다.
   const usableResponses = useMemo(
-    () => responses.filter((response) => responseStatus(response) === "usable"),
-    [responses],
+    () => responses.filter((response) => effectiveStatus(response, decisions) === "usable"),
+    [responses, decisions],
   );
   const reviewResponses = useMemo(
-    () => responses.filter((response) => responseStatus(response) === "review"),
-    [responses],
+    () => responses.filter((response) => effectiveStatus(response, decisions) === "review"),
+    [responses, decisions],
   );
   const excludedResponses = useMemo(
-    () => responses.filter((response) => responseStatus(response) === "exclude"),
-    [responses],
+    () => responses.filter((response) => effectiveStatus(response, decisions) === "exclude"),
+    [responses, decisions],
   );
   const analysisResponses = useMemo(
-    () => responses.filter((response) => responseStatus(response) !== "exclude"),
-    [responses],
+    () => responses.filter((response) => effectiveStatus(response, decisions) !== "exclude"),
+    [responses, decisions],
+  );
+  // 아무 판단도 안 했을 때의 결과. 제외가 결론을 바꾸는지 비교하는 데 쓴다.
+  const baselineResults = useMemo(
+    () => buildQuestionResults(questions, responses),
+    [questions, responses],
   );
   const questionResults = useMemo(
     () => buildQuestionResults(questions, analysisResponses),
@@ -1182,7 +1321,18 @@ export function ResultsDashboard({
 
             {activeTab === "quality" && (
               <div id="results-panel-quality" role="tabpanel" className="results-v2-quality-tab">
-                <QualityReviewList responses={responses} onOpen={setDetailResponse} />
+                <ExclusionImpact
+                  baseline={baselineResults}
+                  current={questionResults}
+                  excludedCount={excludedResponses.length}
+                  totalCount={responses.length}
+                />
+                <QualityReviewList
+                  responses={responses}
+                  decisions={decisions}
+                  onDecide={onDecide}
+                  onOpen={setDetailResponse}
+                />
               </div>
             )}
           </>

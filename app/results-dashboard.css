@@ -1760,3 +1760,120 @@
   font-size: 13px;
   line-height: 1.6;
 }
+
+/* ④D 제외가 결과를 바꾸는지 한 줄로 */
+.results-v2-impact {
+  display: flex;
+  margin-bottom: 16px;
+  padding: 15px 18px;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  border: 1px solid var(--bf-border);
+  border-radius: var(--bf-radius);
+  background: var(--bf-surface);
+}
+
+.results-v2-impact small {
+  display: block;
+  color: var(--bf-muted);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.results-v2-impact strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--bf-navy-strong);
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -.04em;
+}
+
+.results-v2-impact strong.is-current { color: var(--bf-positive); }
+
+.results-v2-impact-arrow {
+  color: var(--bf-border-dark);
+  font-size: 19px;
+}
+
+.results-v2-impact p {
+  margin: 0;
+  flex: 1 1 240px;
+  min-width: 0;
+  color: var(--bf-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+  text-align: right;
+}
+
+.results-v2-impact p b {
+  color: var(--bf-navy-strong);
+  font-weight: 750;
+}
+
+/* ④C 답 요약 + 그 자리에서 판단 */
+.results-v2-quality-answers {
+  display: flex;
+  margin: 8px 0 0;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.results-v2-quality-answers span {
+  display: inline-flex;
+  padding: 5px 10px;
+  align-items: center;
+  gap: 6px;
+  border-radius: 7px;
+  background: var(--bf-navy-soft);
+  color: var(--bf-muted);
+  font-size: 11.5px;
+}
+
+.results-v2-quality-answers b {
+  color: var(--bf-navy);
+  font-weight: 750;
+}
+
+.results-v2-decide {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.results-v2-decide button {
+  min-height: 32px;
+  padding: 0 13px;
+  border: 1px solid var(--bf-border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--bf-muted);
+  font-size: 12px;
+  font-weight: 750;
+  transition: background .15s var(--bf-ease), color .15s var(--bf-ease);
+}
+
+.results-v2-decide button:hover { border-color: var(--bf-border-dark); }
+
+.results-v2-decide button.is-on.is-include {
+  border-color: var(--bf-positive);
+  background: var(--bf-positive);
+  color: #fff;
+}
+
+.results-v2-decide button.is-on.is-exclude {
+  border-color: var(--bf-danger);
+  background: var(--bf-danger);
+  color: #fff;
+}
+
+.results-v2-decide button.is-link {
+  padding: 0 6px;
+  border-color: transparent;
+  background: transparent;
+}
+
+/* 판단이 끝난 항목은 가라앉힌다. 사라지지는 않는다 — 되돌릴 수 있어야 한다. */
+.results-v2-quality-rows article.is-decided { opacity: .62; }
+.results-v2-quality-rows article.is-decided:hover { opacity: 1; }
