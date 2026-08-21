@@ -1941,7 +1941,7 @@
   font-size: clamp(38px, 4.4vw, 52px);
   font-weight: 720;
   letter-spacing: -.06em;
-  line-height: 1.12;
+  line-height: 1.2;
 }
 
 .respond-description {
