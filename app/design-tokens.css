@@ -16,6 +16,11 @@
   --bf-radius-sm: 10px;
   --bf-radius: 16px;
   --bf-radius-lg: 22px;
+  /* 섹션 제목 스케일. 두 단계뿐이고 비율은 1.24(장3도)다.
+     이 토큰이 생기기 전에는 섹션마다 clamp()를 따로 적어서 같은 역할의
+     h2가 44 / 50 / 52 / 56px로 갈렸다. 새 섹션은 반드시 아래를 쓸 것. */
+  --bf-h2: clamp(38px, 4vw, 52px);
+  --bf-h2-compact: clamp(30px, 3.2vw, 42px);
   --bf-page: 1280px;
   --bf-editor-page: 1580px;
   --bf-section: clamp(92px, 10vw, 150px);

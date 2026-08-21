@@ -601,7 +601,6 @@
 }
 
 .landing-section-heading h2,
-.campus-section-heading h2,
 .my-surveys-heading h2 {
   max-width: 780px;
   margin: 12px 0 0;
@@ -935,7 +934,7 @@
 
 .home-ai-launch h2 {
   margin: 14px 0 12px;
-  font-size: clamp(34px, 3.7vw, 50px);
+  font-size: var(--bf-h2);
   font-weight: 690;
   letter-spacing: -.055em;
   line-height: 1.18;
@@ -1096,7 +1095,7 @@
 }
 
 .campus-section-heading h2 {
-  font-size: clamp(38px, 4vw, 52px);
+  font-size: var(--bf-h2);
 }
 
 .home-section-controls,
@@ -1401,7 +1400,7 @@
 }
 
 .campus-section-heading.compact h2 {
-  font-size: clamp(32px, 3.2vw, 44px);
+  font-size: var(--bf-h2-compact);
 }
 
 .home-community-list {
@@ -1491,7 +1490,7 @@
 
 .home-organizer-panel h2 {
   margin: 14px 0;
-  font-size: clamp(38px, 4vw, 56px);
+  font-size: var(--bf-h2);
   letter-spacing: -.055em;
   line-height: 1.18;
   white-space: nowrap;
