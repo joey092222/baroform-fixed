@@ -130,6 +130,16 @@ test("공유 카드 규격과 글꼴은 한 곳에서만 정의한다", async ()
   assert.match(fontSource, /Pretendard-Bold-Baroform\.ttf/);
 });
 
+test("설문을 발행하면 공유 카드 이미지를 미리 구워 둔다", async () => {
+  const publishSource = await readFile("app/api/surveys/route.ts", "utf8");
+
+  // 이게 빠지면 첫 공유에서 카카오톡이 콜드 렌더를 기다리다 카드를 포기한다.
+  assert.match(publishSource, /warmSurveyShareCard\(slug\)/);
+  assert.match(publishSource, /after\(async \(\) => \{/);
+  // 주소는 공유 페이지가 내보내는 og:image를 읽어 쓴다. 직접 조립하면 ?v=가 어긋난다.
+  assert.match(publishSource, /property="og:image" content="\(\[\^"\]\+\)"/);
+});
+
 test("운영 공개 조회와 share route는 익명 공개 조건과 서버 metadata를 사용한다", async () => {
   const [
     dataSource,
