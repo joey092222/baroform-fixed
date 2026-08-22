@@ -4,6 +4,17 @@ const localSiteUrl = "http://localhost:3000";
 const maximumShareDescriptionLength = 110;
 
 export const defaultOpenGraphImagePath = "/og/baroform-default.png";
+
+// 공유 카드 규격은 여기 한 곳에서만 정한다. og-survey-card가 이 값으로 렌더하고
+// 아래 metadata도 같은 값을 선언한다.
+//
+// 예전에는 카드와 metadata가 크기를 따로 들고 있었다. 카드를 1236x686으로 바꿨을 때
+// metadata는 800x400으로 남아, 카카오톡이 받은 이미지와 선언된 규격이 달라 미리보기를
+// 통째로 포기했다. 링크는 맨 텍스트로만 떴다.
+export const surveyOpenGraphImageSize = { width: 1236, height: 686 } as const;
+
+// 이쪽은 public/og/baroform-default.png 파일의 실제 크기다. 위 카드와 별개다.
+export const defaultOpenGraphImageSize = { width: 800, height: 400 } as const;
 export const defaultSiteTitle = "바로폼 | 설문을 쉽고 빠르게";
 export const defaultSiteDescription =
   "문항 설계부터 응답 수집과 결과 확인까지, 바로폼에서 간편하게 진행하세요.";
@@ -176,8 +187,8 @@ export function buildSurveyMetadata(
       images: [
         {
           url: image,
-          width: 800,
-          height: 400,
+          width: surveyOpenGraphImageSize.width,
+          height: surveyOpenGraphImageSize.height,
           alt: `${surveyTitle} 설문 미리보기`,
           type: "image/png",
         },
@@ -214,8 +225,8 @@ export function buildUnavailableSurveyMetadata(shareToken?: string): Metadata {
       images: [
         {
           url: image,
-          width: 800,
-          height: 400,
+          width: defaultOpenGraphImageSize.width,
+          height: defaultOpenGraphImageSize.height,
           alt: "바로폼 설문 플랫폼",
           type: "image/png",
         },

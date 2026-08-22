@@ -9,6 +9,7 @@ import {
   fitOpenGraphDescription,
   fitOpenGraphTitle,
   surveyOpenGraphImagePath,
+  surveyOpenGraphImageSize,
   surveyOpenGraphImageUrl,
   surveySharePath,
 } from "../app/survey-share";
@@ -59,9 +60,16 @@ test("서로 다른 설문은 서로 다른 OG title, description, image를 만�
     height: number;
     type: string;
   }>;
+  // 숫자를 여기 다시 적지 않는다. 예전에는 800x400이 박혀 있어서, 카드가
+  // 1236x686으로 바뀌고 metadata만 800x400에 남았을 때 이 테스트가 통과해 버렸다.
+  // 카카오톡은 선언된 규격과 실제 이미지가 다르면 미리보기를 통째로 포기한다.
   assert.deepEqual(
     { width: firstImage.width, height: firstImage.height, type: firstImage.type },
-    { width: 800, height: 400, type: "image/png" },
+    {
+      width: surveyOpenGraphImageSize.width,
+      height: surveyOpenGraphImageSize.height,
+      type: "image/png",
+    },
   );
   assert.equal((first.twitter as { card?: string } | undefined)?.card, "summary_large_image");
   assert.match(String(first.alternates?.canonical), /\/s\/a1b2c3d4e5f6$/);
@@ -104,6 +112,22 @@ test("OG 제목은 최대 두 줄과 말줄임으로 안전하게 제한한다",
   assert.equal(descriptionLines.length, 2);
   assert.ok(descriptionLines.every((line) => Array.from(line).length <= 35));
   assert.match(descriptionLines[1], /…$/);
+});
+
+test("공유 카드 규격과 글꼴은 한 곳에서만 정의한다", async () => {
+  const [cardSource, fontSource] = await Promise.all([
+    readFile("app/lib/og-survey-card.tsx", "utf8"),
+    readFile("app/lib/open-graph-font.ts", "utf8"),
+  ]);
+
+  // 카드가 크기를 새로 적으면 metadata와 어긋난다. 실제로 그렇게 어긋났을 때
+  // 카카오톡은 미리보기를 통째로 포기하고 링크를 맨 텍스트로 띄웠다.
+  assert.match(cardSource, /imageSize = surveyOpenGraphImageSize/);
+  assert.doesNotMatch(cardSource, /export const imageSize = \{/);
+
+  // satori는 없는 굵기를 합성하지 못한다. 라벨 볼드 / 값 레귤러를 지키려면 둘 다 실어야 한다.
+  assert.match(fontSource, /Pretendard-Regular-Baroform\.ttf/);
+  assert.match(fontSource, /Pretendard-Bold-Baroform\.ttf/);
 });
 
 test("운영 공개 조회와 share route는 익명 공개 조건과 서버 metadata를 사용한다", async () => {

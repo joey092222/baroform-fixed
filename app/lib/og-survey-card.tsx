@@ -1,11 +1,14 @@
 import { ImageResponse } from "next/og";
 import { loadOpenGraphKoreanFonts } from "@/app/lib/open-graph-font";
-import { fitOpenGraphTitle } from "@/app/survey-share";
+import { fitOpenGraphTitle, surveyOpenGraphImageSize } from "@/app/survey-share";
 
 // 시안 파일과 같은 화폭(1236x686)이다. 아래 치수는 전부 그 시안에서 그대로 잰 값이라
 // 임의로 키우거나 줄이지 않는다. 라우트가 아니라 여기 두어야 스크립트에서도 그대로
 // 렌더해 볼 수 있다.
-export const imageSize = { width: 1236, height: 686 };
+//
+// 크기는 여기서 새로 적지 않고 survey-share에서 가져온다. 같은 숫자를 두 곳에 적으면
+// 한쪽만 바뀌어 metadata가 실제 이미지와 어긋나고, 카카오톡이 미리보기를 포기한다.
+export const imageSize = surveyOpenGraphImageSize;
 export const imageHeaders = {
   "cache-control": "public, s-maxage=300, stale-while-revalidate=86400",
   "content-type": "image/png",
