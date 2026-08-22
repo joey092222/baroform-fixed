@@ -11,7 +11,12 @@ export const defaultOpenGraphImagePath = "/og/baroform-default.png";
 // 예전에는 카드와 metadata가 크기를 따로 들고 있었다. 카드를 1236x686으로 바꿨을 때
 // metadata는 800x400으로 남아, 카카오톡이 받은 이미지와 선언된 규격이 달라 미리보기를
 // 통째로 포기했다. 링크는 맨 텍스트로만 떴다.
-export const surveyOpenGraphImageSize = { width: 1236, height: 686 } as const;
+//
+// 높이는 시안(1236x686, 1.8:1)이 아니라 2:1이다. 카카오톡은 말풍선 카드를 2:1로
+// 잘라내므로 1.8:1로 내보내면 아래 68px이 날아가고 서명줄 값이 잘린다.
+// 실제로 그렇게 잘려 나갔다. 가로 치수와 글자 크기는 시안 그대로이고,
+// 제목 위아래 빈 공간만 그만큼 줄어든다.
+export const surveyOpenGraphImageSize = { width: 1236, height: 618 } as const;
 
 // 이쪽은 public/og/baroform-default.png 파일의 실제 크기다. 위 카드와 별개다.
 export const defaultOpenGraphImageSize = { width: 800, height: 400 } as const;

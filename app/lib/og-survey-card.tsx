@@ -20,17 +20,26 @@ export const contentWidth = imageSize.width - horizontalPadding * 2;
 
 /**
  * 제목 길이에 따라 줄 폭과 글자 크기를 함께 내린다.
- * Pretendard 한글은 letter-spacing -0.03em에서 글자 폭이 글자 크기의 약 0.67배다.
- * (렌더해서 실측한 값이다. 1em으로 잡으면 지나치게 좁게 쓰게 된다.)
- *
  * 첫 단계 95px / 한 줄이 시안 그대로이고, 제목이 길어질 때만 아래로 내려간다.
+ *
+ * 줄당 글자 수는 한글과 공백이 섞인 평균 폭을 글자 크기의 0.82배로 잡고 계산했다.
+ * 렌더해서 실측한 값이다(82px에서 17글자가 1090px, 본문 칸은 1106px).
+ * 처음에 0.67로 잡았더니 한 줄에 안 들어가는 길이를 통과시켜 satori가 제 나름대로
+ * 줄을 바꿨고, "…수요 조 / 사"처럼 낱말 가운데가 끊겼다.
  */
-const titleTiers = [
-  { maximumPerLine: 17, maximumLines: 1, fontSize: 95 },
-  { maximumPerLine: 20, maximumLines: 2, fontSize: 82 },
-  { maximumPerLine: 25, maximumLines: 3, fontSize: 66 },
-  { maximumPerLine: 30, maximumLines: 3, fontSize: 55 },
-] as const;
+const koreanGlyphWidthRatio = 0.82;
+
+// 글자 수를 손으로 적지 않고 글자 크기에서 뽑는다. 크기를 바꿔도 줄당 글자 수가
+// 따라오므로 둘이 어긋날 일이 없다.
+function charactersPerLine(fontSize: number) {
+  return Math.floor(contentWidth / (fontSize * koreanGlyphWidthRatio));
+}
+
+const titleTiers = [95, 82, 66, 55].map((fontSize, index) => ({
+  maximumPerLine: charactersPerLine(fontSize),
+  maximumLines: index === 0 ? 1 : index === 1 ? 2 : 3,
+  fontSize,
+}));
 
 function fitSurveyCardTitle(title: string) {
   for (const tier of titleTiers) {
@@ -234,6 +243,10 @@ export function surveyImageResponse({
                 fontWeight: 700,
                 lineHeight: 1.22,
                 letterSpacing: "-0.03em",
+                // 위 계산이 빗나가도 낱말 가운데는 끊기지 않게 하는 안전판이다.
+                // 한국어는 글자 사이 어디서나 줄을 바꿀 수 있어 이것이 없으면
+                // "조사"가 "조 / 사"로 갈린다.
+                wordBreak: "keep-all",
                 color: titleNavy,
               }}
             >
