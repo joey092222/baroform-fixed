@@ -3071,3 +3071,28 @@ body { background: #f4f6f8; }
 
 /* 커뮤니티 페이지 배경도 프리뷰 톤으로 */
 .community-page { background: #f4f6f8; }
+
+/* ── 랜딩: 히어로만 (스크롤 없음) ─────────────────────────── */
+.landing-only-hero { height: 100vh; overflow: hidden; }
+.landing-only-hero .landing-video-hero { height: 100vh; }
+
+/* ── 헤더: 만들기·메뉴는 왼쪽, 계정은 오른쪽 끝 ──────────── */
+.site-header .header-inner { display: flex; align-items: center; gap: 20px; }
+.site-header .brand { order: 0; }
+.site-header .nav-cta { order: 1; margin-right: 4px; }
+.site-header .main-nav { order: 2; }
+.site-header .header-actions { order: 3; margin-left: auto; }
+
+/* ── 캠퍼스 투표: VS 대결형 (프리뷰 남색 단색) ───────────── */
+.pulse-vs { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.pulse-vs-mark { flex: none; font-size: 11px; font-weight: 800; color: #b3bac4; letter-spacing: 0.06em; }
+.pulse-vs-side { flex: 1; position: relative; height: 116px; border-radius: 12px; overflow: hidden; background: #eef1f7; border: 1px solid #d3dced; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+.pulse-vs-side.win { background: linear-gradient(158deg, #33578f, #1a3763); border-color: transparent; box-shadow: 0 6px 16px rgba(20, 40, 80, 0.16); }
+.pulse-vs-side b { font-size: 30px; letter-spacing: -0.04em; line-height: 1; color: #1c3a6b; font-weight: 900; }
+.pulse-vs-side b span { font-size: 16px; font-weight: 800; }
+.pulse-vs-side em { font-style: normal; font-size: 12.5px; font-weight: 750; color: #1c3a6b; }
+.pulse-vs-side.win b, .pulse-vs-side.win em { color: #fff; }
+.pulse-vs-side i { position: absolute; left: 12px; right: 12px; bottom: 11px; height: 4px; border-radius: 2px; background: #fff; display: block; }
+.pulse-vs-side.win i { background: rgba(255, 255, 255, 0.3); }
+.pulse-vs-side i span { display: block; height: 100%; border-radius: 2px; background: #aebbd2; }
+.pulse-vs-side.win i span { background: #fff; }
