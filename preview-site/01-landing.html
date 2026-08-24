@@ -1,0 +1,203 @@
+<!doctype html><html lang="ko"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>랜딩 — 바로폼 프리뷰</title><style>
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+:root{
+  --bg:#f4f6f8; --surface:#fff; --line:#e5e8ee; --line-dk:#d4dae2;
+  --navy:#1c3a6b; --navy-dk:#142c52; --blue:#2b6cd4; --blue-bg:#edf3fc;
+  --text:#191c21; --muted:#79818d; --green:#178a5c; --orange:#d97516; --red:#cc4437;
+}
+*{box-sizing:border-box;margin:0}
+html,body{overflow-x:clip}
+body{background:var(--bg);color:var(--text);word-break:keep-all;
+  font-family:"Pretendard Variable",Pretendard,"Malgun Gothic",sans-serif;font-size:14px}
+a{text-decoration:none;color:inherit;cursor:pointer}
+.pvbar{display:flex;gap:14px;align-items:center;padding:7px 28px;background:#142c52;color:#9fb4d6;font-size:12px}
+.pvbar b{color:#fff;font-weight:750}
+.pvbar a{color:#cddcf5;font-weight:650}
+.pvbar a:hover{color:#fff}
+.navbar.nb-over{position:absolute;top:0;left:0;right:0;z-index:3;background:transparent;border-bottom:0;height:72px}
+.navbar.nb-over .brand{color:#fff}
+.navbar.nb-over .bmark{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.34)}
+.navbar.nb-over .nav a{color:rgba(255,255,255,.86)}
+.navbar.nb-over .nav a:hover,.navbar.nb-over .nav a.on{color:#fff}
+.navbar.nb-over .loginlink{color:rgba(255,255,255,.86)}
+.navbar.nb-over .cta{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.4);color:#fff;backdrop-filter:blur(8px)}
+.navbar.nb-over .cta.ghost{background:#fff;color:var(--navy);border-color:#fff}
+.navbar{display:flex;align-items:center;gap:26px;padding:0 28px;height:64px;
+  background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50}
+.brand{display:flex;align-items:center;gap:9px;font-size:19px;font-weight:800;letter-spacing:-.04em}
+.bmark{width:28px;height:28px;border-radius:8px;background:var(--navy);position:relative}
+.bmark i{position:absolute;left:7px;height:3px;border-radius:2px;background:#fff;display:block}
+.bmark i:first-child{top:9px;width:13px}.bmark i:last-child{top:16px;width:8px}
+.cta{display:inline-flex;align-items:center;gap:7px;height:42px;padding:0 18px;border-radius:9px;
+  background:var(--navy);color:#fff;font-size:14.5px;font-weight:750}
+.cta:hover{background:var(--navy-dk)}
+.cta.big{height:48px;padding:0 24px;font-size:15.5px}
+.cta.ghost{background:#fff;color:var(--navy);border:1.5px solid var(--line-dk)}
+.nav{display:flex;gap:24px;font-size:15px;font-weight:600;color:#3d4451}
+.nav .on{color:var(--navy);font-weight:800}
+.nav-r{margin-left:auto;display:flex;align-items:center;gap:14px}
+.loginlink{font-weight:650;color:#3d4451}
+.badge-preview{display:inline-flex;align-items:center;height:28px;padding:0 11px;border-radius:999px;
+  background:#fbf3e3;color:#9a6a10;font-size:12px;font-weight:750}
+.layout{display:grid;grid-template-columns:256px minmax(0,1fr) 296px;gap:18px;
+  max-width:1480px;margin:0 auto;padding:18px 24px 40px}
+.layout.two{grid-template-columns:256px minmax(0,1fr)}
+.layout.one{grid-template-columns:minmax(0,1fr)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.pad{padding:16px}
+.side>.panel{margin-bottom:14px}
+.tabs{display:flex;gap:22px;border-bottom:1px solid var(--line);padding:0 2px;margin-bottom:14px}
+.tabs a{padding:10px 2px 12px;font-size:15.5px;font-weight:650;color:var(--muted)}
+.tabs a small{font-weight:700;margin-left:4px}
+.tabs .on{color:var(--navy);font-weight:800;border-bottom:2.5px solid var(--navy)}
+.search{display:flex;align-items:center;gap:9px;height:44px;padding:0 15px;border-radius:10px;
+  background:#fff;border:1px solid var(--line);color:var(--muted);margin-bottom:12px}
+.sort{display:flex;gap:16px;justify-content:flex-end;font-size:13px;color:var(--muted);
+  font-weight:650;margin-bottom:14px}
+.sort .on{color:var(--navy);font-weight:800}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.thumb{position:relative;height:148px;border-radius:12px 12px 0 0;overflow:hidden;
+  background:linear-gradient(135deg,#2c4a7c,#16294a)}
+.thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.85}
+.thumb::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,20,40,.15),rgba(8,16,34,.62))}
+.tcat{position:absolute;z-index:2;top:10px;left:10px;padding:4px 9px;border-radius:6px;
+  background:rgba(12,22,44,.72);color:#fff;font-size:11.5px;font-weight:750}
+.ttitle{position:absolute;z-index:2;left:14px;bottom:12px;right:14px;color:#fff;
+  font-size:21px;font-weight:850;line-height:1.22;letter-spacing:-.03em;
+  text-shadow:0 2px 10px rgba(0,0,0,.4)}
+.sbody{padding:13px 14px 14px}
+.chiprow{display:flex;gap:6px;margin-bottom:9px}
+.chip{display:inline-flex;align-items:center;height:24px;padding:0 9px;border-radius:6px;
+  font-size:12px;font-weight:800}
+.chip.c{background:var(--blue-bg);color:var(--blue)}
+.chip.o{border:1px solid var(--line-dk);color:var(--muted);font-weight:700;background:#fff}
+.qt{font-size:15.5px;font-weight:750;letter-spacing:-.02em;margin-bottom:4px}
+.au{font-size:12.5px;color:var(--muted);margin-bottom:11px}
+.meta{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);
+  padding-top:10px;border-top:1px solid var(--line)}
+.meta b{color:var(--text)}
+.goal{display:flex;justify-content:space-between;font-size:12.5px;margin:8px 0 6px}
+.goal b{font-weight:800}.goal .dd{color:var(--red);font-weight:800}
+.pbar{height:6px;border-radius:99px;background:#e8ecf1;overflow:hidden;margin-bottom:12px}
+.pbar i{display:block;height:100%;background:var(--blue)}
+.btnrow{display:flex;gap:7px}
+.btn{flex:1;height:38px;border-radius:8px;border:1.5px solid var(--blue);color:var(--blue);
+  background:#fff;font-size:13.5px;font-weight:800;display:grid;place-items:center}
+.btn:hover{background:var(--blue-bg)}
+.btn.sm{flex:0 0 auto;padding:0 13px;border-color:var(--line-dk);color:var(--muted);font-weight:700}
+.rt{font-size:15px;font-weight:800;padding:14px 16px 10px;display:flex;justify-content:space-between;align-items:center}
+.rt a{font-size:12px;color:var(--muted);font-weight:650}
+.rank{list-style:none;padding:0 0 6px}
+.rank li{display:flex;gap:11px;padding:9px 16px}
+.rank b.no{color:var(--blue);font-size:14px;width:12px}
+.rank .t{font-size:13.5px;font-weight:650;line-height:1.35}
+.rank .s{font-size:11.5px;color:var(--muted);margin-top:3px}
+.poll{padding:0 16px 16px}
+.pop{position:relative;height:38px;border-radius:8px;background:#eef1f5;margin-bottom:8px;overflow:hidden}
+.pop i{position:absolute;inset:0;background:var(--blue-bg);border-radius:8px}
+.pop.win i{background:#dbe8fb}
+.pop span{position:absolute;left:13px;top:0;bottom:0;display:flex;align-items:center;font-size:13px;font-weight:750}
+.pop em{position:absolute;right:13px;top:0;bottom:0;display:flex;align-items:center;font-style:normal;
+  font-size:13px;font-weight:800;color:var(--blue)}
+.poll .ps{font-size:12px;color:var(--muted)}
+.h1{font-size:26px;font-weight:850;letter-spacing:-.035em}
+.sub{color:var(--muted);font-size:14px;margin-top:5px}
+.menu{list-style:none;padding:4px 0}
+.menu li{display:flex;justify-content:space-between;padding:11px 16px;font-size:13.5px;font-weight:650}
+.menu li+li{border-top:1px solid var(--line)}
+.menu li span{color:var(--muted);font-weight:700}
+
+@media (max-width:760px){
+  .pvbar{flex-wrap:wrap;row-gap:2px;padding:7px 14px}
+  .navbar{flex-wrap:wrap;height:auto;padding:10px 14px;gap:8px 14px}
+  .navbar .nav{order:5;width:100%;gap:16px;overflow-x:auto;padding-bottom:2px}
+  .navbar .nav-r{margin-left:auto;gap:8px}
+  .navbar .cta{height:38px;padding:0 13px;font-size:13.5px}
+  .navbar.nb-over{height:auto}
+  .layout{grid-template-columns:1fr !important;padding:14px 14px 40px;gap:14px}
+  .layout>main{order:1}
+  .layout>.side{order:2}
+  .layout>aside:not(.side){order:3}
+  .grid2,.grid3,.tplgrid{grid-template-columns:1fr !important}
+  /* 인라인 grid: 기본은 한 열, 균등 반복 그리드(KPI류)만 두 열 */
+  [style*="grid-template-columns"]{grid-template-columns:1fr !important}
+  [style*="grid-template-columns:repeat("]{grid-template-columns:repeat(2,minmax(0,1fr)) !important}
+  /* 큰 표제 축소 */
+  [style*="font-size:60px"]{font-size:34px !important}
+  [style*="font-size:54px"]{font-size:30px !important}
+  [style*="font-size:46px"]{font-size:28px !important}
+  [style*="font-size:40px"]{font-size:27px !important}
+  /* 랜딩 통계·CTA 줄바꿈 */
+  [style*="gap:46px"]{gap:18px 28px !important;flex-wrap:wrap;justify-content:center}
+  [style*="display:flex"][style*="gap:12px"],[style*="display:flex"][style*="gap:8px"]{flex-wrap:wrap}
+  /* 표는 제자리 가로 스크롤 */
+  main table,.panel table{display:block;overflow-x:auto}
+  .catbar a{height:34px;padding:0 13px;font-size:12.5px}
+  .tpl-hero{padding:30px 0 22px}
+}</style><body>
+<div style="position:relative;height:100vh;min-height:600px;overflow:hidden">
+  <video src="demo.mp4" autoplay muted loop playsinline
+    style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></video>
+  <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,14,28,.58) 0%,rgba(8,14,28,.3) 42%,rgba(8,14,28,.7) 100%)"></div>
+  <div class="navbar nb-over">
+    <a class="brand" href="01-landing.html"><span class="bmark"><i></i><i></i></span>바로폼</a>
+    
+    <nav class="nav"><a href="02-feed.html" class="">참여하기</a><a href="04-community.html" class="">커뮤니티</a><a href="03-pulses.html" class="">캠퍼스 투표</a><a href="05-workspace.html" class="">협업</a><a href="#" class="">리서치 의뢰</a></nav>
+    <div class="nav-r"><a class="loginlink" href="07-login.html">로그인</a><a class="cta ghost" href="07-login.html">무료로 시작하기</a></div>
+  </div>
+  <div style="position:relative;z-index:2;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 24px;color:#fff">
+    <div style="display:inline-flex;height:33px;align-items:center;padding:0 16px;border-radius:999px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);backdrop-filter:blur(8px);font-size:13.5px;font-weight:750;margin-bottom:22px">대학생의 질문이 실제 응답이 되는 곳</div>
+    <h1 style="font-size:60px;font-weight:900;letter-spacing:-.045em;line-height:1.16;text-shadow:0 6px 30px rgba(0,0,0,.5)">학생들의 질문과 답을<br>한곳에서.</h1>
+    <p style="margin-top:20px;font-size:18px;color:rgba(255,255,255,.88);line-height:1.62;text-shadow:0 2px 14px rgba(0,0,0,.45)">AI가 문항을 설계하고, 우리 학교 학생들이 응답합니다.<br>응답할 때마다 캐시가 쌓여요.</p>
+    <div style="display:flex;gap:12px;margin-top:32px">
+      <a class="cta big" href="08-create.html" style="background:#fff;color:var(--navy);box-shadow:0 12px 38px rgba(0,0,0,.34)">무료로 시작하기 →</a>
+      <a class="cta big" href="02-feed.html" style="background:rgba(255,255,255,.13);border:1.5px solid rgba(255,255,255,.5);backdrop-filter:blur(8px)">설문 둘러보기</a></div>
+    <div style="display:flex;gap:46px;margin-top:48px">
+      <div><b style="font-size:24px;letter-spacing:-.02em">12,438</b><div style="font-size:12.5px;color:rgba(255,255,255,.72)">누적 응답</div></div>
+      <div><b style="font-size:24px">8개교</b><div style="font-size:12.5px;color:rgba(255,255,255,.72)">참여 대학</div></div>
+      <div><b style="font-size:24px">91%</b><div style="font-size:12.5px;color:rgba(255,255,255,.72)">평균 완료율</div></div></div>
+  </div>
+  <div style="position:absolute;z-index:2;left:0;right:0;bottom:16px;display:flex;justify-content:center;color:rgba(255,255,255,.7);font-size:12px;font-weight:650">▼ 지금 캠퍼스에서 돌고 있는 설문</div>
+</div>
+<div style="max-width:1180px;margin:34px auto 46px;padding:0 24px">
+  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px">
+    <div style="font-size:17px;font-weight:850;letter-spacing:-.02em">지금 캠퍼스에서 돌고 있는 설문</div>
+    <a href="index.html" style="font-size:12.5px;color:var(--muted);font-weight:650">전체 화면 목차 ↗</a></div>
+  <div class="grid3"><div class="panel">
+    <div class="thumb"><img src="https://picsum.photos/seed/library/420/220" alt="">
+      <span class="tcat">교내 시설</span><div class="ttitle">도서관<br>좌석 예약제</div></div>
+    <div class="sbody">
+      <div class="chiprow"><span class="chip c">+30 C</span><span class="chip o">전학년</span></div>
+      <div class="qt">지금 예약 방식, 바꿔야 할까요?</div><div class="au">경영대 프로젝트팀 · 연세대 신촌</div>
+      <div class="meta"><span>문항 <b>12</b></span><span>예상 <b>3분</b></span></div>
+      <div class="goal"><span>응답 <b>24</b> / 목표 100</span><span class=""><b>마감 D-6</b></span></div>
+      <div class="pbar"><i style="width:24%"></i></div>
+      <div class="btnrow"><a class="btn" href="12-respond.html">응답하기</a><a class="btn sm" href="13-results-overview.html">결과</a><a class="btn sm">↗</a></div>
+    </div>
+  </div><div class="panel">
+    <div class="thumb"><img src="https://picsum.photos/seed/cafe2/420/220" alt="">
+      <span class="tcat">제품 반응</span><div class="ttitle">신메뉴<br>가격 민감도</div></div>
+    <div class="sbody">
+      <div class="chiprow"><span class="chip c">+50 C</span><span class="chip o">20대</span></div>
+      <div class="qt">얼마까지 낼 수 있나요?</div><div class="au">캠퍼스 F&B 스타트업 · 기업 조사</div>
+      <div class="meta"><span>문항 <b>9</b></span><span>예상 <b>4분</b></span></div>
+      <div class="goal"><span>응답 <b>318</b> / 목표 400</span><span class="dd"><b>마감 D-2</b></span></div>
+      <div class="pbar"><i style="width:80%"></i></div>
+      <div class="btnrow"><a class="btn" href="12-respond.html">응답하기</a><a class="btn sm" href="13-results-overview.html">결과</a><a class="btn sm">↗</a></div>
+    </div>
+  </div><div class="panel">
+    <div class="thumb"><img src="https://picsum.photos/seed/intern/420/220" alt="">
+      <span class="tcat">진로 · 취업</span><div class="ttitle">인턴<br>준비 기간</div></div>
+    <div class="sbody">
+      <div class="chiprow"><span class="chip c">+50 C</span><span class="chip o">3·4학년</span></div>
+      <div class="qt">실제로 몇 개월 걸렸나요?</div><div class="au">진로 학회 · 연세대 신촌</div>
+      <div class="meta"><span>문항 <b>15</b></span><span>예상 <b>5분</b></span></div>
+      <div class="goal"><span>응답 <b>96</b> / 목표 300</span><span class=""><b>마감 D-11</b></span></div>
+      <div class="pbar"><i style="width:32%"></i></div>
+      <div class="btnrow"><a class="btn" href="12-respond.html">응답하기</a><a class="btn sm" href="13-results-overview.html">결과</a><a class="btn sm">↗</a></div>
+    </div>
+  </div></div>
+</div></body></html>
