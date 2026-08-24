@@ -2553,3 +2553,8 @@
   .landing-video-stats { gap: 18px 28px; }
   .landing-nav-overlay div { display: none; }
 }
+
+/* 링크 제거 후 CTA가 늘어나지 않도록 */
+.landing-nav-overlay { display: flex; align-items: center; }
+.landing-nav-overlay .brand { flex: none; }
+.landing-nav-overlay .landing-nav-cta { flex: none; margin-left: auto; width: auto; }
