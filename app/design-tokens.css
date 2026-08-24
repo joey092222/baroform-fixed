@@ -1,18 +1,18 @@
 :root {
-  --bf-bg: #f6f3eb;
-  --bf-surface: #fcfbf7;
+  --bf-bg: #f4f6f8;
+  --bf-surface: #ffffff;
   --bf-surface-strong: #ffffff;
-  --bf-navy: #0b1f3a;
-  --bf-navy-strong: #071426;
-  --bf-navy-soft: #e9eef5;
-  --bf-text: #111318;
-  --bf-muted: #626873;
-  --bf-border: #d8d5cc;
-  --bf-border-dark: #b8b5ad;
+  --bf-navy: #1c3a6b;
+  --bf-navy-strong: #142c52;
+  --bf-navy-soft: #e9eff9;
+  --bf-text: #191c21;
+  --bf-muted: #79818d;
+  --bf-border: #e5e8ee;
+  --bf-border-dark: #d4dae2;
   --bf-positive: #1e6d52;
   --bf-warning: #9b6218;
   --bf-danger: #a23b35;
-  --bf-blue: #2762d2;
+  --bf-blue: #2b6cd4;
   --bf-radius-sm: 10px;
   --bf-radius: 16px;
   --bf-radius-lg: 22px;
@@ -211,7 +211,7 @@ a {
   z-index: 60;
   top: 0;
   border-bottom: 1px solid var(--bf-border);
-  background: rgba(246, 243, 235, .96);
+  background: rgba(255, 255, 255, .96);
 }
 
 .header-inner {

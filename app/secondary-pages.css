@@ -490,7 +490,7 @@
   min-height: 720px;
   padding: 24px;
   border-right: 1px solid var(--bf-border);
-  background: #efede6;
+  background: #eef1f5;
 }
 
 .collab-switcher,
@@ -1027,7 +1027,7 @@
   gap: 12px;
   border: 1px solid var(--bf-border);
   border-radius: 10px;
-  background: #f6f3eb;
+  background: #f4f6f8;
 }
 
 .collab-progress article > span {

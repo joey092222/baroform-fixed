@@ -23,7 +23,7 @@
   align-items: center;
   gap: 20px;
   border-bottom: 1px solid var(--bf-border);
-  background: rgba(246, 243, 235, .97);
+  background: rgba(255, 255, 255, .97);
 }
 
 .create-back,
@@ -708,7 +708,7 @@
 .editor-canvas {
   min-width: 0;
   padding: 44px clamp(24px, 4vw, 64px) 90px;
-  background: #efede6;
+  background: #eef1f5;
 }
 
 .editor-canvas-heading {
