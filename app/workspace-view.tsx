@@ -6,14 +6,11 @@ import {
   BookOpen,
   Check,
   CheckCircle2,
-  ChevronRight,
-  Clock3,
   Copy,
   ExternalLink,
   FileText,
   Folder,
   History,
-  Layers,
   Link2,
   MessageCircle,
   Plus,
@@ -372,187 +369,221 @@ export function WorkspaceView({
           <button type="button" onClick={() => setModal("create")}><Plus size={17} />2분 만에 만들기</button>
         </section>
       ) : activeWorkspace ? (
-        <div className="collab-shell">
-          <aside className="collab-switcher" aria-label="워크스페이스 목록">
-            <div className="collab-panel-title">
-              <span>내 워크스페이스</span>
-              <button type="button" onClick={() => setModal("create")} aria-label="워크스페이스 추가"><Plus size={16} /></button>
-            </div>
-            <div className="collab-workspace-list">
-              {workspaces.map((workspace) => (
-                <button
-                  type="button"
-                  key={workspace.id}
-                  className={workspace.id === activeWorkspace.id ? "active" : ""}
-                  onClick={() => setSelectedId(workspace.id)}
-                >
-                  <span className="collab-workspace-avatar">{workspace.name.slice(0, 1)}</span>
-                  <span><strong>{workspace.name}</strong><small>{workspaceTypeLabel(workspace.type)} · {workspace.members.length}명</small></span>
-                  <ChevronRight size={15} />
-                </button>
+        <div className="collab-doc">
+          <div className="collab-doc-switcher" role="tablist" aria-label="워크스페이스 목록">
+            {workspaces.map((workspace) => (
+              <button
+                type="button"
+                key={workspace.id}
+                role="tab"
+                aria-selected={workspace.id === activeWorkspace.id}
+                className={workspace.id === activeWorkspace.id ? "active" : ""}
+                onClick={() => setSelectedId(workspace.id)}
+              >
+                {workspace.name}
+                <small>{workspace.members.length}명</small>
+              </button>
+            ))}
+            <button type="button" className="collab-doc-add" onClick={() => setModal("create")} aria-label="워크스페이스 추가">
+              <Plus size={15} /> 새 워크스페이스
+            </button>
+          </div>
+
+          <header className="collab-doc-head">
+            <h2>{activeWorkspace.name}</h2>
+            <span className="collab-doc-avatars">
+              {activeMembers.slice(0, 4).map((member) => (
+                <i key={member.id} title={member.name}>{member.name.slice(0, 1)}</i>
               ))}
+            </span>
+            <div className="collab-doc-actions">
+              {activeWorkspace.myRole === "owner" && (
+                <button type="button" onClick={() => setModal("invite")}><UserPlus size={15} />팀원 초대</button>
+              )}
+              <button type="button" onClick={() => void copyReviewLink()}><Link2 size={15} />검토 링크</button>
+              {canManageWorkspace(activeWorkspace.myRole) && (
+                <button type="button" className="solid" onClick={() => setModal("survey")}><Plus size={15} />설문 연결</button>
+              )}
             </div>
-            <div className="collab-help-card">
-              <BookOpen size={18} />
-              <strong>지난 설문 재사용</strong>
-              <p>내 설문을 복제해 다음 학기 팀플을 빠르게 시작하세요.</p>
-            </div>
-          </aside>
+          </header>
+          <p className="collab-doc-meta">
+            {activeWorkspace.description || "팀 설문과 검토 기록을 한곳에서 관리해요."} · {workspaceTypeLabel(activeWorkspace.type)} · 팀원 {activeWorkspace.members.length}명
+          </p>
 
-          <section className="collab-board">
-            <header className="collab-board-head">
-              <div>
-                <span className="collab-type-chip"><Layers size={14} />{workspaceTypeLabel(activeWorkspace.type)}</span>
-                <h2>{activeWorkspace.name}</h2>
-                <p>{activeWorkspace.description || "팀 설문과 검토 기록을 한곳에서 관리해요."}</p>
+          <div className="collab-doc-steps" aria-label="협업 진행 단계">
+            {[
+              { label: "초안 작성", done: activeWorkspace.projects.length > 0, on: activeWorkspace.projects.length === 0 },
+              { label: "팀 검토", done: activeWorkspace.projects.length > 0 && reviewCount === 0 && approvedCount > 0, on: reviewCount > 0 },
+              { label: "최종 승인", done: activeWorkspace.projects.length > 0 && approvedCount === activeWorkspace.projects.length, on: approvedCount > 0 && approvedCount < activeWorkspace.projects.length },
+            ].map((stage, index) => (
+              <div key={stage.label} className={`${stage.done ? "done" : ""} ${stage.on ? "on" : ""}`}>
+                <span>{stage.done ? <Check size={13} /> : index + 1}</span>
+                <strong>{stage.label}</strong>
               </div>
-              <div className="collab-board-actions">
-                {activeWorkspace.myRole === "owner" && (
-                  <button type="button" onClick={() => setModal("invite")}><UserPlus size={16} />팀원 초대</button>
-                )}
-                <button type="button" onClick={() => void copyReviewLink()}><Link2 size={16} />검토 링크</button>
-                {canManageWorkspace(activeWorkspace.myRole) && (
-                  <button type="button" className="accent" onClick={() => setModal("survey")}><Plus size={16} />설문 연결</button>
-                )}
-              </div>
-            </header>
+            ))}
+          </div>
 
-            <div className="collab-progress" aria-label="협업 진행 현황">
-              <article><span><FileText size={17} /></span><div><small>전체 설문</small><strong>{activeWorkspace.projects.length}</strong></div></article>
-              <article className="review"><span><Clock3 size={17} /></span><div><small>검토 중</small><strong>{reviewCount}</strong></div></article>
-              <article className="approved"><span><ShieldCheck size={17} /></span><div><small>승인 완료</small><strong>{approvedCount}</strong></div></article>
-              <div className="collab-progress-guide"><span>초안</span><i /><span>팀 검토</span><i /><span>최종 승인</span></div>
+          <section className="collab-doc-panel">
+            <div className="collab-doc-panel-head">
+              <strong>설문 {activeWorkspace.projects.length}개</strong>
+              <button type="button" onClick={() => (ownedSurveys.length > 0 ? setModal("survey") : onCreateSurvey())}>
+                지난 설문 재사용
+              </button>
             </div>
-
-            <div className="collab-section-head">
-              <div><span>TEAM SURVEYS</span><h3>함께 만드는 설문</h3></div>
-              <small>{activeWorkspace.projects.length}개의 설문</small>
-            </div>
-
             {activeWorkspace.projects.length > 0 ? (
-              <div className="collab-project-list">
-                {activeWorkspace.projects.map((project) => {
-                  const assignee = activeWorkspace.members.find((member) => member.memberId === project.assignedMemberId);
-                  return (
-                    <article className={`collab-project ${project.status}`} key={project.id}>
-                      <div className="collab-project-main">
-                        <div className="collab-project-topline">
-                          <span className={`collab-status ${project.status}`}><i />{workspaceStatusLabel(project.status)}</span>
-                          <small>{formatRelativeDate(project.updatedAt)} 업데이트</small>
-                        </div>
-                        <h4>{project.title}</h4>
-                        <div className="collab-project-meta">
-                          <span>{project.questionCount}문항</span>
-                          <span>응답 {project.responseCount}개</span>
-                          <span>{assignee ? `${assignee.name} · ${project.assignmentLabel}` : "담당 미배정"}</span>
-                        </div>
+              activeWorkspace.projects.map((project) => {
+                const assignee = activeWorkspace.members.find((member) => member.memberId === project.assignedMemberId);
+                return (
+                  <article className="collab-doc-row" key={project.id}>
+                    <div className="collab-doc-row-main">
+                      <span className="collab-doc-row-icon"><FileText size={16} /></span>
+                      <div>
+                        <strong>{project.title}</strong>
+                        <small>
+                          {project.questionCount}문항 · 응답 {project.responseCount}개 · {formatRelativeDate(project.updatedAt)} 업데이트
+                          {assignee ? ` · 담당 ${assignee.name}${project.assignmentLabel ? ` (${project.assignmentLabel})` : ""}` : ""}
+                        </small>
                       </div>
-                      <div className="collab-assignment">
-                        <select
-                          aria-label={`${project.title} 담당 팀원`}
-                          value={assignmentMembers[project.id] ?? project.assignedMemberId ?? ""}
-                          onChange={(event) => setAssignmentMembers((current) => ({ ...current, [project.id]: event.target.value }))}
-                        >
-                          <option value="">담당 팀원</option>
-                          {activeMembers.filter((member) => member.memberId).map((member) => <option key={member.id} value={member.memberId ?? ""}>{member.name}</option>)}
-                        </select>
-                        <input
-                          aria-label={`${project.title} 담당 문항`}
-                          placeholder="예: 1~5번 문항"
-                          value={assignmentLabels[project.id] ?? project.assignmentLabel}
-                          onChange={(event) => setAssignmentLabels((current) => ({ ...current, [project.id]: event.target.value }))}
-                        />
-                        <button
-                          type="button"
-                          disabled={busy || !canManageWorkspace(activeWorkspace.myRole)}
-                          onClick={() => void runAction({
-                            action: "assign",
-                            workspaceId: activeWorkspace.id,
-                            projectId: project.id,
-                            memberId: assignmentMembers[project.id] ?? project.assignedMemberId,
-                            assignmentLabel: assignmentLabels[project.id] ?? project.assignmentLabel,
-                          }, "담당 문항을 배정했어요.")}
-                        >배정</button>
-                      </div>
-                      <div className="collab-project-actions">
-                        <button type="button" onClick={() => onOpenSurvey(project.surveySlug)}><ExternalLink size={15} />열기</button>
-                        <button type="button" onClick={() => onDuplicateSurvey(project.surveySlug)}><RotateCcw size={15} />복제</button>
-                        {project.status === "draft" && canManageWorkspace(activeWorkspace.myRole) && (
-                          <button type="button" className="review-action" disabled={busy} onClick={() => void runAction({ action: "status", workspaceId: activeWorkspace.id, projectId: project.id, status: "review" }, "팀 검토를 요청했어요.")}>
-                            검토 요청 <ArrowRight size={15} />
-                          </button>
-                        )}
-                        {project.status === "review" && canApproveWorkspace(activeWorkspace.myRole) && (
-                          <button type="button" className="approve-action" disabled={busy} onClick={() => void runAction({ action: "status", workspaceId: activeWorkspace.id, projectId: project.id, status: "approved" }, "최종 승인했어요.")}>
-                            <Check size={15} />승인
-                          </button>
-                        )}
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
+                      <span className={`collab-doc-status ${project.status}`}>{workspaceStatusLabel(project.status)}</span>
+                    </div>
+                    <div className="collab-doc-row-tools">
+                      <select
+                        aria-label={`${project.title} 담당 팀원`}
+                        value={assignmentMembers[project.id] ?? project.assignedMemberId ?? ""}
+                        onChange={(event) => setAssignmentMembers((current) => ({ ...current, [project.id]: event.target.value }))}
+                      >
+                        <option value="">담당 팀원</option>
+                        {activeMembers.filter((member) => member.memberId).map((member) => <option key={member.id} value={member.memberId ?? ""}>{member.name}</option>)}
+                      </select>
+                      <input
+                        aria-label={`${project.title} 담당 문항`}
+                        placeholder="예: 1~5번 문항"
+                        value={assignmentLabels[project.id] ?? project.assignmentLabel}
+                        onChange={(event) => setAssignmentLabels((current) => ({ ...current, [project.id]: event.target.value }))}
+                      />
+                      <button
+                        type="button"
+                        disabled={busy || !canManageWorkspace(activeWorkspace.myRole)}
+                        onClick={() => void runAction({
+                          action: "assign",
+                          workspaceId: activeWorkspace.id,
+                          projectId: project.id,
+                          memberId: assignmentMembers[project.id] ?? project.assignedMemberId,
+                          assignmentLabel: assignmentLabels[project.id] ?? project.assignmentLabel,
+                        }, "담당 문항을 배정했어요.")}
+                      >배정</button>
+                      <span className="collab-doc-row-spring" />
+                      <button type="button" onClick={() => onOpenSurvey(project.surveySlug)}><ExternalLink size={14} />열기</button>
+                      <button type="button" onClick={() => onDuplicateSurvey(project.surveySlug)}><RotateCcw size={14} />복제</button>
+                      {project.status === "draft" && canManageWorkspace(activeWorkspace.myRole) && (
+                        <button type="button" className="go" disabled={busy} onClick={() => void runAction({ action: "status", workspaceId: activeWorkspace.id, projectId: project.id, status: "review" }, "팀 검토를 요청했어요.")}>
+                          검토 요청 <ArrowRight size={14} />
+                        </button>
+                      )}
+                      {project.status === "review" && canApproveWorkspace(activeWorkspace.myRole) && (
+                        <button type="button" className="ok" disabled={busy} onClick={() => void runAction({ action: "status", workspaceId: activeWorkspace.id, projectId: project.id, status: "approved" }, "최종 승인했어요.")}>
+                          <Check size={14} />승인
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                );
+              })
             ) : (
-              <div className="collab-project-empty">
-                <span><FileText size={23} /></span>
-                <div><strong>아직 연결된 설문이 없어요</strong><p>내 설문을 연결하거나, 새 설문을 만든 뒤 팀 폴더에 추가하세요.</p></div>
-                <button type="button" onClick={() => ownedSurveys.length > 0 ? setModal("survey") : onCreateSurvey()}>{ownedSurveys.length > 0 ? "내 설문 연결" : "새 설문 만들기"}<ArrowRight size={16} /></button>
+              <div className="collab-doc-empty">
+                <strong>아직 연결된 설문이 없어요</strong>
+                <p>내 설문을 연결하거나, 새 설문을 만든 뒤 팀 폴더에 추가하세요.</p>
+                <button type="button" onClick={() => (ownedSurveys.length > 0 ? setModal("survey") : onCreateSurvey())}>
+                  {ownedSurveys.length > 0 ? "내 설문 연결" : "새 설문 만들기"} <ArrowRight size={15} />
+                </button>
               </div>
             )}
           </section>
 
-          <aside className="collab-rail">
-            <section className="collab-rail-section">
-              <div className="collab-panel-title"><span>팀원</span><small>{activeWorkspace.members.length}명</small></div>
-              <div className="collab-member-list">
-                {activeWorkspace.members.map((member) => (
-                  <div key={member.id}>
-                    <span className="collab-member-avatar">{member.name.slice(0, 1)}</span>
-                    <span><strong>{member.name}</strong><small>{member.status === "pending" ? "초대 대기" : member.email}</small></span>
-                    {activeWorkspace.myRole === "owner" && member.role !== "owner" ? (
-                      <select
-                        value={member.role}
-                        aria-label={`${member.name} 역할`}
-                        onChange={(event) => void runAction({ action: "role", workspaceId: activeWorkspace.id, workspaceMemberId: member.id, role: event.target.value }, "역할을 변경했어요.")}
-                      >
-                        <option value="editor">편집자</option>
-                        <option value="reviewer">검토자</option>
-                      </select>
-                    ) : <em>{workspaceRoleLabel(member.role)}</em>}
+          <section className="collab-doc-panel">
+            <div className="collab-doc-panel-head">
+              <strong>활동</strong>
+              <small>댓글과 버전이 함께 기록돼요</small>
+            </div>
+            {(() => {
+              const feed = [
+                ...activeWorkspace.comments.map((item) => ({
+                  id: `c-${item.id}`,
+                  icon: "comment" as const,
+                  createdAt: item.createdAt,
+                  author: item.authorName,
+                  body: item.content,
+                  target: activeWorkspace.projects.find((project) => project.id === item.projectId)?.title ?? "",
+                })),
+                ...activeWorkspace.versions.map((item) => ({
+                  id: `v-${item.id}`,
+                  icon: "version" as const,
+                  createdAt: item.createdAt,
+                  author: item.authorName,
+                  body: `v${item.versionNumber} · ${item.summary}`,
+                  target: activeWorkspace.projects.find((project) => project.id === item.projectId)?.title ?? "",
+                })),
+              ].sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()).slice(0, 8);
+              return feed.length > 0 ? (
+                feed.map((item) => (
+                  <div className="collab-doc-activity" key={item.id}>
+                    <span>{item.icon === "comment" ? <MessageCircle size={14} /> : <History size={14} />}</span>
+                    <p>
+                      <strong>{item.author}</strong> {item.body}
+                      {item.target && <em> → {item.target}</em>}
+                    </p>
+                    <small>{formatRelativeDate(item.createdAt)}</small>
                   </div>
-                ))}
-              </div>
-            </section>
+                ))
+              ) : (
+                <p className="collab-doc-quiet">첫 의견을 남겨 팀 검토를 시작하세요. 설문을 연결하면 버전도 자동으로 기록돼요.</p>
+              );
+            })()}
+            <div className="collab-doc-compose">
+              <select value={commentProjectId} onChange={(event) => setCommentProjectId(event.target.value)} aria-label="댓글을 남길 설문">
+                <option value="">워크스페이스 전체</option>
+                {activeWorkspace.projects.map((project) => <option key={project.id} value={project.id}>{project.title}</option>)}
+              </select>
+              <input
+                value={comment}
+                onChange={(event) => setComment(event.target.value)}
+                placeholder="수정 의견이나 확인할 점을 적어주세요"
+                maxLength={800}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.nativeEvent.isComposing && comment.trim()) void addComment();
+                }}
+              />
+              <button type="button" disabled={busy || !comment.trim()} onClick={() => void addComment()}>남기기</button>
+            </div>
+          </section>
 
-            <section className="collab-rail-section collab-comments">
-              <div className="collab-panel-title"><span>문항 댓글</span><MessageCircle size={15} /></div>
-              <div className="collab-comment-list">
-                {activeWorkspace.comments.slice(0, 4).map((item) => (
-                  <article key={item.id}>
-                    <div><strong>{item.authorName}</strong><small>{formatRelativeDate(item.createdAt)}</small></div>
-                    <p>{item.content}</p>
-                  </article>
-                ))}
-                {activeWorkspace.comments.length === 0 && <p className="collab-rail-empty">첫 의견을 남겨 팀 검토를 시작하세요.</p>}
+          <section className="collab-doc-panel">
+            <div className="collab-doc-panel-head">
+              <strong>팀원 {activeWorkspace.members.length}명</strong>
+              {activeWorkspace.myRole === "owner" && (
+                <button type="button" onClick={() => setModal("invite")}>+ 초대하기</button>
+              )}
+            </div>
+            {activeWorkspace.members.map((member) => (
+              <div className="collab-doc-member" key={member.id}>
+                <span className="collab-doc-member-avatar">{member.name.slice(0, 1)}</span>
+                <div>
+                  <strong>{member.name}</strong>
+                  <small>{member.status === "pending" ? "초대 대기" : member.email}</small>
+                </div>
+                {activeWorkspace.myRole === "owner" && member.role !== "owner" ? (
+                  <select
+                    value={member.role}
+                    aria-label={`${member.name} 역할`}
+                    onChange={(event) => void runAction({ action: "role", workspaceId: activeWorkspace.id, workspaceMemberId: member.id, role: event.target.value }, "역할을 변경했어요.")}
+                  >
+                    <option value="editor">편집자</option>
+                    <option value="reviewer">검토자</option>
+                  </select>
+                ) : <em>{workspaceRoleLabel(member.role)}</em>}
               </div>
-              <div className="collab-comment-compose">
-                <select value={commentProjectId} onChange={(event) => setCommentProjectId(event.target.value)} aria-label="댓글을 남길 설문">
-                  <option value="">워크스페이스 전체</option>
-                  {activeWorkspace.projects.map((project) => <option key={project.id} value={project.id}>{project.title}</option>)}
-                </select>
-                <textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder="수정 의견이나 확인할 점을 적어주세요" maxLength={800} />
-                <button type="button" disabled={busy || !comment.trim()} onClick={() => void addComment()}>댓글 남기기</button>
-              </div>
-            </section>
-
-            <section className="collab-rail-section collab-history">
-              <div className="collab-panel-title"><span>버전 기록</span><History size={15} /></div>
-              {activeWorkspace.versions.slice(0, 4).map((version) => (
-                <div key={version.id}><span>v{version.versionNumber}</span><p><strong>{version.summary}</strong><small>{version.authorName} · {formatRelativeDate(version.createdAt)}</small></p></div>
-              ))}
-              {activeWorkspace.versions.length === 0 && <p className="collab-rail-empty">설문을 연결하면 버전이 자동으로 기록돼요.</p>}
-            </section>
-          </aside>
+            ))}
+          </section>
         </div>
       ) : null}
 

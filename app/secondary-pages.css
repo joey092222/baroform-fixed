@@ -1595,3 +1595,81 @@
 .collab-comment-compose textarea, .collab-comment-compose select { border: 1px solid #e5e8ee; border-radius: 9px; background: #fff; }
 .collab-comment-compose button { background: #1c3a6b; color: #fff; border: 0; border-radius: 9px; font-weight: 750; }
 .collab-comment-compose button:disabled { background: #c3cad3; }
+
+/* ── 협업 문서형(B안) ────────────────────────────────────── */
+.collab-doc { max-width: 780px; margin: 0 auto; padding: 4px 0 60px; display: grid; gap: 13px; }
+.collab-doc-switcher { display: flex; gap: 7px; flex-wrap: wrap; }
+.collab-doc-switcher button { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 15px; border-radius: 999px; border: 1px solid #d4dae2; background: #fff; font: inherit; font-size: 13px; font-weight: 750; color: #4a515c; cursor: pointer; }
+.collab-doc-switcher button small { font-size: 11px; color: #9aa2ad; font-weight: 700; }
+.collab-doc-switcher button.active { background: #1c3a6b; border-color: #1c3a6b; color: #fff; }
+.collab-doc-switcher button.active small { color: rgba(255, 255, 255, 0.75); }
+.collab-doc-switcher .collab-doc-add { border-style: dashed; color: #2b6cd4; }
+.collab-doc-head { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+.collab-doc-head h2 { font-size: 24px; font-weight: 900; letter-spacing: -0.04em; margin: 0; }
+.collab-doc-avatars { display: inline-flex; }
+.collab-doc-avatars i { width: 30px; height: 30px; border-radius: 50%; background: #e9eff9; color: #1c3a6b; display: inline-grid; place-items: center; font-size: 12.5px; font-weight: 850; font-style: normal; border: 2px solid #fff; margin-left: -8px; }
+.collab-doc-avatars i:first-child { margin-left: 0; }
+.collab-doc-actions { margin-left: auto; display: flex; gap: 7px; }
+.collab-doc-actions button { display: inline-flex; align-items: center; gap: 5px; height: 37px; padding: 0 13px; border-radius: 9px; border: 1.5px solid #d4dae2; background: #fff; font: inherit; font-size: 12.5px; font-weight: 750; color: #1c3a6b; cursor: pointer; }
+.collab-doc-actions button:hover { border-color: #1c3a6b; }
+.collab-doc-actions button.solid { background: #1c3a6b; border-color: #1c3a6b; color: #fff; }
+.collab-doc-actions button.solid:hover { background: #142c52; }
+.collab-doc-meta { font-size: 13px; color: #79818d; margin: -4px 0 0; }
+.collab-doc-steps { display: flex; gap: 6px; background: #fff; border: 1px solid #e5e8ee; border-radius: 12px; padding: 14px 18px; }
+.collab-doc-steps > div { flex: 1; display: flex; align-items: center; gap: 8px; }
+.collab-doc-steps span { width: 26px; height: 26px; border-radius: 50%; flex: none; display: grid; place-items: center; font-size: 12px; font-weight: 850; background: #eceff3; color: #9aa2ad; }
+.collab-doc-steps strong { font-size: 12.5px; font-weight: 700; color: #9aa2ad; }
+.collab-doc-steps .on span { background: #1c3a6b; color: #fff; }
+.collab-doc-steps .on strong { color: #191c21; font-weight: 850; }
+.collab-doc-steps .done span { background: #178a5c; color: #fff; }
+.collab-doc-steps .done strong { color: #191c21; }
+.collab-doc-panel { background: #fff; border: 1px solid #e5e8ee; border-radius: 12px; padding: 4px 16px 14px; }
+.collab-doc-panel-head { display: flex; align-items: baseline; gap: 10px; padding: 13px 0 8px; }
+.collab-doc-panel-head strong { font-size: 14px; font-weight: 850; letter-spacing: -0.01em; }
+.collab-doc-panel-head small { font-size: 12px; color: #9aa2ad; }
+.collab-doc-panel-head button { margin-left: auto; border: 0; background: transparent; font: inherit; font-size: 12.5px; font-weight: 800; color: #2b6cd4; cursor: pointer; padding: 0; }
+.collab-doc-row { border-top: 1px solid #f2f4f7; padding: 11px 0; }
+.collab-doc-row-main { display: flex; align-items: center; gap: 11px; }
+.collab-doc-row-icon { width: 34px; height: 34px; border-radius: 9px; background: #e9eff9; color: #1c3a6b; display: grid; place-items: center; flex: none; }
+.collab-doc-row-main > div { min-width: 0; flex: 1; }
+.collab-doc-row-main strong { display: block; font-size: 13.5px; font-weight: 800; letter-spacing: -0.015em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.collab-doc-row-main small { font-size: 11.5px; color: #9aa2ad; }
+.collab-doc-status { flex: none; display: inline-flex; height: 24px; align-items: center; padding: 0 10px; border-radius: 999px; font-size: 11.5px; font-weight: 800; background: #f2f4f7; color: #79818d; }
+.collab-doc-status.review { background: #fdf3e7; color: #d97516; }
+.collab-doc-status.approved { background: #e9f6ef; color: #178a5c; }
+.collab-doc-row-tools { display: flex; align-items: center; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
+.collab-doc-row-tools select, .collab-doc-row-tools input { height: 31px; border: 1px solid #e5e8ee; border-radius: 8px; background: #fafbfc; font: inherit; font-size: 12px; padding: 0 9px; color: #4a515c; }
+.collab-doc-row-tools input { width: 120px; }
+.collab-doc-row-tools button { display: inline-flex; align-items: center; gap: 4px; height: 31px; padding: 0 11px; border-radius: 8px; border: 1px solid #d4dae2; background: #fff; font: inherit; font-size: 12px; font-weight: 750; color: #4a515c; cursor: pointer; }
+.collab-doc-row-tools button:disabled { opacity: 0.45; cursor: default; }
+.collab-doc-row-spring { flex: 1; }
+.collab-doc-row-tools .go { border-color: #2b6cd4; color: #2b6cd4; }
+.collab-doc-row-tools .ok { background: #178a5c; border-color: #178a5c; color: #fff; }
+.collab-doc-empty { border-top: 1px solid #f2f4f7; padding: 26px 0 14px; text-align: center; display: grid; gap: 6px; justify-items: center; }
+.collab-doc-empty strong { font-size: 14px; font-weight: 850; }
+.collab-doc-empty p { font-size: 12.5px; color: #79818d; margin: 0; }
+.collab-doc-empty button { margin-top: 6px; display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 16px; border-radius: 9px; border: 0; background: #1c3a6b; color: #fff; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+.collab-doc-activity { display: flex; align-items: baseline; gap: 10px; border-top: 1px solid #f2f4f7; padding: 9px 0; }
+.collab-doc-activity > span { flex: none; color: #79818d; transform: translateY(2px); }
+.collab-doc-activity p { min-width: 0; flex: 1; font-size: 12.5px; color: #4a515c; line-height: 1.55; margin: 0; }
+.collab-doc-activity p strong { font-weight: 800; color: #191c21; }
+.collab-doc-activity p em { font-style: normal; color: #2b6cd4; font-weight: 700; }
+.collab-doc-activity small { flex: none; font-size: 10.5px; color: #b3bac4; }
+.collab-doc-quiet { border-top: 1px solid #f2f4f7; padding: 14px 0 6px; font-size: 12.5px; color: #9aa2ad; margin: 0; }
+.collab-doc-compose { display: flex; gap: 7px; border-top: 1px solid #f2f4f7; padding-top: 11px; margin-top: 6px; }
+.collab-doc-compose select { flex: none; max-width: 150px; height: 37px; border: 1px solid #e5e8ee; border-radius: 9px; background: #fafbfc; font: inherit; font-size: 12px; padding: 0 8px; color: #4a515c; }
+.collab-doc-compose input { flex: 1; height: 37px; border: 1px solid #d4dae2; border-radius: 9px; font: inherit; font-size: 13px; padding: 0 12px; }
+.collab-doc-compose button { flex: none; height: 37px; padding: 0 15px; border-radius: 9px; border: 0; background: #1c3a6b; color: #fff; font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+.collab-doc-compose button:disabled { background: #c3cad3; cursor: default; }
+.collab-doc-member { display: flex; align-items: center; gap: 10px; border-top: 1px solid #f2f4f7; padding: 10px 0; }
+.collab-doc-member-avatar { width: 32px; height: 32px; border-radius: 50%; background: #e9eff9; color: #1c3a6b; display: grid; place-items: center; font-size: 13px; font-weight: 850; flex: none; }
+.collab-doc-member > div { min-width: 0; flex: 1; }
+.collab-doc-member strong { display: block; font-size: 13px; font-weight: 800; }
+.collab-doc-member small { font-size: 11.5px; color: #9aa2ad; }
+.collab-doc-member select { height: 31px; border: 1px solid #e5e8ee; border-radius: 8px; background: #fafbfc; font: inherit; font-size: 12px; padding: 0 8px; color: #4a515c; }
+.collab-doc-member em { font-style: normal; font-size: 11.5px; font-weight: 750; color: #79818d; }
+@media (max-width: 760px) {
+  .collab-doc-head { flex-wrap: wrap; }
+  .collab-doc-actions { width: 100%; }
+  .collab-doc-steps { flex-direction: column; gap: 10px; }
+}
