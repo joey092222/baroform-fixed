@@ -4740,25 +4740,6 @@ function SurveyView({
         </div>
       </div>
       <div className="respondent-shell">
-        <div className="reward-banner">
-          <span className="reward-circle cash-reward-circle">
-            <Coins size={19} />
-          </span>
-          <div>
-            <small>{user ? "완료 후 바로 적립" : "로그인하면 받을 수 있어요"}</small>
-            <strong>+{(survey.rewardCash ?? 30).toLocaleString("ko-KR")}C</strong>
-          </div>
-          {!user && (
-            <button type="button" className="reward-login-button" onClick={onAuth}>
-              로그인
-            </button>
-          )}
-          <span className="reward-time">
-            <Clock3 size={14} />
-            약 {survey.durationMinutes}분
-          </span>
-        </div>
-
         <section className="survey-cover">
           <span className="tiny-brand">BAROFORM</span>
           <h1>{survey.title}</h1>
