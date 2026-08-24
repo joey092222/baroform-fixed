@@ -565,14 +565,6 @@ function Header({
           <BrandMark />
           <strong>바로폼</strong>
         </button>
-        <button
-          className="nav-cta"
-          type="button"
-          onClick={() => onNavigate("create-entry")}
-        >
-          <Plus size={16} />
-          <span>설문 만들기</span>
-        </button>
         <nav className="main-nav" aria-label="주요 메뉴">
           <button
             type="button"
@@ -630,6 +622,14 @@ function Header({
               </button>
             </>
           ) : null}
+          <button
+            className="nav-cta"
+            type="button"
+            onClick={() => onNavigate("create-entry")}
+          >
+            <Plus size={16} />
+            <span>설문 만들기</span>
+          </button>
           <button
             className={`auth-button ${view === "mypage" ? "active" : ""}`}
             type="button"
@@ -1568,6 +1568,84 @@ function CampusPulseSection({
   );
 }
 
+// 캠퍼스 투표 카드 한 장 — 프리뷰의 가로 막대 카드
+function PulseGridCard({
+  pulse,
+  user,
+  authToken,
+  onAuth,
+  onReload,
+}: {
+  pulse: CampusPulse;
+  user: AuthUser | null;
+  authToken: string;
+  onAuth: () => void;
+  onReload: () => void;
+}) {
+  const [voting, setVoting] = useState(false);
+  const [error, setError] = useState("");
+  const total = pulse.overall.reduce((sum, count) => sum + count, 0);
+
+  const vote = async (optionIndex: number) => {
+    if (!user) { onAuth(); return; }
+    if (voting || pulse.myVote !== null) return;
+    setVoting(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/pulses/${pulse.id}/vote`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ optionIndex }),
+      });
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(result.error || "투표를 저장하지 못했어요.");
+      onReload();
+    } catch (voteError) {
+      setError(voteError instanceof Error ? voteError.message : "투표를 저장하지 못했어요.");
+    } finally {
+      setVoting(false);
+    }
+  };
+
+  return (
+    <article className="pulse-grid-card">
+      <div className="pulse-grid-head">
+        <span className="pulse-grid-tag">{campusPulseTimeLeft(pulse.expiresAt)}</span>
+        <small>{pulse.totalVotes.toLocaleString("ko-KR")}명 참여</small>
+      </div>
+      <h3>{pulse.question}</h3>
+      <div className="pulse-grid-options">
+        {pulse.options.map((option, index) => {
+          const percentage = total > 0 ? Math.round(((pulse.overall[index] ?? 0) / total) * 100) : 0;
+          const leading = total > 0 && (pulse.overall[index] ?? 0) === Math.max(...pulse.overall);
+          return (
+            <button
+              type="button"
+              key={option}
+              className={`pulse-grid-option ${leading ? "leading" : ""} ${pulse.myVote === index ? "mine" : ""}`}
+              disabled={voting}
+              onClick={() => void vote(index)}
+            >
+              <i style={{ width: `${percentage}%` }} />
+              <span>{option}{pulse.myVote === index ? " ✓" : ""}</span>
+              <em>{percentage}%</em>
+            </button>
+          );
+        })}
+      </div>
+      {error && <p className="pulse-grid-error" role="alert">{error}</p>}
+      <button
+        type="button"
+        className={`pulse-grid-vote ${pulse.myVote !== null ? "done" : ""}`}
+        onClick={() => { if (!user) onAuth(); }}
+        disabled={pulse.myVote !== null}
+      >
+        {pulse.myVote !== null ? "투표 완료" : user ? "선택지를 눌러 투표하세요" : "투표하기"}
+      </button>
+    </article>
+  );
+}
+
 function CampusPulseBoardView({
   user,
   authToken,
@@ -1578,12 +1656,10 @@ function CampusPulseBoardView({
   onAuth: () => void;
 }) {
   const [pulses, setPulses] = useState<CampusPulse[]>([]);
-  const [selectedPulseId, setSelectedPulseId] = useState("");
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
 
   const loadPulses = useCallback(async () => {
-    setLoading(true);
     try {
       const response = await fetch("/api/pulses?school=yonsei", {
         cache: "no-store",
@@ -1624,78 +1700,48 @@ function CampusPulseBoardView({
     };
   }, [authToken]);
 
-  const rankedPulses = useMemo(() => rankCampusPulses(pulses), [pulses]);
-  const selectedPulse =
-    rankedPulses.find((pulse) => pulse.id === selectedPulseId) ?? rankedPulses[0];
   const openCreate = () => {
-    if (!user) {
-      onAuth();
-      return;
-    }
+    if (!user) { onAuth(); return; }
     setCreateOpen(true);
   };
 
+  const rankedPulses = rankCampusPulses(pulses);
+
   return (
     <>
-      <main className="pulse-board-page">
-        <section className="pulse-board-hero">
-          <div>
-            <span>CAMPUS PULSE BOARD</span>
-            <h1>캠퍼스의 생각</h1>
-            <p>짧게 묻고 바로 답하는 캠퍼스 투표 게시판이에요. 참여가 가장 많은 질문부터 확인해 보세요.</p>
-          </div>
-          <button type="button" onClick={openCreate}><Plus size={17} /> 새 투표 만들기</button>
-        </section>
-
-        <section className="pulse-board-layout" aria-label="캠퍼스 투표 게시판">
-          <div className="pulse-board-list-panel">
-            <div className="pulse-board-list-head">
-              <div><strong>진행 중인 투표</strong><small>참여 많은 순</small></div>
-              <span>{rankedPulses.length}개</span>
+      <main className="pulse-grid-page">
+        <div className="pulse-grid-shell">
+          <div className="pulse-grid-top">
+            <div>
+              <h1>오늘 캠퍼스의 생각</h1>
+              <p>10초 투표로 학교 여론을 확인하세요.</p>
             </div>
-            <div className="pulse-board-list">
-              {loading ? (
-                [0, 1, 2, 3].map((item) => <span className="pulse-board-row-skeleton" key={item} />)
-              ) : rankedPulses.length > 0 ? (
-                rankedPulses.map((pulse, index) => (
-                  <button
-                    type="button"
-                    className={selectedPulse?.id === pulse.id ? "active" : ""}
-                    key={pulse.id}
-                    onClick={() => setSelectedPulseId(pulse.id)}
-                  >
-                    <span className="pulse-board-row-top">
-                      <em>{index === 0 ? "참여 1위" : `투표 ${index + 1}`}</em>
-                      <small>{campusPulseTimeLeft(pulse.expiresAt)}</small>
-                    </span>
-                    <strong>{pulse.question}</strong>
-                    <span className="pulse-board-row-meta"><UsersRound size={14} /> {pulse.totalVotes.toLocaleString("ko-KR")}명 참여 · 선택지 {pulse.options.length}개</span>
-                  </button>
-                ))
-              ) : (
-                <button type="button" className="pulse-board-list-empty" onClick={openCreate}>
-                  <BarChart3 size={22} />
-                  <span><strong>진행 중인 투표가 없어요.</strong><small>첫 질문을 게시해 보세요.</small></span>
-                </button>
-              )}
+            <button type="button" className="pulse-grid-new" onClick={openCreate}>
+              <Plus size={16} /> 새 투표 열기
+            </button>
+          </div>
+          {loading ? (
+            <div className="pulse-grid-empty">투표를 불러오고 있어요.</div>
+          ) : rankedPulses.length === 0 ? (
+            <div className="pulse-grid-empty">
+              <strong>아직 진행 중인 투표가 없어요.</strong>
+              <button type="button" onClick={openCreate}>첫 질문 열기 →</button>
             </div>
-          </div>
-
-          <div className="pulse-board-detail">
-            <CampusPulseSection
-              pulse={selectedPulse}
-              loading={loading}
-              user={user}
-              authToken={authToken}
-              onAuth={onAuth}
-              onReload={() => void loadPulses()}
-              onCreate={openCreate}
-              onOpenBoard={() => undefined}
-              title="선택한 캠퍼스의 생각"
-              showBoardLink={false}
-            />
-          </div>
-        </section>
+          ) : (
+            <div className="pulse-grid">
+              {rankedPulses.map((pulse) => (
+                <PulseGridCard
+                  key={pulse.id}
+                  pulse={pulse}
+                  user={user}
+                  authToken={authToken}
+                  onAuth={onAuth}
+                  onReload={() => void loadPulses()}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </main>
       {createOpen && (
         <PulseCreateModal
