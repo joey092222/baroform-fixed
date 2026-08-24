@@ -247,16 +247,11 @@ export default function CommunityView({
 
   return (
     <main className="community-page">
-      <section className="community-hero">
+      <section className="community-hero community-hero-compact">
         <div>
-          <span className="eyebrow">CAMPUS COMMUNITY</span>
-          <h1>캠퍼스에서 나누는 이야기</h1>
-          <p>학교생활의 질문과 정보, 소소한 이야기를 게시판에서 편하게 나눠보세요.</p>
+          <h1>커뮤니티</h1>
+          <p>설문 만드는 사람들의 이야기</p>
         </div>
-        <button type="button" className="community-write-button" onClick={openComposer}>
-          <PenLine size={18} />
-          글쓰기
-        </button>
       </section>
 
       <section className="community-layout">
@@ -283,6 +278,10 @@ export default function CommunityView({
               <Search size={16} />
               <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="글 검색" aria-label="커뮤니티 글 검색" />
             </label>
+            <button type="button" className="community-write-inline" onClick={openComposer}>
+              <PenLine size={15} />
+              글쓰기
+            </button>
           </div>
 
           {composerOpen && (
