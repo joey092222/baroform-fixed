@@ -567,11 +567,11 @@ function Header({
         <nav className="main-nav" aria-label="주요 메뉴">
           <button
             type="button"
-            className={view === "board" ? "active" : ""}
-            aria-current={view === "board" ? "page" : undefined}
-            onClick={() => onNavigate("board")}
+            className={view === "home" || view === "board" ? "active" : ""}
+            aria-current={view === "home" ? "page" : undefined}
+            onClick={() => onNavigate("home")}
           >
-            전체 설문
+            참여하기
           </button>
           <button
             type="button"
@@ -579,7 +579,7 @@ function Header({
             aria-current={view === "pulses" ? "page" : undefined}
             onClick={() => onNavigate("pulses")}
           >
-            캠퍼스의 생각
+            캠퍼스 투표
           </button>
           <button
             type="button"
@@ -635,15 +635,8 @@ function Header({
             type="button"
             onClick={() => onNavigate("create-entry")}
           >
-            <span className="nav-cta-icon"><WandSparkles size={17} /></span>
-            <span className="nav-cta-copy">
-              <strong>
-                <span className="nav-cta-desktop-label">AI로 설문 자동 제작하기</span>
-                <span className="nav-cta-mobile-label">AI 설문 제작</span>
-              </strong>
-              <small>한 문장으로 바로 시작</small>
-            </span>
-            <ArrowRight size={17} />
+            <Plus size={16} />
+            <span>설문 만들기</span>
           </button>
         </div>
       </div>
@@ -1859,6 +1852,148 @@ function CampusPulseBoardView({
       )}
       <Footer />
     </>
+  );
+}
+
+// ── 참여하기: 프리뷰 02-feed 디자인 + 실데이터 ─────────────
+function FeedHomeView({
+  surveys,
+  loadingSurveys,
+  user,
+  cashBalance,
+  onAuth,
+  onOpenSurvey,
+  onOpenCommunity,
+  onOpenPulseBoard,
+}: {
+  surveys: PublicSurvey[];
+  loadingSurveys: boolean;
+  user: AuthUser | null;
+  cashBalance: number;
+  onAuth: () => void;
+  onOpenSurvey: (survey: PublicSurvey) => void;
+  onOpenCommunity: () => void;
+  onOpenPulseBoard: () => void;
+}) {
+  const [feedQuery, setFeedQuery] = useState("");
+  const [feedSort, setFeedSort] = useState<"latest" | "cash" | "popular">("latest");
+  const query = feedQuery.trim().toLowerCase();
+  const visible = surveys
+    .filter((survey) =>
+      !query ||
+      survey.title.toLowerCase().includes(query) ||
+      (survey.description ?? "").toLowerCase().includes(query))
+    .sort((a, b) => {
+      if (feedSort === "cash") return (b.rewardCash ?? 0) - (a.rewardCash ?? 0);
+      if (feedSort === "popular") return (b.responseCount ?? 0) - (a.responseCount ?? 0);
+      return 0; // API 기본 정렬이 최신순
+    });
+  const popular = [...surveys]
+    .sort((a, b) => (b.responseCount ?? 0) - (a.responseCount ?? 0))
+    .slice(0, 5);
+
+  return (
+    <main className="feed-page">
+      <div className="feed-layout">
+        <aside className="feed-side">
+          {user ? (
+            <div className="feed-panel feed-me">
+              <strong>{user.name}</strong>
+              <small>{schoolLabel(user.schoolId)}</small>
+              <div className="feed-cash"><Coins size={15} /> {cashBalance.toLocaleString("ko-KR")}C</div>
+            </div>
+          ) : (
+            <div className="feed-panel feed-login">
+              <strong>로그인하면<br />응답할 때마다 캐시 적립</strong>
+              <small>학교 이메일로 가입하면 우리 학교 설문이 먼저 보여요.</small>
+              <button type="button" onClick={onAuth}>학교 이메일로 시작</button>
+            </div>
+          )}
+          <div className="feed-panel feed-stats">
+            <div><span>진행 중 설문</span><b>{surveys.length}</b></div>
+            <div><span>누적 응답</span><b>{surveys.reduce((sum, item) => sum + (item.responseCount ?? 0), 0).toLocaleString("ko-KR")}</b></div>
+            <div><span>참여 대학</span><b>연세대</b></div>
+          </div>
+        </aside>
+
+        <section className="feed-main">
+          <div className="feed-tabs">
+            <button type="button" className="active">진행중인 설문 <small>{surveys.length}</small></button>
+          </div>
+          <label className="feed-search">
+            <Search size={15} />
+            <input
+              value={feedQuery}
+              onChange={(event) => setFeedQuery(event.target.value)}
+              placeholder="설문 제목·주제 검색"
+            />
+          </label>
+          <div className="feed-sort">
+            <button type="button" className={feedSort === "latest" ? "active" : ""} onClick={() => setFeedSort("latest")}>최신순</button>
+            <button type="button" className={feedSort === "cash" ? "active" : ""} onClick={() => setFeedSort("cash")}>캐시 높은순</button>
+            <button type="button" className={feedSort === "popular" ? "active" : ""} onClick={() => setFeedSort("popular")}>응답 많은순</button>
+          </div>
+          {loadingSurveys ? (
+            <div className="feed-empty">설문을 불러오고 있어요.</div>
+          ) : visible.length === 0 ? (
+            <div className="feed-empty">조건에 맞는 설문이 없어요.</div>
+          ) : (
+            <div className="feed-grid">
+              {visible.map((survey) => (
+                <article className="feed-card" key={survey.slug}>
+                  <button type="button" className="feed-card-thumb" onClick={() => onOpenSurvey(survey)}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={`https://picsum.photos/seed/${survey.slug}/420/220`} alt="" loading="lazy" />
+                    <span className="feed-card-cat">{categoryLabel(survey.category)}</span>
+                    <strong>{survey.title}</strong>
+                  </button>
+                  <div className="feed-card-body">
+                    <div className="feed-card-chips">
+                      <span className="cash">+{survey.rewardCash ?? 30} C</span>
+                      <span>{survey.targetAudience || "전학년"}</span>
+                    </div>
+                    <p>{survey.description || `${survey.title}에 관한 설문입니다.`}</p>
+                    <small>{survey.ownerName || "바로폼 이용자"} · {survey.campus || schoolLabel(survey.schoolId)}</small>
+                    <div className="feed-card-meta">
+                      <span>문항 <b>{survey.questionCount}</b></span>
+                      <span>예상 <b>{survey.durationMinutes}분</b></span>
+                      <span>응답 <b>{(survey.responseCount ?? 0).toLocaleString("ko-KR")}</b></span>
+                    </div>
+                    <div className="feed-card-actions">
+                      <button type="button" className="go" onClick={() => onOpenSurvey(survey)}>응답하기</button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <aside className="feed-rail">
+          <div className="feed-panel">
+            <div className="feed-rail-head">
+              <strong>실시간 인기 설문</strong>
+              <button type="button" onClick={onOpenCommunity}>커뮤니티 →</button>
+            </div>
+            {popular.map((survey, index) => (
+              <button type="button" className="feed-rank" key={survey.slug} onClick={() => onOpenSurvey(survey)}>
+                <b>{index + 1}</b>
+                <span>{survey.title}</span>
+                <small>{(survey.responseCount ?? 0).toLocaleString("ko-KR")}명</small>
+              </button>
+            ))}
+          </div>
+          <div className="feed-panel">
+            <div className="feed-rail-head">
+              <strong>캠퍼스 투표</strong>
+              <button type="button" onClick={onOpenPulseBoard}>전체 →</button>
+            </div>
+            <p className="feed-rail-note">10초 투표로 학교 여론을 확인해보세요.</p>
+            <button type="button" className="feed-rail-cta" onClick={onOpenPulseBoard}>투표하러 가기</button>
+          </div>
+        </aside>
+      </div>
+    </main>
   );
 }
 
@@ -7223,26 +7358,13 @@ export default function Home({
         />
       )}
       {view === "home" && (
-        <ProductHomeView
+        <FeedHomeView
           surveys={publicSurveys}
-          ownedSurveys={mySurveys}
           loadingSurveys={loadingSurveys}
           user={user}
-          authToken={authToken}
           cashBalance={wallet.balance}
           onAuth={() => setAuthOpen(true)}
-          onRefreshSurveys={() => void refreshPublicSurveys()}
-          onCreate={(quickPrompt) => {
-            if (quickPrompt) {
-              updatePrompt(quickPrompt);
-              navigate("create");
-              return;
-            }
-            navigate("create-entry");
-          }}
-          onOpenBoard={() => navigate("board")}
           onOpenSurvey={openSurvey}
-          onOpenOwnedSurvey={openOwnedAnalytics}
           onOpenCommunity={() => navigate("community")}
           onOpenPulseBoard={() => navigate("pulses")}
         />
