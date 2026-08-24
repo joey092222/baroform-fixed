@@ -1569,22 +1569,34 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
 
   const lifecycle = combineRequestAndDeadlineSignals(request);
   const openai = createTrackedOpenAiClient(apiKey, openAiTimeoutMs);
-  const modelRequest = buildSurveyAiRequest(prompt, null, model, {
-    surveyMode,
-    targetGrade,
-    questionCount,
-    references,
-    organizationLocationContext,
-    reasoningEffort: modelRoute.reasoningEffort,
-    serviceTier: modelRoute.requestedServiceTier,
-  });
   let upstreamCompleted = false;
   let modelCallStarted = false;
   let usageLogged = false;
   let actualRetryCount = 0;
-  const modelCallStartedAt = performance.now();
+  let modelCallStartedAt = performance.now();
+  // 모델 출력이 자체 검증에서 거부되면 거부 사유를 입력에 넣어 한 번 더
+  // 생성한다. 이전에는 템플릿 폴백으로 조용히 바꿔치기해서, 품질 낮은
+  // 규칙 기반 설문이 AI 결과처럼 나갔다. 재시도까지 거부되면 정직하게
+  // 에러를 반환한다.
+  let previousAttemptIssues: string[] | null = null;
 
   try {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+    upstreamCompleted = false;
+    modelCallStarted = false;
+    usageLogged = false;
+    modelCallStartedAt = performance.now();
+    const modelRequest = buildSurveyAiRequest(prompt, null, model, {
+      surveyMode,
+      targetGrade,
+      questionCount,
+      references,
+      organizationLocationContext,
+      reasoningEffort: modelRoute.reasoningEffort,
+      serviceTier: modelRoute.requestedServiceTier,
+      previousAttemptIssues,
+    });
+    try {
     let rawResult: Awaited<ReturnType<typeof openai.responses.parse>>;
     try {
       recordSurveyModelCall(trace);
@@ -1704,13 +1716,6 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         });
       }
 
-      if (isInvalidStructuredOutput && intent.intentMode === "composite") {
-        return respondWithPlanBasedFallback(
-          "model-output-rejected",
-          "composite_plan_fallback",
-        );
-      }
-
       if (isTimeout || isInvalidStructuredOutput || isHttpFailure) {
         throw error;
       }
@@ -1718,6 +1723,8 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       console.warn("survey-generation-transport-fallback", {
         requestId,
         name: error instanceof Error ? error.name : "UnknownError",
+        message:
+          error instanceof Error ? error.message.slice(0, 300) : String(error),
       });
       return respondWithPlanBasedFallback(
         "responses-api-error",
@@ -1826,11 +1833,36 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         trace.failureStage ?? trace.stage,
       );
     };
-    // 모델이 응답을 마쳤는데 앱의 자체 검증이 거부한 경우는, 의도 종류와
-    // 무관하게 계획 기반 설문으로 응답한다. 이전에는 composite 의도만
-    // fallback을 받고 나머지는 422로 나가서, 같은 실패가 "설문이 나온다" 와
-    // "에러가 뜬다" 로 갈렸다.
-    if (upstreamCompleted && error instanceof SurveyValidationError) {
+    const invalidStructuredOutput =
+      error instanceof SyntaxError ||
+      (error instanceof Error && error.name === "ZodError");
+    const validationRejected =
+      upstreamCompleted && error instanceof SurveyValidationError;
+
+    // 모델이 응답했지만 검증이 거부한 경우: 템플릿 설문으로 바꿔치기하지
+    // 않고, 거부 사유를 입력에 넣어 모델에게 한 번 더 생성시킨다.
+    if (
+      attempt === 0 &&
+      surveyMode !== "research" &&
+      !lifecycle.deadlineReached() &&
+      (validationRejected || invalidStructuredOutput)
+    ) {
+      previousAttemptIssues =
+        error instanceof SurveyValidationError && error.issues.length > 0
+          ? error.issues.slice(0, 6)
+          : [
+              "출력 JSON이 요구된 스키마와 일치하지 않았습니다. 스키마의 필수 필드와 형식을 정확히 지켜 다시 생성하라.",
+            ];
+      trace.regenerationCount += 1;
+      console.warn("survey-generation-retry-with-feedback", {
+        requestId,
+        name: error instanceof Error ? error.name : "UnknownError",
+        issues: previousAttemptIssues,
+      });
+      continue;
+    }
+
+    if (error instanceof SurveyValidationError) {
       if (!trace.parseFailureStage) {
         recordSurveySchemaDiagnostics(trace, {
           stage:
@@ -1840,66 +1872,6 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
           issues: [],
         });
       }
-      console.warn("survey-generation-output-fallback", {
-        requestId,
-        name: error.name,
-        category: error.category,
-        issues: error.issues.slice(0, 8),
-      });
-      return respondWithPlanBasedFallback(
-        "model-output-rejected",
-        intent.intentMode === "composite"
-          ? "composite_plan_fallback"
-          : outputRejectionFallbackSource(trace, error),
-      );
-    }
-
-    if (
-      upstreamCompleted &&
-      intent.intentMode === "composite" &&
-      (error instanceof SurveyValidationError ||
-        error instanceof SurveyGenerationResponseError ||
-        error instanceof SyntaxError ||
-        (error instanceof Error && error.name === "ZodError"))
-    ) {
-      if (!trace.parseFailureStage) {
-        recordSurveySchemaDiagnostics(trace, {
-          stage:
-            error instanceof SurveyValidationError
-              ? error.category === "schema"
-                ? "survey_output_schema_validation"
-                : "survey_semantic_validation"
-              : error instanceof SurveyGenerationResponseError
-                ? "responses_api_contract_validation"
-                : error instanceof SyntaxError
-                  ? "responses_api_json_parse"
-                  : "responses_api_structured_parse",
-          issues:
-            error instanceof z.ZodError
-              ? error.issues.map((issue) => ({
-                  path: issue.path,
-                  code: issue.code,
-                  expected: "expected" in issue ? issue.expected : undefined,
-                  received: "unknown",
-                }))
-              : [],
-        });
-      }
-      console.warn("survey-generation-output-fallback", {
-        requestId,
-        name: error instanceof Error ? error.name : "UnknownError",
-        issues:
-          error instanceof SurveyValidationError
-            ? error.issues.slice(0, 8)
-            : undefined,
-      });
-      return respondWithPlanBasedFallback(
-        "model-output-rejected",
-        "composite_plan_fallback",
-      );
-    }
-
-    if (error instanceof SurveyValidationError) {
       logGenerationMetric({
         surveyMode,
         startedAt: generationStartedAt,
@@ -1914,12 +1886,11 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
         requestId,
         category: error.category,
         issues: error.issues.slice(0, 8),
+        retried: attempt > 0,
       });
       return tracedError(
-        "생성된 설문 구조를 안전하게 적용하지 못했어요. 잠시 후 다시 시도해주세요.",
-        error.category === "schema"
-          ? "OUTPUT_SCHEMA_INVALID"
-          : "SEMANTIC_VALIDATION_FAILED",
+        "AI가 만든 설문이 품질 기준을 통과하지 못했어요. 표현을 조금 바꿔 다시 시도해주세요.",
+        "SURVEY_GENERATION_RETRY_EXHAUSTED",
         422,
       );
     }
@@ -2019,6 +1990,17 @@ async function createSurveyDraftResponse(request: Request, requestId: string) {
       "설문 생성 중 일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요.",
       "UNKNOWN_GENERATION_ERROR",
       500,
+    );
+    }
+    }
+    // 루프는 항상 return 또는 continue로 끝나므로 여기 도달하지 않지만,
+    // 타입과 안전을 위해 남긴다.
+    return apiError(
+      "설문 생성 중 일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요.",
+      "UNKNOWN_GENERATION_ERROR",
+      500,
+      traceHeaders(trace),
+      requestId,
     );
   } finally {
     lifecycle.dispose();

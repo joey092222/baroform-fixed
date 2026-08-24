@@ -7,9 +7,11 @@ import {
 } from "./build-diagnostics";
 
 export const MAX_REPAIR_ATTEMPTS = 1;
-export const MAX_FULL_REGENERATION_ATTEMPTS = 0;
+export const MAX_FULL_REGENERATION_ATTEMPTS = 1;
 export const MAX_REGENERATION_ATTEMPTS = MAX_FULL_REGENERATION_ATTEMPTS;
-export const MAX_MODEL_CALLS_PER_REQUEST = 1;
+// 최초 생성 1회 + 거부 사유를 넣은 재생성 1회. 재생성은 검증 거부 시에만
+// 일어나므로 평상시 비용은 그대로다.
+export const MAX_MODEL_CALLS_PER_REQUEST = 2;
 
 export type GenerationSource = SurveyGenerationSource;
 

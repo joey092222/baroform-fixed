@@ -465,14 +465,16 @@ test("POST 운영 경로는 정상 OpenAI 복합 설문을 fallback 없이 유�
   }
 });
 
-test("OpenAI 구조 파싱 실패는 목적을 평탄화하지 않는 복합 fallback으로 복구한다", async () => {
+test("OpenAI 구조 파싱 실패는 사유를 넣어 1회 재시도하고, 계속 실패하면 정직한 오류를 낸다", async () => {
   const previousKey = process.env.OPENAI_API_KEY;
   const previousFetch = globalThis.fetch;
   const prompt =
     "북문 카페 이용 경험 조사와 빈자리 안내 기능 도입 수요 조사";
   process.env.OPENAI_API_KEY = "test-key";
-  globalThis.fetch = async () =>
-    Response.json({
+  let modelCalls = 0;
+  globalThis.fetch = async () => {
+    modelCalls += 1;
+    return Response.json({
       status: "completed",
       incomplete_details: null,
       output: [
@@ -489,6 +491,7 @@ test("OpenAI 구조 파싱 실패는 목적을 평탄화하지 않는 복합 fal
         },
       ],
     });
+  };
 
   try {
     const response = await createSurveyDraft(
@@ -509,22 +512,18 @@ test("OpenAI 구조 파싱 실패는 목적을 평탄화하지 않는 복합 fal
       }),
     );
     const body = (await response.json()) as {
-      blueprint?: { aiQuestions?: Array<{ title?: string; purposeBlockId?: string }> };
+      ok?: boolean;
+      code?: string;
     };
 
-    assert.equal(response.status, 200, JSON.stringify(body));
-    assert.equal(
-      response.headers.get("x-baroform-generation-source"),
-      "composite_plan_fallback",
-    );
-    assert.equal(response.headers.get("x-baroform-ai-fallback"), "model-output-rejected");
-    assert.equal(response.headers.get("x-baroform-model-calls"), "1");
-    assert.equal(response.headers.get("x-baroform-fallback-count"), "1");
-    assert.ok(body.blueprint?.aiQuestions?.every((item) => item.purposeBlockId));
-    assert.doesNotMatch(
-      body.blueprint?.aiQuestions?.map((item) => item.title).join(" ") ?? "",
-      /이용 경험 조사와.*얼마나 필요/,
-    );
+    // 템플릿 설문으로 조용히 바꿔치기하지 않는다. 거부 사유를 넣어 한 번 더
+    // 생성시키고, 그래도 실패하면 사용자에게 정직하게 알린다.
+    assert.equal(response.status, 502, JSON.stringify(body));
+    assert.equal(body.ok, false);
+    assert.equal(body.code, "OUTPUT_JSON_INVALID");
+    assert.equal(modelCalls, 2);
+    assert.equal(response.headers.get("x-baroform-model-calls"), "2");
+    assert.equal(response.headers.get("x-baroform-regeneration-count"), "1");
   } finally {
     globalThis.fetch = previousFetch;
     if (previousKey) process.env.OPENAI_API_KEY = previousKey;

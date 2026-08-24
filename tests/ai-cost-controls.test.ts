@@ -20,6 +20,7 @@ import {
   shouldUseWebSearchForSurvey,
 } from "../app/survey-ai";
 import { POST as createSurveyDraft } from "../app/api/survey-draft/route";
+import { structuredReadyPayload } from "./structured-payload";
 import { openAiUploadRequest } from "../app/reference-file-upload";
 
 function withEnvironment(
@@ -242,10 +243,8 @@ test("동일 payload의 동시 생성 요청은 OpenAI 작업 하나를 공유�
     return Response.json({
       id: "resp_single_flight_test",
       object: "response",
-      status: "completed",
       model: "gpt-5.6-terra",
-      output: [],
-      output_text: "",
+      service_tier: "default",
       usage: {
         input_tokens: 10,
         input_tokens_details: { cached_tokens: 0 },
@@ -253,11 +252,12 @@ test("동일 payload의 동시 생성 요청은 OpenAI 작업 하나를 공유�
         output_tokens_details: { reasoning_tokens: 0 },
         total_tokens: 11,
       },
-      service_tier: "default",
+      ...structuredReadyPayload(),
     });
   };
   try {
-    const prompt = "학교 근처 카페 이용 경험 조사와 빈좌석 알림 서비스 도입 수요 조사";
+    const prompt =
+      "최근 4주 동안 네이버웹툰을 이용한 대학생 대상 네이버웹툰 이용 현황 조사";
     const makeRequest = () =>
       new Request("http://localhost/api/survey-draft", {
         method: "POST",

@@ -193,6 +193,8 @@ export function surveyGenerationErrorMessage(error: unknown) {
       case "SERVER_RESPONSE_EMPTY":
       case "SERVER_RESPONSE_INVALID":
         return "서버에 연결하지 못했어요. 인터넷 연결을 확인해주세요.";
+      case "SURVEY_GENERATION_RETRY_EXHAUSTED":
+        return "AI가 두 번 시도했지만 품질 기준을 통과하는 설문을 만들지 못했어요. 표현을 조금 바꿔 다시 시도해주세요.";
       case "SURVEY_GENERATION_INCOMPLETE":
       case "SURVEY_GENERATION_OUTPUT_MISSING":
       case "SURVEY_GENERATION_OUTPUT_INVALID":
