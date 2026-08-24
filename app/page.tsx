@@ -113,10 +113,21 @@ import {
 } from "./survey-generation-client";
 import { surveyAudienceLabel } from "./survey-grade";
 import { surveySharePath } from "./survey-share";
+import {
+  surveyTemplates,
+  templateBlocks,
+  templateCategories,
+  templateSource,
+  buildTemplateQuestions,
+  blankSurveyQuestions,
+  type SurveyTemplate,
+} from "./survey-templates";
 
 type View =
   | "landing"
   | "home"
+  | "create-entry"
+  | "templates"
   | "board"
   | "pulses"
   | "community"
@@ -622,7 +633,7 @@ function Header({
           <button
             className="nav-cta"
             type="button"
-            onClick={() => onNavigate("create")}
+            onClick={() => onNavigate("create-entry")}
           >
             <span className="nav-cta-icon"><WandSparkles size={17} /></span>
             <span className="nav-cta-copy">
@@ -1226,68 +1237,49 @@ function LandingView({
   return (
     <>
       <main className="landing-page">
-        <nav className="landing-nav" aria-label="랜딩 페이지 메뉴">
-          <button type="button" className="brand" onClick={onEnterSite} aria-label="바로폼 홈으로 이동">
-            <BrandMark />
-            <strong>바로폼</strong>
-          </button>
-          <div>
-            <a href="#product">제품</a>
-            <a href="#how-it-works">이용 방법</a>
-            <a href="#campus-surveys">학교 설문</a>
-          </div>
-          <button type="button" className="landing-nav-cta" onClick={onEnterSite}>
-            무료로 시작하기 <ArrowRight size={16} />
-          </button>
-        </nav>
-
-        <section className="landing-hero" aria-labelledby="landing-title">
-          <div className="landing-hero-glow landing-hero-glow-left" />
-          <div className="landing-hero-glow landing-hero-glow-right" />
-          <div className="landing-hero-content">
+        <section className="landing-video-hero" aria-labelledby="landing-title">
+          <video
+            className="landing-video"
+            src="/demo.mp4"
+            autoPlay
+            muted
+            loop
+            playsInline
+            aria-hidden="true"
+          />
+          <div className="landing-video-scrim" aria-hidden="true" />
+          <nav className="landing-nav landing-nav-overlay" aria-label="랜딩 페이지 메뉴">
+            <button type="button" className="brand" onClick={onEnterSite} aria-label="바로폼 홈으로 이동">
+              <BrandMark />
+              <strong>바로폼</strong>
+            </button>
+            <div>
+              <a href="#how-it-works">이용 방법</a>
+              <a href="#campus-surveys">학교 설문</a>
+            </div>
+            <button type="button" className="landing-nav-cta" onClick={onEnterSite}>
+              무료로 시작하기 <ArrowRight size={16} />
+            </button>
+          </nav>
+          <div className="landing-video-content">
             <span className="landing-kicker">대학생의 질문이 실제 응답이 되는 곳</span>
-            <h1 id="landing-title">학생들의 질문과 답을 한곳에서.</h1>
-            <p>한 문장으로 설문을 만들고, 우리 학교에서 응답을 모으고, 결과까지 바로 읽어보세요.</p>
-            <div className="landing-hero-actions">
-              <button
-                type="button"
-                className="landing-primary"
-                onClick={onEnterSite}
-              >
-                첫 설문 만들기
-                <ArrowRight size={18} />
+            <h1 id="landing-title">학생들의 질문과 답을<br />한곳에서.</h1>
+            <p>AI가 문항을 설계하고, 우리 학교 학생들이 응답합니다.<br />응답할 때마다 캐시가 쌓여요.</p>
+            <div className="landing-video-actions">
+              <button type="button" className="landing-video-primary" onClick={onEnterSite}>
+                무료로 시작하기 <ArrowRight size={18} />
+              </button>
+              <button type="button" className="landing-video-secondary" onClick={onEnterSite}>
+                설문 둘러보기
               </button>
             </div>
-            <div className="landing-product-frame" id="product" aria-label="바로폼 제품 화면 예시">
-              <div className="landing-product-bar">
-                <span><BrandMark compact /><strong>바로폼</strong></span>
-                <div><i /><i /><i /></div>
-              </div>
-              <div className="landing-product-layout">
-                <aside>
-                  <span>설문 구성</span>
-                  {["설문 소개", "이용 빈도", "선택 이유", "개선 의견"].map((item, index) => (
-                    <i key={item} className={index === 1 ? "active" : ""}>{String(index).padStart(2, "0")} {item}</i>
-                  ))}
-                </aside>
-                <article>
-                  <small>BAROFORM</small>
-                  <h2>대학생 카페 공부 경험 조사</h2>
-                  <p>카페에서 공부하는 빈도와 선택 이유를 알아보는 설문입니다.</p>
-                  <div className="landing-question-mockup">
-                    <span>01</span>
-                    <strong>평소 카페에서 얼마나 자주 공부하나요?</strong>
-                    {["거의 하지 않음", "월 1~2회", "주 1~2회", "주 3회 이상"].map((option) => <i key={option}>{option}</i>)}
-                  </div>
-                </article>
-                <aside className="landing-ai-panel">
-                  <strong><Sparkles size={15} /> AI로 바로 수정</strong>
-                  <p>질문을 더 짧게 정리하고 선택지 간격을 맞춰줘</p>
-                  <button type="button" tabIndex={-1}>AI로 반영하기</button>
-                </aside>
-              </div>
+            <div className="landing-video-stats">
+              <div><b>12,438</b><span>누적 응답</span></div>
+              <div><b>8개교</b><span>참여 대학</span></div>
+              <div><b>91%</b><span>평균 완료율</span></div>
             </div>
           </div>
+          <span className="landing-video-scroll-hint" aria-hidden="true">▼ 지금 캠퍼스에서 돌고 있는 설문</span>
         </section>
 
         <section className="landing-proof-strip" aria-label="바로폼 핵심 흐름">
@@ -2713,6 +2705,165 @@ function MyPageView({
   );
 }
 
+// ── 제작 진입: AI / 템플릿 / 빈 설문 3갈래 ─────────────────
+function CreateEntryView({
+  onAi,
+  onTemplates,
+  onBlank,
+  onBack,
+}: {
+  onAi: () => void;
+  onTemplates: () => void;
+  onBlank: () => void;
+  onBack: () => void;
+}) {
+  const lanes = [
+    { icon: "✦", bg: "#e9eff9", title: "AI 자동 생성", desc: "한 문장으로 설명하면\nAI가 문항까지 설계해요", time: "약 30초", solid: true, onGo: onAi },
+    { icon: "📋", bg: "#eef1f5", title: "템플릿", desc: "대학가 설문 318건 분석,\n검증된 구조 " + surveyTemplates.length + "종", time: "약 3분", solid: false, onGo: onTemplates },
+    { icon: "📝", bg: "#eef1f5", title: "빈 설문부터", desc: "처음부터 내가 직접\n문항을 하나씩", time: "자유", solid: false, onGo: onBlank },
+  ];
+  return (
+    <main className="create-page create-entry-page">
+      <header className="create-header">
+        <button type="button" className="create-back" onClick={onBack}>
+          <ArrowLeft size={18} />
+          홈으로
+        </button>
+        <button type="button" className="brand create-brand" onClick={onBack}>
+          <BrandMark compact />
+          <strong>바로폼</strong>
+        </button>
+        <span className="create-step">새 설문</span>
+      </header>
+      <section className="create-entry-stage">
+        <h1>새 설문을 어떻게 만들까요?</h1>
+        <div className="create-entry-grid">
+          {lanes.map((lane) => (
+            <button type="button" className="create-entry-card" key={lane.title} onClick={lane.onGo}>
+              <span className="create-entry-icon" style={{ background: lane.bg }}>{lane.icon}</span>
+              <strong>{lane.title}</strong>
+              <p>{lane.desc.split("\n").map((line, index) => (
+                <span key={index}>{index > 0 && <br />}{line}</span>
+              ))}</p>
+              <em>{lane.time}</em>
+              <span className={`create-entry-cta ${lane.solid ? "solid" : ""}`}>시작하기</span>
+            </button>
+          ))}
+        </div>
+        <p className="create-entry-note">어느 쪽이든 같은 편집기로 이어져요.</p>
+      </section>
+    </main>
+  );
+}
+
+// ── 템플릿: 카테고리 탭 + 가로 캐러셀 ──────────────────────
+function TemplatesView({
+  onUse,
+  onBlank,
+  onBack,
+}: {
+  onUse: (template: SurveyTemplate) => void;
+  onBlank: () => void;
+  onBack: () => void;
+}) {
+  const [category, setCategory] = useState<string>("*");
+  const stripRef = useRef<HTMLDivElement | null>(null);
+  const [scrolled, setScrolled] = useState(false);
+  const items = category === "*"
+    ? surveyTemplates
+    : surveyTemplates.filter((template) => template.category === category);
+
+  const scrollByPage = (direction: number) => {
+    stripRef.current?.scrollBy({ left: direction * 740, behavior: "smooth" });
+  };
+
+  const selectCategory = (next: string) => {
+    setCategory(next);
+    setScrolled(false);
+    stripRef.current?.scrollTo({ left: 0 });
+  };
+
+  return (
+    <main className="create-page templates-page">
+      <header className="create-header">
+        <button type="button" className="create-back" onClick={onBack}>
+          <ArrowLeft size={18} />
+          뒤로
+        </button>
+        <button type="button" className="brand create-brand" onClick={onBack}>
+          <BrandMark compact />
+          <strong>바로폼</strong>
+        </button>
+        <span className="create-step">템플릿</span>
+      </header>
+      <section className="templates-stage">
+        <h1>템플릿에서 시작하기</h1>
+        <p className="templates-sub">{templateSource} · 카테고리를 고르고 옆으로 넘겨보세요.</p>
+        <div className="templates-tabs" role="tablist" aria-label="템플릿 카테고리">
+          <button
+            type="button"
+            role="tab"
+            className={category === "*" ? "active" : ""}
+            aria-selected={category === "*"}
+            onClick={() => selectCategory("*")}
+          >
+            전체 {surveyTemplates.length}
+          </button>
+          {templateCategories.map((entry) => (
+            <button
+              type="button"
+              role="tab"
+              key={entry.full}
+              className={category === entry.full ? "active" : ""}
+              aria-selected={category === entry.full}
+              onClick={() => selectCategory(entry.full)}
+            >
+              {entry.icon} {entry.short}{" "}
+              {surveyTemplates.filter((template) => template.category === entry.full).length}
+            </button>
+          ))}
+          <button type="button" className="templates-blank" onClick={onBlank}>
+            📝 직접 구성하기
+          </button>
+        </div>
+        <div className={`templates-rail ${scrolled ? "scrolled" : ""}`}>
+          <button type="button" className="templates-nav prev" aria-label="이전 템플릿" onClick={() => scrollByPage(-1)}>
+            ‹
+          </button>
+          <button type="button" className="templates-nav next" aria-label="다음 템플릿" onClick={() => scrollByPage(1)}>
+            ›
+          </button>
+          <div
+            className="templates-strip"
+            ref={stripRef}
+            onScroll={(event) => setScrolled(event.currentTarget.scrollLeft > 8)}
+          >
+            {items.map((template) => (
+              <article className="template-card" key={template.id}>
+                <div className="template-card-meta">
+                  <span className="template-sample">사례 {template.sampleCount}건 기반</span>
+                  <span className="template-count">예상 문항 {template.estimatedItems}</span>
+                </div>
+                <h2>{template.name}</h2>
+                <p>{template.description}</p>
+                <div className="template-blocks">
+                  {template.blocks.map((blockId) => {
+                    const block = templateBlocks[blockId];
+                    return block ? <span key={blockId}>{block.name}</span> : null;
+                  })}
+                </div>
+                <button type="button" className="template-use" onClick={() => onUse(template)}>
+                  이 템플릿 사용 <ArrowRight size={15} />
+                </button>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 function CreateView({
   prompt,
   setPrompt,
@@ -2743,6 +2894,9 @@ function CreateView({
   isAnalyzing: boolean;
 }) {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const [openSetting, setOpenSetting] = useState<
+    "attach" | "mode" | "grade" | "count" | null
+  >(null);
   const canGenerate = prompt.trim().length >= 2 || hasSurveyReferences(references);
   const recommendedMode = useMemo(
     () =>
@@ -2757,34 +2911,39 @@ function CreateView({
   }, []);
 
   return (
-    <main className="create-page">
+    <main className="create-page prompt-page">
       <header className="create-header">
         <button type="button" className="create-back" onClick={onBack}>
           <ArrowLeft size={18} />
-          홈으로
+          뒤로
         </button>
         <button type="button" className="brand create-brand" onClick={onBack}>
           <BrandMark compact />
           <strong>바로폼</strong>
         </button>
-        <span className="create-step">새 설문</span>
+        <span className="create-step">AI로 만들기</span>
       </header>
 
-      <section className="create-stage">
-        <div className="create-copy">
-          <span className="create-ai-mark">설문 초안 만들기</span>
-          <h1>어떤 설문을 만들까요?</h1>
-          <p>내용을 적거나 참고할 사진·파일·링크를 추가해주세요.</p>
-        </div>
+      <section className="prompt-stage">
+        <h1>어떤 설문을 만들까요?</h1>
 
-        <div className="create-composer">
+        <div className="prompt-pill">
+          <button
+            type="button"
+            className={`prompt-attach ${openSetting === "attach" ? "open" : ""}`}
+            aria-label="사진·파일·링크 첨부"
+            aria-expanded={openSetting === "attach"}
+            onClick={() => setOpenSetting(openSetting === "attach" ? null : "attach")}
+          >
+            <Plus size={20} />
+          </button>
           <textarea
             id="survey-maker"
             ref={inputRef}
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
-            placeholder="예) 연세대 학생들의 대우관 등하교 경험과 불편한 점을 조사하고 싶어요"
-            rows={3}
+            placeholder="조사하고 싶은 내용을 한 문장으로 적어주세요"
+            rows={1}
             maxLength={300}
             onKeyDown={(event) => {
               if (
@@ -2797,129 +2956,129 @@ function CreateView({
               }
             }}
           />
-          <SurveyReferenceControls
-            references={references}
-            onChange={setReferences}
-            disabled={isAnalyzing}
-          />
-          <fieldset className="survey-mode-setting" disabled={isAnalyzing}>
-            <legend>설문 제작 방식</legend>
-            <div className="survey-mode-options">
-              {surveyModeOptions.map((option) => (
-                <label
-                  className={`survey-mode-card ${surveyMode === option.value ? "selected" : ""}`}
-                  key={option.value}
-                >
-                  <input
-                    type="radio"
-                    name="survey-mode"
-                    value={option.value}
-                    checked={surveyMode === option.value}
-                    onChange={() => setSurveyMode(option.value)}
-                  />
-                  <span className="survey-mode-radio" aria-hidden="true" />
-                  <span className="survey-mode-copy">
-                    <span>
-                      <strong>{option.label}</strong>
-                      {recommendedMode === option.value && <em>추천</em>}
-                    </span>
-                    <small>{option.description}</small>
-                  </span>
-                </label>
-              ))}
-            </div>
-            <p>두 방식 모두 관련 정보를 확인하고 문항 품질을 검토해요.</p>
-          </fieldset>
-          <div className="create-composer-footer">
-            <div className={`create-readiness ${canGenerate ? "ready" : ""}`}>
-              <i />
-              <span>{canGenerate ? "문항을 만들 준비가 됐어요" : "주제나 자료를 입력해주세요"}</span>
-            </div>
-            <span className="create-counter">{prompt.length}/300</span>
+          <button
+            type="button"
+            className="prompt-submit"
+            onClick={onCreate}
+            disabled={isAnalyzing || !canGenerate}
+            aria-label="설문 생성하기"
+          >
+            {isAnalyzing ? <Sparkles size={19} /> : <ArrowRight size={19} style={{ transform: "rotate(-90deg)" }} />}
+          </button>
+        </div>
+
+        {openSetting === "attach" && (
+          <div className="prompt-panel prompt-attach-panel">
+            <SurveyReferenceControls
+              references={references}
+              onChange={setReferences}
+              disabled={isAnalyzing}
+            />
+          </div>
+        )}
+
+        <div className="prompt-chips" aria-label="설문 생성 설정">
+          <div className="prompt-chip-wrap">
             <button
               type="button"
-              onClick={onCreate}
-              disabled={isAnalyzing || !canGenerate}
-              aria-label="설문 생성하기"
+              className={`prompt-chip ${openSetting === "mode" ? "open" : ""}`}
+              aria-expanded={openSetting === "mode"}
+              onClick={() => setOpenSetting(openSetting === "mode" ? null : "mode")}
             >
-              <Sparkles size={17} />
-              <span>{isAnalyzing ? "설문 만드는 중" : "AI로 설문 만들기"}</span>
-              {!isAnalyzing && <ArrowRight size={16} />}
+              📐 {surveyMode === "research" ? "정밀·연구 설문" : "일반 설문"} <ChevronDown size={13} />
             </button>
+            {openSetting === "mode" && (
+              <div className="prompt-panel">
+                {surveyModeOptions.map((option) => (
+                  <button
+                    type="button"
+                    key={option.value}
+                    className={`prompt-option ${surveyMode === option.value ? "active" : ""}`}
+                    onClick={() => {
+                      setSurveyMode(option.value);
+                      setOpenSetting(null);
+                    }}
+                  >
+                    <strong>
+                      {option.label}
+                      {recommendedMode === option.value && <em>추천</em>}
+                    </strong>
+                    <small>{option.description}</small>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
 
-        <div className="create-settings" aria-label="설문 생성 설정">
-          <div className="setting-block grade-setting">
-            <div className="setting-heading">
-              <span><UsersRound size={16} /> 응답 대상</span>
-              <small>학년을 선택해주세요</small>
-            </div>
-            <div className="grade-options">
-              {targetGradeOptions.map((grade) => (
+          <div className="prompt-chip-wrap">
+            <button
+              type="button"
+              className={`prompt-chip ${openSetting === "grade" ? "open" : ""}`}
+              aria-expanded={openSetting === "grade"}
+              onClick={() => setOpenSetting(openSetting === "grade" ? null : "grade")}
+            >
+              👥 {targetGrade} <ChevronDown size={13} />
+            </button>
+            {openSetting === "grade" && (
+              <div className="prompt-panel prompt-grade-panel">
+                {targetGradeOptions.map((grade) => (
+                  <button
+                    type="button"
+                    key={grade}
+                    className={`prompt-option compact ${targetGrade === grade ? "active" : ""}`}
+                    onClick={() => {
+                      setTargetGrade(grade);
+                      setOpenSetting(null);
+                    }}
+                  >
+                    {grade}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="prompt-chip-wrap">
+            <button
+              type="button"
+              className={`prompt-chip ${openSetting === "count" ? "open" : ""}`}
+              aria-expanded={openSetting === "count"}
+              onClick={() => setOpenSetting(openSetting === "count" ? null : "count")}
+            >
+              🔢 {questionCount}문항 <ChevronDown size={13} />
+            </button>
+            {openSetting === "count" && (
+              <div className="prompt-panel prompt-count-panel">
                 <button
                   type="button"
-                  key={grade}
-                  className={targetGrade === grade ? "active" : ""}
-                  onClick={() => setTargetGrade(grade)}
+                  onClick={() => setQuestionCount(Math.max(1, questionCount - 1))}
+                  disabled={questionCount <= 1}
+                  aria-label="문항 수 줄이기"
                 >
-                  {grade}
+                  <Minus size={16} />
                 </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="setting-block count-setting">
-            <div className="setting-heading">
-              <span><BarChart3 size={16} /> 문항 수</span>
-              <small>1~30개</small>
-            </div>
-            <div className="count-stepper">
-              <button
-                type="button"
-                onClick={() => setQuestionCount(Math.max(1, questionCount - 1))}
-                disabled={questionCount <= 1}
-                aria-label="문항 수 줄이기"
-              >
-                <Minus size={17} />
-              </button>
-              <label>
-                <input
-                  type="number"
-                  value={questionCount}
-                  min={1}
-                  max={30}
-                  onChange={(event) =>
-                    setQuestionCount(
-                      Math.min(30, Math.max(1, Number(event.target.value) || 1)),
-                    )
-                  }
-                  aria-label="생성할 문항 수"
-                />
-                <span>개</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => setQuestionCount(Math.min(30, questionCount + 1))}
-                disabled={questionCount >= 30}
-                aria-label="문항 수 늘리기"
-              >
-                <Plus size={17} />
-              </button>
-            </div>
+                <span>{questionCount} 개</span>
+                <button
+                  type="button"
+                  onClick={() => setQuestionCount(Math.min(30, questionCount + 1))}
+                  disabled={questionCount >= 30}
+                  aria-label="문항 수 늘리기"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="create-summary">
-          <CheckCircle2 size={15} />
-          <span>
-            {surveyMode === "research" ? "정밀·연구 설문" : "일반 설문"} · {targetGrade} 대상 · {questionCount}문항
-            {hasSurveyReferences(references)
-              ? ` · 참고자료 ${references.images.length + references.files.length + references.links.length}개`
-              : ""}
-          </span>
-          <span>생성 후 모든 문항을 직접 또는 AI로 수정할 수 있어요.</span>
-        </div>
+        <p className="prompt-hint">
+          {isAnalyzing
+            ? "✨ 설문 만드는 중이에요 · 잠시만요"
+            : canGenerate
+              ? `✨ ${surveyMode === "research" ? "정밀·연구 설문" : "일반 설문"} · ${targetGrade} 대상 · ${questionCount}문항으로 만들어요 · 약 30초`
+              : "✨ 조사 의도를 읽고 문항을 구성해요 · 약 30초"}
+        </p>
+        <span className="prompt-counter">{prompt.length}/300</span>
       </section>
     </main>
   );
@@ -7046,7 +7205,7 @@ export default function Home({
           surveys={mySurveys}
           wallet={wallet}
           onNavigate={navigate}
-          onCreate={() => navigate("create")}
+          onCreate={() => navigate("create-entry")}
           onOpenSurvey={openOwnedAnalytics}
           onAuth={() => setAuthOpen(true)}
           onClose={() => setWorkspaceSidebarOpen(false)}
@@ -7074,8 +7233,12 @@ export default function Home({
           onAuth={() => setAuthOpen(true)}
           onRefreshSurveys={() => void refreshPublicSurveys()}
           onCreate={(quickPrompt) => {
-            if (quickPrompt) updatePrompt(quickPrompt);
-            navigate("create");
+            if (quickPrompt) {
+              updatePrompt(quickPrompt);
+              navigate("create");
+              return;
+            }
+            navigate("create-entry");
           }}
           onOpenBoard={() => navigate("board")}
           onOpenSurvey={openSurvey}
@@ -7089,7 +7252,7 @@ export default function Home({
           surveys={publicSurveys}
           loadingSurveys={loadingSurveys}
           onOpenSurvey={openSurvey}
-          onCreate={() => navigate("create")}
+          onCreate={() => navigate("create-entry")}
         />
       )}
       {view === "pulses" && (
@@ -7105,7 +7268,7 @@ export default function Home({
             user={user}
             authToken={authToken}
             onAuth={() => setAuthOpen(true)}
-            onCreateSurvey={() => navigate("create")}
+            onCreateSurvey={() => navigate("create-entry")}
           />
           <Footer />
         </>
@@ -7116,7 +7279,7 @@ export default function Home({
           authToken={authToken}
           ownedSurveys={mySurveys}
           onAuth={() => setAuthOpen(true)}
-          onCreateSurvey={() => navigate("create")}
+          onCreateSurvey={() => navigate("create-entry")}
           onOpenSurvey={(slug) => {
             const survey = mySurveys.find((item) => item.slug === slug);
             if (survey) openOwnedAnalytics(survey);
@@ -7141,13 +7304,45 @@ export default function Home({
           surveys={mySurveys}
           loading={loadingMySurveys}
           error={mySurveysError}
-          onCreate={() => navigate("create")}
+          onCreate={() => navigate("create-entry")}
           onOpenSurvey={openSurvey}
           onOpenAnalytics={openOwnedAnalytics}
           onOpenBoard={() => navigate("board")}
           onDeleteSurvey={deleteOwnedSurvey}
           onLogout={logout}
           wallet={wallet}
+        />
+      )}
+      {view === "create-entry" && (
+        <CreateEntryView
+          onAi={() => navigate("create")}
+          onTemplates={() => navigate("templates")}
+          onBlank={() => {
+            setSurveyTitle("새 설문");
+            setDescription("");
+            setQuestions(blankSurveyQuestions());
+            navigate("editor");
+          }}
+          onBack={() => navigate("home")}
+        />
+      )}
+      {view === "templates" && (
+        <TemplatesView
+          onUse={(template) => {
+            const templateQuestions = buildTemplateQuestions(template);
+            setSurveyTitle(template.name);
+            setDescription(template.description);
+            setQuestions(templateQuestions);
+            setQuestionCount(templateQuestions.length);
+            navigate("editor");
+          }}
+          onBlank={() => {
+            setSurveyTitle("새 설문");
+            setDescription("");
+            setQuestions(blankSurveyQuestions());
+            navigate("editor");
+          }}
+          onBack={() => navigate("create-entry")}
         />
       )}
       {view === "create" && (
@@ -7175,7 +7370,7 @@ export default function Home({
           setDescription={setDescription}
           questions={questions}
           setQuestions={setQuestions}
-          onBack={() => navigate("create")}
+          onBack={() => navigate("create-entry")}
           onPublish={() => {
             setPublishedInstagramStatus("");
             if (!user || !authToken) {

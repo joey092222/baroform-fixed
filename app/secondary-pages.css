@@ -1501,3 +1501,23 @@
     padding: 32px 22px;
   }
 }
+
+/* ── 커뮤니티 에타식 초밀도 리스트 ───────────────────────── */
+.community-hero { padding: 26px 0 14px; }
+.community-hero h1 { font-size: 24px; }
+.community-post-list { display: block; border: 1px solid #e5e8ee; border-radius: 12px; background: #fff; overflow: hidden; }
+.community-post-card { border: 0; border-radius: 0; padding: 11px 16px; box-shadow: none; }
+.community-post-card + .community-post-card { border-top: 1px solid #f2f4f7; }
+.community-post-card:hover { box-shadow: none; background: #fafbfc; transform: none; }
+.community-post-meta { order: 3; margin: 0; gap: 6px; }
+.community-post-meta span { font-size: 10.5px; height: auto; padding: 0; background: transparent; color: #b3bac4; font-weight: 700; }
+.community-post-meta strong { font-size: 10.5px; color: #b3bac4; font-weight: 700; }
+.community-post-meta small { font-size: 10.5px; color: #b3bac4; }
+.community-post-card { display: flex; flex-direction: column; gap: 3px; }
+.community-post-content { padding: 0; }
+.community-post-content h2 { font-size: 13.5px; font-weight: 700; letter-spacing: -0.015em; line-height: 1.45; margin: 0; }
+.community-post-content p { font-size: 12px; color: #9aa2ad; line-height: 1.5; margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
+.community-post-actions { margin: 3px 0 0; gap: 10px; }
+.community-post-actions button { height: auto; padding: 0; border: 0; background: transparent; font-size: 11px; font-weight: 700; color: #2b6cd4; display: inline-flex; align-items: center; gap: 4px; }
+.community-post-actions button:first-child { color: #cc4437; }
+.community-post-actions button svg { width: 13px; height: 13px; }
