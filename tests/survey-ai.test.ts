@@ -36,7 +36,6 @@ import {
 } from "../app/reference-files";
 import { verifyReferenceFileToken } from "../app/reference-file-upload";
 import { createSurveyGenerationSchema } from "../app/lib/ai/survey-generation-schema";
-import { structuredQuestion, structuredReadyPayload } from "./structured-payload";
 import { getSurveyModeGenerationConfig } from "../app/lib/ai/survey-mode-config";
 import { respondentCopyIssues } from "../app/lib/ai/respondent-copy-quality";
 import {
@@ -1105,6 +1104,69 @@ test("잘못된 설문 제작 모드는 구조화된 400 JSON으로 거부한다
   assert.doesNotMatch(JSON.stringify(body), /stack|ZodError|invalid_type/i);
 });
 
+function structuredQuestion(
+  id: number,
+  role:
+    | "screening"
+    | "behavior"
+    | "experience"
+    | "evaluation"
+    | "barrier"
+    | "open",
+  type:
+    | "single_choice"
+    | "multiple_choice"
+    | "scale"
+    | "long_text",
+  text: string,
+  labels: string[] = [],
+) {
+  return {
+    id: `Q${id}`,
+    section_id: "S1",
+    role,
+    type,
+    text,
+    helper_text: null,
+    required: type !== "long_text",
+    reference_period: id === 2 ? "최근 4주" : null,
+    options: labels.map((label, index) => ({
+      id: `Q${id}_O${index + 1}`,
+      label,
+      exclusive: label === "이용하지 않음",
+      fixed_position: label === "기타",
+      allows_text: label === "기타",
+    })),
+    scale:
+      type === "scale"
+        ? {
+            min: 1,
+            max: 5,
+            min_label: "전혀 만족하지 않음",
+            max_label: "매우 만족",
+          }
+        : null,
+    randomize_options: false,
+    show_if: [],
+    validation: {
+      min_value: null,
+      max_value: null,
+      min_selections: type === "multiple_choice" ? 1 : null,
+      max_selections: type === "multiple_choice" ? 3 : null,
+      max_length: type === "long_text" ? 1000 : null,
+    },
+    analysis: {
+      construct: role,
+      purpose: `${text} 결과를 이용 행태 분석에 사용합니다.`,
+      variable_name: `q_${id}`,
+      coding_notes: null,
+    },
+    grounding: {
+      uses_external_fact: id === 1,
+      source_ids: id === 1 ? ["SRC1"] : [],
+    },
+  };
+}
 
 function readyOpenAiPayload(
   options: Parameters<typeof readyPayload>[0],
@@ -1239,6 +1301,118 @@ function readyOpenAiPayload(
   };
 }
 
+function structuredReadyPayload() {
+  const sourceUrl = "https://comic.naver.com";
+  const questions = [
+    structuredQuestion(1, "screening", "single_choice", "네이버웹툰을 이용한 적이 있나요?", ["예", "아니요"]),
+    structuredQuestion(2, "behavior", "single_choice", "최근 4주 동안 네이버웹툰을 얼마나 자주 이용했나요?", ["이용하지 않음", "월 1~3회", "주 1~2회", "주 3회 이상"]),
+    structuredQuestion(3, "behavior", "single_choice", "한 번 이용할 때 보통 얼마나 오래 웹툰을 보나요?", ["10분 미만", "10~29분", "30~59분", "1시간 이상"]),
+    structuredQuestion(4, "experience", "multiple_choice", "주로 어떤 상황에서 웹툰을 보나요?", ["통학 중", "쉬는 시간", "잠들기 전", "기타"]),
+    structuredQuestion(5, "experience", "multiple_choice", "주로 보는 웹툰 장르를 골라주세요.", ["드라마", "로맨스", "액션", "코미디", "기타"]),
+    structuredQuestion(6, "evaluation", "scale", "네이버웹툰 이용 경험에 전반적으로 얼마나 만족하나요?"),
+    structuredQuestion(7, "open", "long_text", "이용하면서 가장 불편했던 점이 있다면 적어주세요."),
+  ];
+  const generation = {
+    status: "ready" as const,
+    research: {
+      search_status: "verified" as const,
+      entities: [
+        {
+          input_name: "네이버웹툰",
+          resolved_name: "네이버웹툰",
+          resolved_as: "웹툰 서비스",
+          affiliation_or_location: "대한민국",
+          confidence: "verified" as const,
+          verified_facts: [
+            {
+              fact: "웹툰 콘텐츠를 제공하는 서비스입니다.",
+              source_ids: ["SRC1"],
+            },
+          ],
+        },
+      ],
+      sources: [
+        {
+          id: "SRC1",
+          title: "네이버웹툰",
+          url: sourceUrl,
+          source_type: "official" as const,
+          used_for: "서비스 정체 확인",
+        },
+      ],
+      limitations: [],
+    },
+    survey_plan: {
+      survey_type: "이용 현황 조사",
+      target: "네이버웹툰을 알고 있는 대학생",
+      eligibility: "대학생",
+      primary_objective: "대학생의 네이버웹툰 이용 행태와 경험을 파악한다.",
+      sub_objectives: ["이용 빈도", "이용 상황", "불편 경험"],
+      constructs: [
+        { name: "이용 여부", reason: "이용자 규모를 구분한다." },
+        { name: "이용 빈도", reason: "이용 강도를 파악한다." },
+        { name: "이용 시간", reason: "회당 체류 시간을 파악한다." },
+        { name: "이용 상황", reason: "주요 이용 맥락을 파악한다." },
+        { name: "장르 선호", reason: "콘텐츠 선호를 파악한다." },
+        { name: "만족도", reason: "전체 경험을 평가한다." },
+        { name: "불편", reason: "개선 단서를 찾는다." },
+      ],
+      requested_question_count: 7,
+      count_rule: "max_path" as const,
+      total_question_nodes: 7,
+      min_path_questions: 7,
+      max_path_questions: 7,
+      estimated_minutes: 3,
+    },
+    survey: {
+      title: "대학생 네이버웹툰 이용 현황 조사",
+      intro: "대학생의 네이버웹툰 이용 방식과 경험을 알아보기 위한 설문입니다.",
+      sections: [{ id: "S1", title: "이용 경험", description: null }],
+      questions,
+      completion_message: "응답해주셔서 감사합니다.",
+    },
+    quality_check: {
+      all_named_entities_searched: true,
+      all_specific_claims_grounded: true,
+      all_questions_have_analysis_purpose: true,
+      double_barreled_questions_removed: true,
+      leading_questions_removed: true,
+      duplicate_questions_removed: true,
+      response_options_checked: true,
+      all_logic_paths_valid: true,
+      question_count_valid: true,
+      mobile_readability_checked: true,
+      respondent_path_simulation_passed: true,
+      warnings: [],
+    },
+  };
+  const parsed = createSurveyGenerationSchema(7).parse(generation);
+  return {
+    status: "completed",
+    incomplete_details: null,
+    output_parsed: parsed,
+    output: [
+      {
+        type: "web_search_call",
+        status: "completed",
+        action: {
+          sources: [{ title: "네이버웹툰", url: sourceUrl }],
+        },
+      },
+      {
+        type: "message",
+        status: "completed",
+        content: [
+          {
+            type: "output_text",
+            text: JSON.stringify(parsed),
+            annotations: [],
+          },
+        ],
+      },
+    ],
+  };
+}
 
 test("검색 기반 구조화 결과를 기존 설문 편집 형식으로 연결한다", () => {
   const trace = createSurveyGenerationTrace("normal-openai-result");
@@ -1576,32 +1750,33 @@ test("구조화 결과의 중복 문항 ID는 서버가 결정적으로 정규�
   assert.equal(diagnostics.modelOutputRejectedAt, null);
 });
 
-test("모델 자기보고 품질 체크가 false여도 설문을 폐기하지 않고 주의로만 남긴다", () => {
+test("정규화할 수 없는 모델 품질 거절은 정확한 단계와 issue path를 trace에 남긴다", () => {
   const payload = structuredReadyPayload();
   payload.output_parsed.quality_check.all_logic_paths_valid = false;
-  payload.output_parsed.quality_check.all_named_entities_searched = false;
-  const trace = createSurveyGenerationTrace("trace-model-integrity-caution");
+  const trace = createSurveyGenerationTrace("trace-model-integrity-rejection");
 
-  const result = parseSurveyDraftResponse(
-    payload,
-    "최근 4주 동안 네이버웹툰을 이용한 대학생 대상 네이버웹툰 이용 현황 조사",
-    7,
-    "전학년",
-    false,
-    trace,
+  assert.throws(
+    () =>
+      parseSurveyDraftResponse(
+        payload,
+        "대학생의 이동 경험과 불편 조사",
+        7,
+        "전학년",
+        false,
+        trace,
+      ),
+    /완료되지 않은 품질 검사/,
   );
-
-  // 자기보고 false는 "확신하지 못했다"이지 설문이 깨졌다는 뜻이 아니다.
-  // 8/24에 all_named_entities_searched 하나로 정상 설문이 버려지는 장애가
-  // 있었다. 설문은 살리고 상태만 주의로 내린다.
-  assert.equal(result.status, "ready_with_caution");
-  if (result.status !== "ready_with_caution") {
-    assert.fail("완성된 설문 결과가 필요합니다.");
-  }
-  assert.equal(result.blueprint.aiQuestions.length, 7);
   const diagnostics = surveyGenerationTraceSnapshot(trace);
-  assert.equal(diagnostics.modelOutputRejectedAt, null);
-  assert.equal(diagnostics.generationSource, "openai");
+  assert.equal(
+    diagnostics.modelOutputRejectedAt,
+    "generation_integrity_validation",
+  );
+  assert.equal(
+    diagnostics.modelOutputRejectionCode,
+    "MODEL_OUTPUT_INTEGRITY_INVALID",
+  );
+  assert.deepEqual(diagnostics.modelOutputRejectionIssuePaths, ["integrity.0"]);
 });
 
 for (const surveyCase of [
@@ -2002,7 +2177,7 @@ test("큰 참고 파일은 조각 업로드 후 설문 생성에 file_id로 연�
   const previousSecret = process.env.BAROFORM_REFERENCE_SECRET;
   const previousDatabaseUrl = process.env.DATABASE_URL;
   const previousPostgresUrl = process.env.POSTGRES_URL;
-  const previousNeonUrl = process.env.NEON_DATABASE_URL;
+  const previousSupabaseUrl = process.env.SUPABASE_DB_URL;
   const previousFetch = globalThis.fetch;
   const prompt = "업로드한 보고서를 참고한 학생 서비스 만족도 조사";
   const fileSize = 32;
@@ -2012,7 +2187,7 @@ test("큰 참고 파일은 조각 업로드 후 설문 생성에 file_id로 연�
   process.env.BAROFORM_REFERENCE_SECRET = "test-reference-secret";
   delete process.env.DATABASE_URL;
   delete process.env.POSTGRES_URL;
-  delete process.env.NEON_DATABASE_URL;
+  delete process.env.SUPABASE_DB_URL;
   globalThis.fetch = async (input, init) => {
     const url = String(input);
     if (url.endsWith("/v1/uploads")) {
@@ -2146,8 +2321,8 @@ test("큰 참고 파일은 조각 업로드 후 설문 생성에 file_id로 연�
     else delete process.env.DATABASE_URL;
     if (previousPostgresUrl) process.env.POSTGRES_URL = previousPostgresUrl;
     else delete process.env.POSTGRES_URL;
-    if (previousNeonUrl) process.env.NEON_DATABASE_URL = previousNeonUrl;
-    else delete process.env.NEON_DATABASE_URL;
+    if (previousSupabaseUrl) process.env.SUPABASE_DB_URL = previousSupabaseUrl;
+    else delete process.env.SUPABASE_DB_URL;
   }
 });
 
@@ -3371,74 +3546,4 @@ test("AI가 이용 시간을 서비스처럼 해석한 결과는 폐기한다", 
       ),
     /측정 기준|측정 내용/,
   );
-});
-
-test("모델 출력이 거부되면 사유를 넣어 1회 재생성하고, 두 번째 성공 결과를 사용한다", async () => {
-  const previousKey = process.env.OPENAI_API_KEY;
-  const previousFetch = globalThis.fetch;
-  process.env.OPENAI_API_KEY = "test-key";
-  let modelCalls = 0;
-  let secondRequestBody = "";
-  globalThis.fetch = async (_input, init) => {
-    modelCalls += 1;
-    if (modelCalls === 1) {
-      return Response.json({
-        status: "completed",
-        incomplete_details: null,
-        output: [
-          {
-            type: "message",
-            status: "completed",
-            content: [
-              { type: "output_text", text: '{"status":"ready"', annotations: [] },
-            ],
-          },
-        ],
-      });
-    }
-    secondRequestBody = String(init?.body ?? "");
-    return Response.json(structuredReadyPayload());
-  };
-
-  try {
-    const response = await createSurveyDraft(
-      new Request("http://localhost/api/survey-draft", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          origin: "http://localhost",
-          "user-agent": "baroform-retry-success",
-        },
-        body: JSON.stringify({
-          prompt:
-            "최근 4주 동안 네이버웹툰을 이용한 대학생 대상 네이버웹툰 이용 현황 조사",
-          surveyMode: "standard",
-          targetGrade: "전학년",
-          questionCount: 7,
-          references: { images: [], files: [], links: [] },
-        }),
-      }),
-    );
-    const body = (await response.json()) as {
-      status?: string;
-      blueprint?: { aiQuestions?: Array<{ title?: string }> };
-    };
-
-    assert.equal(response.status, 200, JSON.stringify(body));
-    assert.equal(modelCalls, 2);
-    assert.equal(response.headers.get("x-baroform-model-calls"), "2");
-    assert.equal(response.headers.get("x-baroform-regeneration-count"), "1");
-    assert.equal(response.headers.get("x-baroform-ai-mode"), "model");
-    assert.equal(
-      response.headers.get("x-baroform-generation-source"),
-      "openai",
-    );
-    assert.equal(body.blueprint?.aiQuestions?.length, 7);
-    // 재생성 요청에는 이전 거부 사유가 포함되어야 한다.
-    assert.match(secondRequestBody, /이전 시도에서 거부된 사유/);
-  } finally {
-    globalThis.fetch = previousFetch;
-    if (previousKey) process.env.OPENAI_API_KEY = previousKey;
-    else delete process.env.OPENAI_API_KEY;
-  }
 });

@@ -1,8 +1,3 @@
-import {
-  surveyVariableKind,
-  type SurveyVariableKind,
-} from "./survey-variable-kind";
-
 export type ResearchVariableRole =
   | "predictor"
   | "outcome"
@@ -136,49 +131,24 @@ function removePopulationPhrases(value: string, targetPopulation: string | null)
   return result.replace(/\s+/g, " ").trim();
 }
 
-// 변수명에서 벗겨내야 할 껍데기들. 순서에 의존하지 않는다 (아래 fixpoint 참고).
-const variableLabelStrips: RegExp[] = [
-  // removePopulationPhrases는 "대학생들의"는 지우지만 이를 되받는 대명사는
-  // 남긴다. 그대로 두면 변수명·제목·설명에 "그들의 지각 빈도"처럼 노출된다.
-  /^(?:그리고|또한|그에\s*따른|그에\s*따라|그들의|이들의|그\s|이\s|해당|위\s*집단의)\s*/,
-  // 부사형(에 대해)만 알고 관형사형(에 대한)을 모르면 "지각 비율에 대한 관계"에서
-  // "관계"를 뗀 뒤 "에 대한"이 그대로 남는다.
-  /(?:에\s*대해(?:서)?|에\s*관해(?:서)?|에\s*대한|에\s*관한|에\s*있어서|관련(?:한|된)?|을|를)\s*$/,
-  /(?:의)?\s*(?:관계|상관관계|영향|차이)\s*$/,
-  /^현재\s+(?=통학|공부|운동|근무|이용|사용)/,
-];
-
 function cleanVariableLabel(value: string) {
-  // 한 번만 훑으면 뒤쪽 규칙이 앞쪽 규칙의 대상을 새로 노출시켜도 놓친다.
-  // ("지각 비율에 대한 관계" → 관계 제거 → "에 대한"이 드러나지만 이미 지나감)
-  // 더 이상 줄어들지 않을 때까지 반복해 규칙 순서에 대한 의존을 없앤다.
-  // 모든 규칙이 문자열을 짧게만 만들므로 반드시 수렴한다. 상한은 안전핀이다.
-  let cleaned = normalize(value);
-  for (let pass = 0; pass < 8; pass += 1) {
-    const previous = cleaned;
-    for (const strip of variableLabelStrips) {
-      cleaned = cleaned.replace(strip, "");
-    }
-    cleaned = cleaned.trim();
-    if (cleaned === previous) break;
-  }
+  const cleaned = normalize(value)
+    .replace(/^(?:그리고|또한|그에\s*따른|그에\s*따라)\s*/, "")
+    .replace(/(?:에\s*대해(?:서)?|에\s*관해(?:서)?|을|를)\s*$/, "")
+    .replace(/(?:의)?\s*(?:관계|상관관계|영향|차이)\s*$/, "")
+    .replace(/^현재\s+(?=통학|공부|운동|근무|이용|사용)/, "")
+    .trim();
   if (/^지역$/.test(cleaned)) return "거주 지역";
   if (/^거주지$/.test(cleaned)) return "거주 지역";
   return cleaned.replace(/배달앱/g, "배달 앱");
 }
 
-function hasBatchim(value: string) {
+function withAndParticle(value: string) {
   const last = [...value.trim()].at(-1) ?? "";
   const code = last.charCodeAt(0);
-  return code >= 0xac00 && code <= 0xd7a3 ? (code - 0xac00) % 28 !== 0 : false;
-}
-
-function withAndParticle(value: string) {
-  return `${value}${hasBatchim(value) ? "과" : "와"}`;
-}
-
-function withObjectParticle(value: string) {
-  return `${value}${hasBatchim(value) ? "을" : "를"}`;
+  const hasBatchim =
+    code >= 0xac00 && code <= 0xd7a3 ? (code - 0xac00) % 28 !== 0 : false;
+  return `${value}${hasBatchim ? "과" : "와"}`;
 }
 
 function relationParts(value: string): RelationParts | null {
@@ -235,30 +205,15 @@ function relationParts(value: string): RelationParts | null {
   return null;
 }
 
-// 측정 수준은 "무엇을 재는가"의 다른 표현이다. 별도 목록으로 두면 문항
-// 생성기(surveyVariableKind)와 어긋나 한쪽은 범주형이라 하고 다른 쪽은
-// 척도를 붙이는 일이 생긴다. 같은 판정에서 파생시켜 어긋날 수 없게 한다.
-const measurementLevelByKind: Record<SurveyVariableKind, ResearchMeasurementLevel> = {
-  binary: "binary",
-  attitude: "scale",
-  duration: "numeric",
-  amount: "numeric",
-  score: "numeric",
-  ratio: "numeric",
-  frequency: "ordinal",
-  activity: "ordinal",
-  category: "nominal",
-  // 무엇을 재는지 모를 때는 형식을 제한하지 않고 자유응답으로 받는다.
-  // 크기가 있는 변수는 대부분 attitude로 잡히므로, 여기까지 온 것에 크기
-  // 척도를 붙이면 "성별은 어느 수준에 해당하나요?"가 된다.
-  unknown: "text",
-};
-
 function measurementLevelFor(name: string): ResearchMeasurementLevel {
-  // 문장형 표현은 접미사로 안 잡히므로 여기서 먼저 본다.
-  if (/했는지|중인지/.test(name)) return "binary";
-  if (/구간|학년|연령대/.test(name)) return "ordinal";
-  return measurementLevelByKind[surveyVariableKind(name)];
+  if (/여부|유무|했는지|중인지/.test(name)) return "binary";
+  if (/만족도|수면의\s*질|스트레스|의향|정도|수준|부담|영향/.test(name)) {
+    return "scale";
+  }
+  if (/시간|거리|금액|지출|소득|횟수|점수/.test(name)) return "numeric";
+  if (/빈도|구간|학년|연령대|성적/.test(name)) return "ordinal";
+  if (/형태|지역|수단|유형|종류|경로/.test(name)) return "nominal";
+  return "ordinal";
 }
 
 function directVariableName(metricName: string) {
@@ -402,7 +357,7 @@ export function parseSurveyResearchIntent(
     : [];
   const analysisDescription = derivedMetrics[0]
     ? `${predictor.name} 구간별 ${derivedMetrics[0].name} 비교`
-    : `${withAndParticle(predictor.name)} ${primaryOutcome.name}의 관계 분석`;
+    : `${predictor.name}과 ${primaryOutcome.name}의 관계 분석`;
   const goals: ResearchAnalysisGoal[] = [
     {
       id: stableId("goal", analysisDescription),
@@ -413,7 +368,7 @@ export function parseSurveyResearchIntent(
     {
       id: stableId("goal", `${predictor.name}-${primaryOutcome.name}-cross-tab`),
       type: "cross_tabulation",
-      description: `${withAndParticle(predictor.name)} ${primaryOutcome.name} 교차 분석`,
+      description: `${predictor.name}과 ${primaryOutcome.name} 교차 분석`,
       variableIds: [predictor.id, primaryOutcome.id],
     },
   ];
@@ -474,10 +429,6 @@ export function researchIntentDescription(intent: SurveyResearchIntent) {
   const right = respondentVariables.find((item) => item.role === "outcome");
   if (!left || !right) return null;
   const target = intent.targetPopulation ?? "응답자";
-  // 바로 옆 withAndParticle은 받침을 판정하는데 "를"만 하드코딩되어 있었다.
-  // 받침으로 끝나는 변수명이면 "성적를 파악하고"처럼 틀린 조사가 나간다.
-  const goal =
-    intent.analysisGoals[0]?.description ??
-    `${withAndParticle(left.name)} ${right.name}의 관계 분석`;
-  return `${target}의 ${withAndParticle(left.name)} ${withObjectParticle(right.name)} 파악하고, ${goal}에 활용하기 위한 설문입니다.`;
+  const goal = intent.analysisGoals[0]?.description ?? `${left.name}과 ${right.name}의 관계 분석`;
+  return `${target}의 ${withAndParticle(left.name)} ${right.name}를 파악하고, ${goal}에 활용하기 위한 설문입니다.`;
 }

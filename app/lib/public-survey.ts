@@ -21,6 +21,7 @@ export type PublicSurveyData = {
   category: SurveyCategory;
   campus: string;
   targetAudience: string;
+  targetResponses: number;
   durationMinutes: number;
   rewardCash: number;
   questionCount: number;
@@ -62,6 +63,7 @@ const getCachedPublicSurvey = unstable_cache(
         category: surveys.category,
         campus: surveys.campus,
         targetAudience: surveys.targetAudience,
+        targetResponses: surveys.targetResponses,
         durationMinutes: surveys.durationMinutes,
         rewardCash: surveys.rewardCash,
         questionsJson: surveys.questionsJson,
@@ -90,6 +92,7 @@ const getCachedPublicSurvey = unstable_cache(
       campus: row.campus,
       targetAudience:
         row.targetAudience.trim() || defaultSurveyAudience(row.schoolId),
+      targetResponses: row.targetResponses,
       durationMinutes: row.durationMinutes,
       rewardCash: row.rewardCash,
       questionCount: questions.filter((question) => question.type !== "section")

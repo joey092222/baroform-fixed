@@ -71,7 +71,7 @@ export async function GET(request: Request) {
         ownerName: members.name,
         participantCount: sql<number>`(
           SELECT COUNT(*)::int FROM external_survey_visits
-          WHERE external_survey_visits.external_survey_id = ${externalSurveys.id}
+          WHERE external_survey_visits.external_survey_id = external_surveys.id
         )`.mapWith(Number),
       })
       .from(externalSurveys)

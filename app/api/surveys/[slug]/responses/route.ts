@@ -262,7 +262,7 @@ export async function POST(
     const fingerprintHash = createHash("sha256")
       .update(requestFingerprint)
       .digest("hex");
-    const responseInsert = db.insert(responses).values({
+    const responseValues = {
       id: responseId,
       surveyId: survey.id,
       memberId: sessionUser?.id ?? null,
@@ -272,7 +272,7 @@ export async function POST(
         Math.min(86400, Math.round(payload.completionSeconds ?? 0)),
       ),
       fingerprintHash,
-    });
+    };
 
     const rewardAmount = surveyRewardAmount({
       respondentId: sessionUser?.id,
@@ -281,19 +281,22 @@ export async function POST(
     });
 
     if (sessionUser && rewardAmount > 0) {
-      await db.batch([
-        responseInsert,
-        db.insert(cashTransactions).values({
+      // The response and its reward have to land together: a stored response
+      // with no payout silently owes the respondent cash, and a payout with no
+      // response pays for nothing. One transaction, so neither can happen.
+      await db.transaction(async (tx) => {
+        await tx.insert(responses).values(responseValues);
+        await tx.insert(cashTransactions).values({
           id: crypto.randomUUID(),
           memberId: sessionUser.id,
           surveyId: survey.id,
           responseId,
           amount: rewardAmount,
           description: `설문 참여 적립 · ${survey.title.slice(0, 80)}`,
-        }),
-      ]);
+        });
+      });
     } else {
-      await responseInsert;
+      await db.insert(responses).values(responseValues);
     }
 
     let balance: number | null = null;

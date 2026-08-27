@@ -12,12 +12,6 @@ export type ExportResponse = {
   answers: ExportAnswer[];
   completionSeconds: number;
   createdAt: string;
-  /** 서버 품질 검사 결과. 사람 판단과 무관한 원본 판정이다. */
-  serverStatus?: "usable" | "review" | "exclude";
-  /** 설문 주인이 직접 내린 판단. 없으면 서버 판정을 그대로 따른다. */
-  decision?: "include" | "exclude" | null;
-  /** 위 둘을 합친 최종 결과. 문항 요약은 이 값이 true인 응답만으로 낸다. */
-  includedInAnalysis?: boolean;
 };
 
 export type SurveyExportPayload = {
@@ -51,8 +45,6 @@ export type SurveyExportModel = {
   lastResponseAt: string;
   rawRows: Array<Array<string | number>>;
   questionSummaries: ExportQuestionSummary[];
-  /** 문항 요약을 낼 때 실제로 쓴 응답 수. 제외한 게 있으면 총계보다 작다. */
-  analysedResponses: number;
 };
 
 const questionTypeLabels: Record<SurveyQuestion["type"], string> = {
@@ -207,7 +199,6 @@ export function buildSurveyExportModel({
   const answerQuestions = questions.filter(
     (question) => question.type !== "section",
   );
-  const analysed = responses.filter(isIncluded);
   const sortedDates = responses
     .map((response) => new Date(response.createdAt))
     .filter((date) => !Number.isNaN(date.getTime()))
@@ -235,17 +226,12 @@ export function buildSurveyExportModel({
       sortedDates.length > 0
         ? responseDateValue(sortedDates[sortedDates.length - 1].toISOString())
         : "—",
-    // 원본 기록은 하나도 빼지 않는다. 대신 어떤 판정을 받았고 사람이 무엇을
-    // 바꿨는지, 그래서 집계에 들어갔는지를 열로 남긴다.
     rawRows: [
       [
         "응답 번호",
         "응답 ID",
         "응답 일시",
         "소요 시간(초)",
-        "품질 검사 결과",
-        "직접 내린 판단",
-        "집계 반영",
         ...answerQuestions.map(
           (question, index) => `Q${index + 1}. ${question.title}`,
         ),
@@ -255,13 +241,6 @@ export function buildSurveyExportModel({
         response.id,
         responseDateValue(response.createdAt),
         response.completionSeconds,
-        serverStatusLabels[response.serverStatus ?? "usable"],
-        response.decision === "include"
-          ? "집계에 포함"
-          : response.decision === "exclude"
-            ? "집계에서 제외"
-            : "바꾸지 않음",
-        isIncluded(response) ? "반영" : "제외",
         ...answerQuestions.map((question) =>
           answerText(
             response.answers.find(
@@ -271,28 +250,10 @@ export function buildSurveyExportModel({
         ),
       ]),
     ],
-    // 문항 요약은 집계에 반영된 응답만으로 낸다. 화면에 보이는 퍼센트와 같아야 한다.
     questionSummaries: answerQuestions.map((question, index) =>
-      summarizeQuestion(question, analysed, index + 1),
+      summarizeQuestion(question, responses, index + 1),
     ),
-    analysedResponses: analysed.length,
   };
-}
-
-const serverStatusLabels = {
-  usable: "이상 없음",
-  review: "검토 필요",
-  exclude: "분석 제외",
-} as const;
-
-/** 사람 판단이 없으면 서버 판정을 그대로 쓴다. */
-function isIncluded(response: ExportResponse) {
-  if (typeof response.includedInAnalysis === "boolean") {
-    return response.includedInAnalysis;
-  }
-  if (response.decision === "exclude") return false;
-  if (response.decision === "include") return true;
-  return response.serverStatus !== "exclude";
 }
 
 function safeFilename(value: string) {
@@ -340,7 +301,6 @@ export async function createSurveyExcelBlob(payload: SurveyExportPayload) {
   const summaryRows: Array<Array<string | number>> = [
     ["설문 제목", model.title],
     ["전체 응답", model.totalResponses],
-    ["집계에 반영한 응답", model.analysedResponses],
     ["평균 응답 시간(초)", model.averageSeconds],
     ["첫 응답", model.firstResponseAt],
     ["마지막 응답", model.lastResponseAt],
@@ -505,7 +465,6 @@ export async function createSurveyWordBlob(payload: SurveyExportPayload) {
       borders: tableBorders,
       rows: [
         new TableRow({ children: [cell("전체 응답", true), cell(`${model.totalResponses}개`)] }),
-        new TableRow({ children: [cell("집계에 반영한 응답", true), cell(`${model.analysedResponses}개`)] }),
         new TableRow({ children: [cell("평균 응답 시간", true), cell(durationText(model.averageSeconds))] }),
         new TableRow({ children: [cell("응답 기간", true), cell(`${model.firstResponseAt} ~ ${model.lastResponseAt}`)] }),
         new TableRow({

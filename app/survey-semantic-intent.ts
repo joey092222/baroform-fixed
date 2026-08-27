@@ -10,11 +10,6 @@ import {
   parseSurveyGenerationContext,
   type ParsedSurveyContext,
 } from "./survey-context";
-import {
-  isImprovementNeedClause,
-  stripResearchAbstract,
-  stripSubjectTails,
-} from "./survey-subject-tails";
 
 export type SurveyIntentStudyType = "general" | "research";
 
@@ -330,13 +325,8 @@ const surveyRequestEnding =
 const purposeSuffix =
   /\s*(실태|만족도|인식|인지도|수요|이용\s*현황(?:과\s*경험)?|사용\s*현황(?:과\s*경험)?|이용\s*경험|사용\s*경험|경험|효과|영향)\s*$/;
 
-// 끝의 (?:\s+|$)가 핵심이다. 예전에는 조사도 옵션, 공백도 \s*(0개 허용)이라
-// 단어 경계를 강제하는 것이 없었다. 그래서 "학생회 활동 만족도 조사"에서
-// "학생회"의 앞 두 글자 "학생"이 응답자로 뜯겨나가고 조사 대상은 "회 활동"만
-// 남아 "회 활동에 전반적으로 얼마나 만족하시나요?"가 나갔다.
-// 같은 문제가 교사회·직원회·소비자단체 등에도 있었다.
 const targetPrefix =
-  /^(전\s*연령대(?:의\s*일반인)?|모든\s*연령대|일반인|학생(?:들)?|대학생(?:들)?|대학원생(?:들)?|직장인(?:들)?|청년(?:들)?|자취생(?:들)?|지역\s*주민(?:들)?|앱\s*이용자(?:들)?|고등학생(?:들)?|중학생(?:들)?|초등학생(?:들)?|학부모(?:들)?|교사(?:들)?|교직원(?:들)?|직원(?:들)?|소비자(?:들)?|사용자(?:들)?|이용자(?:들)?|(?:연세대|연세대학교)\s*(?:학부생|학생|재학생)(?:들)?|[가-힣A-Za-z0-9·-]+대(?:학교)?\s*(?:학부생|학생|재학생)(?:들)?|\d{1,2}대\s*(?:여성|남성)?)(?:들이|이|가|은|는|의|을|를)?(?:\s+|$)/;
+  /^(전\s*연령대(?:의\s*일반인)?|모든\s*연령대|일반인|학생(?:들)?|대학생(?:들)?|대학원생(?:들)?|직장인(?:들)?|청년(?:들)?|자취생(?:들)?|지역\s*주민(?:들)?|앱\s*이용자(?:들)?|고등학생(?:들)?|중학생(?:들)?|초등학생(?:들)?|학부모(?:들)?|교사(?:들)?|교직원(?:들)?|직원(?:들)?|소비자(?:들)?|사용자(?:들)?|이용자(?:들)?|(?:연세대|연세대학교)\s*(?:학부생|학생|재학생)(?:들)?|[가-힣A-Za-z0-9·-]+대(?:학교)?\s*(?:학부생|학생|재학생)(?:들)?|\d{1,2}대\s*(?:여성|남성)?)(?:들이|이|가|은|는|의|을|를)?\s*/;
 
 const personTargetEnding =
   /(?:사람|일반인|학생|대학생|대학원생|직장인|청년|여성|남성|고객|이용자|사용자|소비자|직원|교직원|교사)(?:들)?$/;
@@ -409,15 +399,11 @@ function extractTarget(value: string) {
 }
 
 function normalizedObjectLabel(value: string) {
-  // surveyObject는 문항 본문에 직접 실린다. researchSubject와 별도 경로로
-  // 추출되므로 꼬리 정리를 여기서도 해야 한다. 한쪽만 하면 제목만 깨끗해지고
-  // 문항은 "학식 만족도 조사 결과 개선 방안에서의 식사 경험에 전반적으로
-  // 얼마나 만족하시나요?"로 나간다. 규칙은 survey-subject-tails에 모여 있다.
-  return stripSubjectTails(
-    value
-      .replace(/배달앱/g, "배달 앱")
-      .replace(/네이버\s*웹툰/g, "네이버 웹툰"),
-  );
+  return value
+    .replace(/배달앱/g, "배달 앱")
+    .replace(/네이버\s*웹툰/g, "네이버 웹툰")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 const activityMatchers: Array<{
@@ -1216,13 +1202,9 @@ function buildCompositeSurveyIntent(options: {
 }
 
 export function parseSurveyIntent(
-  entered: string,
+  rawInput: string,
   studyType: SurveyIntentStudyType = "general",
 ): SurveyIntent {
-  // 논문식 소개문을 통째로 붙여넣으면 그 전체를 하나의 조사 대상으로 압축하려다
-  // 조각이 남는다("학술"). 도입부와 목적절만 걷어내면 안쪽은 파서가 다룰 수 있다.
-  // 짧은 주제구는 게이트에 걸리지 않아 그대로 통과한다.
-  const rawInput = stripResearchAbstract(entered);
   const raw = normalize(rawInput);
   const semanticContext = parseSurveyGenerationContext(rawInput);
   const requestStripped = normalizeSurveyRequest(raw)
@@ -1265,11 +1247,7 @@ export function parseSurveyIntent(
   const categorySet = categorySetFromClause(primaryClause);
   const decisionOption = decisionOptionFromClause(
     purposeChain.decisionClause ??
-      // "개선이 필요한 부분"은 새 대안을 고르는 요청이 아니라 기존 대상의
-      // 개선점 요청이다. 이걸 의사결정 대안으로 읽으면 surveyObject가 "부분"이
-      // 되어 실제 주제(학식·도서관)가 통째로 사라진다.
-      (/원하는|필요한|부족한|개설|들어오|생기/.test(primaryClause) &&
-      !isImprovementNeedClause(primaryClause)
+      (/원하는|필요한|부족한|개설|들어오|생기/.test(primaryClause)
         ? primaryClause
         : null),
   );
@@ -2169,13 +2147,8 @@ export function validateSurveyIntentCandidate(
       if (/^(?:나이|연령)$/.test(variable.name)) {
         return /나이|연령대?/.test(questionText);
       }
-      // 생성기(researchVariableQuestion)는 "지각 빈도"를 "수업이나 약속에 늦은
-      // 빈도"로 표현한다. 응답자에게 "지각"이라는 단어를 덜 노출하려는 의도라
-      // 매처도 같은 표현을 알고 있어야 한다.
-      if (/지각\s*(?:횟수|빈도)/.test(variable.name)) {
-        return /지각.*(?:횟수|빈도|몇\s*회)|(?:횟수|빈도|몇\s*회).*지각|늦(?:은|는|었던)\s*(?:횟수|빈도)/.test(
-          questionText,
-        );
+      if (/지각\s*횟수/.test(variable.name)) {
+        return /지각.*(?:횟수|몇\s*회)|몇\s*회.*지각/.test(questionText);
       }
       if (/공부\s*시간/.test(variable.name)) {
         return /공부(?:하는)?\s*시간|학습\s*시간/.test(questionText);

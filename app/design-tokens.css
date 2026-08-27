@@ -1,35 +1,47 @@
 :root {
-  --bf-bg: #f6f3eb;
-  --bf-surface: #fcfbf7;
+  /* 팔레트 — N3 네이비 단색조.
+     색상은 남색 하나뿐이고, 「행동」과 「정보」를 색조가 아니라 명도로 가릅니다.
+     국내 설문 서비스가 전부 주홍이라 정면으로 피했고, 표지 사진이 화면의 색을
+     담당하게 되었으므로 크롬은 물러나는 쪽이 맞습니다. */
+  --bf-bg: #eff2f7;            /* 찬 회색 — 흰 카드를 띄우는 바탕 */
+  --bf-surface: #ffffff;       /* 카드 */
   --bf-surface-strong: #ffffff;
-  --bf-navy: #0b1f3a;
-  --bf-navy-strong: #071426;
-  --bf-navy-soft: #e9eef5;
-  --bf-text: #111318;
-  --bf-muted: #626873;
-  --bf-border: #d8d5cc;
-  --bf-border-dark: #b8b5ad;
-  --bf-positive: #1e6d52;
-  --bf-warning: #9b6218;
-  --bf-danger: #a23b35;
-  --bf-blue: #2762d2;
-  --bf-radius-sm: 10px;
-  --bf-radius: 16px;
-  --bf-radius-lg: 22px;
-  /* 섹션 제목 스케일. 두 단계뿐이고 비율은 1.24(장3도)다.
-     이 토큰이 생기기 전에는 섹션마다 clamp()를 따로 적어서 같은 역할의
-     h2가 44 / 50 / 52 / 56px로 갈렸다. 새 섹션은 반드시 아래를 쓸 것. */
-  --bf-h2: clamp(38px, 4vw, 52px);
-  --bf-h2-compact: clamp(30px, 3.2vw, 42px);
+  --bf-surface-sunken: #f5f8fb; /* 표 머리·입력칸처럼 한 단 들어간 면 */
+  --bf-navy: #1b3a6b;          /* 주 행동 — 흰 글자 11.27:1 */
+  --bf-navy-strong: #143057;   /* 눌린 상태 */
+  --bf-navy-soft: #e7edf6;     /* 강조 배경 */
+  --bf-text: #141c2a;
+  --bf-muted: #57616f;         /* 배경 위 5.6:1 · 카드 위 6.28:1 */
+  --bf-muted-soft: #657181;    /* 한 단 연한 보조 글자 — 카드 위 4.94:1 */
+  --bf-border: #dce3ec;
+  --bf-border-dark: #c3cedd;
+  --bf-track: #e3e9f2;         /* 게이지 바탕 */
+  --bf-positive: #0b7a57;
+  --bf-warning: #b0480f;
+  --bf-danger: #b22a2a;
+  --bf-blue: #2b558f;          /* 정보 — 진행 게이지·캐시 숫자 */
+  /* 차트·배지의 중간 단계. 결과 화면이 상태를 3단으로 구분해야 하므로
+     색상마다 한 단계 어두운 값을 둡니다. */
+  --bf-navy-mid: #2f4d70;
+  --bf-positive-mid: #2b7054;
+  --bf-danger-mid: #a04147;
+  --bf-amber: #94651d;         /* 검토 대기 — warning(주황)과 색조가 다른 앰버 */
+  /* 상태 배경. 배지·행 강조에 쓰이며 글자색과 짝을 이룹니다. */
+  --bf-positive-soft: #e6f4ee;
+  --bf-amber-soft: #fbf1e0;
+  --bf-danger-soft: #f9eaea;
+  --bf-faint: #8b96a6;         /* 축 라벨·비활성 — 장식용, 본문 아님 */
+  --bf-radius-sm: 4px;
+  --bf-radius: 6px;            /* 균일한 큰 라운드는 AI 티 항목 */
+  --bf-radius-lg: 10px;
   --bf-page: 1280px;
   --bf-editor-page: 1580px;
   --bf-section: clamp(92px, 10vw, 150px);
-  /* layout.tsx가 실제로 불러오는 건 Pretendard 다이내믹 서브셋 하나뿐이다.
-     스택에 없는 폰트를 적어두면 브라우저가 조용히 건너뛰어서, 토큰을 읽는
-     사람만 착각한다. 뒤쪽은 웹폰트가 실패했을 때의 OS 기본 한글 글꼴이다. */
-  --bf-font: "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-  --bf-latin: "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --bf-font: "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", Arial, sans-serif;
+  --bf-latin: Archivo, "Pretendard Variable", Arial, sans-serif;
   --bf-ease: cubic-bezier(.2, .75, .3, 1);
+  --bf-dark: #14181f;          /* 다크 섹션 */
+  --bf-dark-soft: #1d222c;
 }
 
 * {
@@ -53,18 +65,6 @@ body {
   letter-spacing: -.012em;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  word-break: keep-all;
-  overflow-wrap: break-word;
-}
-
-h1,
-h2,
-h3 {
-  text-wrap: balance;
-}
-
-p {
-  text-wrap: pretty;
 }
 
 button,
@@ -112,12 +112,12 @@ a {
 }
 
 ::selection {
-  background: #cdd9eb;
+  background: var(--bf-border-dark);
   color: var(--bf-navy-strong);
 }
 
 :focus-visible {
-  outline: 3px solid rgba(39, 98, 210, .3);
+  outline: 3px solid rgba(43, 85, 143, .32);
   outline-offset: 3px;
 }
 
@@ -211,7 +211,7 @@ a {
   z-index: 60;
   top: 0;
   border-bottom: 1px solid var(--bf-border);
-  background: rgba(246, 243, 235, .96);
+  background: rgba(255, 255, 255, .94);
 }
 
 .header-inner {
@@ -239,7 +239,7 @@ a {
   padding: 12px 13px;
   border-radius: 8px;
   background: transparent;
-  color: #4f5661;
+  color: var(--bf-muted);
   font-size: 14px;
   font-weight: 650;
 }
@@ -324,7 +324,7 @@ a {
 .respond-submit:hover,
 .landing-primary:hover,
 .landing-final-actions button:hover {
-  background: #102c51;
+  background: var(--bf-navy);
   transform: translateY(-1px);
 }
 
@@ -421,7 +421,7 @@ a {
     inset: 0;
     display: block;
     visibility: hidden;
-    background: rgba(7, 20, 38, .46);
+    background: rgba(20, 28, 42, .46);
     opacity: 0;
     transition: opacity .2s ease, visibility .2s ease;
   }

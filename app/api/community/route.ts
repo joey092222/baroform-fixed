@@ -62,16 +62,16 @@ export async function GET(request: Request) {
         createdAt: communityPosts.createdAt,
         likeCount: sql<number>`(
           SELECT COUNT(*)::int FROM community_likes
-          WHERE community_likes.post_id = ${communityPosts.id}
+          WHERE community_likes.post_id = community_posts.id
         )`.mapWith(Number),
         commentCount: sql<number>`(
           SELECT COUNT(*)::int FROM community_comments
-          WHERE community_comments.post_id = ${communityPosts.id}
+          WHERE community_comments.post_id = community_posts.id
         )`.mapWith(Number),
         liked: sessionUser
           ? sql<boolean>`EXISTS (
               SELECT 1 FROM community_likes
-              WHERE community_likes.post_id = ${communityPosts.id}
+              WHERE community_likes.post_id = community_posts.id
                 AND community_likes.member_id = ${sessionUser.id}
             )`
           : sql<boolean>`FALSE`,

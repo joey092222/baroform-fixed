@@ -1,14 +1,25 @@
 import { sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/neon-http";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import * as schema from "./schema";
 
 const databaseEnvironmentKeys = [
   "DATABASE_URL",
   "POSTGRES_URL",
-  "NEON_DATABASE_URL",
+  "SUPABASE_DB_URL",
 ] as const;
 
 function readDatabaseUrl() {
+  // UI 프리뷰 브랜치 안전장치: ensureSchema()가 CREATE/ALTER를 실행하므로,
+  // 프리뷰 배포가 프로덕션 DB 스키마를 건드리지 못하게 preview 환경에서는
+  // DB를 미구성 상태로 취급한다. 프리뷰에서 DB를 쓰려면
+  // BAROBARO_PREVIEW_DB=1 을 별도 프리뷰 전용 DB와 함께 설정할 것.
+  if (
+    process.env.VERCEL_ENV === "preview" &&
+    process.env.BAROBARO_PREVIEW_DB !== "1"
+  ) {
+    return "";
+  }
   for (const key of databaseEnvironmentKeys) {
     const value = process.env[key]?.trim();
     if (value) return value;
@@ -16,8 +27,32 @@ function readDatabaseUrl() {
   return "";
 }
 
+/**
+ * Every route runs on serverless functions, so a connection is opened per
+ * invocation and there is nowhere to keep a pool warm. The settings below are
+ * what Supabase's transaction pooler (port 6543) requires:
+ *
+ * - `prepare: false` — the pooler multiplexes one server connection across
+ *   clients in transaction mode, so a prepared statement named on one request
+ *   is not there on the next. Leaving this on fails intermittently under load,
+ *   which is the worst way for it to fail.
+ * - `max: 1` — the pooler, not us, does the pooling. Each function instance
+ *   asking for more just burns the project's connection budget.
+ * - short timeouts — an idle socket in a frozen function is a leaked slot.
+ *
+ * Use the pooler URL (`...pooler.supabase.com:6543`), not the direct
+ * connection (`db.<ref>.supabase.co:5432`): the direct one caps out at a few
+ * dozen connections and serverless will exhaust it.
+ */
 function createDatabase(url: string) {
-  return drizzle(url, { schema });
+  const client = postgres(url, {
+    prepare: false,
+    max: 1,
+    idle_timeout: 20,
+    connect_timeout: 10,
+    onnotice: () => {},
+  });
+  return drizzle(client, { schema });
 }
 
 type Database = ReturnType<typeof createDatabase>;
@@ -39,7 +74,7 @@ export function isDatabaseConfigured() {
 
 export function databaseErrorMessage(error: unknown) {
   if (error instanceof DatabaseNotConfiguredError) {
-    return "설문 저장 기능을 사용하려면 Vercel에서 Neon 데이터베이스를 연결해주세요.";
+    return "설문 저장 기능을 사용하려면 DATABASE_URL에 Supabase 연결 문자열을 넣어주세요.";
   }
   return "설문 저장소에 잠시 연결하지 못했어요. 잠시 후 다시 시도해주세요.";
 }
@@ -76,6 +111,11 @@ async function ensureSchema(database: Database) {
   `);
   await database.execute(sql`
     ALTER TABLE surveys ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'campus'
+  `);
+  // 목표 응답 수. 게이지가 「몇 명 중 몇 명」을 말할 수 있게 하고, 모집 비용을
+  // 계산하는 기준이 됩니다. 예전 행은 값이 없어 0 으로 남고, UI 가 기본값을 씁니다.
+  await database.execute(sql`
+    ALTER TABLE surveys ADD COLUMN IF NOT EXISTS target_responses INTEGER NOT NULL DEFAULT 0
   `);
   await database.execute(sql`
     ALTER TABLE surveys ADD COLUMN IF NOT EXISTS reward_cash INTEGER NOT NULL DEFAULT 30
@@ -366,22 +406,6 @@ async function ensureSchema(database: Database) {
   await database.execute(sql`
     CREATE INDEX IF NOT EXISTS workspace_versions_workspace_created_idx
       ON workspace_versions (workspace_id, created_at DESC)
-  `);
-  // 설문 주인이 개별 응답을 집계에 넣을지 뺄지 직접 정한 기록.
-  // 소유자별이 아니라 설문별로 한 벌만 둔다(워크스페이스 공유 시 숫자가 갈리지 않게).
-  await database.execute(sql`
-    CREATE TABLE IF NOT EXISTS response_decisions (
-      survey_id TEXT NOT NULL REFERENCES surveys(id) ON DELETE CASCADE,
-      response_id TEXT NOT NULL REFERENCES responses(id) ON DELETE CASCADE,
-      decision TEXT NOT NULL,
-      decided_by_id TEXT REFERENCES members(id) ON DELETE SET NULL,
-      decided_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      PRIMARY KEY (survey_id, response_id)
-    )
-  `);
-  await database.execute(sql`
-    CREATE INDEX IF NOT EXISTS response_decisions_survey_idx
-      ON response_decisions (survey_id)
   `);
 }
 

@@ -3,7 +3,6 @@ import {
   index,
   integer,
   pgTable,
-  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -27,6 +26,8 @@ export const surveys = pgTable(
     durationMinutes: integer("duration_minutes").notNull().default(2),
     rewardCash: integer("reward_cash").notNull().default(30),
     targetAudience: text("target_audience").notNull().default(""),
+    /** 0 이면 목표를 정하지 않은 것. UI 가 기본값을 씁니다. */
+    targetResponses: integer("target_responses").notNull().default(0),
     isPublic: boolean("is_public").notNull().default(true),
     listingRequested: boolean("listing_requested").notNull().default(false),
     isListed: boolean("is_listed").notNull().default(false),
@@ -485,39 +486,5 @@ export const workspaceVersions = pgTable(
       table.workspaceId,
       table.createdAt,
     ),
-  ],
-);
-
-/**
- * 설문 주인이 "이 응답은 집계에서 빼자"고 내린 판단.
- *
- * 서버의 품질 휴리스틱(response-quality.ts)은 신호만 주고, 최종 판단은 사람이 한다.
- * 소유자별이 아니라 설문별로 한 벌만 둔다. 워크스페이스로 설문을 공유하면
- * 구성원끼리 다른 숫자를 보게 되는 게 더 나쁘기 때문이다.
- */
-export const responseDecisions = pgTable(
-  "response_decisions",
-  {
-    surveyId: text("survey_id")
-      .notNull()
-      .references(() => surveys.id, { onDelete: "cascade" }),
-    responseId: text("response_id")
-      .notNull()
-      .references(() => responses.id, { onDelete: "cascade" }),
-    /** "include" | "exclude" — 서버 판정을 사람이 덮어쓴 값 */
-    decision: text("decision").notNull(),
-    decidedById: text("decided_by_id").references(() => members.id, {
-      onDelete: "set null",
-    }),
-    decidedAt: timestamp("decided_at", {
-      withTimezone: true,
-      mode: "string",
-    })
-      .notNull()
-      .defaultNow(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.surveyId, table.responseId] }),
-    index("response_decisions_survey_idx").on(table.surveyId),
   ],
 );

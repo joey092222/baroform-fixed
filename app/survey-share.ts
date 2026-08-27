@@ -4,22 +4,6 @@ const localSiteUrl = "http://localhost:3000";
 const maximumShareDescriptionLength = 110;
 
 export const defaultOpenGraphImagePath = "/og/baroform-default.png";
-
-// 공유 카드 규격은 여기 한 곳에서만 정한다. og-survey-card가 이 값으로 렌더하고
-// 아래 metadata도 같은 값을 선언한다.
-//
-// 예전에는 카드와 metadata가 크기를 따로 들고 있었다. 카드를 1236x686으로 바꿨을 때
-// metadata는 800x400으로 남아, 카카오톡이 받은 이미지와 선언된 규격이 달라 미리보기를
-// 통째로 포기했다. 링크는 맨 텍스트로만 떴다.
-//
-// 높이는 시안(1236x686, 1.8:1)이 아니라 2:1이다. 카카오톡은 말풍선 카드를 2:1로
-// 잘라내므로 1.8:1로 내보내면 아래 68px이 날아가고 서명줄 값이 잘린다.
-// 실제로 그렇게 잘려 나갔다. 가로 치수와 글자 크기는 시안 그대로이고,
-// 제목 위아래 빈 공간만 그만큼 줄어든다.
-export const surveyOpenGraphImageSize = { width: 1236, height: 618 } as const;
-
-// 이쪽은 public/og/baroform-default.png 파일의 실제 크기다. 위 카드와 별개다.
-export const defaultOpenGraphImageSize = { width: 800, height: 400 } as const;
 export const defaultSiteTitle = "바로폼 | 설문을 쉽고 빠르게";
 export const defaultSiteDescription =
   "문항 설계부터 응답 수집과 결과 확인까지, 바로폼에서 간편하게 진행하세요.";
@@ -192,8 +176,8 @@ export function buildSurveyMetadata(
       images: [
         {
           url: image,
-          width: surveyOpenGraphImageSize.width,
-          height: surveyOpenGraphImageSize.height,
+          width: 800,
+          height: 400,
           alt: `${surveyTitle} 설문 미리보기`,
           type: "image/png",
         },
@@ -230,8 +214,8 @@ export function buildUnavailableSurveyMetadata(shareToken?: string): Metadata {
       images: [
         {
           url: image,
-          width: defaultOpenGraphImageSize.width,
-          height: defaultOpenGraphImageSize.height,
+          width: 800,
+          height: 400,
           alt: "바로폼 설문 플랫폼",
           type: "image/png",
         },
@@ -250,68 +234,21 @@ export function buildUnavailableSurveyMetadata(shareToken?: string): Metadata {
   };
 }
 
-/**
- * 어절 단위로 줄을 나눈다. 한 어절이 한 줄보다 길면 그 어절만 잘라 넘긴다.
- *
- * satori는 word-break: keep-all을 따르지 않아서 공유 카드 텍스트는 여기서 미리
- * 줄을 확정한다. 이전 구현은 글자 수로 그냥 잘라서 "북한에 대 / 해 어떤 인식을"처럼
- * 단어 중간이 갈렸다.
- */
-function wrapByWord(text: string, maximumPerLine: number, maximumLines: number) {
-  const lines: string[] = [];
-  let current = "";
-
-  const push = () => {
-    if (current) lines.push(current);
-    current = "";
-  };
-
-  for (const word of text.split(/\s+/).filter(Boolean)) {
-    if (lines.length >= maximumLines) break;
-
-    const candidate = current ? `${current} ${word}` : word;
-    if (Array.from(candidate).length <= maximumPerLine) {
-      current = candidate;
-      continue;
-    }
-
-    push();
-    if (lines.length >= maximumLines) break;
-
-    // 한 어절이 줄보다 길면 어쩔 수 없이 쪼갠다(URL, 긴 영문 등).
-    let rest = Array.from(word);
-    while (rest.length > maximumPerLine && lines.length < maximumLines) {
-      lines.push(rest.slice(0, maximumPerLine).join(""));
-      rest = rest.slice(maximumPerLine);
-    }
-    current = rest.join("");
-  }
-
-  push();
-  return lines.slice(0, maximumLines);
-}
-
-export function fitOpenGraphTitle(
-  title: string,
-  { maximumPerLine = 20, maximumLines = 2 }: {
-    maximumPerLine?: number;
-    maximumLines?: number;
-  } = {},
-) {
+export function fitOpenGraphTitle(title: string) {
   const clean = cleanShareText(title, 80) || "학생들의 의견을 모으는 설문";
-  const lines = wrapByWord(clean, maximumPerLine, maximumLines);
-  if (!lines.length) return [clean];
+  const characters = Array.from(clean);
+  const maximumPerLine = 20;
+  const maximumCharacters = maximumPerLine * 2;
+  const visible = characters.slice(0, maximumCharacters);
+  const truncated = characters.length > maximumCharacters;
+  const first = visible.slice(0, maximumPerLine).join("");
+  let second = visible.slice(maximumPerLine).join("");
 
-  // 넣지 못한 글자가 남았으면 마지막 줄을 말줄임으로 닫는다.
-  // 긴 어절을 쪼개면 줄 사이에 없던 공백이 생기므로 공백을 뺀 글자 수로 센다.
-  const withoutSpaces = (value: string) => Array.from(value.replace(/\s/g, "")).length;
-  if (withoutSpaces(lines.join("")) < withoutSpaces(clean)) {
-    const last = Array.from(lines[lines.length - 1]);
-    const room = Math.max(1, maximumPerLine - 1);
-    lines[lines.length - 1] = `${last.slice(0, room).join("")}…`;
+  if (truncated) {
+    second = `${Array.from(second).slice(0, maximumPerLine - 1).join("")}…`;
   }
 
-  return lines;
+  return second ? [first, second] : [first];
 }
 
 export function fitOpenGraphDescription(description: string) {

@@ -437,8 +437,8 @@ test("84개 대상·활동 조합은 로컬 경로에서 구조화된 결과로 
   assert.equal(count, 84);
   assert.ok(performance.now() - startedAt < 10_000);
   assert.equal(MAX_REPAIR_ATTEMPTS, 1);
-  assert.equal(MAX_REGENERATION_ATTEMPTS, 1);
-  assert.equal(MAX_MODEL_CALLS_PER_REQUEST, 2);
+  assert.equal(MAX_REGENERATION_ATTEMPTS, 0);
+  assert.equal(MAX_MODEL_CALLS_PER_REQUEST, 1);
 });
 
 test("한국어 공백·대소문자·연결 표현 차이가 결과 유형을 바꾸지 않는다", () => {

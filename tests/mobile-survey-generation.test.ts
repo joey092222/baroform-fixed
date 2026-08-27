@@ -8,24 +8,43 @@ import {
   surveyGenerationErrorMetadata,
 } from "../app/survey-generation-client";
 
-test("모바일 제작 화면은 첨부, 제작 방식, 생성 버튼 순서로 렌더링한다", async () => {
-  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
-  const createView = source.slice(
-    source.indexOf("function CreateView"),
-    source.indexOf("function AuthModal"),
-  );
-  const attachments = createView.indexOf("<SurveyReferenceControls");
-  const surveyMode = createView.indexOf('<fieldset className="survey-mode-setting"');
-  const generateButton = createView.indexOf('<div className="create-composer-footer">');
+test("제작 화면은 주제·첨부 → 목적·대상 → 생성 버튼 순서로 렌더링한다", async () => {
+  const [createView, draftState, draftRequest, generationFlow] = await Promise.all([
+    readFile(new URL("../app/ui/views/create.tsx", import.meta.url), "utf8"),
+    readFile(
+      new URL("../app/ux/state/use-survey-draft.ts", import.meta.url),
+      "utf8",
+    ),
+    readFile(new URL("../app/ux/data/survey-draft.ts", import.meta.url), "utf8"),
+    readFile(
+      new URL("../app/ux/state/use-survey-generation.ts", import.meta.url),
+      "utf8",
+    ),
+  ]);
 
-  assert.ok(attachments >= 0);
-  assert.ok(surveyMode > attachments);
-  assert.ok(generateButton > surveyMode);
-  assert.match(source, /useState<SurveyMode>\(defaultSurveyMode\)/);
-  assert.match(source, /userInput: requestedPrompt/);
-  assert.match(source, /surveyMode: selectedSurveyMode/);
-  assert.match(source, /if \(analysisInFlightRef\.current\) return/);
-  assert.match(source, /disabled=\{isAnalyzing \|\| !canGenerate\}/);
+  // 단계 순서를 마크업 순서로 확인합니다. 첨부가 주제와 같은 단계에 있어야
+  // 하고(별도 단계로 빼면 있는 줄도 모릅니다), 목적·대상이 그 뒤, 생성 버튼이
+  // 마지막이어야 합니다.
+  const topic = createView.indexOf('aria-label="조사할 주제"');
+  const attachments = createView.indexOf("<SurveyReferenceControls");
+  const purpose = createView.indexOf("이 설문을 어디에 쓰나요?");
+  const audience = createView.indexOf("<b>응답 대상</b>");
+  const generateButton = createView.indexOf("onClick={finish}");
+
+  assert.ok(topic >= 0, "주제 입력이 없습니다");
+  assert.ok(attachments > topic, "첨부가 주제와 같은 단계에 없습니다");
+  assert.ok(purpose > attachments, "목적이 첨부 뒤에 오지 않습니다");
+  assert.ok(audience > purpose, "응답 대상이 목적 뒤에 오지 않습니다");
+  assert.ok(generateButton > audience, "생성 버튼이 마지막이 아닙니다");
+  // 생성 중 두 번 눌리지 않아야 합니다.
+  assert.match(createView, /disabled=\{isAnalyzing\}/);
+  // 템플릿·빈 설문은 생성을 거치지 않고 편집기로 갑니다.
+  assert.match(createView, /onUseQuestions\(/);
+  assert.match(draftState, /useState<SurveyMode>\(defaultSurveyMode\)/);
+  assert.match(draftRequest, /userInput: input\.prompt/);
+  assert.match(generationFlow, /surveyMode: selectedSurveyMode/);
+  // Guards a second concurrent generation while one is already running.
+  assert.match(generationFlow, /if \(inFlightRef\.current\)/);
 });
 
 test("구조화된 서버 오류는 모바일 사용자 메시지와 추적 정보로 변환한다", () => {

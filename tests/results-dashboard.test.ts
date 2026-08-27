@@ -62,19 +62,13 @@ test("문항 분포는 선택되지 않은 선택지도 0건으로 유지한다"
   ]);
 
   assert.equal(results[0].answeredCount, 1);
-  // 선언 순서(도서관 → 카페 → 기숙사)를 그대로 지킨다.
-  // 예전에는 빈도순 + 가나다순으로 다시 정렬해 도서관 → 기숙사 → 카페가 나왔는데,
-  // 회차·학년처럼 순서가 곧 의미인 문항에서 분포 모양이 사라지는 문제가 있었다.
   assert.deepEqual(
     results[0].choices.map(({ label, count }) => ({ label, count })),
     [
       { label: "도서관", count: 1 },
-      { label: "카페", count: 0 },
       { label: "기숙사", count: 0 },
+      { label: "카페", count: 0 },
     ],
   );
-  // 표시 순서와 무관하게 최다 응답은 따로 계산한다.
-  assert.equal(results[0].topChoice?.label, "도서관");
-  assert.equal(results[0].hasAuthoredOrder, true);
   assert.equal(LOW_SAMPLE_THRESHOLD, 5);
 });

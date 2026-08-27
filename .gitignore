@@ -6,3 +6,6 @@ node_modules/
 .env.*.local
 .vercel
 .env*
+.gstack/
+.DS_Store
+images/

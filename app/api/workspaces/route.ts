@@ -3,7 +3,7 @@ import { databaseErrorMessage, getDb, isDatabaseConfigured } from "@/db";
 import { getSessionUser } from "@/db/auth";
 import {
   members,
-  responses,
+  
   surveys,
   workspaceComments,
   workspaceMembers,
@@ -75,8 +75,8 @@ async function publicReview(reviewToken: string) {
         surveySlug: surveys.slug,
         questionCount: sql<number>`json_array_length(${surveys.questionsJson}::json)`.mapWith(Number),
         responseCount: sql<number>`(
-          SELECT COUNT(*)::int FROM ${responses}
-          WHERE ${responses.surveyId} = ${surveys.id}
+          SELECT COUNT(*)::int FROM responses
+          WHERE responses.survey_id = surveys.id
         )`.mapWith(Number),
         updatedAt: workspaceProjects.updatedAt,
       })
@@ -192,8 +192,8 @@ export async function GET(request: Request) {
           surveySlug: surveys.slug,
           questionCount: sql<number>`json_array_length(${surveys.questionsJson}::json)`.mapWith(Number),
           responseCount: sql<number>`(
-            SELECT COUNT(*)::int FROM ${responses}
-            WHERE ${responses.surveyId} = ${surveys.id}
+            SELECT COUNT(*)::int FROM responses
+            WHERE responses.survey_id = surveys.id
           )`.mapWith(Number),
           updatedAt: workspaceProjects.updatedAt,
         })

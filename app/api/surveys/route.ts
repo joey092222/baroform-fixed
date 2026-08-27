@@ -1,6 +1,5 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { revalidateTag } from "next/cache";
-import { after } from "next/server";
 import {
   databaseErrorMessage,
   getDb,
@@ -16,7 +15,6 @@ import {
 } from "@/app/survey-board";
 import { rewardCashForDuration } from "@/app/rewards";
 import { publicSurveyCacheTag } from "@/app/lib/public-survey";
-import { getSiteUrl, surveySharePath } from "@/app/survey-share";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,36 +23,6 @@ const noStoreHeaders = {
   "cache-control": "no-store, max-age=0",
   "x-content-type-options": "nosniff",
 };
-
-/**
- * 발행 직후 공유 카드 이미지를 한 번 미리 렌더해 CDN에 올려 둔다.
- *
- * 카카오톡은 링크를 보내는 그 순간 og:image를 받아오고, 제때 못 받으면 카드를
- * 통째로 포기하고 링크를 맨 텍스트로 띄운다. 방금 만든 설문은 이미지가 한 번도
- * 렌더된 적이 없어 콜드 렌더 2초를 만난다. 그래서 정작 제일 중요한 첫 공유가
- * 카드 없이 나갔다. 한 번 구워 두면 그 뒤로는 0.06초다.
- *
- * 주소를 여기서 새로 만들지 않고 공유 페이지가 실제로 내보내는 og:image를 읽어
- * 쓴다. ?v= 값은 DB 타임스탬프에서 나오므로 직접 조립하면 어긋나고, 어긋나면
- * 엉뚱한 주소만 데워 놓고 정작 카카오톡이 받는 주소는 차갑게 둔다.
- */
-function warmSurveyShareCard(slug: string) {
-  after(async () => {
-    try {
-      const pageUrl = new URL(surveySharePath(slug), getSiteUrl()).toString();
-      const response = await fetch(pageUrl, { cache: "no-store" });
-      if (!response.ok) return;
-      const html = await response.text();
-      const image = html.match(
-        /<meta property="og:image" content="([^"]+)"/,
-      )?.[1];
-      if (!image) return;
-      await fetch(image.replace(/&amp;/g, "&"), { cache: "no-store" });
-    } catch {
-      // 미리 굽기가 실패해도 발행 자체는 성공이다. 카드만 첫 공유에서 늦어진다.
-    }
-  });
-}
 
 type IncomingQuestion = {
   id?: number;
@@ -123,6 +91,7 @@ export async function GET(request: Request) {
           durationMinutes: surveys.durationMinutes,
           rewardCash: surveys.rewardCash,
           targetAudience: surveys.targetAudience,
+          targetResponses: surveys.targetResponses,
           listingRequested: surveys.listingRequested,
           isListed: surveys.isListed,
           manageToken: surveys.manageToken,
@@ -131,7 +100,7 @@ export async function GET(request: Request) {
           responseCount: sql<number>`(
             SELECT COUNT(*)::int
             FROM responses
-            WHERE responses.survey_id = ${surveys.id}
+            WHERE responses.survey_id = surveys.id
           )`.mapWith(Number),
         })
         .from(surveys)
@@ -166,13 +135,14 @@ export async function GET(request: Request) {
         durationMinutes: surveys.durationMinutes,
         rewardCash: surveys.rewardCash,
         targetAudience: surveys.targetAudience,
+        targetResponses: surveys.targetResponses,
         createdAt: surveys.createdAt,
         updatedAt: surveys.updatedAt,
         questionsJson: surveys.questionsJson,
         responseCount: sql<number>`(
           SELECT COUNT(*)::int
           FROM responses
-          WHERE responses.survey_id = ${surveys.id}
+          WHERE responses.survey_id = surveys.id
         )`.mapWith(Number),
       })
       .from(surveys)
@@ -230,6 +200,7 @@ export async function POST(request: Request) {
       listingRequested?: boolean;
       category?: string;
       targetAudience?: string;
+      targetResponses?: number;
     };
 
     const title = payload.title?.trim() ?? "";
@@ -241,6 +212,12 @@ export async function POST(request: Request) {
     const listingRequested = payload.listingRequested === true;
     const category = payload.category ?? "campus";
     const targetAudience = payload.targetAudience?.trim() ?? "";
+    // 0 은 「정하지 않음」입니다. 상한을 두는 이유는 목표가 곧 모집 비용이고,
+    // 실수로 큰 수가 들어가면 캐시 계산이 터무니없어지기 때문입니다.
+    const targetResponses = Math.max(
+      0,
+      Math.min(100_000, Math.round(Number(payload.targetResponses ?? 0) || 0)),
+    );
 
     if (title.length < 2 || title.length > 100) {
       return Response.json(
@@ -382,6 +359,7 @@ export async function POST(request: Request) {
       durationMinutes,
       rewardCash,
       targetAudience,
+      targetResponses,
       isPublic: true,
       listingRequested: publication.listingRequested,
       isListed: publication.isListed,
@@ -389,7 +367,6 @@ export async function POST(request: Request) {
     });
 
     revalidateTag(publicSurveyCacheTag, { expire: 0 });
-    warmSurveyShareCard(slug);
 
     return Response.json(
       {

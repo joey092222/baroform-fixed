@@ -1,14 +1,5 @@
 import { lookupVerifiedSurveyKnowledge } from "./survey-knowledge";
 import {
-  isImprovementNeedClause,
-  stripResearchAbstract,
-  stripSubjectTails,
-} from "./survey-subject-tails";
-import {
-  numericAnswerHint,
-  surveyVariableKind,
-} from "./survey-variable-kind";
-import {
   parseSurveyIntent,
   parsePurposeSegments,
   shouldEnforceSurveyIntentValidation,
@@ -249,22 +240,12 @@ export type SurveyBrief = {
   parsedSurveyContext: ParsedSurveyContext;
 };
 
-// 두문자어는 사용자가 소문자로 쳐도 설문 제목과 전 문항에 그대로 박힌다
-// ("sns 이용 시간 조사"). 표기만 바로잡고 의미는 건드리지 않는다.
-const acronymCasing =
-  /(?<![A-Za-z])(sns|ott|ai|mbti|pc|tv|vod|gpa|ktx|atm|qr|lms|ppt|pdf|url|faq|diy)(?![A-Za-z])/gi;
-
-export const normalizeSurveyAcronyms = (value: string) =>
-  value.replace(acronymCasing, (match) => match.toUpperCase());
-
 const normalizePrompt = (value: string) =>
-  normalizeSurveyAcronyms(
-    value
-      .replace(/[“”"'`]/g, "")
-      .replace(/\s+/g, " ")
-      .replace(/[.!?。]+$/g, "")
-      .trim(),
-  );
+  value
+    .replace(/[“”"'`]/g, "")
+    .replace(/\s+/g, " ")
+    .replace(/[.!?。]+$/g, "")
+    .trim();
 
 const personHead =
   "(?:학생|대학생|대학원생|중학생|고등학생|신입생|새내기|재학생|졸업생|교환학생|복학생|수강생|수강자|직장인|청년|이용자|비이용자|사용자|소비자|가입자|회원|참여자|참가자|참석자|방문객|관람객|구매자|고객|직원|교직원|교수|교사|조교|주민|거주자|거주생|자취생|기숙사생|학부모|응답자|지원자|20대|\\d{2}학번)";
@@ -537,10 +518,6 @@ function detectIntent(prompt: string): SurveyIntentKind {
   }
   if (/인지|인식|알고\s*있는지/.test(withoutSurveyNoun)) {
     return "awareness";
-  }
-  // 개선점 요청의 "필요"는 수요 신호가 아니다. isImprovementNeedClause 참고.
-  if (isImprovementNeedClause(withoutSurveyNoun)) {
-    return "problem";
   }
   if (/수요|니즈|필요|원하는|선호/.test(withoutSurveyNoun)) {
     return "needs";
@@ -1106,7 +1083,22 @@ function briefSubjectFromContent(
     return `${respondentGroup}의 ${teamwork[1].trim()} ${teamwork[3].trim()} 경험`;
   }
 
-  let subject = stripSubjectTails(content);
+  let subject = content
+    .replace(/\s*(?:설문\s*)?조사\s*$/, "")
+    .replace(
+      /\s+(?:인지도|인지|인식)\s*(?:과|와|및)\s*(?:사용|이용)\s*(?:경험|현황|행태|실태|패턴|빈도)\s*(?:(?:설문\s*)?조사)?$/,
+      "",
+    )
+    .replace(
+      /\s+(?:이용|사용|참여|구매|방문|협업)\s*(?:현황|행태|실태|빈도|횟수|시간|경험|패턴|만족도|의향)(?:\s*(?:과|와|및)\s*.+)?$/,
+      "",
+    )
+    .replace(
+      /\s+(?:만족도|불편\s*사항|개선점|갈등|협업\s*경험)(?:\s*(?:과|와|및)\s*.+)?$/,
+      "",
+    )
+    .replace(/\s+/g, " ")
+    .trim();
 
   if (researchContext && subject.startsWith(`${researchContext} `)) {
     subject = subject.slice(researchContext.length).trim();
@@ -1326,10 +1318,7 @@ function dimensionsFromSurveyIntent(intent: SurveyIntent) {
   }
 }
 
-export function parseSurveyBrief(entered: string): SurveyBrief {
-  // 조사 대상은 이 경로와 parseSurveyIntent 두 곳에서 따로 추출된다.
-  // 한쪽만 걷어내면 제목만 정리되고 문항은 그대로 조각을 쓴다.
-  const rawBrief = stripResearchAbstract(entered);
+export function parseSurveyBrief(rawBrief: string): SurveyBrief {
   const normalizedRaw = normalizePrompt(rawBrief);
   const primaryRequest =
     rawBrief
@@ -3255,7 +3244,7 @@ function needsBlueprint(plan: NeedDemandPlan): SurveyBlueprint {
     ),
     question(
       5,
-      `${topicWithParticle(subject, "과", "와")} 관련해 원하는 점을 자유롭게 적어주세요.`,
+      `${topic}과 관련해 원하는 점을 자유롭게 적어주세요.`,
       "예상하지 못한 구체적인 요구와 아이디어를 수집해요.",
       "text",
       undefined,
@@ -3400,7 +3389,7 @@ function adaptationBlueprint(subject: string): SurveyBlueprint {
     ),
     question(
       5,
-      `${topicWithParticle(subject, "과", "와")} 관련해 학교에 바라는 점을 적어주세요.`,
+      `${topic}과 관련해 학교에 바라는 점을 적어주세요.`,
       "선택지에서 놓친 개인 경험과 지원 요구를 수집해요.",
       "text",
       undefined,
@@ -3911,15 +3900,10 @@ function durationMeasurementBlueprint(
   measurement: SurveyMeasurement,
 ): SurveyBlueprint {
   const focus = measurement.target;
-  // focus는 이미 행위 명사로 끝난다("SNS 이용"). 여기에 "시간"을 다시 붙이면
-  // 목적을 묻는 대상이 행위가 아니라 시간이 되어 "SNS 이용 시간을 주로 어떤
-  // 목적으로 쓰나요?" 같은 문장이 나온다. 행위와 대상을 분리해 묻는다.
-  const activityVerb =
-    focus.match(/(이용|사용|시청|공부|학습|운동|독서|근무)$/)?.[1] ?? null;
-  const activityObject = activityVerb
-    ? focus.slice(0, -activityVerb.length).trim()
-    : "";
-  const canAskActivityPurpose = Boolean(activityVerb && activityObject);
+  const isRepeatableActivity =
+    /(이용|사용|시청|게임|공부|학습|운동|독서|통학|등하교|근무)$/.test(
+      focus,
+    );
   const durationOptions = [
     "전혀 하지 않음",
     "30분 미만",
@@ -3958,10 +3942,10 @@ function durationMeasurementBlueprint(
       "multiple",
       ["오전 6~9시", "오전 9시~낮 12시", "낮 12시~오후 3시", "오후 3~6시", "오후 6~9시", "오후 9시 이후"],
     ),
-    canAskActivityPurpose
+    isRepeatableActivity
       ? question(
           5,
-          `${labelWithParticle(activityObject, "을", "를")} 주로 어떤 목적으로 ${activityVerb}하나요?`,
+          `${focus} 시간을 주로 어떤 목적으로 쓰나요?`,
           "같은 이용 시간이라도 목적에 따라 시간 사용의 의미가 달라지는 점을 구분해요.",
           "multiple",
           ["학업·업무", "정보 탐색", "소통·교류", "오락·휴식", "습관적으로", "기타"],
@@ -4015,35 +3999,35 @@ function generalBlueprint(subject: string): SurveyBlueprint {
   const templateQuestions = [
     question(
       1,
-      `${topicWithParticle(subject, "과", "와")} 관련해 평소 가장 자주 겪는 상황은 무엇인가요?`,
+      `${topic}과 관련해 평소 가장 자주 겪는 상황은 무엇인가요?`,
       "조사 주제가 실제 생활에서 나타나는 상황을 응답 가능한 범주로 측정함.",
       "single",
       ["일상생활", "학업·업무", "이동", "여가", "사람들과의 교류", "해당 경험 없음", "기타"],
     ),
     question(
       2,
-      `${topicWithParticle(subject, "과", "와")} 관련한 행동은 주로 어떤 상황에서 일어나나요?`,
+      `${topic}과 관련한 행동은 주로 어떤 상황에서 일어나나요?`,
       "조사 주제가 실제로 나타나는 행동 맥락을 구분함.",
       "multiple",
       ["일상적으로", "학업·업무 중", "이동 중", "여가 시간", "사람들과 함께할 때", "특정한 상황 없음", "기타"],
     ),
     question(
       3,
-      `${topicWithParticle(subject, "과", "와")} 관련한 행동이나 선택은 평소 얼마나 자주 일어나나요?`,
+      `${topic}과 관련한 행동이나 선택은 평소 얼마나 자주 일어나나요?`,
       "실제 행동의 반복 빈도를 비교 가능한 구간으로 측정함.",
       "single",
       ["거의 매일", "주 3~4회", "주 1~2회", "월 1~3회", "거의 없음"],
     ),
     question(
       4,
-      `${topicWithParticle(subject, "과", "와")} 관련한 선택에서 중요하게 보는 기준을 모두 골라주세요.`,
+      `${topic}과 관련한 선택에서 중요하게 보는 기준을 모두 골라주세요.`,
       "실제 선택 기준과 우선순위를 파악함.",
       "multiple",
       ["편의성", "품질", "비용", "신뢰성", "접근성", "주변 의견", "기타"],
     ),
     question(
       5,
-      `${topicWithParticle(subject, "과", "와")} 관련해 겪는 어려움이나 부족한 점을 모두 골라주세요.`,
+      `${topic}과 관련해 겪는 어려움이나 부족한 점을 모두 골라주세요.`,
       "현재 행동을 방해하거나 충족되지 않은 요구를 구분함.",
       "multiple",
       ["정보 부족", "시간 부담", "비용 부담", "선택지 부족", "접근성", "특별한 문제 없음", "기타"],
@@ -4064,14 +4048,14 @@ function generalBlueprint(subject: string): SurveyBlueprint {
       ...templateQuestions,
       question(
         6,
-        `${topicWithParticle(subject, "과", "와")} 관련해 가장 먼저 필요한 변화는 무엇인가요?`,
+        `${topic}과 관련해 가장 먼저 필요한 변화는 무엇인가요?`,
         "조사 결과가 지원해야 할 개선 우선순위를 확인함.",
         "single",
         ["정보 제공", "비용 개선", "접근성 개선", "선택지 확대", "품질 개선", "별도 변화 필요 없음", "기타"],
       ),
       question(
         7,
-        `${topicWithParticle(subject, "과", "와")} 관련한 구체적인 경험이나 제안을 자유롭게 적어주세요.`,
+        `${topic}과 관련한 구체적인 경험이나 제안을 자유롭게 적어주세요.`,
         "선택지에 포함되지 않은 경험과 근거를 수집함.",
         "text",
         undefined,
@@ -5249,130 +5233,44 @@ function researchVariableQuestion(
       ["매우 낮음", "낮은 편", "보통", "높은 편", "매우 높음"],
     );
   }
-  // 아래 generic 분기는 특례에 없는 모든 변수가 도달하는 마지막 경로다.
-  // 조사를 "은", "을(를)"로 박아두면 받침에 따라 틀리거나 "을(를)"이 화면에
-  // 그대로 노출된다. 받침을 판정하는 labelWithParticle을 쓴다.
-  const nameTopic = labelWithParticle(name, "은", "는");
-  const nameObject = labelWithParticle(name, "을", "를");
   if (/구매\s*금액|지출/.test(name)) {
     return question(
       id,
-      `${timeframe}${nameTopic} 어느 구간에 해당하나요?`,
+      `${timeframe}${name}은 어느 구간에 해당하나요?`,
       "개인별 금액을 겹치지 않는 구간으로 측정함.",
       "single",
       ["1만원 미만", "1만원 이상~3만원 미만", "3만원 이상~5만원 미만", "5만원 이상~10만원 미만", "10만원 이상"],
     );
   }
-  // 여기부터가 특례 25개에 없는 모든 변수가 도달하는 마지막 경로다.
-  // 예전에는 무엇을 재든 "매우 낮음~매우 높음" 5점 척도 하나로 끝나서,
-  // "통학 수단은 어느 수준에 해당하나요?"처럼 답할 수 없는 문항이 나가거나
-  // "카페인 섭취량"을 크기 감각으로만 물어 상관 분석을 못 하게 됐다.
-  //
-  // 이제 변수 이름의 접미사로 무엇을 재는 건지 판정하고(surveyVariableKind)
-  // 부류에 맞는 형태로 묻는다. 개별 변수는 무한하지만 접미사는 닫힌 집합이라
-  // 목록에 없는 새 변수에도 먹힌다.
-  const kind = surveyVariableKind(name);
-
-  // 부류를 먼저 본다. measurementLevel은 부류에서 파생된 값이라, 그걸 먼저
-  // 보면 amount(→numeric)가 시간 구간 분기에 걸려 "카페인 섭취량"에
-  // "1시간 미만"이 붙는다. 부류가 unknown일 때만 level을 참고한다.
-  // measurementLevel은 surveyVariableKind에서 파생되므로 부류만 보면 된다.
-  // 다만 "했는지·중인지"처럼 문장형 이름은 접미사로 안 잡히고 level에서만
-  // binary로 판정되므로 그 경우를 함께 받는다.
-  if (kind === "binary" || variable.measurementLevel === "binary") {
+  if (variable.measurementLevel === "binary") {
     return question(
       id,
-      `${timeframe}${nameObject} 알려주세요.`,
-      `${nameObject} 개인별 이분형 변수로 측정함.`,
+      `${timeframe}${name}에 해당하나요?`,
+      `${name}을(를) 개인별 이분형 변수로 측정함.`,
       "single",
       ["예", "아니요"],
     );
   }
-  // 범주형은 크기가 없다. 선택지를 지어내려면 도메인 지식이 필요하므로
-  // (통학 수단 → 버스·지하철·도보) 자유응답으로 받는다. 검증기도 명목형
-  // 변수에는 자유응답을 유효한 측정으로 인정한다(usable()).
-  if (kind === "category" || variable.measurementLevel === "nominal") {
+  if (variable.measurementLevel === "numeric") {
+    const options = /시간/.test(name)
+      ? ["1시간 미만", "1시간 이상~2시간 미만", "2시간 이상~4시간 미만", "4시간 이상~6시간 미만", "6시간 이상"]
+      : /횟수|빈도/.test(name)
+        ? ["0회", "1~2회", "3~5회", "6~10회", "11회 이상"]
+        : ["매우 적음", "적은 편", "보통", "많은 편", "매우 많음"];
     return question(
       id,
-      `${timeframe}${nameObject} 알려주세요.`,
-      `${nameObject} 개인별 범주 변수로 수집함.`,
-      "shortText",
-    );
-  }
-  // 구간이 응답자 집단과 무관하게 안정적인 두 부류만 구간으로 받는다.
-  if (kind === "frequency") {
-    return question(
-      id,
-      `${timeframe || "평소 "}${nameTopic} 어느 정도인가요?`,
-      `${nameObject} 겹치지 않는 횟수 구간으로 측정함.`,
+      `${timeframe}${name}은 어느 정도인가요?`,
+      `${name}을(를) 겹치지 않는 순서형 구간으로 측정함.`,
       "single",
-      ["0회", "1~2회", "3~5회", "6~10회", "11회 이상"],
+      options,
     );
   }
-  // 행위는 크기가 아니라 얼마나 자주 하는지를 묻는다.
-  // "{X}을/를 얼마나 자주 하나요?"는 앞이 목적어든("AI 활용") 수식어든
-  // ("자기주도 학습") 모두 성립한다. 목적어와 수식어를 가르려면 어휘 지식이
-  // 필요한데, 그건 목록 밖 변수에서 다시 무너진다.
-  // "평소"는 빈도 문항의 기준 기간 검증을 만족시키기 위한 것이다.
-  if (kind === "activity") {
-    return question(
-      id,
-      `${timeframe || "평소 "}${nameObject} 얼마나 자주 하나요?`,
-      `${nameObject} 겹치지 않는 빈도 구간으로 측정함.`,
-      "single",
-      ["전혀 하지 않음", "거의 하지 않음", "가끔 함", "자주 함", "매우 자주 함"],
-    );
-  }
-  if (kind === "duration") {
-    return question(
-      id,
-      `${timeframe || "평소 "}${nameTopic} 어느 정도인가요?`,
-      `${nameObject} 겹치지 않는 시간 구간으로 측정함.`,
-      "single",
-      ["1시간 미만", "1시간 이상~2시간 미만", "2시간 이상~4시간 미만", "4시간 이상~6시간 미만", "6시간 이상"],
-    );
-  }
-  // 수량·금액·점수·비율은 단위와 범위가 변수마다 다르다. 구간을 지어내면
-  // 틀리므로 숫자를 그대로 받는다. 구간보다 평균·상관 분석에도 낫다.
-  if (kind === "amount" || kind === "score" || kind === "ratio") {
-    return question(
-      id,
-      `${timeframe || "평소 "}${nameTopic} 얼마나 되나요?`,
-      `${nameObject} 구간으로 뭉치지 않고 실제 값으로 수집함. ${numericAnswerHint(kind, name)}`,
-      "shortText",
-    );
-  }
-  // 태도류는 크기가 주관적이라 5점 척도가 원래 맞다.
-  if (kind === "attitude") {
-    return question(
-      id,
-      `${timeframe}${nameTopic} 어느 수준에 해당하나요?`,
-      `${nameObject} 비교 가능한 응답 범주로 측정함.`,
-      "single",
-      ["매우 낮음", "낮은 편", "보통", "높은 편", "매우 높음"],
-    );
-  }
-  // 여기까지 오면 접미사로 무엇을 재는지 알아내지 못한 것이다(unknown).
-  //
-  // 예전에는 여기서도 5점 척도를 붙였다. "모를 때는 크기를 묻는 게 안전하다"고
-  // 봤는데 틀렸다. 크기가 없는 것에 크기를 물으면 답 자체가 불가능해진다.
-  //   "성별은 어느 수준에 해당하나요?"  매우 낮음~매우 높음
-  //   "MBTI는 어느 수준에 해당하나요?"
-  //   "수강 과목은 어느 수준에 해당하나요?"
-  //
-  // 크기가 있는 변수는 대부분 도·감·력·스트레스 같은 접미사를 달고 attitude로
-  // 잡힌다. 그러므로 여기까지 온 것은 크기가 없다고 보는 편이 틀릴 확률이 낮다.
-  // 기본값을 뒤집어 형식을 제한하지 않고 그대로 받는다.
-  //
-  // "{X}은/는 어떻게 되나요?"는 동사 없이 속성을 묻는 한국어 관용 틀이라
-  // ("성별은 어떻게 되나요?", "전공은 어떻게 되나요?") 어떤 이름에도 붙는다.
-  // 명사마다 맞는 동사를 고르려면(취미→하다, 과목→듣다) 어휘 사전이 필요한데,
-  // 그것은 목록 밖 변수에서 다시 무너지므로 여기서는 관용 틀을 쓴다.
   return question(
     id,
-    `${timeframe}${nameTopic} 어떻게 되나요?`,
-    `${nameObject} 형식을 제한하지 않고 그대로 수집함.`,
-    "shortText",
+    `${timeframe}${name}은 어느 수준에 해당하나요?`,
+    `${name}을(를) 비교 가능한 응답 범주로 측정함.`,
+    "single",
+    ["매우 낮음", "낮은 편", "보통", "높은 편", "매우 높음"],
   );
 }
 
@@ -5408,15 +5306,11 @@ function relationalIntentBlueprint(brief: SurveyBrief): SurveyBlueprint | null {
   } else if (/수면\s*시간.*지각\s*(?:횟수|빈도)|지각\s*(?:횟수|빈도).*수면\s*시간/.test(
     directVariables.map((item) => item.name).join(" "),
   )) {
-    // 사용자가 기간을 적지 않았는데 "이번 학기에"를 붙이면 INVENTED_TIMEFRAME
-    // 위반이 되어 정상 설문이 통째로 폐기된다. 사용자가 기간을 준 경우에만
-    // 그 기간을 쓰고, 아니면 기간을 주장하지 않는 표현으로 묻는다.
-    const scope = research.explicitTimeframe ? `${research.explicitTimeframe}에 ` : "";
     questions.push(
-      question(questions.length + 1, `${scope || "평소 "}일주일에 수업이 있는 날은 며칠인가요?`, "수면 시간과 지각 빈도의 노출 기회를 보정할 수 있도록 수업일 수를 측정함.", "single", ["1일", "2일", "3일", "4일", "5일 이상"]),
-      question(questions.length + 2, `${scope || "평소 "}오전 10시 이전에 시작하는 수업은 일주일에 며칠인가요?`, "이른 수업 일정이 수면과 지각에 미치는 맥락을 구분함.", "single", ["없음", "1일", "2일", "3일", "4일 이상"]),
-      question(questions.length + 3, "평소 등교할 때 편도 통학 시간은 어느 정도인가요?", "수면 시간 외에 지각 빈도와 관련될 수 있는 통학 여건을 측정함.", "single", ["15분 미만", "15분 이상~30분 미만", "30분 이상~60분 미만", "60분 이상~90분 미만", "90분 이상"]),
-      question(questions.length + 4, `${scope}수업에 지각한 주된 이유를 모두 골라주세요.`, "지각 빈도의 차이를 설명할 수 있는 원인을 구분함.", "multiple", ["늦게 잠들거나 수면이 부족해서", "알람을 듣지 못해서", "등교 준비가 늦어져서", "대중교통 지연·도로 정체 때문에", "이전 일정이 늦게 끝나서", "지각한 적 없음", "기타"]),
+      question(questions.length + 1, "이번 학기에 일주일 평균 수업이 있는 날은 며칠인가요?", "수면 시간과 지각 횟수의 노출 기회를 보정할 수 있도록 수업일 수를 측정함.", "single", ["1일", "2일", "3일", "4일", "5일 이상"]),
+      question(questions.length + 2, "이번 학기에 오전 10시 이전에 시작하는 수업은 일주일에 며칠인가요?", "이른 수업 일정이 수면과 지각에 미치는 맥락을 구분함.", "single", ["없음", "1일", "2일", "3일", "4일 이상"]),
+      question(questions.length + 3, "평소 등교할 때 편도 통학 시간은 어느 정도인가요?", "수면 시간 외에 지각 횟수와 관련될 수 있는 통학 여건을 측정함.", "single", ["15분 미만", "15분 이상~30분 미만", "30분 이상~60분 미만", "60분 이상~90분 미만", "90분 이상"]),
+      question(questions.length + 4, "이번 학기에 수업에 지각한 주된 이유를 모두 골라주세요.", "지각 횟수의 차이를 설명할 수 있는 원인을 구분함.", "multiple", ["늦게 잠들거나 수면이 부족해서", "알람을 듣지 못해서", "등교 준비가 늦어져서", "대중교통 지연·도로 정체 때문에", "이전 일정이 늦게 끝나서", "지각한 적 없음", "기타"]),
       question(questions.length + 5, "수면이나 등교 준비와 관련해 덧붙이고 싶은 상황이 있다면 적어주세요.", "선택지에서 놓친 수면 및 등교 상황을 수집함.", "text", undefined, false),
     );
   } else {
@@ -5424,16 +5318,10 @@ function relationalIntentBlueprint(brief: SurveyBrief): SurveyBlueprint | null {
     const outcome = directVariables.find((item) => item.role === "outcome");
     const predictorName = predictor?.name ?? "앞선 조건";
     const outcomeName = outcome?.name ?? "결과";
-    // "앞에서 답한 첫 번째 값"은 응답자가 무엇을 가리키는지 알 수 없다.
-    // 측정 중인 변수명을 그대로 써서 문항 하나만 읽어도 답할 수 있게 한다.
     questions.push(
-      question(questions.length + 1, `평소 ${labelWithParticle(predictorName, "이", "가")} 달라지는 주된 상황을 모두 골라주세요.`, `${predictorName}의 차이를 설명할 수 있는 상황 변수를 수집함.`, "multiple", ["평일", "주말·공휴일", "학업·업무가 많은 시기", "개인 일정이 많은 시기", "특별한 상황 없음", "기타"]),
+      question(questions.length + 1, "앞에서 답한 첫 번째 값이 달라지는 주된 상황을 모두 골라주세요.", `${predictorName}의 차이를 설명할 수 있는 상황 변수를 수집함.`, "multiple", ["평일", "주말·공휴일", "학업·업무가 많은 시기", "개인 일정이 많은 시기", "특별한 상황 없음", "기타"]),
       question(questions.length + 2, `${outcomeName}에 가장 큰 영향을 준 요인은 무엇인가요?`, `${outcomeName}의 차이를 해석할 수 있는 주요 요인을 확인함.`, "single", ["시간", "비용", "접근성", "개인 선호", "주변 환경", "가족·지인의 영향", "기타"]),
-      // 문구가 두 검증 규칙 사이에 끼어 있다. "평소"가 없으면 빈도 문항의
-      // 기준 기간 규칙에 걸리고, "평소와"로 쓰면 비교 조사 "와"를 이중질문
-      // 규칙이 접속조사로 오인한다("만족도가 평소와 ... 빈도" → 만족+와+빈도).
-      // 선두에 "평소 "를 두면 둘 다 만족한다.
-      question(questions.length + 3, `평소 ${labelWithParticle(outcomeName, "이", "가")} 달라지는 빈도는 어느 정도인가요?`, "일시적 사건과 평소 경향을 구분함.", "single", ["거의 달라지지 않음", "드물게 달라짐", "가끔 달라짐", "자주 달라짐", "거의 항상 달라짐"]),
+      question(questions.length + 3, "앞에서 답한 값들이 평소와 달라지는 빈도는 어느 정도인가요?", "일시적 사건과 평소 경향을 구분함.", "single", ["거의 달라지지 않음", "드물게 달라짐", "가끔 달라짐", "자주 달라짐", "거의 항상 달라짐"]),
       question(questions.length + 4, `${labelWithParticle(outcomeName, "이", "가")} 달라졌던 가장 최근의 상황을 적어주세요.`, "분석 결과를 해석할 수 있는 실제 맥락을 수집함.", "shortText", undefined, false),
       question(questions.length + 5, "앞의 응답을 해석할 때 참고할 상황이 있다면 적어주세요.", "정형 문항에서 놓친 응답 맥락을 수집함.", "text", undefined, false),
     );
@@ -5723,11 +5611,7 @@ export function generateSurvey(brief: SurveyBrief): SurveyBlueprint {
   );
 }
 
-export function analyzeSurveyPrompt(enteredPrompt: string): SurveyBlueprint {
-  // 조사 대상을 읽어내는 진입점이 셋이다. parseSurveyBrief, parseSurveyIntent,
-  // 그리고 여기. 이 함수는 원문을 여러 하위 청사진에 그대로 넘기므로 여기서도
-  // 소개문을 걷어내야 한다. 두 곳만 고치면 제목과 문항에 원문이 그대로 남는다.
-  const rawPrompt = stripResearchAbstract(enteredPrompt);
+export function analyzeSurveyPrompt(rawPrompt: string): SurveyBlueprint {
   const parsedSurveyContext = parseSurveyGenerationContext(rawPrompt);
   const directProportion = parseDirectProportionRequest(rawPrompt);
   if (directProportion) {
@@ -5774,47 +5658,35 @@ export function analyzeSurveyPrompt(enteredPrompt: string): SurveyBlueprint {
   } else if (semantics.measurement?.kind === "duration") {
     blueprint = durationMeasurementBlueprint(subject, semantics.measurement);
   } else {
-    // semantics.evaluationTarget은 조사 대상을 읽어내는 네 번째 경로다.
-    // 앞의 세 곳(parseSurveyBrief·parseSurveyIntent·analyzeSurveyPrompt 진입부)과
-    // 달리 꼬리 정리를 거치지 않아 요청문의 측정 차원이 그대로 남는다.
-    //
-    //   "신한 슈퍼SOL 앱 보험탭 이용 경험 및 신규 기능 선호도 조사"
-    //     → 문항 7개 전부 "'신한 슈퍼SOL 앱 보험탭 이용 경험 및 신규 기능
-    //       선호도'가 현재 얼마나 필요하다고 느끼시나요?" 처럼 요청문을 되뇐다
-    //
-    // 위의 시간·빈도·수면·소비 분기는 측정 문구 전체가 필요하므로
-    // ("SNS 이용 시간"에서 "시간"을 떼면 시간 구간 문항을 만들 수 없다)
-    // 여기 switch 블록에만 적용한다.
-    const topicSubject = stripSubjectTails(subject) || subject;
     switch (semantics.kind) {
       case "membership":
-        blueprint = membershipBlueprint(topicSubject);
+        blueprint = membershipBlueprint(subject);
         break;
       case "problem":
-        blueprint = problemBlueprint(topicSubject);
+        blueprint = problemBlueprint(subject);
         break;
       case "satisfaction":
         blueprint = satisfactionBlueprint(semantics);
         break;
       case "event":
-        blueprint = eventBlueprint(topicSubject, normalized);
+        blueprint = eventBlueprint(subject, normalized);
         break;
       case "adoption":
-        blueprint = adoptionBlueprint(topicSubject);
+        blueprint = adoptionBlueprint(subject);
         break;
       case "usage":
         return generateSurvey(parseSurveyBrief(rawPrompt));
       case "needs":
-        blueprint = needsBlueprint({ targetEntity: topicSubject });
+        blueprint = needsBlueprint({ targetEntity: subject });
         break;
       case "awareness":
-        blueprint = awarenessBlueprint(topicSubject);
+        blueprint = awarenessBlueprint(subject);
         break;
       case "adaptation":
-        blueprint = adaptationBlueprint(topicSubject);
+        blueprint = adaptationBlueprint(subject);
         break;
       default:
-        blueprint = generalBlueprint(topicSubject);
+        blueprint = generalBlueprint(subject);
     }
   }
 
@@ -5958,26 +5830,6 @@ function intervalsOverlap(left: SurveyOptionInterval, right: SurveyOptionInterva
   return true;
 }
 
-// 한국어 "과/와"는 나열(접속조사), 비교("평소와 다르게"), 단어 일부("과제",
-// "결과", "학과") 세 가지로 쓰인다. 이중질문 판정은 나열일 때만 유효한데
-// 글자 하나만 찾으면 나머지 둘까지 걸려 정상 문항을 오탐한다.
-//   - 뒤에 공백을 요구해 단어 내부의 "과"를 배제한다 (접속조사는 어절 끝에 온다)
-//   - 앞선 시간·기준 명사를 lookbehind로 배제해 비교 표현을 뺀다
-// 남는 한 부류: "과"로 끝나는 명사 뒤에 공백이 오는 경우("만족도 조사 결과
-// 개선이..."). 이건 정규식으로 못 가른다. "해결과 개선을"은 해결+과(접속),
-// "결과 개선이"는 결과+공백이라 표면형이 같다. 가르려면 어휘 사전이나 형태소
-// 분석이 필요하다. 여기서 멈추는 것이 의도된 선택이다.
-const listConjunction =
-  "(?<!평소|이전|기존|과거|작년|지난해|지난달|예전|처음|이번|기준|남들)(?:과|와|및)\\s";
-
-const doubleBarreledQuestion = new RegExp(
-  [
-    `(?:만족|평가).*${listConjunction}.*(?:불편|개선|의향|빈도|시간|비용)`,
-    `(?:불편|개선).*${listConjunction}.*(?:만족|의향|빈도|시간)`,
-    `(?:빈도|횟수|시간|비용).*${listConjunction}.*(?:만족|불편|의향)`,
-  ].join("|"),
-);
-
 export function validateSurvey(
   rawBrief: string,
   brief: SurveyBrief,
@@ -6005,11 +5857,7 @@ export function validateSurvey(
     brief.researchSubject.length < 2 ||
     brief.researchSubject.length > 80 ||
     requestExpression.test(brief.researchSubject) ||
-    // "과"는 빼야 한다. 학과·성과·효과·결과·치과처럼 명사 자체가 "과"로
-    // 끝나는 경우가 흔한데, 이를 잘린 접속조사로 보면 "학과 만족도 조사"
-    // 같은 정상 요청이 전부 422로 막힌다. 명사가 "와"나 "및"으로 끝나는
-    // 일은 거의 없으므로 그 둘만 잘린 접속조사로 판정한다.
-    /(?:와|및)$/.test(brief.researchSubject)
+    /(?:과|와|및)$/.test(brief.researchSubject)
   ) {
     issues.push("researchSubject가 짧은 명사구로 분리되지 않았습니다.");
   }
@@ -6034,7 +5882,9 @@ export function validateSurvey(
       issues.push(`문항 ${item.id}에 잘못 결합된 접속사와 조사가 포함되었습니다.`);
     }
     if (
-      doubleBarreledQuestion.test(item.title) ||
+      /(?:만족|평가).*(?:과|와|및).*(?:불편|개선|의향|빈도|시간|비용)|(?:불편|개선).*(?:과|와|및).*(?:만족|의향|빈도|시간)|(?:빈도|횟수|시간|비용).*(?:과|와|및).*(?:만족|불편|의향)/.test(
+        item.title,
+      ) ||
       /(?:계속|지속)\s*이용.*(?:추천|권유)|(?:추천|권유).*(?:계속|지속)\s*이용/.test(
         item.title,
       )
@@ -6100,23 +5950,11 @@ export function validateSurvey(
     ? validateSurveyIntentCandidate(brief.surveyIntent, {
         title: blueprint.title,
         description: blueprint.description,
-        // 문항이 어떤 변수를 재는지는 annotatePlannedQuestion이 이미 심어둔다.
-        // 이 필드를 넘기지 않으면 questionCoversVariable이 제목 문자열 매칭만
-        // 남아서, 생성기가 변수명과 다른 표현으로 쓴 정상 문항("지각 빈도" →
-        // "수업이나 약속에 늦은 빈도")을 미측정으로 오판한다.
         questions: blueprint.aiQuestions.map((item) => ({
           id: item.id,
           title: item.title,
-          type: item.type,
           options: item.options,
           reason: item.reason,
-          measuredConstruct: item.measuredConstruct,
-          measuredVariable: item.measuredVariable,
-          measuredRole: item.measuredRole,
-          planBlockId: item.planBlockId,
-          purposeBlockId: item.purposeBlockId,
-          measuredEntityIds: item.measuredEntityIds,
-          questionPurpose: item.questionPurpose,
         })),
       })
     : [];
